@@ -10,6 +10,8 @@ import type {
   ThumbnailPayload,
   FolderListing,
   ImportFileResult,
+  HistoryDiff,
+  HistoryList,
   RevisionSummary,
   TrashItem,
   TreeNode,
@@ -339,12 +341,32 @@ export const api = {
       body: JSON.stringify({}),
     }),
   history: (path: string) =>
-    request<{ path: string; retention: number; revisions: RevisionSummary[] }>(
-      `/api/history?path=${encodeURIComponent(path)}`,
-    ),
+    request<HistoryList>(`/api/history?path=${encodeURIComponent(path)}`),
   historyRevision: (path: string, id: string) =>
     request<RevisionSummary & { content: string }>(
       `/api/history/revision?path=${encodeURIComponent(path)}&id=${encodeURIComponent(id)}`,
+    ),
+  historyDiff: (path: string, from: string, to: string) =>
+    request<HistoryDiff>(
+      `/api/history/diff?path=${encodeURIComponent(path)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    ),
+  saveBaseline: (body: { path: string; id?: string; name: string; note?: string }) =>
+    request<RevisionSummary>("/api/history/baseline", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateBaseline: (body: { path: string; id: string; name?: string; note?: string }) =>
+    request<RevisionSummary>("/api/history/baseline", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  removeBaseline: (path: string, id: string) =>
+    request<{ path: string; id: string; pruned: boolean; revision: RevisionSummary | null }>(
+      "/api/history/baseline",
+      {
+        method: "DELETE",
+        body: JSON.stringify({ path, id }),
+      },
     ),
   restoreRevision: (path: string, id: string, lockToken?: string | null) =>
     request<FileWriteResult & { content: string }>("/api/history/restore", {

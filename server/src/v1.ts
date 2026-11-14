@@ -9,6 +9,7 @@ import { sendError } from "./httpError.js";
 import { buildOpenApiSpec, openApiPath, V1_ROUTES, type V1Route, type V1Scope } from "./openapi.js";
 import { createRateLimiter, defaultRenderRate, renderDiagram, type RateLimit, type RenderFormat } from "./renderDiagram.js";
 import * as search from "./search.js";
+import * as historyApi from "./historyApi.js";
 import { httpFail } from "./storage.js";
 import { authenticateToken, bearerValue, type AuthenticatedToken } from "./tokens.js";
 
@@ -374,6 +375,29 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
         return;
       }
       res.json({ ...refreshed, saved: false });
+    }),
+    listHistory: asyncHandler(async (req, res) => {
+      res.json(await historyApi.listHistory(readPath(req.query.path)));
+    }),
+    diffHistory: asyncHandler(async (req, res) => {
+      res.json(await historyApi.diffHistory(String(req.query.path || ""), req.query.from, req.query.to));
+    }),
+    createBaseline: asyncHandler(async (req, res) => {
+      if (!jsonObject(req, res)) return;
+      const revision = await historyApi.createBaseline(String(req.body.path || ""), req.body, Object.hasOwn(req.body, "note"));
+      res.status(201).json(revision);
+    }),
+    updateBaseline: asyncHandler(async (req, res) => {
+      if (!jsonObject(req, res)) return;
+      const revision = await historyApi.patchBaseline(String(req.body.path || ""), req.body, {
+        name: Object.hasOwn(req.body, "name"),
+        note: Object.hasOwn(req.body, "note"),
+      });
+      res.json(revision);
+    }),
+    deleteBaseline: asyncHandler(async (req, res) => {
+      if (!jsonObject(req, res)) return;
+      res.json(await historyApi.deleteBaseline(String(req.body.path || ""), req.body.id));
     }),
   };
 

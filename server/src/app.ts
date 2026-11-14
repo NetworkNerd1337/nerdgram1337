@@ -5,9 +5,10 @@ import { sendError } from "./httpError.js";
 import * as store from "./fsStore.js";
 import { importDiagrams } from "./import.js";
 import * as history from "./history.js";
+import * as historyApi from "./historyApi.js";
 import * as locks from "./locks.js";
 import { ensureDataRoot, REPO_ROOT, resolveSafePath, toRelativePath } from "./paths.js";
-import { REVISION_RETENTION, httpFail } from "./storage.js";
+import { httpFail } from "./storage.js";
 import * as trash from "./trash.js";
 import {
   createDevCors,
@@ -110,6 +111,10 @@ function walkDiagramFiles(nodes: DiagramFile[]): DiagramFile[] {
     else if (node.type === "file") files.push(node);
   }
   return files;
+}
+
+function hasOwn(value: unknown, key: string): boolean {
+  return !!value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, key);
 }
 
 export function createApp(options: CreateAppOptions = {}): express.Express {
@@ -707,8 +712,46 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         res.status(400).json({ error: "path is required", code: "invalid" });
         return;
       }
-      const revisions = await history.listRevisions(filePath);
-      res.json({ path: filePath, retention: REVISION_RETENTION, revisions });
+      res.json(await historyApi.listHistory(filePath));
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.get("/api/history/diff", async (req, res) => {
+    try {
+      res.json(await historyApi.diffHistory(String(req.query.path || ""), req.query.from, req.query.to));
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/history/baseline", async (req, res) => {
+    try {
+      const revision = await historyApi.createBaseline(String(req.body?.path || ""), req.body ?? {}, hasOwn(req.body, "note"));
+      res.status(201).json(revision);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.patch("/api/history/baseline", async (req, res) => {
+    try {
+      const revision = await historyApi.patchBaseline(String(req.body?.path || ""), req.body ?? {}, {
+        name: hasOwn(req.body, "name"),
+        note: hasOwn(req.body, "note"),
+      });
+      res.json(revision);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.delete("/api/history/baseline", async (req, res) => {
+    try {
+      const filePath = String(req.body?.path || req.query.path || "");
+      const id = req.body?.id ?? req.query.id;
+      res.json(await historyApi.deleteBaseline(filePath, id));
     } catch (err) {
       sendError(res, err);
     }
@@ -723,7 +766,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         return;
       }
       const revision = await history.readRevision(filePath, id);
-      res.json(revision);
+      res.json({ ...history.publicRevision(revision), content: revision.content });
     } catch (err) {
       sendError(res, err);
     }
