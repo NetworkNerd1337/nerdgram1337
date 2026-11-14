@@ -1,6 +1,6 @@
 # NerdGram1337
 
-NerdGram1337 is a local, single-user app for writing [Mermaid](https://mermaid.js.org/) diagrams as Markdown. It is [MIT](LICENSE) licensed, © Ryan Thomas Huff. You edit a diagram, preview it live, keep it as a real `.mmd` file on disk, and export **SVG**, **PNG**, **JPG**, or **PDF**. There is no account, no hosted service, no AI generation, and no paywall. Optional GitHub sync can copy those diagrams to a private repository you own.
+NerdGram1337 is a local, single-user app for writing [Mermaid](https://mermaid.js.org/) diagrams as Markdown. It is [MIT](LICENSE) licensed, © Ryan Thomas Huff. You edit a diagram, preview it live, keep it as a real `.mmd` file on disk, and export **SVG**, **PNG**, **JPG**, or **PDF**. JPG and PDF are exports from the browser. The API and the CLI render SVG or PNG. There is no account, no hosted service, no AI generation, and no paywall. Optional GitHub sync can copy those diagrams to a private repository you own.
 
 The **client** is a React app: the dashboard, the paste page, and the split editor. The **server** is an Express API that reads and writes the files. In development they run side by side. A production build, including the Docker image, serves the built client and the API from one process.
 
@@ -185,7 +185,7 @@ The root scripts call `client/package.json` and `server/package.json` with `--pr
 npm run install:all
 ```
 
-That runs `npm install && npm install --prefix client && npm install --prefix server`. Root installs `concurrently` into `node_modules/`. Client installs React, Vite, and mermaid.js into `client/node_modules/`. Server installs Express and the server toolchain into `server/node_modules/`. You will see three install reports, each ending with a line like `added N packages` and an audit summary. Root and client report `found 0 vulnerabilities`. The server report lists high-severity findings, including puppeteer's `extract-zip` and `zod`. Those are expected and do not mean the install failed. The command does not start the app. Run it again after you update the code, delete a `node_modules` folder, or see a missing-package error.
+That runs `npm install && npm install --prefix client && npm install --prefix server`. Root installs `concurrently` into `node_modules/`. Client installs React, Vite, and mermaid.js into `client/node_modules/`. Server installs Express and the server toolchain into `server/node_modules/`. The three `node_modules` folders together are roughly 900 MB, and on a typical connection the command takes a couple of minutes. The server install also downloads Puppeteer's chrome-headless-shell (about 260 MB) into Puppeteer's cache at `~/.cache/puppeteer`, or into `PUPPETEER_CACHE_DIR` when that is set. `npm install -g nerdgram1337` downloads that same shell, because the CLI package depends on puppeteer. You will see three install reports, each with a line like `added N packages`. Depending on the npm version and config, an audit summary may follow that line, or it may not appear at all. If the server summary lists high-severity findings, including ones that come from puppeteer, that is expected and the install still succeeded. The command does not start the app. Run it again after you update the code, delete a `node_modules` folder, or see a missing-package error.
 
 **5. Run in development.**
 
@@ -260,7 +260,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 
 Paths in this document use two placeholders, always in code formatting so GitHub does not treat the angle brackets as HTML tags. `<data>` is the data directory: `NERDGRAM_DATA_DIR` when that variable is set, and `diagrams/` inside the project when it is not. `<repo>` is the project folder, the git clone or the extracted ZIP.
 
-The editor is split code and live preview, with autosave about **500 ms** after you stop typing and an **Auto-Update** preview. The code pane has Mermaid syntax highlighting, autocomplete (diagram types, keywords, arrows, snippets, and existing node IDs), bracket matching, and inline parse errors. A parse error underlines the line and column Mermaid reported, and the last diagram that rendered stays on screen, marked out of date. Export is SVG, PNG, JPG, or PDF. PDF is built in the browser from the live SVG so the current theme is kept. [Diagram checks](#diagram-checks) lists the warnings and the quick fixes.
+The editor is split code and live preview, with autosave about **500 ms** after you stop typing and an **Auto-Update** preview. The code pane has Mermaid syntax highlighting, autocomplete (diagram types, keywords, arrows, snippets, and existing node IDs), bracket matching, and inline parse errors. A parse error underlines the line and column Mermaid reported, and the last diagram that rendered stays on screen, marked out of date. Export from the editor is SVG, PNG, JPG, or PDF. JPG and PDF are built in the browser from the live SVG, so the current theme is kept. The API and the CLI render SVG or PNG only. [Diagram checks](#diagram-checks) lists the warnings and the quick fixes.
 
 ### Editing
 
@@ -294,6 +294,14 @@ Favorites come off the sidebar while an item is in the trash and go back when yo
 
 Every save that changes a diagram keeps the previous contents as a revision. **History** in the editor lists those revisions, shows the old text, and can restore one. Restoring writes the text you are replacing into history first. The last **20** revisions are kept for each diagram. Older ones are dropped. There is no age limit. Rename, move, and trash carry that history. Permanently deleting an item deletes its history.
 
+History for scripts is on `/api`. `GET /api/history?path=Welcome.mmd` returns `path`, `retention`, and `revisions`. Each revision's id is the field `id`, alongside `createdAt`, `mtimeMs`, `size`, and `hash`. `POST /api/history/restore` expects `{"path","id"}`, and `id` is that revision id. A body that names `revisionId` instead is **400** (`path and id are required`). A save can return `revisionId` for the previous bytes it just archived. That value is a revision id, and the restore body still names the field `id`.
+
+```bash
+curl -fsS -X POST "http://127.0.0.1:8787/api/history/restore" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"Welcome.mmd","id":"REVISION_ID"}'
+```
+
 The file you edit stays a plain `.mmd` file. Bookkeeping lives under the data directory:
 
 - `.meta/trash/items/<id>/` — one soft-deleted file or folder, plus the favorites and revisions that belonged to it
@@ -322,7 +330,7 @@ flowchart LR
   Internet --> Firewall
 ```
 
-**Diagram info** in the editor edits the title, description, notes, and tags, and sets the theme, look, and layout. The preview toolbar has the same theme, look, and layout controls. The preview, dashboard thumbnails, and SVG, PNG, JPG, and PDF export use the theme in the file. If the file does not set one, they use **dark**.
+**Diagram info** in the editor edits the title, description, notes, and tags, and sets the theme, look, and layout. The preview toolbar has the same theme, look, and layout controls. The preview, dashboard thumbnails, and the editor's SVG, PNG, JPG, and PDF export use the theme in the file. If the file does not set one, they use **dark**.
 
 The built-in Mermaid themes are `default`, `neutral`, `dark`, `forest`, `base`, `neo`, `neo-dark`, `redux`, `redux-dark`, `redux-color`, and `redux-dark-color`. Looks are `classic`, `handDrawn`, and `neo`. Layouts are `dagre` and `elk`.
 
@@ -647,7 +655,7 @@ An empty custom directory is seeded once with the sample diagrams, including the
 
 A token is `read` or `read-write`. Read can list, search, fetch source, export, lint, render, and preview link repairs. Read-write can also create, update, rename, move, duplicate, trash, generate, refresh, and apply link repairs. A read token that tries to write gets **403**. A missing, wrong, or revoked token gets **401**.
 
-The OpenAPI document is `GET /api/v1/openapi.json`. That one route does not require a token. Every other `/api/v1` route does. Host and Origin checks still apply, including on token routes. A foreign `Host` is **403**. A mutating call still needs `Content-Type: application/json`, and a foreign `Origin` is **403**. A token does not turn those checks off.
+The OpenAPI document is `GET /api/v1/openapi.json`. That one route does not require a token. Every other `/api/v1` route does. Host and Origin checks still apply, including on token routes. A foreign `Host` is **403**. Every `POST`, `PUT`, `PATCH`, and `DELETE` needs `Content-Type: application/json`, including `DELETE /api/v1/diagrams`. Without that header the response is **415** and `{"error":"Content-Type must be application/json"}`. A foreign `Origin` is **403**. A token does not turn those checks off. The same header is required on the browser routes under `/api`. See [Security model](#security-model).
 
 ```bash
 curl -fsS "http://127.0.0.1:8787/api/v1/diagrams" \
@@ -663,7 +671,14 @@ curl -fsS -X POST "http://127.0.0.1:8787/api/v1/render" \
   -o Welcome.svg
 ```
 
-Rename and move update `click` links the same way the editor does after you confirm. Pass `"updateLinks": false` to refuse the change when another diagram links there (**409**, with the file list). A CSV, JSON, CDP, or LLDP file in the same folder moves with the diagram, and the response `dataFiles` list is the old path and the new path. `nerdgram.source` is updated. Duplicate is `POST /api/v1/diagrams/duplicate`. When a sibling data file exists, omit `copyData` and the call returns **409** with `files`. `"copyData": true` copies the file and points the duplicate at the copy. `"copyData": false` shares the original file and does not change it. Delete moves the item to the trash. When a sibling data file exists, omit `deleteData` and the call returns **409** with `files`. `"deleteData": true` moves that file to the trash with the diagram. `"deleteData": false` leaves it in the workspace. `nerdgram rename`, `nerdgram move`, `nerdgram duplicate` (`--copy-data` or `--share-data`), and `nerdgram delete` (`--with-data` or `--keep-data`) call those routes. An editor lock returns **423**. Paths stay inside the data directory.
+Rename and move update `click` links the same way the editor does after you confirm. Pass `"updateLinks": false` to refuse the change when another diagram links there (**409**, with the file list). A CSV, JSON, CDP, or LLDP file in the same folder moves with the diagram, and the response `dataFiles` list is the old path and the new path. `nerdgram.source` is updated. Duplicate is `POST /api/v1/diagrams/duplicate`. When a sibling data file exists, omit `copyData` and the call returns **409** with `files`. `"copyData": true` copies the file and points the duplicate at the copy. `"copyData": false` shares the original file and does not change it. Delete is `DELETE /api/v1/diagrams`. It answers **200** with `path` and `trashed`. The path can be a query parameter or a JSON field. Send `Content-Type: application/json` and a JSON body. `{}` is enough when `path` is in the query string. When a sibling data file exists, omit `deleteData` and the call returns **409** with `files`. `"deleteData": true` moves that file to the trash with the diagram. `"deleteData": false` leaves it in the workspace. `nerdgram rename`, `nerdgram move`, `nerdgram duplicate` (`--copy-data` or `--share-data`), and `nerdgram delete` (`--with-data` or `--keep-data`) call those routes. An editor lock returns **423**. Paths stay inside the data directory.
+
+```bash
+curl -fsS -X DELETE "http://127.0.0.1:8787/api/v1/diagrams" \
+  -H "Authorization: Bearer ng_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"Notes.mmd"}'
+```
 
 `GET /api/v1/link-repairs` previews repairs after a diagram was renamed or moved outside the app, including by a sync pull. Nothing is written. `POST /api/v1/link-repairs` writes only when the body is `{"dryRun":false,"confirm":true}`. Leave `dryRun` out, or set it true, and the response is the same preview. `choices` is the list of `from` and `to` paths you already previewed. Omit it to apply every suggestion that has one target. A suggestion with more than one target is never applied. A pair that is not in the current preview is **409**.
 
@@ -683,7 +698,7 @@ curl -fsS -X POST "http://127.0.0.1:8787/api/v1/generate" \
   -d '{"path":"Campus.mmd","text":"Local Device,Remote Device\nCore,Atlanta\n"}'
 ```
 
-Render runs headless Chrome (the `chrome-headless-shell` build, not the full browser) so SVG and PNG match the editor. A DOM emulator was not accurate enough for layout. The shell adds about 260 MB unpacked, plus the shared libraries the image installs for it. That is the size cost of a correct picture. Render is limited to 30 calls a minute per token (**429**, `Retry-After`). Posted source is limited to 512 KB, and the SVG is sanitized the same way cached thumbnails are.
+Render runs headless Chrome (the `chrome-headless-shell` build, not the full browser) so SVG and PNG match the editor. `format` is `svg` or `png` on `POST /api/v1/render` and on `GET /api/v1/render`. `jpg`, `pdf`, and any other value are **400** with `{"error":"format must be svg or png","code":"invalid"}`. A DOM emulator was not accurate enough for layout. The shell adds about 260 MB unpacked, plus the shared libraries the image installs for it. That is the size cost of a correct picture. Render is limited to 30 calls a minute per token (**429**, `Retry-After`). Posted source is limited to 512 KB, and the SVG is sanitized the same way cached thumbnails are.
 
 The server still binds to `127.0.0.1` and `::1` when `HOST` is unset. A token does not make it safe to publish port 8787. The browser routes under `/api` stay open on purpose, for the UI on this machine. Anyone who can reach a published port can use those routes without a token.
 
@@ -744,7 +759,7 @@ nerdgram render Welcome.mmd -o Welcome.svg
 nerdgram render Welcome.mmd -o Welcome.png
 ```
 
-`render` of a `.mmd` file that exists on disk does not need a server. `lint` of a local file does not either. `nerdgram lint Welcome.mmd` is a workspace path: it needs a running server and `NERDGRAM_TOKEN` unless a file named `Welcome.mmd` is already in the current directory. In a checkout the sample is `diagrams/Welcome.mmd`, and `nerdgram lint diagrams/Welcome.mmd` (from a checkout, `node server/dist/cli.js lint diagrams/Welcome.mmd` after `npm run build`) does not need a server. The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. `--server` sends `render` to the API instead. `lint` exits `1` when a diagnostic is an error. `--strict` also exits `1` for warnings.
+`render` writes `.svg` or `.png`. Another extension stops with `The output file must end in .svg or .png.` `--server` posts that format to the API, which accepts `svg` or `png` only. `render` of a `.mmd` file that exists on disk does not need a server. `lint` of a local file does not either. `nerdgram lint Welcome.mmd` is a workspace path: it needs a running server and `NERDGRAM_TOKEN` unless a file named `Welcome.mmd` is already in the current directory. In a checkout the sample is `diagrams/Welcome.mmd`, and `nerdgram lint diagrams/Welcome.mmd` (from a checkout, `node server/dist/cli.js lint diagrams/Welcome.mmd` after `npm run build`) does not need a server. The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. `--server` sends `render` to the API instead. `lint` exits `1` when a diagnostic is an error. `--strict` also exits `1` for warnings.
 
 `nerdgram repair-links` prints the preview and writes nothing. `--dry-run` is the same. `--apply` saves the rewrites. A read token can run the preview. `--apply` needs a read-write token.
 
@@ -783,7 +798,7 @@ Shared servers, a computer offered as a service, and NAS deployments are unsuppo
 
 **Checks on every request.** The `Host` header has to be a loopback name the server allows: `localhost`, `127.0.0.1`, or `::1`, including the API port. Any other `Host` is **403** (`Forbidden host`). That blocks a public DNS name that points back at your machine. `NERDGRAM_ALLOWED_HOSTS` adds extra hostnames. Adding one does not make shared-server use supported.
 
-**Checks on changes.** `POST`, `PUT`, `PATCH`, and `DELETE` require `Content-Type: application/json`. Anything else, including a browser form, is **415**. Browsers also send `Origin` and `Sec-Fetch-Site`. The origin has to be the API itself (`http://127.0.0.1:8787`, `http://localhost:8787`, or `http://[::1]:8787`, on whatever `PORT` is). In development, `http://localhost:5173`, `http://127.0.0.1:5173`, and `http://[::1]:5173` are allowed too. `NERDGRAM_CORS_ORIGINS` adds explicit origins. It is not a wildcard. A foreign origin is **403**. `Sec-Fetch-Site` of `cross-site` is rejected unless that `Origin` is on the list. `same-origin`, `same-site`, and `none` are accepted. A local `curl` that sends neither `Origin` nor `Sec-Fetch-Site` is accepted. It still has to send `Content-Type: application/json`.
+**Checks on changes.** `POST`, `PUT`, `PATCH`, and `DELETE` on `/api` and `/api/v1` require `Content-Type: application/json`. That includes `DELETE` and the POST routes that take no fields: `/api/trash/empty`, `/api/reference/sync`, `/api/sync/now`, `/api/sync/pull`, `/api/sync/device/start`, `/api/updates/check`, `/api/updates/skip`, `/api/updates/later`, and `/api/updates/apply`. Anything else, including a missing header or a browser form, is **415** with `{"error":"Content-Type must be application/json"}`. The curl examples include a JSON body. `{}` is enough when the path or id is already in the URL or the query string: `DELETE /api/item`, `DELETE /api/trash/item`, `DELETE /api/tokens/:id`, and `DELETE /api/v1/diagrams`. `DELETE /api/item` and `DELETE /api/trash/item` answer **204**. `DELETE /api/tokens/:id` answers **200**. Browsers also send `Origin` and `Sec-Fetch-Site`. The origin has to be the API itself (`http://127.0.0.1:8787`, `http://localhost:8787`, or `http://[::1]:8787`, on whatever `PORT` is). In development, `http://localhost:5173`, `http://127.0.0.1:5173`, and `http://[::1]:5173` are allowed too. `NERDGRAM_CORS_ORIGINS` adds explicit origins. It is not a wildcard. A foreign origin is **403**. `Sec-Fetch-Site` of `cross-site` is rejected unless that `Origin` is on the list. `same-origin`, `same-site`, and `none` are accepted. A local `curl` that sends neither `Origin` nor `Sec-Fetch-Site` is accepted. It still has to send `Content-Type: application/json`.
 
 ```bash
 curl -fsS -X PUT "http://127.0.0.1:8787/api/file" \
@@ -791,6 +806,16 @@ curl -fsS -X PUT "http://127.0.0.1:8787/api/file" \
   -H "Origin: http://127.0.0.1:8787" \
   -H "Content-Type: application/json" \
   -d '{"path":"Notes.mmd","content":"flowchart LR\n  A --> B\n"}'
+
+curl -fsS -X DELETE "http://127.0.0.1:8787/api/item?path=Notes.mmd" \
+  -H "Host: 127.0.0.1:8787" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+curl -fsS -X DELETE "http://127.0.0.1:8787/api/tokens/TOKEN_ID" \
+  -H "Host: 127.0.0.1:8787" \
+  -H "Content-Type: application/json" \
+  -d '{}'
 ```
 
 Production does not enable cross-origin browser access, because the UI and the API are the same port. Development CORS allows only the origins listed above.
