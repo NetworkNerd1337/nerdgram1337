@@ -303,9 +303,15 @@ Restore puts the item back at its original path. If something is already there, 
 
 Favorites come off the sidebar while an item is in the trash and go back when you restore it. If you restore to a different path, the favorite follows that path.
 
-Every save that changes a diagram keeps the previous contents as a revision. **History** in the editor lists those revisions, shows the old text, and can restore one. Restoring writes the text you are replacing into history first. The last **20** revisions are kept for each diagram. Older ones are dropped. There is no age limit. Rename, move, and trash carry that history. Permanently deleting an item deletes its history.
+Every save that changes a diagram keeps the previous contents as a revision. **History** in the editor lists those revisions, shows the old text, and can restore one. Restoring writes the text you are replacing into history first. The last **20** unnamed revisions are kept for each diagram. Older unnamed ones are dropped. There is no age limit. Rename, move, and trash carry that history. Permanently deleting an item deletes its history. A duplicate starts with no history, including no baselines.
 
-History for scripts is on `/api`. `GET /api/history?path=Welcome.mmd` returns `path`, `retention`, and `revisions`. Each revision's id is the field `id`, alongside `createdAt`, `mtimeMs`, `size`, and `hash`. `POST /api/history/restore` expects `{"path","id"}`, and `id` is that revision id. A body that names `revisionId` instead is **400** (`path and id are required`). A save can return `revisionId` for the previous bytes it just archived. That value is a revision id, and the restore body still names the field `id`.
+A revision can be given a name and an optional note, such as `Baseline - pre-change CHG-1234`. **Save baseline** stores the current saved diagram under a name even when nothing has changed since the last save. Named baselines are not dropped by the 20-revision limit. Each diagram keeps up to **20** named baselines (`NERDGRAM_BASELINE_CAP`, a whole number from 1 to 200; anything else stays at 20). At the limit, saving another baseline is refused with a message that states the number and says to remove one first. Removing a name puts that revision back under the 20-revision limit, and an older one can then be dropped. The name, note, and the time it was named live in the same `.meta` revision index as the rest of history. They follow rename, move, and trash, and they are deleted with the history on a permanent delete.
+
+**Compare** in History shows what changed between two revisions, or between a revision and the current diagram. **Compare with baseline** starts from a named one. Flowcharts get a node and edge diff. Other diagram types get the text diff, and the panel says so. The merged picture colours added items green, removed items red and dashed, and changed items amber, with a legend. Side-by-side and text views are next to it. The summary lists the changes in words. Export writes an SVG, PNG, JPG, or PDF of that picture, or a Markdown summary. **Present** shows the same picture full screen. None of this writes the diagram. Restore is still the way to put an old revision back.
+
+History for scripts is on `/api`, and the same calls are on `/api/v1` with a bearer token. `GET /api/history?path=Welcome.mmd` returns `path`, `retention`, `baselineCap`, `baselineCount`, and `revisions`. Each revision's id is the field `id`, alongside `createdAt`, `mtimeMs`, `size`, `hash`, `name`, `note`, and `namedAt`. `name`, `note`, and `namedAt` are null when the revision is not a baseline. `POST /api/history/restore` expects `{"path","id"}`, and `id` is that revision id. A body that names `revisionId` instead is **400** (`path and id are required`). A save can return `revisionId` for the previous bytes it just archived. That value is a revision id, and the restore body still names the field `id`.
+
+`GET /api/history/diff?path=Welcome.mmd&from=<id|name|current>&to=<id|name|current>` returns the text diff, front matter changes, and, for a flowchart, nodes and edges that were added, removed, or changed. `from` and `to` accept a revision id, a baseline name, or `current`. The response includes `summary`, `markdown`, and `visualSource`. `visualSource` is a Mermaid document for the coloured picture. It is not written to the file. `POST /api/history/baseline` with `{"path","name","note"?}` saves the current diagram as a baseline. Add `"id"` to name an existing revision instead. `PATCH /api/history/baseline` with `{"path","id"}` and `name` or `note` renames it or edits the note. `DELETE /api/history/baseline` with `{"path","id"}` removes the name. Mutating calls need `Content-Type: application/json`. The same paths are under `/api/v1` (`/api/v1/history`, `/api/v1/history/diff`, `/api/v1/history/baseline`). Listing and diff need a read token. Creating, renaming, and removing a baseline need a read-write token.
 
 ```bash
 curl -fsS -X POST "http://127.0.0.1:8787/api/history/restore" \
@@ -642,6 +648,7 @@ Set a variable in the same terminal before `npm run dev` or `npm start`, so the 
 | `NERDGRAM_UPDATE_CHECK` | on | `false`, `0`, `off`, or `no` blocks automatic and manual checks, and **Update now**. |
 | `NERDGRAM_UPDATE_INTERVAL_MS` | `86400000` | Cache lifetime and automatic check interval, clamped from 1000 to 7 days. |
 | `NERDGRAM_UPDATE_INCLUDE_PRERELEASE` | off | `true`, `1`, `yes`, or `on` includes prereleases even when the About checkbox is clear. |
+| `NERDGRAM_BASELINE_CAP` | `20` | How many named baselines each diagram keeps. They are not dropped by the 20-revision limit. A whole number from 1 to 200. Anything else uses 20. |
 
 `NERDGRAM_VERSION` is a Docker build argument, not a runtime variable. It has to match the root `package.json`, and the image label `org.opencontainers.image.version` records it. `NERDGRAM_CODENAME` is the code name for that version's major line. The image sets it in the environment and as `org.opencontainers.image.codename`. The running app still reads the code name from the `codenames` map in `package.json`.
 
@@ -766,6 +773,8 @@ nerdgram repair-links --apply
 nerdgram generate --path Campus.mmd --data docs/samples/campus-links.csv
 nerdgram generate --path Core.mmd --data docs/samples/neighbors/cisco-ios-lldp.lldp --format lldp
 nerdgram refresh Campus.mmd
+nerdgram diff Campus.mmd --from "Baseline - pre-change" --to current --format md
+nerdgram baseline Campus.mmd --name "Baseline - pre-change"
 nerdgram render Welcome.mmd -o Welcome.svg
 nerdgram render Welcome.mmd -o Welcome.png
 ```
@@ -773,6 +782,8 @@ nerdgram render Welcome.mmd -o Welcome.png
 `render` writes `.svg` or `.png`. Another extension stops with `The output file must end in .svg or .png.` `--server` posts that format to the API, which accepts `svg` or `png` only. `render` of a `.mmd` file that exists on disk does not need a server. `lint` of a local file does not either. `nerdgram lint Welcome.mmd` is a workspace path: it needs a running server and `NERDGRAM_TOKEN` unless a file named `Welcome.mmd` is already in the current directory. In a checkout the sample is `diagrams/Welcome.mmd`, and `nerdgram lint diagrams/Welcome.mmd` (from a checkout, `node server/dist/cli.js lint diagrams/Welcome.mmd` after `npm run build`) does not need a server. The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. `--server` sends `render` to the API instead. `lint` exits `1` when a diagnostic is an error. `--strict` also exits `1` for warnings.
 
 `nerdgram repair-links` prints the preview and writes nothing. `--dry-run` is the same. `--apply` saves the rewrites. A read token can run the preview. `--apply` needs a read-write token.
+
+`nerdgram diff` compares a revision, a baseline name, or `current` with another. `--format md` prints the change summary, `json` prints the structured diff, and `svg` writes the coloured picture (`-o file.svg`). `nerdgram baseline` names the current diagram. Neither command changes the `.mmd` file. Diff needs a read token. Baseline needs a read-write token. See [docs/cli.md](docs/cli.md).
 
 A CI job can render every diagram in the repo without a token, because that path is offline:
 

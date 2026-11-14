@@ -41,6 +41,41 @@ export type RevisionSummary = {
   mtimeMs: number;
   size: number;
   hash: string;
+  name?: string | null;
+  note?: string | null;
+  namedAt?: string | null;
+};
+
+export type HistoryList = {
+  path: string;
+  retention: number;
+  baselineCap: number;
+  baselineCount: number;
+  revisions: RevisionSummary[];
+};
+
+export type HistoryDiff = {
+  path: string;
+  semantic: boolean;
+  diagramType: string;
+  note: string | null;
+  from: { ref: string; id: string | null; name: string | null; label: string };
+  to: { ref: string; id: string | null; name: string | null; label: string };
+  text: {
+    unified: string;
+    rows: {
+      kind: "same" | "add" | "remove" | "change";
+      left: string | null;
+      right: string | null;
+      leftLine: number | null;
+      rightLine: number | null;
+    }[];
+  };
+  summary: string[];
+  markdown: string;
+  visualSource: string | null;
+  fromSource: string;
+  toSource: string;
 };
 
 export type DiagramMeta = {

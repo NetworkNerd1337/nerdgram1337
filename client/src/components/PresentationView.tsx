@@ -38,6 +38,8 @@ export type PresentationViewProps = {
   /** Null while a file read is still in flight. */
   source: string | null;
   path: string;
+  /** Colour key for a read-only revision diff. The source is the preview, not the file. */
+  diffLegend?: boolean;
   fileError?: string | null;
   onExit: () => void;
 };
@@ -114,7 +116,7 @@ function focusable(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], input, select, textarea")];
 }
 
-export function PresentationView({ source, path, fileError = null, onExit }: PresentationViewProps) {
+export function PresentationView({ source, path, fileError = null, onExit, diffLegend = false }: PresentationViewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -636,6 +638,22 @@ export function PresentationView({ source, path, fileError = null, onExit }: Pre
           />
         ) : null}
         {titleOn ? <div className="presentation-title">{heading}</div> : null}
+        {diffLegend ? (
+          <ul className="presentation-legend" aria-label="Diff legend">
+            <li>
+              <i className="diff-swatch added" /> Added
+            </li>
+            <li>
+              <i className="diff-swatch removed" /> Removed
+            </li>
+            <li>
+              <i className="diff-swatch changed" /> Changed
+            </li>
+            <li>
+              <i className="diff-swatch same" /> Unchanged
+            </li>
+          </ul>
+        ) : null}
         {notice ? (
           <div className={`presentation-banner${svg ? "" : " is-only"}`} role="alert">
             {notice}

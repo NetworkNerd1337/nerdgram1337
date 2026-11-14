@@ -33,6 +33,13 @@ import { getMetaPath } from "./paths.js";
 export const REVISION_RETENTION = 20;
 
 /**
+ * How many named baselines each diagram keeps, in addition to
+ * `REVISION_RETENTION`. Named baselines are not dropped by that limit.
+ * `NERDGRAM_BASELINE_CAP` overrides this with a whole number from 1 to 200.
+ */
+export const BASELINE_CAP = 20;
+
+/**
  * Writable editors heartbeat on this interval. The server tells the client
  * the same value on acquire so the two sides do not drift.
  */

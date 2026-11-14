@@ -57,6 +57,8 @@ Usage
   nerdgram generate --path Diagram.mmd --data data.csv
   nerdgram generate --path Diagram.mmd --data neighbors.lldp --format lldp --local-device edge-sw
   nerdgram refresh <path> [--data data.csv]
+  nerdgram diff <path> --from <id|name|current> [--to <id|name|current>] [--format md|json|svg]
+  nerdgram baseline <path> --name "…" [--note "…"] [--id <revision>]
 
 A local .mmd file is rendered and linted in this process. Anything else uses
 NERDGRAM_URL (default http://127.0.0.1:8787) and NERDGRAM_TOKEN.
@@ -72,6 +74,14 @@ repair-links previews click repairs after a rename or move made outside the
 app. --dry-run is the default and writes nothing. --apply saves the previewed
 rewrites. If the data file moved with that diagram, the same confirmation
 updates nerdgram.source. An ambiguous match is listed and left unchanged.
+diff compares two revisions, or a revision and the current diagram. --to
+defaults to current. --from accepts a revision id, a baseline name, or
+current. --format md prints a Markdown summary, json prints the diff, and
+svg writes the read-only visual diff. svg needs -o file.svg. The diagram
+file is not modified.
+baseline saves the current diagram as a named baseline. --id names an
+existing revision instead. Names are kept when the 20-revision limit drops
+older saves.
 `;
 
 type RenderModule = typeof import("./renderDiagram.js");
@@ -494,6 +504,81 @@ async function generateCommand(parsed: Parsed, io: Io): Promise<void> {
   writeOut(io, isJson(parsed.flags), body, `Created ${body.path}${body.dataPath ? ` from ${body.dataPath}` : ""}`);
 }
 
+async function diffCommand(parsed: Parsed, io: Io): Promise<void> {
+  const itemPath = parsed.positionals[0];
+  const from = flagString(parsed.flags, "from");
+  if (!itemPath || !from) throw new CliError("diff needs a path and --from <id|name|current>.");
+  const to = flagString(parsed.flags, "to") ?? "current";
+  const format = (flagString(parsed.flags, "format") ?? (isJson(parsed.flags) ? "json" : "md")).toLowerCase();
+  if (format !== "md" && format !== "json" && format !== "svg") {
+    throw new CliError("format must be md, json, or svg.");
+  }
+  const { base, token } = configOf(parsed.flags, io.env);
+  const apiPath = `/api/v1/history/diff?path=${encodeURIComponent(itemPath)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  const result = await callApi(base, requireToken(token), "GET", apiPath);
+  const body = result.json as {
+    summary?: string[];
+    markdown?: string;
+    visualSource?: string | null;
+    note?: string | null;
+    semantic?: boolean;
+  };
+  if (format === "svg") {
+    const output = flagString(parsed.flags, "output");
+    if (!output) throw new CliError("diff --format svg needs -o file.svg.");
+    if (!output.toLowerCase().endsWith(".svg")) throw new CliError("The output file must end in .svg.");
+    if (!body.visualSource) {
+      throw new CliError(body.note ?? "This diagram has no visual diff. Use --format md or json.");
+    }
+    const { renderDiagram } = await loadRender();
+    const rendered = await renderDiagram({ source: body.visualSource, format: "svg" });
+    await fs.mkdir(path.dirname(path.resolve(output)), { recursive: true });
+    await fs.writeFile(output, rendered.body);
+    writeOut(
+      io,
+      isJson(parsed.flags),
+      { path: itemPath, from, to, output, format, summary: body.summary ?? [] },
+      `Wrote ${output}`,
+    );
+    return;
+  }
+  if (format === "json") {
+    writeOut(io, true, (body as Record<string, unknown>) ?? {}, "");
+    return;
+  }
+  const markdown = body.markdown ?? (body.summary ?? []).map((line) => `- ${line}`).join("\n");
+  const output = flagString(parsed.flags, "output");
+  if (output) {
+    await fs.mkdir(path.dirname(path.resolve(output)), { recursive: true });
+    await fs.writeFile(output, markdown.endsWith("\n") ? markdown : `${markdown}\n`, "utf8");
+    writeOut(io, isJson(parsed.flags), { path: itemPath, from, to, output, format, summary: body.summary ?? [] }, `Wrote ${output}`);
+    return;
+  }
+  writeOut(io, isJson(parsed.flags), { path: itemPath, from, to, format, markdown, summary: body.summary ?? [] }, markdown);
+}
+
+async function baselineCommand(parsed: Parsed, io: Io): Promise<void> {
+  const itemPath = parsed.positionals[0];
+  const name = flagString(parsed.flags, "name");
+  if (!itemPath || !name) throw new CliError('baseline needs a path and --name "…".');
+  const note = flagString(parsed.flags, "note");
+  const id = flagString(parsed.flags, "id");
+  const { base, token } = configOf(parsed.flags, io.env);
+  const result = await callApi(base, requireToken(token), "POST", "/api/v1/history/baseline", {
+    path: itemPath,
+    name,
+    ...(id ? { id } : {}),
+    ...(note != null ? { note } : {}),
+  });
+  const body = result.json as { id?: string; name?: string };
+  writeOut(
+    io,
+    isJson(parsed.flags),
+    body && typeof body === "object" ? (body as Record<string, unknown>) : {},
+    `Saved baseline ${body.name ?? name}${body.id ? ` (${body.id})` : ""}.`,
+  );
+}
+
 async function refreshCommand(parsed: Parsed, io: Io): Promise<void> {
   const diagramPath = parsed.positionals[0] ?? flagString(parsed.flags, "path");
   if (!diagramPath) throw new CliError("refresh needs a diagram path.");
@@ -570,6 +655,12 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
         return 0;
       case "refresh":
         await refreshCommand(parsed, streams);
+        return 0;
+      case "diff":
+        await diffCommand(parsed, streams);
+        return 0;
+      case "baseline":
+        await baselineCommand(parsed, streams);
         return 0;
       default:
         throw new CliError(`Unknown command ${parsed.command}. Run nerdgram --help.`);

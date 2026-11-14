@@ -34,6 +34,8 @@ nerdgram search Atlanta
 nerdgram get Welcome.mmd -o Welcome.mmd
 nerdgram put Notes.mmd ./Notes.mmd
 nerdgram lint Welcome.mmd
+nerdgram diff Welcome.mmd --from current --to current --format md
+nerdgram baseline Welcome.mmd --name "Baseline"
 nerdgram render Welcome.mmd -o Welcome.svg
 ```
 

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const serverPackage = require("../package.json") as { version: string };
 
-export type V1Method = "get" | "post" | "put" | "delete";
+export type V1Method = "get" | "post" | "put" | "patch" | "delete";
 export type V1Scope = "public" | "read" | "write";
 
 export type V1Route = {
@@ -189,6 +189,46 @@ export const V1_ROUTES: readonly V1Route[] = [
     summary: "Refresh the generated block of a diagram from its data file.",
     tag: "Generate",
   },
+  {
+    method: "get",
+    path: "/history",
+    scope: "read",
+    operationId: "listHistory",
+    summary: "List revisions for one diagram, including baseline name and note.",
+    tag: "History",
+  },
+  {
+    method: "get",
+    path: "/history/diff",
+    scope: "read",
+    operationId: "diffHistory",
+    summary: "Diff two revisions, or a revision and the current diagram. Does not modify the file.",
+    tag: "History",
+  },
+  {
+    method: "post",
+    path: "/history/baseline",
+    scope: "write",
+    operationId: "createBaseline",
+    summary: "Name a revision, or save the current diagram as a named baseline.",
+    tag: "History",
+  },
+  {
+    method: "patch",
+    path: "/history/baseline",
+    scope: "write",
+    operationId: "updateBaseline",
+    summary: "Rename a baseline or change its note.",
+    tag: "History",
+  },
+  {
+    method: "delete",
+    path: "/history/baseline",
+    scope: "write",
+    operationId: "deleteBaseline",
+    summary: "Remove a baseline name. The revision stays, then the 20-revision limit applies to it again.",
+    tag: "History",
+  },
 ];
 
 export function openApiPath(route: V1Route): string {
@@ -317,6 +357,25 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
         save: { type: "boolean", description: "Write the refreshed diagram. Defaults to false." },
         writeData: { type: "boolean" },
       }, ["path"]);
+    case "createBaseline":
+      return jsonBody("Name a revision, or omit id to save the current diagram as a new named baseline. The diagram file is not modified.", {
+        path: { type: "string" },
+        id: { type: "string", description: "Revision id. Omit to snapshot the current saved diagram." },
+        name: { type: "string" },
+        note: { type: "string" },
+      }, ["path", "name"]);
+    case "updateBaseline":
+      return jsonBody("Rename a baseline or replace its note. Send note as an empty string to clear it.", {
+        path: { type: "string" },
+        id: { type: "string" },
+        name: { type: "string" },
+        note: { type: "string" },
+      }, ["path", "id"]);
+    case "deleteBaseline":
+      return jsonBody("Remove the baseline name. The revision remains and is then subject to the 20-revision limit.", {
+        path: { type: "string" },
+        id: { type: "string" },
+      }, ["path", "id"]);
     default:
       return undefined;
   }
@@ -345,6 +404,26 @@ function operationParameters(operationId: string): Record<string, unknown>[] {
       ];
     case "deleteDiagram":
       return [{ ...pathQuery, required: false, description: "Path, if not sent in the JSON body." }];
+    case "listHistory":
+      return [{ ...pathQuery, required: true, description: "Diagram path ending in .mmd." }];
+    case "diffHistory":
+      return [
+        { ...pathQuery, required: true, description: "Diagram path ending in .mmd." },
+        {
+          name: "from",
+          in: "query",
+          required: true,
+          schema: { type: "string" },
+          description: "Revision id, baseline name, or current.",
+        },
+        {
+          name: "to",
+          in: "query",
+          required: true,
+          schema: { type: "string" },
+          description: "Revision id, baseline name, or current.",
+        },
+      ];
     default:
       return [];
   }
@@ -401,6 +480,7 @@ export function buildOpenApiSpec(): Record<string, unknown> {
       { name: "Lint" },
       { name: "Render" },
       { name: "Generate" },
+      { name: "History" },
     ],
     components: {
       securitySchemes: {
