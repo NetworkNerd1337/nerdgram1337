@@ -38,7 +38,7 @@ Run NerdGram with Docker, or with Node.js on the machine. Docker is the install 
 
 The app is for you, on this machine. The [security model](#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset.
 
-Commands write the release tag as `vX.Y.Z`. That is `v` plus the `version` in the root `package.json`. [`compose.yaml`](compose.yaml) pins the real tag. [`npm run version:check`](#versioning-and-releases) fails if an image pin in this file, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](#versioning-and-releases).
+The Docker `pull` and `run` commands in this file use `v1.1.5`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](#versioning-and-releases) fails if an image pin in this file, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](#versioning-and-releases).
 
 ### Docker
 
@@ -50,10 +50,10 @@ The package is public, so `docker pull` does not need a login. If a new package 
 
 **1. Install Docker.** Install Docker Engine and the Compose plugin from [Docker's documentation](https://docs.docker.com/get-docker/). `docker version` and `docker compose version` should both print a version.
 
-**2. Pull the image.** Use the tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases), or `:latest` for the newest full release. `vX.Y.Z` below means that tag, including the leading `v`.
+**2. Pull the image.** The command uses `v1.1.5`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)). Use the current tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when it differs. `:latest` is the newest full release.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z
+docker pull ghcr.io/networknerd1337/nerdgram1337:v1.1.5
 ```
 
 ```bash
@@ -70,7 +70,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z
+  ghcr.io/networknerd1337/nerdgram1337:v1.1.5
 ```
 
 **About → Show upgrade steps** prints the run command with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. Updating an install you already have is [Update a Docker install](#update-a-docker-install).
@@ -185,7 +185,7 @@ The root scripts call `client/package.json` and `server/package.json` with `--pr
 npm run install:all
 ```
 
-That runs `npm install && npm install --prefix client && npm install --prefix server`. Root installs `concurrently` into `node_modules/`. Client installs React, Vite, and mermaid.js into `client/node_modules/`. Server installs Express and the server toolchain into `server/node_modules/`. You will see three install reports, each ending with a line like `added N packages` and `found 0 vulnerabilities`. The command does not start the app. Run it again after you update the code, delete a `node_modules` folder, or see a missing-package error.
+That runs `npm install && npm install --prefix client && npm install --prefix server`. Root installs `concurrently` into `node_modules/`. Client installs React, Vite, and mermaid.js into `client/node_modules/`. Server installs Express and the server toolchain into `server/node_modules/`. You will see three install reports, each ending with a line like `added N packages` and an audit summary. Root and client report `found 0 vulnerabilities`. The server report lists high-severity findings, including puppeteer's `extract-zip` and `zod`. Those are expected and do not mean the install failed. The command does not start the app. Run it again after you update the code, delete a `node_modules` folder, or see a missing-package error.
 
 **5. Run in development.**
 
@@ -414,6 +414,8 @@ The hostname comes from the CLI prompt. If the paste has no prompt, type the loc
 | Linux lldpd | `lldpctl`, `lldpctl -f keyvalue`, or `lldpctl -f json` |
 
 `lldpctl -f json` has no hostname in the file, so type the local device name. On Junos, paste one `show lldp neighbors interface <interface>` block per interface, in the same file. Sample output for each of these is under [docs/samples/neighbors](docs/samples/neighbors).
+
+These commands need the [command-line tool](#command-line-tool), a running server, and `NERDGRAM_TOKEN`, and they are run from the repository root so the `docs/samples` paths resolve.
 
 ```bash
 nerdgram generate --path Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp --format cdp
@@ -701,20 +703,18 @@ npm install -g nerdgram1337
 npx nerdgram1337 --help
 ```
 
-`npm install -g` puts `nerdgram` on your `PATH`. If the shell cannot find it, open a new terminal. npm warns when its global bin directory is not on `PATH`. `npx` downloads the package and runs the command without a global install. Use either one when the shell is not inside the Docker image and not a checkout of this repository. Point `NERDGRAM_URL` at the running app. The default is `http://127.0.0.1:8787`, which is right when the app is on the same computer.
+`npm install -g` puts `nerdgram` on your `PATH`. If the shell cannot find it, open a new terminal. npm warns when its global bin directory is not on `PATH`. `npx` downloads the package and runs the command without a global install. Point `NERDGRAM_URL` at the running app. The default is `http://127.0.0.1:8787`, which is right when the app is on the same computer.
+
+**Do not run `npx nerdgram1337` inside this repository.** The root `package.json` is also named `nerdgram1337` and has no `bin`. From the checkout, npm stops with `could not determine executable to run`. Use `npm install -g` or `npx` from any other directory. Inside the running container, run `nerdgram` (below). From this checkout, use `node server/dist/cli.js` after `npm run build`, below.
 
 The package is public. The install also downloads Mermaid and Puppeteer's chrome-headless-shell, because offline `lint` and `render` use them. That shell is the large part of the install. The same kind of shell is what the server image uses for pictures. Commands that only call the API do not launch it.
 
-A checkout still runs the same program from the server build. The `nerdgram` bin in `server/package.json` points at `server/dist/cli.js`. The `cli/` directory is what gets published. Its `prepack` script bundles that program into `cli/dist` before `npm pack` or `npm publish`. The Docker image does not use the bundle. It puts `node /app/server/dist/cli.js` on `PATH` as `nerdgram`. The package readme that npm shows is [`cli/README.md`](cli/README.md). The same install and command list is in [`docs/cli.md`](docs/cli.md).
+A checkout runs the same program from the server build. After `npm run build`, from the repository root, that is `node server/dist/cli.js`. Use that in place of `nerdgram` when you run the commands below from a checkout. The `nerdgram` bin in `server/package.json` points at `server/dist/cli.js`, but `npm run install:all` does not link it, so `npm exec --prefix server -- nerdgram` does not print the command list. The shell reports `nerdgram: not found`. The `cli/` directory is what gets published. Its `prepack` script bundles that program into `cli/dist` before `npm pack` or `npm publish`. The Docker image does not use the bundle. It puts `node /app/server/dist/cli.js` on `PATH` as `nerdgram`. The package readme that npm shows is [`cli/README.md`](cli/README.md). The same install and command list is in [`docs/cli.md`](docs/cli.md).
 
 From a checkout, after `npm run build`:
 
 ```bash
 node server/dist/cli.js --help
-```
-
-```bash
-npm exec --prefix server -- nerdgram --help
 ```
 
 Inside the running container:
@@ -744,7 +744,7 @@ nerdgram render Welcome.mmd -o Welcome.svg
 nerdgram render Welcome.mmd -o Welcome.png
 ```
 
-`render` of a `.mmd` file that exists on disk does not need a server. `lint` of a local file does not either. `--server` sends `render` to the API instead. `lint` exits `1` when a diagnostic is an error. `--strict` also exits `1` for warnings.
+`render` of a `.mmd` file that exists on disk does not need a server. `lint` of a local file does not either. `nerdgram lint Welcome.mmd` is a workspace path: it needs a running server and `NERDGRAM_TOKEN` unless a file named `Welcome.mmd` is already in the current directory. In a checkout the sample is `diagrams/Welcome.mmd`, and `nerdgram lint diagrams/Welcome.mmd` (from a checkout, `node server/dist/cli.js lint diagrams/Welcome.mmd` after `npm run build`) does not need a server. The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. `--server` sends `render` to the API instead. `lint` exits `1` when a diagnostic is an error. `--strict` also exits `1` for warnings.
 
 `nerdgram repair-links` prints the preview and writes nothing. `--dry-run` is the same. `--apply` saves the rewrites. A read token can run the preview. `--apply` needs a read-write token.
 
@@ -805,7 +805,9 @@ By default, diagrams live in `diagrams/` inside the project. The server creates 
 
 In Docker, the named volume `nerdgram-data` mounted at `/data` is the whole workspace: `.mmd` files, `.meta` (trash, version history, locks, thumbnails, the search index, `updates.json`, syntax overrides, a synced reference, and the GitHub token), and `.nerdgram-git`. Copy the whole volume, including those hidden directories. One volume is one workspace.
 
-Stop the container, then copy the volume out. `tar` is in the image. The entrypoint is the server, so replace it, and use the image you actually run (`nerdgram1337:local` or the `ghcr.io` tag). The process runs as uid 1001, so the folder that receives the archive has to be writable by that user:
+Stop the container, then copy the volume out. `tar` is in the image. The entrypoint is the server, so replace it, and use the image you actually run. A checkout build is `nerdgram1337:local`. The published image is `ghcr.io/networknerd1337/nerdgram1337:v1.1.5` (the tag [`compose.yaml`](compose.yaml) pins; use the current [Releases](https://github.com/NetworkNerd1337/NerdGram1337/releases) tag, or `:latest`, when that differs). The process runs as uid 1001, so the folder that receives the archive has to be writable by that user.
+
+Local build:
 
 ```bash
 docker stop nerdgram1337
@@ -815,6 +817,20 @@ docker run --rm --entrypoint tar \
   -v nerdgram-data:/data:ro \
   -v "$PWD/nerdgram-backup":/backup \
   nerdgram1337:local \
+  -C /data -czf /backup/nerdgram-data.tgz .
+sudo chown "$(id -u):$(id -g)" nerdgram-backup/nerdgram-data.tgz
+```
+
+Published image. Same command, with `ghcr.io/networknerd1337/nerdgram1337:v1.1.5` in place of `nerdgram1337:local`:
+
+```bash
+docker stop nerdgram1337
+mkdir -p nerdgram-backup
+sudo chown 1001:1001 nerdgram-backup
+docker run --rm --entrypoint tar \
+  -v nerdgram-data:/data:ro \
+  -v "$PWD/nerdgram-backup":/backup \
+  ghcr.io/networknerd1337/nerdgram1337:v1.1.5 \
   -C /data -czf /backup/nerdgram-data.tgz .
 sudo chown "$(id -u):$(id -g)" nerdgram-backup/nerdgram-data.tgz
 ```
@@ -833,12 +849,12 @@ Stop the app before you replace it. Diagrams stay where they are when you keep t
 
 ### Update a Docker install
 
-The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. If your names differ, keep the names you already use.
+The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v1.1.5`, the tag for this tree. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you are moving to a different release. If your names differ, keep the names you already use.
 
 1. Pull the new image.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z
+docker pull ghcr.io/networknerd1337/nerdgram1337:v1.1.5
 ```
 
 2. Stop the old container. `docker stop` asks the process to finish the write it is in and any GitHub sync already running.
@@ -863,7 +879,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z
+  ghcr.io/networknerd1337/nerdgram1337:v1.1.5
 ```
 
 5. Open [http://127.0.0.1:8787](http://127.0.0.1:8787) and choose **Check again** in About. The dialog says whether the running version matches that release.
@@ -943,11 +959,11 @@ The running app shows the version and the code name together. A 1.x.y build is A
 
 ### Pin a version or move to another
 
-Install commands elsewhere in this file write the tag as `vX.Y.Z`. Substitute the release you want. `v1.1.5` is the Atlas tag for this tree. The full list of tags that are already published is on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). `:latest` is not a version. It is the newest full release the image workflow has pushed.
+The Docker `pull` and `run` commands use `v1.1.5`, the Atlas tag for this tree, so they can be copied. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. Git and ZIP examples in this section still write the tag as `vX.Y.Z`. Substitute the release you want. `:latest` is not a version. It is the newest full release the image workflow has pushed.
 
-**Docker, stay on one release.** Use the immutable tag `ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` in `docker run` and as the `image:` line in `compose.yaml`. `docker pull` of that tag gets that release again. Recreate the container on the same `nerdgram-data` volume when you change tags. The steps are [Update a Docker install](#update-a-docker-install). The workflow also pushes `sha-<commit>` for that build. Pin the `sha-` tag when you need that exact image rather than the version tag.
+**Docker, stay on one release.** Use the immutable tag `ghcr.io/networknerd1337/nerdgram1337:v1.1.5` in `docker run` and as the `image:` line in `compose.yaml`. `docker pull` of that tag gets that release again. Recreate the container on the same `nerdgram-data` volume when you change tags. The steps are [Update a Docker install](#update-a-docker-install). The workflow also pushes `sha-<commit>` for that build. Pin the `sha-` tag when you need that exact image rather than the version tag.
 
-**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins a `vX.Y.Z` tag that matches `package.json`, not `:latest`. Change that pin when you want a different release, then `docker compose pull` and `docker compose up -d`.
+**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins `v1.1.5`, which matches `package.json`, not `:latest`. Change that pin when you want a different release, then `docker compose pull` and `docker compose up -d`.
 
 **Git, track `main`.** Check out `main` and pull. You get the commits on `main`. That history can contain commits the latest release tag does not. The update check's **ahead** state compares the `version` in this tree's `package.json` with the latest stable release tag. It is not a count of extra commits. **Update now** runs only when this is a clean checkout of the official origin, on `main` or a detached release tag, and the release tag is a fast-forward. On `main` it merges that tag with `--ff-only`, then runs `npm ci` and `npm run build`. You are still on `main` afterwards. If the tag is not a fast-forward from this checkout, **Update now** refuses it as not a fast-forward and does not reset you back to the tag.
 
@@ -980,7 +996,7 @@ With the default settings the check asks GitHub for the latest full release and 
 This is the maintainer path. It is not part of installing the app. v1.0.5, code name Atlas, was the first release and is already tagged. A later release keeps the code name for the major and moves `Y` or `Z`. Do not invent a second numbering scheme for the image. Do not mark the GitHub Release as a prerelease. The update check offers full releases and reads the version from the tag.
 
 1. Set the root `package.json` `version` to `X.Y.Z`. The `codenames` map in that file names each major (`"1"` is Atlas, `"2"` is Meridian). The current major has to have an entry. A major with no code name fails the check.
-2. Run `npm run version:sync`. That copies the version into `client/package.json`, `server/package.json`, `cli/package.json`, the root version fields of the three lockfiles, the `ARG NERDGRAM_VERSION` lines in the Dockerfile, and the published image tag in `compose.yaml`. The local build args live in `compose.build.yaml`, tagged `nerdgram1337:local`. It also writes `ARG NERDGRAM_CODENAME` and the `NERDGRAM_CODENAME` build arg from the map. It does not rewrite this README. Install examples stay on the `vX.Y.Z` placeholder. `npm run version:check` still requires an image pin written out as `ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` with real numbers, or a `nerdgram1337@` example, to match `package.json`. The names v1.0.5, v1.0.6, and v2.0.0 are allowed in this section.
+2. Run `npm run version:sync`. That copies the version into `client/package.json`, `server/package.json`, `cli/package.json`, the root version fields of the three lockfiles, the `ARG NERDGRAM_VERSION` lines in the Dockerfile, and the published image tag in `compose.yaml`. The local build args live in `compose.build.yaml`, tagged `nerdgram1337:local`. It also writes `ARG NERDGRAM_CODENAME` and the `NERDGRAM_CODENAME` build arg from the map. It does not rewrite this README. Update every real image tag in this file to the new version, including the Docker `pull` and `run` examples, the published image in [Data and backups](#data-and-backups), and the pin under [Pin a version or move to another](#pin-a-version-or-move-to-another). `npm run version:check` requires an image pin written out as `ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` with real numbers, or a `nerdgram1337@` example, to match `package.json`. The names v1.0.5, v1.0.6, and v2.0.0 are allowed in this section.
 3. Run `npm run version:check`. It fails when those files disagree, when the current major has no code name, when `CHANGELOG.md` has no section for this version, and when a link in this README does not resolve. It also fails when `cli/package.json` drifts from the root version, when that package is not the public package `nerdgram1337` with the `nerdgram` command, or when `cli/LICENSE` does not match [`LICENSE`](LICENSE).
 4. Add a `CHANGELOG.md` section headed `## X.Y.Z "Code name" - YYYY-MM-DD`. The quoted code name has to match the map. The section body is the GitHub Release notes. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date, but `version:check` requires the code name on the heading. The release title is not taken from the heading. It is `vX.Y.Z "Code name"` from the tag and the map.
 5. Commit and merge to `main`. Then, from `main`, tag the matching version and push the tag. `vX.Y.Z` is that version:
@@ -1093,7 +1109,7 @@ NerdGram1337/                  (or NerdGram1337-main/ from the ZIP)
 
 Server tests set `fileParallelism: false` in `server/vitest.config.ts` because they share `NERDGRAM_DATA_DIR`. Client tests set the same flag in `client/vite.config.ts`. Client lint is oxlint. `react/rules-of-hooks` is an error. The current tree also reports known warnings: `react(set-state-in-effect)` in the workspace, editor, settings, and reference pages, and `eslint(no-useless-escape)` in the Mermaid completion pattern. `react/only-export-components` is set to warn in `client/.oxlintrc.json`.
 
-CI (`.github/workflows/ci.yml`) has two jobs. **verify** checks out the repo, uses Node 20, runs `node scripts/check-version.mjs`, `npm ci` for the root, client, and server, then lint, build, and test. It then runs `bash scripts/pack-cli-smoke.sh`, which packs `cli/` with `npm pack --dry-run`, installs that tarball in a clean directory, and runs `nerdgram --help` and `npx` from the tarball. **docker** uses Node 22, runs the version check, builds the image with `push` left false, and runs `bash scripts/docker-smoke.sh`. That script starts the image on `127.0.0.1:8787` with a read-only root and `tmpfs` on `/tmp`, checks health, templates, the syntax reference, a JSON write, uid 1001, mode `0600` on a token file, the absence of a git binary, and that a diagram is still there after `docker stop` and `docker start`. A root-owned bind mount must fail. A bind mount owned by `1001:1001` must accept a write. The script removes only the containers, volume, and temp directories it created.
+CI (`.github/workflows/ci.yml`) has two jobs. **verify** checks out the repo, uses Node 20, runs `node scripts/check-version.mjs`, `npm ci` for the root, client, and server, then lint, build, and test. It then runs `bash scripts/pack-cli-smoke.sh`, which dry-runs `npm pack` in `cli/` to validate the file list, then packs for real, installs that tarball in a clean directory, and runs `nerdgram --help`, a local `lint`, and `npx` from the tarball. **docker** uses Node 22, runs the version check, builds the image with `push` left false, and runs `bash scripts/docker-smoke.sh`. That script starts the image on `127.0.0.1:8787` with a read-only root and `tmpfs` on `/tmp`, checks health, templates, the syntax reference, a JSON write, uid 1001, mode `0600` on a token file, the absence of a git binary, and that a diagram is still there after `docker stop` and `docker start`. A root-owned bind mount must fail. A bind mount owned by `1001:1001` must accept a write. The script removes only the containers, volume, and temp directories it created.
 
 ## License
 
