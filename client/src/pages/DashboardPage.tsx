@@ -12,6 +12,7 @@ import { RepairLinksDialog } from "../components/RepairLinksDialog";
 import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
 import { Sidebar } from "../components/Sidebar";
+import { SupportLink } from "../components/SupportLink";
 import { useWorkspace } from "../hooks/useWorkspace";
 import {
   classifyDrag,
@@ -771,12 +772,15 @@ export function DashboardPage() {
         }}
       />
       <main className={`main${paneClass}`} onDragOver={markPane} onDrop={dropOnPane}>
-        <div className="page-header">
+        <header className="page-header">
           <h1>{showTrash ? "Trash" : search.trim() ? "Search" : title}</h1>
-          <Link className="btn btn-ghost" to="/new">
-            Paste Mermaid
-          </Link>
-        </div>
+          <div className="page-header-actions">
+            <SupportLink />
+            <Link className="btn btn-ghost" to="/new">
+              Paste Mermaid
+            </Link>
+          </div>
+        </header>
 
         <div aria-live="polite">
           {(error || actionError) && <div className="error-banner">{actionError || error}</div>}

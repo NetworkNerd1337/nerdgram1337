@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Brand } from "../components/Brand";
+import { SupportLink } from "../components/SupportLink";
 import { CommandsButton } from "../components/CommandPalette";
 import { useCommandHost } from "../components/commandPaletteContext";
 
@@ -174,6 +175,7 @@ export function ReferencePage() {
           </div>
         </div>
         <div className="reference-top-actions">
+          <SupportLink />
           <CommandsButton />
           <Link className="btn btn-ghost" to="/">
             Back to dashboard

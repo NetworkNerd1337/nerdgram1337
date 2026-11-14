@@ -5,6 +5,7 @@ import { indexDiagramLinks, insertDiagramLink, linksFor } from "../../../server/
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
+import { SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { DiagramInfoPanel, type DiagramLinkRow } from "../components/DiagramInfoPanel";
@@ -857,7 +858,7 @@ export function EditorPage() {
     <div className="editor-layout">
       <div>
       <header className="editor-top">
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div className="editor-top-title">
           <Link to="/">
             <Brand compact />
           </Link>
@@ -865,7 +866,8 @@ export function EditorPage() {
             Local files / <strong>{heading || "Untitled"}</strong>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+        <div className="editor-top-actions">
+          {presenting ? null : <SupportLink />}
           <span className="status-pill" aria-live="polite">
             {saveLabel}
           </span>

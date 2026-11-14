@@ -1,10 +1,22 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { ApiError, api } from "../api";
+import {
+  AUTHOR_GITHUB_URL,
+  AUTHOR_HANDLE,
+  AUTHOR_NAME,
+  AUTHOR_SITE_URL,
+  DOCS_URL,
+  ISSUES_URL,
+  LICENSE_URL,
+  REPO_URL,
+} from "../lib/support";
 import { requestUpdateReload } from "../lib/updateReload";
-import { formatVersionLabel } from "../lib/versionLabel";
+import { formatVersionLabel, knownCodeName } from "../lib/versionLabel";
 import type { UpdateJob, UpdateRelease, UpdateStatus } from "../types";
+import { Brand } from "./Brand";
 import { ReleaseMarkdown } from "./ReleaseMarkdown";
+import { ExternalLink, SupportLink } from "./SupportLink";
 import { UpdateContext, useUpdate, type UpdatePanel } from "./updateContext";
 
 const TARGET_KEY = "nerdgram-update-target";
@@ -429,14 +441,26 @@ export function UpdateHost({ children }: { children: ReactNode }) {
 }
 
 function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div
+        ref={panelRef}
         className="modal update-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="update-dialog-title"
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }}
       >
         <h3 id="update-dialog-title">{title}</h3>
         {children}
@@ -501,11 +525,94 @@ function AboutBody() {
   if (!status) return <p>{busy ? "Loading…" : "Version information is not available yet."}</p>;
   return (
     <>
-      <p>
-        <strong>NerdGram1337</strong> {runningLabel(status)}
-        {status.commit ? ` (${shortCommit(status.commit)})` : ""}
-      </p>
-      <p>Install: {installLabel(status.installKind)}</p>
+      <AboutSummary
+        status={status}
+        actionError={actionError}
+        onShowUpgrade={openUpgrade}
+        upgradeDisabled={busy}
+      />
+      <UpdateSettingsFields />
+    </>
+  );
+}
+
+function updateSummary(status: UpdateStatus): string | null {
+  if (status.updateAvailable && status.latest && !status.skipped) {
+    return `Update available: ${releaseLabel(status.latest)}.`;
+  }
+  if (status.matchesLatest || status.phase === "current") return "You're up to date.";
+  if (status.phase === "ahead") return "This build is newer than the latest stable release.";
+  if (status.phase === "no_release") return "No stable release has been published yet.";
+  if (status.phase === "disabled") return "Update checks are turned off.";
+  return null;
+}
+
+export function AboutSummary({
+  status,
+  actionError,
+  onShowUpgrade,
+  upgradeDisabled = false,
+}: {
+  status: UpdateStatus;
+  actionError: string | null;
+  onShowUpgrade?: () => void;
+  upgradeDisabled?: boolean;
+}) {
+  const summary = updateSummary(status);
+  const codeName = knownCodeName(status.codename);
+  return (
+    <div className="about-summary">
+      <div className="about-identity">
+        <Brand />
+        <p className="about-lead">A local app for writing Mermaid diagrams as Markdown.</p>
+      </div>
+      <dl className="about-facts">
+        <dt>Version</dt>
+        <dd>{runningLabel(status)}</dd>
+        {codeName ? (
+          <>
+            <dt>Code name</dt>
+            <dd>{codeName}</dd>
+          </>
+        ) : null}
+        <dt>Install</dt>
+        <dd>{installLabel(status.installKind)}</dd>
+        {status.commit ? (
+          <>
+            <dt>Commit</dt>
+            <dd>
+              <code className="about-commit">{status.commit}</code>
+            </dd>
+          </>
+        ) : null}
+      </dl>
+      {summary ? <p className="about-status">{summary}</p> : null}
+      <div className="about-links">
+        <p>
+          <ExternalLink href={AUTHOR_SITE_URL}>{AUTHOR_NAME}</ExternalLink>
+          {" ("}
+          <ExternalLink href={AUTHOR_GITHUB_URL}>{AUTHOR_HANDLE}</ExternalLink>
+          {"). "}
+          <ExternalLink href={REPO_URL}>NerdGram1337 on GitHub</ExternalLink>
+        </p>
+        <p>
+          <ExternalLink href={ISSUES_URL}>Report a bug or request a feature</ExternalLink>
+          {" · "}
+          <ExternalLink href={DOCS_URL}>Documentation</ExternalLink>
+        </p>
+        <p>
+          <ExternalLink href={LICENSE_URL}>MIT License</ExternalLink>
+          {" · © "}
+          {AUTHOR_NAME}
+        </p>
+      </div>
+      <div className="about-support">
+        <p>
+          NerdGram1337 is free and open source, built by one developer. If it's useful to you, you can support
+          continued development.
+        </p>
+        <SupportLink label="Support on Ko-fi" keepLabel />
+      </div>
       {status.installKind === "docker" ? (
         <>
           <p>
@@ -514,21 +621,18 @@ function AboutBody() {
             <code>ghcr.io/networknerd1337/nerdgram1337</code>, container <code>nerdgram1337</code>, volume{" "}
             <code>nerdgram-data</code>, and <code>127.0.0.1:8787:8787</code>.
           </p>
-          {status.docker ? (
+          {status.docker && onShowUpgrade ? (
             <p>
-              <button type="button" className="btn" disabled={busy} onClick={openUpgrade}>
+              <button type="button" className="btn" disabled={upgradeDisabled} onClick={onShowUpgrade}>
                 Show upgrade steps
               </button>
             </p>
           ) : null}
         </>
       ) : null}
-      {status.phase === "ahead" ? <p>This build is newer than the latest stable release.</p> : null}
-      {status.phase === "no_release" ? <p>No stable release has been published yet.</p> : null}
       {actionError ? <p className="update-error">{actionError}</p> : null}
       {status.error && !actionError ? <p className="update-error">{status.error.message}</p> : null}
-      <UpdateSettingsFields />
-    </>
+    </div>
   );
 }
 

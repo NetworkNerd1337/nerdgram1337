@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
+import { SupportLink } from "../components/SupportLink";
 import { FolderPicker } from "../components/FolderPicker";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -61,12 +62,15 @@ export function NewDiagramPage() {
   return (
     <div className="paste-page">
       <div className="paste-shell">
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem" }}>
+        <header className="paste-top">
           <Link to="/">
             <Brand />
           </Link>
-          <CommandsButton />
-        </div>
+          <div className="paste-top-actions">
+            <SupportLink />
+            <CommandsButton />
+          </div>
+        </header>
         <h1>What do you want to diagram?</h1>
         <div className="paste-mode">
           <span aria-hidden="true">{`</>`}</span>

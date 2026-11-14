@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
+import { SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { Modal } from "../components/Modal";
 import { LintSettings } from "../components/LintSettings";
@@ -112,6 +113,7 @@ export function SettingsPage() {
           </div>
         </div>
         <div className="reference-top-actions">
+          <SupportLink />
           <CommandsButton />
           <Link className="btn btn-ghost" to="/">
             Back to dashboard

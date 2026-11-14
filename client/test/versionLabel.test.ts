@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatVersionLabel } from "../src/lib/versionLabel";
+import { formatVersionLabel, knownCodeName } from "../src/lib/versionLabel";
 
 describe("version label", () => {
   it("prints the version and a safe code name", () => {
@@ -8,5 +8,8 @@ describe("version label", () => {
     expect(formatVersionLabel("3.0.0", null)).toBe("v3.0.0");
     expect(formatVersionLabel("3.0.0", "<script>")).toBe("v3.0.0");
     expect(formatVersionLabel("3.0.0", "harbor")).toBe("v3.0.0");
+    expect(knownCodeName("Atlas")).toBe("Atlas");
+    expect(knownCodeName("harbor")).toBeNull();
+    expect(knownCodeName(null)).toBeNull();
   });
 });
