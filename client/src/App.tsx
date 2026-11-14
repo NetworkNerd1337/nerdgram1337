@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { CommandPaletteRoot } from "./components/CommandPalette";
 import { UpdateHost } from "./components/UpdateHost";
+import { WorkspaceReplaceHost } from "./components/WorkspaceReplaceDialog";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EditorPage } from "./pages/EditorPage";
 import { GeneratePage } from "./pages/GeneratePage";
@@ -15,6 +16,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <CommandPaletteRoot>
+        <WorkspaceReplaceHost />
         <UpdateHost>
         <Routes>
           <Route path="/" element={<DashboardPage />} />

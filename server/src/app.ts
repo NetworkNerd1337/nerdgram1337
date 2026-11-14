@@ -20,6 +20,7 @@ import {
   type RuntimeMode,
 } from "./security.js";
 import * as search from "./search.js";
+import { applyReplace, previewReplace, undoReplace } from "./replace.js";
 import * as sync from "./sync/engine.js";
 import * as syntaxReference from "./syntaxReference.js";
 import * as templates from "./templates.js";
@@ -297,6 +298,33 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         regex: req.query.regex === "1" || req.query.regex === "true",
       });
       res.json(result);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/replace/preview", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      res.json(await previewReplace(req.body));
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/replace/apply", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      res.json(await applyReplace(req.body));
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/replace/undo", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      res.json(await undoReplace(req.body));
     } catch (err) {
       sendError(res, err);
     }

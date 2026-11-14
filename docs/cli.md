@@ -62,6 +62,9 @@ nerdgram refresh Campus.mmd
 nerdgram diff Campus.mmd --from "Baseline - pre-change" --to current --format md
 nerdgram diff Campus.mmd --from "Baseline - pre-change" --format svg -o campus-diff.svg
 nerdgram baseline Campus.mmd --name "Baseline - pre-change"
+nerdgram replace CORE-SW1 ATL-CORE-01 --folder Sites/ATL
+nerdgram replace CORE-SW1 ATL-CORE-01 --regex --yes
+nerdgram replace --undo <id>
 nerdgram render Welcome.mmd -o Welcome.svg
 nerdgram render Welcome.mmd -o Welcome.png
 ```
@@ -75,6 +78,8 @@ nerdgram render Welcome.mmd -o Welcome.png
 `nerdgram diff <path> --from <id|name|current> [--to <id|name|current>] [--format md|json|svg]` compares two revisions of one diagram, or a revision and the current file. `--to` defaults to `current`. `--from` and `--to` accept a revision id, a baseline name, or `current`. `--format md` prints a Markdown change summary. `--format json` prints the structured diff, including nodes and edges for a flowchart and a text diff for every diagram type. `--format svg` writes the read-only coloured picture and needs `-o file.svg`. A diagram that is not a flowchart has no picture; the command says to use `md` or `json`. The diagram file is not modified. A read token is enough.
 
 `nerdgram baseline <path> --name "…" [--note "…"] [--id <revision>]` saves the current diagram as a named baseline. `--id` names an existing revision instead of snapshotting the current file. The name is kept when the 20-revision limit drops older saves. The command needs a read-write token. Removing a name is `DELETE /api/v1/history/baseline`.
+
+`nerdgram replace <find> <replace> [--folder path] [--regex] [--whole-word] [--match-case] [--front-matter] [--no-recursive] [--dry-run] [--yes]` previews a replace across diagrams. The default prints the preview and writes nothing. `--dry-run` is that default. `--yes` applies the preview, skipping a diagram that would not parse, a diagram open in an editor, and a file that changed after the preview. Each saved diagram gets a revision first. `--folder` limits the scope. `--no-recursive` does not enter subfolders. The body is searched unless `--front-matter` is set. Hidden files, `.meta`, trash, and templates are not changed. `nerdgram replace --undo <id>` restores that operation and skips a file edited since. Preview is `POST /api/v1/replace/preview` and needs a read token. Apply is `POST /api/v1/replace/apply` and undo is `POST /api/v1/replace/undo`. Both need a read-write token. The same three paths exist under `/api`. Mutating calls need `Content-Type: application/json`.
 
 The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. Every command other than offline `lint` and `render` needs the server and a token.
 

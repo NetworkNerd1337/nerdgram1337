@@ -48,6 +48,12 @@ type IndexEntry = {
   notes: string;
   tags: string[];
   elements: DiagramTextElement[];
+  /**
+   * Bloom of 3-character grams from the file. Workspace replace uses it to
+   * skip diagrams that cannot contain a literal, then reads the file to
+   * confirm. The raw source, including comments, is not stored.
+   */
+  bloom?: string;
 };
 
 type IndexFile = {
@@ -147,7 +153,7 @@ async function persist(current: Cache): Promise<void> {
 
 function recordFor(content: string, mtimeMs: number, size: number): IndexEntry {
   const parsed = parseDiagram(content);
-  return {
+  const entry: IndexEntry = {
     mtimeMs,
     size,
     title: parsed.title,
@@ -156,6 +162,90 @@ function recordFor(content: string, mtimeMs: number, size: number): IndexEntry {
     tags: parsed.tags,
     elements: extractTextElements(content, parsed),
   };
+  if (content.length <= 64 * 1024) entry.bloom = gramBloom(content);
+  return entry;
+}
+
+const BLOOM_BYTES = 128;
+
+function hash32(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/** 3-gram bloom. A miss means the literal is absent. A hit still needs a file read. */
+export function gramBloom(content: string): string {
+  const bits = Buffer.alloc(BLOOM_BYTES);
+  const lower = content.toLowerCase();
+  const limit = Math.min(lower.length, 64 * 1024);
+  for (let index = 0; index + 3 <= limit; index += 1) {
+    const hash = hash32(lower.slice(index, index + 3));
+    bits[(hash >>> 3) & (BLOOM_BYTES - 1)] |= 1 << (hash & 7);
+    const second = Math.imul(hash, 16777619) >>> 0;
+    bits[(second >>> 3) & (BLOOM_BYTES - 1)] |= 1 << (second & 7);
+  }
+  return bits.toString("base64");
+}
+
+export function bloomMayContain(bloom: string, needle: string): boolean {
+  if (needle.length < 3) return true;
+  const bits = Buffer.from(bloom, "base64");
+  if (bits.length !== BLOOM_BYTES) return true;
+  const lower = needle.toLowerCase();
+  for (let index = 0; index + 3 <= lower.length; index += 1) {
+    const hash = hash32(lower.slice(index, index + 3));
+    if ((bits[(hash >>> 3) & (BLOOM_BYTES - 1)] & (1 << (hash & 7))) === 0) return false;
+    const second = Math.imul(hash, 16777619) >>> 0;
+    if ((bits[(second >>> 3) & (BLOOM_BYTES - 1)] & (1 << (second & 7))) === 0) return false;
+  }
+  return true;
+}
+
+export type IndexedDiagram = {
+  path: string;
+  mtimeMs: number;
+  size: number;
+};
+
+/**
+ * Fresh blooms for diagrams whose cached mtime and size still match.
+ * A missing entry means the caller has to read the file.
+ */
+export async function freshIndexedBlooms(files: readonly IndexedDiagram[]): Promise<Map<string, string>> {
+  return queued(async () => {
+    const current = await ensureLoaded();
+    const found = new Map<string, string>();
+    for (const file of files) {
+      const entry = current.entries.get(file.path);
+      if (!entry || entry.mtimeMs !== file.mtimeMs || entry.size !== file.size) continue;
+      if (typeof entry.bloom !== "string") continue;
+      found.set(file.path, entry.bloom);
+    }
+    return found;
+  });
+}
+
+/** Remember diagram text in the existing search index. One write for the batch. */
+export async function rememberSearchEntries(
+  entries: readonly { path: string; content: string; mtimeMs: number; size: number }[],
+): Promise<void> {
+  if (entries.length === 0) return;
+  await queued(async () => {
+    const current = await ensureLoaded();
+    let changed = false;
+    for (const entry of entries) {
+      if (!isPublicDiagram(entry.path)) continue;
+      current.entries.set(entry.path, recordFor(entry.content, entry.mtimeMs, entry.size));
+      changed = true;
+    }
+    if (!changed) return;
+    current.dirty = true;
+    await persist(current);
+  });
 }
 
 /** Nested quantifiers such as `(a+)+` are rejected before the engine runs. */

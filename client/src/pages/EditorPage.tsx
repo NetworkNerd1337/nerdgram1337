@@ -59,6 +59,7 @@ import {
 } from "../lib/presentationKeys";
 import { rememberThumbnail } from "../lib/thumbnailCache";
 import { displayName, joinPath, parentPath } from "../lib/paths";
+import { setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
 import type { TreeNode } from "../types";
 
 type Access = "loading" | "edit" | "readonly";
@@ -96,6 +97,9 @@ async function writeCopy(originalPath: string, content: string): Promise<string>
 export function EditorPage() {
   const params = useParams();
   const filePath = params["*"] || "";
+  useEffect(() => {
+    setWorkspaceReplaceFolder(parentPath(filePath));
+  }, [filePath]);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();

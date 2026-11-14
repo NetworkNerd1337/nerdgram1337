@@ -1,6 +1,7 @@
 import { SearchQuery, search, searchKeymap, gotoLine, openSearchPanel, setSearchQuery } from "@codemirror/search";
 import { Prec, type Extension } from "@codemirror/state";
-import { keymap, type EditorView, type KeyBinding } from "@codemirror/view";
+import { keymap, ViewPlugin, type EditorView, type KeyBinding, type ViewUpdate } from "@codemirror/view";
+import { openWorkspaceReplace } from "./workspaceReplace";
 
 /**
  * Find, replace, and go-to-line use the installed `@codemirror/search` keymap.
@@ -36,8 +37,51 @@ export const editorSearchKeymap: readonly KeyBinding[] = filteredSearchKeymap.so
   ? filteredSearchKeymap
   : [...filteredSearchKeymap, { key: GO_TO_LINE_SHORTCUT, run: gotoLine, preventDefault: true }];
 
+function readPanelFlag(panel: ParentNode, name: string): boolean {
+  return Boolean(panel.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.checked);
+}
+
+/**
+ * Adds a link on the existing find panel. The panel's own find and replace
+ * still change only this diagram.
+ */
+const workspaceReplaceLink = ViewPlugin.fromClass(
+  class {
+    ensure(view: EditorView): void {
+      const panel = view.dom.querySelector<HTMLElement>(".cm-search");
+      if (!panel || panel.querySelector("[data-workspace-replace]")) return;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "cm-workspace-replace";
+      button.dataset.workspaceReplace = "true";
+      button.textContent = "Replace in all diagrams…";
+      button.addEventListener("mousedown", (event) => event.preventDefault());
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        const value = (name: string) => panel.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value ?? "";
+        openWorkspaceReplace({
+          find: value("search"),
+          replace: value("replace"),
+          matchCase: readPanelFlag(panel, "case"),
+          wholeWord: readPanelFlag(panel, "word"),
+          regex: readPanelFlag(panel, "re"),
+        });
+      });
+      panel.appendChild(button);
+    }
+
+    constructor(view: EditorView) {
+      this.ensure(view);
+    }
+
+    update(update: ViewUpdate): void {
+      this.ensure(update.view);
+    }
+  },
+);
+
 export function editorSearchExtensions(): Extension[] {
-  return [search({ top: true }), Prec.high(keymap.of(editorSearchKeymap))];
+  return [search({ top: true }), workspaceReplaceLink, Prec.high(keymap.of(editorSearchKeymap))];
 }
 
 let editorView: EditorView | null = null;

@@ -66,7 +66,10 @@ describe("command palette registry", () => {
     expect(titles).toContain("New folder");
     expect(titles).toContain("Import diagrams");
     expect(titles).toContain("Search diagrams");
+    expect(titles).toContain("Replace across diagrams…");
     expect(titles).toContain("Open trash");
+    const presenting = collectCommands(context({ route: "other", readOnly: true })).map((command) => command.title);
+    expect(presenting).not.toContain("Replace across diagrams…");
     expect(titles).not.toContain("Find");
     expect(titles).not.toContain("Export as SVG");
     expect(titles).not.toContain("Open Hello");
