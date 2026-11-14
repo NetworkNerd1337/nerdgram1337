@@ -1,5 +1,7 @@
 # NerdGram1337
 
+[![Ko-fi: Support the developer](https://img.shields.io/badge/Ko--fi-Support%20the%20developer-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/networknerd1337)
+
 NerdGram1337 is a local, single-user app for writing [Mermaid](https://mermaid.js.org/) diagrams as Markdown. It is [MIT](LICENSE) licensed, © Ryan Thomas Huff. You edit a diagram, preview it live, keep it as a real `.mmd` file on disk, and export **SVG**, **PNG**, **JPG**, or **PDF**. JPG and PDF are exports from the browser. The API and the CLI render SVG or PNG. There is no account, no hosted service, no AI generation, and no paywall. Optional GitHub sync can copy those diagrams to a private repository you own.
 
 The **client** is a React app: the dashboard, the paste page, and the split editor. The **server** is an Express API that reads and writes the files. In development they run side by side. A production build, including the Docker image, serves the built client and the API from one process.
@@ -14,6 +16,7 @@ A short screen recording of the dashboard and editor is in [screenshots/nerdgram
 
 ## Contents
 
+- [Support the project](#support-the-project)
 - [Quick start](#quick-start)
 - [Features](#features)
 - [Generate from data](#generate-from-data)
@@ -31,6 +34,10 @@ A short screen recording of the dashboard and editor is in [screenshots/nerdgram
 - [Troubleshooting](#troubleshooting)
 - [Developing](#developing)
 - [License](#license)
+
+## Support the project
+
+NerdGram1337 is free and open source, built and maintained by one developer. If the app is useful to you, a donation on [Ko-fi](https://ko-fi.com/networknerd1337) supports continued development. A star on this repository, and an issue when something breaks, help as well. The app stays free either way.
 
 ## Quick start
 
