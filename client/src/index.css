@@ -1725,6 +1725,30 @@ a {
   height: auto;
 }
 
+/* Diff node labels sit on the colored fills. .modal p would otherwise paint them dark.
+   Edge labels are not included; they stay on the light canvas. */
+.diff-canvas .node.ngAdded .nodeLabel,
+.diff-canvas .node.ngRemoved .nodeLabel,
+.diff-canvas .node.ngChanged .nodeLabel,
+.diff-canvas .node.ngSame .nodeLabel,
+.diff-canvas .node.ngAdded .nodeLabel p,
+.diff-canvas .node.ngRemoved .nodeLabel p,
+.diff-canvas .node.ngChanged .nodeLabel p,
+.diff-canvas .node.ngSame .nodeLabel p,
+.presentation-canvas .node.ngAdded .nodeLabel,
+.presentation-canvas .node.ngRemoved .nodeLabel,
+.presentation-canvas .node.ngChanged .nodeLabel,
+.presentation-canvas .node.ngSame .nodeLabel,
+.presentation-canvas .node.ngAdded .nodeLabel p,
+.presentation-canvas .node.ngRemoved .nodeLabel p,
+.presentation-canvas .node.ngChanged .nodeLabel p,
+.presentation-canvas .node.ngSame .nodeLabel p {
+  color: #f8fafc !important;
+  fill: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc;
+  opacity: 1;
+}
+
 .diff-side {
   display: grid;
   grid-template-columns: 1fr 1fr;

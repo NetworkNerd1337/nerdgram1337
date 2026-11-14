@@ -2,6 +2,26 @@
 
 Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code name" - YYYY-MM-DD`. It has to match the root `package.json` version. `npm run version:check` requires the quoted code name to match the `codenames` map. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date. The `vX.Y.Z` tag is the version the update check reads. The GitHub Release title is `vX.Y.Z "Code name"`, from that tag and the map.
 
+## 1.2.0 "Atlas" - 2026-11-14
+
+Minor release on the Atlas line. The code name stays Atlas. This adds a Support button and a fuller About panel, a read-only compare of revisions with named baselines, and find and replace across the workspace.
+
+### Support and About
+
+From #63 (#58). A **Support** button in the header opens Ko-fi in a new tab. At a narrow width it collapses to the cup icon, and presentation mode does not show it. **About NerdGram1337**, from the sidebar and the command palette, shows the logo, a one-line description, the version and code name, the install type, the commit when one is known, author and help links, the MIT license, the update status, and **Support on Ko-fi**. The update controls that were already in that panel stay there. Nothing donation-related opens on its own.
+
+### Compare and baselines
+
+From #64 (#61). History can show what changed, and a revision can be kept as a named baseline. Name, rename, or remove a baseline on any revision. **Save baseline** stores the current diagram even when it has not changed since the last save. Names, notes, and the time they were named stay in the revision index. Named baselines are not dropped by the 20-revision prune. Each diagram keeps up to 20 (`NERDGRAM_BASELINE_CAP`, default 20, a whole number from 1 to 200). At the limit the API refuses another one and says how many are allowed. Removing a name puts that revision back under the 20-revision limit. Baselines follow rename, move, and trash, and a permanent delete removes them. A duplicate still starts with no history.
+
+Every diagram type gets a text diff, including front matter. Flowcharts also get a node and edge diff: adds, removes, relabels, duplicate edges, arrow and style changes, subgraph moves, and click changes. **Compare** is read-only. It draws a merged diagram (added green, removed red and dashed, changed amber, unchanged dimmed), plus side-by-side and text views, a legend, and a change summary. **Present** shows the same picture full screen. The Compare view uses high-contrast label text on the colored diff nodes. The diagram file is never modified. The picture can be exported as SVG, PNG, JPG, or PDF, and the summary as Markdown. `GET /api/history/diff` and `POST`, `PATCH`, and `DELETE /api/history/baseline` are also on `/api/v1`. `nerdgram diff` and `nerdgram baseline` call them.
+
+### Find and replace
+
+From #65 (#62). Workspace find and replace previews a change across diagrams, then saves each selected file through the existing revision path, so every changed file gets a revision first. The editor find bar still applies only to the open diagram. **Replace in all diagrams…** on that bar, **Replace across…** on the dashboard, and **Replace across diagrams…** in the command palette open the same dialog. Scope is all diagrams (the default), the current folder with or without subfolders, or the diagrams left checked in the preview. Options match the editor: match case, whole word, regular expressions with `$1`, and body only (the default) or body plus front matter. Hidden files, `.meta`, trash, and templates are never changed.
+
+The preview shows each match with the line before and after, totals, and a lint check. You can leave out a file or a single match. A diagram that would not parse, or that gains a new error, starts unchecked. A file open in an editor, and a file whose hash changed since the preview, are skipped and reported. **Undo this replace** restores the batch and skips any file edited since. `POST /api/replace/preview`, `POST /api/replace/apply`, and `POST /api/replace/undo` are also on `/api/v1`. `nerdgram replace` prints the preview. `--dry-run` is that preview, `--yes` applies it, and `--undo` restores an operation. `--folder` limits the scope, `--no-recursive` stays in that folder, and `--front-matter` includes the YAML block.
+
 ## 1.1.5 "Atlas" - 2026-11-14
 
 Maintenance release on the Atlas line. The code name stays Atlas. This ships the work 1.1.0 left open: neighbor import, link repair, lint for more diagram types, data files that follow a generated diagram, and the npm package.

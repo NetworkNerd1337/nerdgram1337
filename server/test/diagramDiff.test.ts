@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { diffDiagrams } from "../src/diagramDiff.js";
 import { mermaidSyntaxDiagnostic } from "../src/mermaidSyntax.js";
 
+/** WCAG relative-luminance contrast for two #rrggbb colors. */
+function contrast(foreground: string, background: string): number {
+  const channel = (hex: string, offset: number) => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = (hex: string) =>
+    0.2126 * channel(hex, 1) + 0.7152 * channel(hex, 3) + 0.0722 * channel(hex, 5);
+  const lighter = Math.max(luminance(foreground), luminance(background));
+  const darker = Math.min(luminance(foreground), luminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 const before = `---
 title: Old
 ---
@@ -131,6 +144,20 @@ describe("diagram diff", () => {
     expect(visual).toContain("fill:#8f2430");
     expect(visual).toContain("stroke-dasharray:5 4");
     expect(visual).toContain("fill:#8a5a12");
+    expect(visual).toContain("color:#f8fafc");
+    for (const name of ["ngAdded", "ngRemoved", "ngChanged", "ngSame"]) {
+      const line = visual.split("\n").find((item) => item.includes(`classDef ${name} `)) ?? "";
+      const fill = /fill:(#[0-9a-fA-F]{6})/.exec(line)?.[1] ?? "";
+      const label = /color:(#[0-9a-fA-F]{6})/.exec(line)?.[1] ?? "";
+      expect(label).toBe("#f8fafc");
+      expect(contrast(label, fill)).toBeGreaterThanOrEqual(4.5);
+    }
+    const removed = visual.split("\n").find((item) => item.includes("classDef ngRemoved ")) ?? "";
+    expect(removed).toContain("stroke-dasharray:5 4");
+    expect(removed).not.toMatch(/opacity\s*:/);
+    for (const line of visual.split("\n").filter((item) => item.includes("linkStyle"))) {
+      expect(line).not.toContain("color:#f8fafc");
+    }
     expect(visual).toContain("old-fw");
     expect(visual).toContain(":::ngRemoved");
     expect(visual).toContain(":::ngChanged");
