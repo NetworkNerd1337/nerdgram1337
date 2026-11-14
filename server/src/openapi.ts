@@ -229,6 +229,30 @@ export const V1_ROUTES: readonly V1Route[] = [
     summary: "Remove a baseline name. The revision stays, then the 20-revision limit applies to it again.",
     tag: "History",
   },
+  {
+    method: "post",
+    path: "/replace/preview",
+    scope: "read",
+    operationId: "previewReplace",
+    summary: "Preview a find and replace across diagrams. Nothing is written.",
+    tag: "Replace",
+  },
+  {
+    method: "post",
+    path: "/replace/apply",
+    scope: "write",
+    operationId: "applyReplace",
+    summary: "Apply a previewed find and replace. Each changed diagram is saved, so the previous text becomes a revision.",
+    tag: "Replace",
+  },
+  {
+    method: "post",
+    path: "/replace/undo",
+    scope: "write",
+    operationId: "undoReplace",
+    summary: "Undo one replace operation. Files edited since the replace are skipped.",
+    tag: "Replace",
+  },
 ];
 
 export function openApiPath(route: V1Route): string {
@@ -376,6 +400,48 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
         path: { type: "string" },
         id: { type: "string" },
       }, ["path", "id"]);
+    case "previewReplace":
+      return jsonBody("Find and replace preview. Nothing is written. The default scope is every diagram. Body only; set includeFrontMatter to search the YAML header too.", {
+        find: { type: "string" },
+        replace: { type: "string" },
+        matchCase: { type: "boolean" },
+        wholeWord: { type: "boolean" },
+        regex: { type: "boolean", description: "Replacement may use $1 and named groups." },
+        includeFrontMatter: { type: "boolean", description: "Defaults to false. Front matter is skipped." },
+        scope: {
+          type: "object",
+          properties: {
+            folder: { type: "string" },
+            recursive: { type: "boolean", description: "When folder is set, include subfolders. Defaults to true." },
+            paths: { type: "array", items: { type: "string" }, description: "Selected diagrams. Hidden files, .meta, and trash are refused." },
+          },
+        },
+      }, ["find", "replace"]);
+    case "applyReplace":
+      return jsonBody("Apply selected files from a preview. hash is the preview hash. skipMatchIds omits listed matches; unlisted matches in a selected file are still replaced. Locked files and files whose hash changed are skipped.", {
+        find: { type: "string" },
+        replace: { type: "string" },
+        matchCase: { type: "boolean" },
+        wholeWord: { type: "boolean" },
+        regex: { type: "boolean" },
+        includeFrontMatter: { type: "boolean" },
+        files: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              path: { type: "string" },
+              hash: { type: "string" },
+              skipMatchIds: { type: "array", items: { type: "string" } },
+            },
+            required: ["path", "hash"],
+          },
+        },
+      }, ["find", "replace", "files"]);
+    case "undoReplace":
+      return jsonBody("Undo a replace operation id returned by apply. A file edited since the replace is skipped.", {
+        id: { type: "string" },
+      }, ["id"]);
     default:
       return undefined;
   }
@@ -481,6 +547,7 @@ export function buildOpenApiSpec(): Record<string, unknown> {
       { name: "Render" },
       { name: "Generate" },
       { name: "History" },
+      { name: "Replace" },
     ],
     components: {
       securitySchemes: {

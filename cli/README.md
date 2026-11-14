@@ -36,6 +36,8 @@ nerdgram put Notes.mmd ./Notes.mmd
 nerdgram lint Welcome.mmd
 nerdgram diff Welcome.mmd --from current --to current --format md
 nerdgram baseline Welcome.mmd --name "Baseline"
+nerdgram replace CORE-SW1 ATL-CORE-01 --dry-run
+nerdgram replace CORE-SW1 ATL-CORE-01 --yes
 nerdgram render Welcome.mmd -o Welcome.svg
 ```
 

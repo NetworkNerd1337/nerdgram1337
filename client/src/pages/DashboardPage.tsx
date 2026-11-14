@@ -33,6 +33,7 @@ import {
 } from "../lib/organize";
 import type { WorkspaceItem } from "../lib/commands";
 import { editorHref, searchDiagrams } from "../lib/diagramSearch";
+import { openWorkspaceReplace, setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
 import { diagramHeading } from "../lib/frontMatter";
 import {
   basename,
@@ -135,6 +136,10 @@ export function DashboardPage() {
   const taken = useMemo(() => collectPaths(tree), [tree]);
   const takenRef = useRef(taken);
   takenRef.current = taken;
+
+  useEffect(() => {
+    setWorkspaceReplaceFolder(showTrash ? "" : folder);
+  }, [folder, showTrash]);
 
   const loadTrash = async () => {
     const result = await api.trash();
@@ -817,6 +822,9 @@ export function DashboardPage() {
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
                 Import
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => openWorkspaceReplace({ folder })}>
+                Replace across…
               </button>
               <input
                 ref={fileInputRef}

@@ -466,15 +466,23 @@ Dashboard cards keep a thumbnail of each diagram. The first time a card is on sc
 | Present | F5, or Ctrl+Shift+Enter |
 | Address bar | Ctrl+L stays with the browser. The app does not bind it. |
 
-The find panel can match case, whole words, or a regular expression, and it can replace one match or all of them.
+The find panel can match case, whole words, or a regular expression, and it can replace one match or all of them in the open diagram. **Replace in all diagrams…** on that panel opens the workspace replace with the same search filled in. The editor does not change any other file.
 
 On Windows, AltGr is reported as Ctrl+Alt. On a layout where AltGr+G types a character, Ctrl+Alt+G can type that character instead of opening Go to line. Use **Go to line** in the command palette.
 
-The palette lists the actions already in the app: new diagram, paste, folder, import, generate from data, refresh from data, search, open, rename, move, duplicate, trash, restore, diagram info, link node to diagram, history, theme, export, present, find, go to line, templates, GitHub sync, About, and check for updates. Template, sync, and update commands do not add a shortcut. The app also leaves Ctrl+D for the browser bookmark and does not bind F11.
+The palette lists the actions already in the app: new diagram, paste, folder, import, generate from data, refresh from data, search, replace across diagrams, open, rename, move, duplicate, trash, restore, diagram info, link node to diagram, history, theme, export, present, find, go to line, templates, GitHub sync, About, and check for updates. Template, sync, and update commands do not add a shortcut. The app also leaves Ctrl+D for the browser bookmark and does not bind F11.
 
 ### Search
 
 The sidebar search box matches file names and paths, titles, tags, descriptions, notes, and the visible text in a diagram: node and edge labels, subgraph titles, sequence messages, and similar labels. It does not match a diagram only because the file says `flowchart` or `sequenceDiagram`. Results show the matching text. Opening a result jumps to that line in the editor. The command palette uses the same search. **Names only**, under the search box, limits the dashboard to file names and paths. Diagrams in the trash are not included. The gallery has its own search. Dashboard search does not list the bundled templates.
+
+**Replace across…** on the dashboard, and **Replace across diagrams…** in the command palette, replace text in more than one diagram. The default scope is every diagram. You can limit it to the current folder, with or without subfolders, and uncheck diagrams or individual matches in the preview. Match case, whole word, and regular expressions (including `$1` in the replacement) match the editor's find bar. The default search is the diagram body. **Include front matter** also searches the YAML header. Hidden files, `.meta`, the trash, and templates are never changed.
+
+Nothing is written until you preview and then replace. The preview shows each match with the line before and after, and a total such as “23 replacements in 9 diagrams”. A long list shows the first matches and says how many were left out. Those unlisted matches are still replaced in a diagram you leave selected. After the replacement, each diagram is checked. One that would not parse, or that gains a new error, is unchecked. A diagram generated from a CSV, JSON, CDP, or LLDP file warns that **Refresh from data** would overwrite the change. A match inside a node id, a `click` target, or a path is marked, because changing an id can break styles or links from other diagrams. The data file itself is not edited.
+
+Replace saves each selected diagram the usual way, so the previous text is a revision first. Thumbnails, search, link sightings, and GitHub sync then update as they do for any save. A diagram open in an editor is skipped. A file that changed after the preview is skipped. The summary lists what changed and what was skipped. **Undo this replace** restores that batch and skips any file edited since. One diagram can also be restored from History.
+
+`POST /api/replace/preview`, `POST /api/replace/apply`, and `POST /api/replace/undo` do the same work. Apply sends each file's preview hash and any match ids to skip. The same paths are under `/api/v1` (`/api/v1/replace/preview`, `/api/v1/replace/apply`, `/api/v1/replace/undo`). Preview needs a read token. Apply and undo need a read-write token. Mutating calls need `Content-Type: application/json`. `nerdgram replace` prints the preview. `--yes` applies it. See [docs/cli.md](docs/cli.md).
 
 ### Presentation
 
@@ -775,6 +783,8 @@ nerdgram generate --path Core.mmd --data docs/samples/neighbors/cisco-ios-lldp.l
 nerdgram refresh Campus.mmd
 nerdgram diff Campus.mmd --from "Baseline - pre-change" --to current --format md
 nerdgram baseline Campus.mmd --name "Baseline - pre-change"
+nerdgram replace CORE-SW1 ATL-CORE-01 --folder Sites/ATL
+nerdgram replace CORE-SW1 ATL-CORE-01 --yes
 nerdgram render Welcome.mmd -o Welcome.svg
 nerdgram render Welcome.mmd -o Welcome.png
 ```
@@ -784,6 +794,8 @@ nerdgram render Welcome.mmd -o Welcome.png
 `nerdgram repair-links` prints the preview and writes nothing. `--dry-run` is the same. `--apply` saves the rewrites. A read token can run the preview. `--apply` needs a read-write token.
 
 `nerdgram diff` compares a revision, a baseline name, or `current` with another. `--format md` prints the change summary, `json` prints the structured diff, and `svg` writes the coloured picture (`-o file.svg`). `nerdgram baseline` names the current diagram. Neither command changes the `.mmd` file. Diff needs a read token. Baseline needs a read-write token. See [docs/cli.md](docs/cli.md).
+
+`nerdgram replace <find> <replace>` prints the preview and writes nothing. `--yes` applies it. `--dry-run` is the same as the default. `--folder` limits the scope, and `--no-recursive` stays in that folder. `--regex`, `--whole-word`, `--match-case`, and `--front-matter` match the dialog. `--undo <id>` restores that replace and skips a file edited since. Preview needs a read token. `--yes` and `--undo` need a read-write token.
 
 A CI job can render every diagram in the repo without a token, because that path is offline:
 

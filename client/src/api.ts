@@ -1,4 +1,5 @@
 import type { LinkRepairPlan } from "../../server/src/diagramLinks.ts";
+import type { ReplaceApplyResult, ReplacePreview, ReplaceUndoResult } from "./lib/workspaceReplace";
 import type { LintDiagnostic } from "../../server/src/diagramLint.ts";
 import type {
   DiagramMeta,
@@ -536,6 +537,37 @@ export const api = {
         revokedAt: string | null;
       };
     }>(`/api/tokens/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
+  replacePreview: (body: {
+    find: string;
+    replace: string;
+    matchCase?: boolean;
+    wholeWord?: boolean;
+    regex?: boolean;
+    includeFrontMatter?: boolean;
+    scope?: { folder?: string; recursive?: boolean; paths?: string[] };
+  }) =>
+    request<ReplacePreview>("/api/replace/preview", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  replaceApply: (body: {
+    find: string;
+    replace: string;
+    matchCase?: boolean;
+    wholeWord?: boolean;
+    regex?: boolean;
+    includeFrontMatter?: boolean;
+    files: { path: string; hash: string; skipMatchIds?: string[] }[];
+  }) =>
+    request<ReplaceApplyResult>("/api/replace/apply", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  replaceUndo: (id: string) =>
+    request<ReplaceUndoResult>("/api/replace/undo", {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    }),
   referenceSync: () =>
     request<{
       manifest: {

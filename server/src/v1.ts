@@ -10,6 +10,7 @@ import { buildOpenApiSpec, openApiPath, V1_ROUTES, type V1Route, type V1Scope } 
 import { createRateLimiter, defaultRenderRate, renderDiagram, type RateLimit, type RenderFormat } from "./renderDiagram.js";
 import * as search from "./search.js";
 import * as historyApi from "./historyApi.js";
+import { applyReplace, previewReplace, undoReplace } from "./replace.js";
 import { httpFail } from "./storage.js";
 import { authenticateToken, bearerValue, type AuthenticatedToken } from "./tokens.js";
 
@@ -398,6 +399,18 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
     deleteBaseline: asyncHandler(async (req, res) => {
       if (!jsonObject(req, res)) return;
       res.json(await historyApi.deleteBaseline(String(req.body.path || ""), req.body.id));
+    }),
+    previewReplace: asyncHandler(async (req, res) => {
+      if (!jsonObject(req, res)) return;
+      res.json(await previewReplace(req.body));
+    }),
+    applyReplace: asyncHandler(async (req, res) => {
+      if (!jsonObject(req, res)) return;
+      res.json(await applyReplace(req.body));
+    }),
+    undoReplace: asyncHandler(async (req, res) => {
+      if (!jsonObject(req, res)) return;
+      res.json(await undoReplace(req.body));
     }),
   };
 

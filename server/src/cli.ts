@@ -32,6 +32,12 @@ const BOOL_FLAGS = new Set([
   "h",
   "no-update-links",
   "dry-run",
+  "yes",
+  "match-case",
+  "whole-word",
+  "regex",
+  "front-matter",
+  "no-recursive",
   "apply",
   "copy-data",
   "share-data",
@@ -59,6 +65,8 @@ Usage
   nerdgram refresh <path> [--data data.csv]
   nerdgram diff <path> --from <id|name|current> [--to <id|name|current>] [--format md|json|svg]
   nerdgram baseline <path> --name "…" [--note "…"] [--id <revision>]
+  nerdgram replace <find> <replace> [--folder path] [--regex] [--whole-word] [--match-case] [--front-matter] [--no-recursive] [--dry-run] [--yes]
+  nerdgram replace --undo <id>
 
 A local .mmd file is rendered and linted in this process. Anything else uses
 NERDGRAM_URL (default http://127.0.0.1:8787) and NERDGRAM_TOKEN.
@@ -82,6 +90,11 @@ file is not modified.
 baseline saves the current diagram as a named baseline. --id names an
 existing revision instead. Names are kept when the 20-revision limit drops
 older saves.
+replace prints a preview. --yes applies it and saves each diagram, so the
+previous text is a revision. --dry-run is the default. --folder limits the
+scope. --no-recursive stays in that folder. The diagram body is searched
+unless --front-matter is set. Hidden files, .meta, trash, and templates are
+not changed. --undo restores that replace and skips a file edited since.
 `;
 
 type RenderModule = typeof import("./renderDiagram.js");
@@ -579,6 +592,116 @@ async function baselineCommand(parsed: Parsed, io: Io): Promise<void> {
   );
 }
 
+function skipLabel(reason: string): string {
+  switch (reason) {
+    case "locked":
+      return "open in an editor";
+    case "changed":
+      return "changed since the preview";
+    case "edited":
+      return "edited since the replace";
+    case "hidden":
+    case "meta":
+    case "not-diagram":
+      return "not a workspace diagram";
+    default:
+      return reason;
+  }
+}
+
+async function replaceCommand(parsed: Parsed, io: Io): Promise<void> {
+  const { base, token } = configOf(parsed.flags, io.env);
+  const undo = flagString(parsed.flags, "undo");
+  if (undo) {
+    const result = await callApi(base, requireToken(token), "POST", "/api/v1/replace/undo", { id: undo });
+    const body = result.json as {
+      restored?: { path: string }[];
+      skipped?: { path: string; reason: string }[];
+      errors?: { path: string; message: string }[];
+    };
+    const restored = body.restored ?? [];
+    const skipped = (body.skipped ?? []).filter((item) => item.reason !== "none");
+    const lines = [`Restored ${restored.length} diagram${restored.length === 1 ? "" : "s"}.`];
+    for (const item of skipped) lines.push(`Skipped ${item.path} (${skipLabel(item.reason)}).`);
+    for (const item of body.errors ?? []) lines.push(`${item.path}: ${item.message}`);
+    writeOut(io, isJson(parsed.flags), (body as Record<string, unknown>) ?? {}, lines.join("\n"));
+    return;
+  }
+  if (parsed.flags.get("dry-run") === true && parsed.flags.get("yes") === true) {
+    throw new CliError("Use either --dry-run or --yes.");
+  }
+  const find = parsed.positionals[0];
+  const replace = parsed.positionals[1];
+  if (find == null || replace == null) throw new CliError("replace needs the text to find and the replacement.");
+  const folder = flagString(parsed.flags, "folder");
+  const request = {
+    find,
+    replace,
+    matchCase: parsed.flags.get("match-case") === true,
+    wholeWord: parsed.flags.get("whole-word") === true,
+    regex: parsed.flags.get("regex") === true,
+    includeFrontMatter: parsed.flags.get("front-matter") === true,
+    scope: {
+      ...(folder ? { folder } : {}),
+      ...(parsed.flags.get("no-recursive") === true ? { recursive: false } : {}),
+    },
+  };
+  const preview = await callApi(base, requireToken(token), "POST", "/api/v1/replace/preview", request);
+  const body = preview.json as {
+    totals?: { replacements: number; diagrams: number; shown: number };
+    message?: string | null;
+    files?: {
+      path: string;
+      hash: string;
+      matchCount: number;
+      selected: boolean;
+      generatedWarning: string | null;
+      lint: { invalid: boolean; messages: string[] };
+      matches: { line: number; before: string; after: string; warnings: string[] }[];
+    }[];
+  };
+  const files = body.files ?? [];
+  const totals = body.totals ?? { replacements: 0, diagrams: 0, shown: 0 };
+  if (parsed.flags.get("yes") !== true) {
+    const lines = [`${totals.replacements} replacement${totals.replacements === 1 ? "" : "s"} in ${totals.diagrams} diagram${totals.diagrams === 1 ? "" : "s"}.`];
+    if (body.message) lines.push(body.message);
+    for (const file of files) {
+      const notes = [file.selected ? "" : "left unchecked"];
+      if (file.lint.invalid) notes.push("would not parse");
+      if (file.generatedWarning) notes.push(file.generatedWarning);
+      const suffix = notes.filter(Boolean).join("; ");
+      lines.push(`${file.path} (${file.matchCount})${suffix ? ` — ${suffix}` : ""}`);
+      for (const match of file.matches) {
+        const warn = match.warnings.length ? ` [${match.warnings.join(", ")}]` : "";
+        lines.push(`  ${match.line}: ${match.before}  →  ${match.after}${warn}`);
+      }
+    }
+    lines.push("Nothing was written. Pass --yes to apply.");
+    writeOut(io, isJson(parsed.flags), (preview.json as Record<string, unknown>) ?? {}, lines.join("\n"));
+    return;
+  }
+  const selected = files.filter((file) => file.selected).map((file) => ({ path: file.path, hash: file.hash }));
+  const applied = await callApi(base, requireToken(token), "POST", "/api/v1/replace/apply", { ...request, files: selected });
+  const result = applied.json as {
+    operationId?: string | null;
+    totals?: { diagrams: number; replacements: number };
+    skipped?: { path: string; reason: string }[];
+    errors?: { path: string; message: string }[];
+  };
+  const changed = result.totals ?? { diagrams: 0, replacements: 0 };
+  const lines = [`Replaced ${changed.replacements} in ${changed.diagrams} diagram${changed.diagrams === 1 ? "" : "s"}.`];
+  for (const item of (result.skipped ?? []).filter((entry) => entry.reason !== "none")) {
+    lines.push(`Skipped ${item.path} (${skipLabel(item.reason)}).`);
+  }
+  for (const item of result.errors ?? []) lines.push(`${item.path}: ${item.message}`);
+  const leftOut = files.filter((file) => !file.selected);
+  if (leftOut.length > 0) {
+    lines.push(`Left out ${leftOut.length} diagram${leftOut.length === 1 ? "" : "s"} that would not parse.`);
+  }
+  if (result.operationId) lines.push(`Undo with nerdgram replace --undo ${result.operationId}`);
+  writeOut(io, isJson(parsed.flags), (applied.json as Record<string, unknown>) ?? {}, lines.join("\n"));
+}
+
 async function refreshCommand(parsed: Parsed, io: Io): Promise<void> {
   const diagramPath = parsed.positionals[0] ?? flagString(parsed.flags, "path");
   if (!diagramPath) throw new CliError("refresh needs a diagram path.");
@@ -661,6 +784,9 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
         return 0;
       case "baseline":
         await baselineCommand(parsed, streams);
+        return 0;
+      case "replace":
+        await replaceCommand(parsed, streams);
         return 0;
       default:
         throw new CliError(`Unknown command ${parsed.command}. Run nerdgram --help.`);

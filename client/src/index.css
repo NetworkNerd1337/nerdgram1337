@@ -2892,3 +2892,104 @@ body[data-presenting="true"] .support-link {
   scroll-margin-top: 1rem;
 }
 
+.replace-dialog {
+  width: min(760px, 100%);
+  max-height: min(86vh, 920px);
+  overflow: auto;
+}
+
+.replace-note,
+.replace-count,
+.replace-context {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.replace-options,
+.replace-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin: 0 0 0.9rem;
+  border: 0;
+  padding: 0;
+}
+
+.replace-options label,
+.replace-scope label,
+.replace-file-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--ink);
+}
+
+.replace-scope legend {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.35rem;
+}
+
+.replace-files {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 46vh;
+  overflow: auto;
+}
+
+.replace-file {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+}
+
+.replace-matches {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.replace-matches label {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  margin: 0;
+}
+
+.replace-match {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+}
+
+.replace-match mark {
+  background: #f3e2a8;
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 0.1rem;
+}
+
+.replace-warning {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin: 0.35rem 0 0;
+}
+
+.cm-search .cm-workspace-replace {
+  margin-left: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+

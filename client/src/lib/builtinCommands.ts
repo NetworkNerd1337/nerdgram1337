@@ -1,5 +1,6 @@
 import { MERMAID_THEMES, themeLabel } from "./frontMatter";
 import { FIND_SHORTCUT, GO_TO_LINE_SHORTCUT } from "./editorCommands";
+import { openWorkspaceReplace } from "./workspaceReplace";
 import {
   registerCommandProvider,
   registerCommands,
@@ -73,6 +74,17 @@ const builtin: PaletteCommand[] = [
     order: 40,
     when: (ctx) => ctx.route === "dashboard" && !!ctx.actions.importFiles,
     run: (ctx) => ctx.actions.importFiles?.(),
+  },
+  {
+    id: "nav.replaceAcross",
+    title: "Replace across diagrams…",
+    section: "Navigate",
+    keywords: ["find", "replace", "rename", "workspace", "regex"],
+    order: 55,
+    when: (ctx) => !(ctx.readOnly && ctx.route === "other"),
+    run: () => {
+      openWorkspaceReplace();
+    },
   },
   {
     id: "nav.search",
