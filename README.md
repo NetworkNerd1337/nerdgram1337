@@ -37,7 +37,7 @@ A short screen recording of the dashboard and editor is in [screenshots/nerdgram
 
 ## Support the project
 
-NerdGram1337 is free and open source, built and maintained by NetworkNerd1337. If the app is useful to you, a donation on [Ko-fi](https://ko-fi.com/networknerd1337) helps support continued development and feature prioritization. A star on this repository, and an issue when something breaks, really help as well. NerdGram1337 is one of ny gifts to the open-source community, and am committed to keeping it free.
+NerdGram1337 is free and open source, built and maintained by NetworkNerd1337. If the app is useful to you, a donation on [Ko-fi](https://ko-fi.com/networknerd1337) helps support continued development and feature prioritization. A star on this repository, and an issue when something breaks, really help as well. NerdGram1337 is a gift to the open-source community, and I am committed to keeping it free.
 
 ## Quick start
 
