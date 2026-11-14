@@ -45,7 +45,7 @@ NerdGram1337 is free and open source, built and maintained by NetworkNerd1337. I
 
 Run NerdGram with Docker, or with Node.js on the machine. Docker is the install to use when you want the app. Node.js is how you develop it, and it is also a full install when you do not want Docker. Use one of them at a time. Development and production both want port **8787**.
 
-The app is for you, on this machine. The [security model](#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset.
+The app is for you, on your personal machine. The [security model](#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset.
 
 The Docker `pull` and `run` commands in this file use `v1.1.5`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](#versioning-and-releases) fails if an image pin in this file, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](#versioning-and-releases).
 
@@ -801,7 +801,7 @@ To render from a running server instead, create a read token, store it as a secr
 
 NerdGram1337 is a local, single-user personal tool. It has no accounts and no login, by design. Diagrams are plain `.mmd` files. An in-app login would not protect anything the operating system does not already protect. Your OS account and the permissions on the data directory are the access control. Automation tokens, described in [Automation API](#automation-api), apply only to `/api/v1`. They do not cover the browser routes.
 
-Shared servers, a computer offered as a service, and NAS deployments are unsupported. Do not forward port 8787 or 5173, and do not publish `8787:8787`.
+Shared servers, a computer offered as a service, and NAS deployments are unsupported. It doesn't mean those things would not work, but it's not the supported, designed or intended use. *DO NOT* forward port 8787 or 5173 from any ISP routing devices to this application, and do not publish `8787:8787`.
 
 **What the process binds to.** With `HOST` unset, the API listens on `127.0.0.1` and then `::1` on the same port. If `::1` is unavailable, IPv4 loopback still serves, and the log says to use `http://127.0.0.1:<port>` when `localhost` does not open. Vite's dev server listens on `localhost` only. The image sets `HOST=0.0.0.0` so the published port works, and the log prints a warning that this is not loopback, that the browser API has no authentication, and that the only intended use is a container whose host publish is `127.0.0.1:8787:8787`. That warning is expected in the container. A bearer token on `/api/v1` does not change it. Publishing `8787:8787` still exposes the browser routes to anyone who can open the port.
 
