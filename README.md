@@ -1,3 +1,5 @@
+![NerdGram1337 demo: dashboard and live Mermaid editor](docs/demo.gif)
+
 # NerdGram1337
 
 [![Ko-fi: Support the developer](https://img.shields.io/badge/Ko--fi-Support%20the%20developer-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/networknerd1337)
@@ -12,7 +14,7 @@ You start with sample diagrams: `Welcome.mmd`, `NetworkMap.mmd`, `Examples/Seque
 
 ![Editor open on NetworkMap, with the live preview](docs/images/editor.png)
 
-A short screen recording of the dashboard and editor is in [screenshots/nerdgram1337_dashboard_editor_demo.mp4](screenshots/nerdgram1337_dashboard_editor_demo.mp4).
+The full-quality recording is [screenshots/nerdgram1337_dashboard_editor_demo.mp4](screenshots/nerdgram1337_dashboard_editor_demo.mp4).
 
 ## Contents
 
@@ -1120,8 +1122,9 @@ NerdGram1337/                  (or NerdGram1337-main/ from the ZIP)
 ├── templates/                 six bundled starters
 ├── reference/                 offline Mermaid syntax pages
 ├── scripts/                   version check, version sync, changelog notes, docker smoke, CLI pack smoke
+├── docs/demo.gif              animated README demo
 ├── docs/images/               README screenshots
-├── screenshots/               earlier captures and the demo recording
+├── screenshots/               earlier captures and the full-quality recording
 └── .github/workflows/         ci.yml, release.yml, docker-publish.yml
 ```
 
