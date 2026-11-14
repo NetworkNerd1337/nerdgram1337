@@ -41,6 +41,8 @@ The full-quality recording is [screenshots/nerdgram1337_dashboard_editor_demo.mp
 
 NerdGram1337 is free and open source, built and maintained by NetworkNerd1337. If the app is useful to you, a donation on [Ko-fi](https://ko-fi.com/networknerd1337) helps support continued development and feature prioritization. A star on this repository, and an issue when something breaks, really help as well. NerdGram1337 is a gift to the open-source community, and I am committed to keeping it free.
 
+The same page is in the app. **Support** is in the header on the dashboard, the paste page, the editor, and the other screens. It opens Ko-fi in a new tab and is hidden while a diagram is presented. **About** at the bottom of the sidebar, and **About NerdGram1337** in the command palette, open a dialog with the running version, the author, help links, the MIT license, and a **Support on Ko-fi** button. Nothing donation-related opens on its own.
+
 ## Quick start
 
 Run NerdGram with Docker, or with Node.js on the machine. Docker is the install to use when you want the app. Node.js is how you develop it, and it is also a full install when you do not want Docker. Use one of them at a time. Development and production both want port **8787**.
@@ -567,7 +569,7 @@ The token is not returned to the browser, not written into the git remote URL or
 
 ### In-app updates
 
-The running version is the **About** line at the bottom of the sidebar and **About NerdGram1337** in the command palette. Both show the version and its code name, for example `v1.1.5 "Atlas"`. `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`. `GET /api/health` returns those fields plus `"ok": true` and `dataDir`. `installKind` is `git`, `docker`, `zip`, or `unknown`. `commit` is a SHA when the build or the git checkout has one, and null otherwise. Docker never shells out to git to discover a commit. Set `NERDGRAM_COMMIT` at image build time when you want one. When a newer release is available, the banner and the release dialog show that release's code name. The version still comes from the tag. The code name comes from the major number of that tag.
+The running version is the **About** line at the bottom of the sidebar and **About NerdGram1337** in the command palette. Both show the version and its code name, for example `v1.1.5 "Atlas"`. The dialog also shows how this copy was installed, the commit when one is known, and links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi directly. `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`. `GET /api/health` returns those fields plus `"ok": true` and `dataDir`. `installKind` is `git`, `docker`, `zip`, or `unknown`. `commit` is a SHA when the build or the git checkout has one, and null otherwise. Docker never shells out to git to discover a commit. Set `NERDGRAM_COMMIT` at image build time when you want one. When a newer release is available, the banner and the release dialog show that release's code name. The version still comes from the tag. The code name comes from the major number of that tag.
 
 The server asks GitHub, with no token, whether `NetworkNerd1337/NerdGram1337` has a newer full release. That request uses the public Releases API for the latest stable release. It does not offer a prerelease. It does not use the GitHub sync token or `NERDGRAM_GITHUB_TOKEN`, and it does not send telemetry. The answer is cached for about 24 hours in `<data>/.meta/updates.json`. If GitHub is offline, rate-limits the check, or has not published a release yet, the automatic check stays quiet. **Check for updates** in the command palette can say that GitHub could not be reached. It has no keyboard shortcut. How a checkout of `main` differs from a checkout of a release tag is under [Pin a version or move to another](#pin-a-version-or-move-to-another).
 
@@ -984,7 +986,7 @@ The running app shows the version and the code name together. A 1.x.y build is A
 ### Where the version is shown
 
 - The bottom of the sidebar is **About** and the version with its code name, written `v1.1.5 "Atlas"`.
-- **About NerdGram1337** in the command palette opens the same panel: that same version line, commit when there is one, and the install kind (git clone, Docker, ZIP, or unknown).
+- **About NerdGram1337** in the command palette opens the same panel: that same version line, commit when there is one, and the install kind (git clone, Docker, ZIP, or unknown). It also links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi in a new tab and is hidden during presentation.
 - `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`.
 - `GET /api/health` returns those fields plus `"ok": true` and `dataDir`.
 - When a newer release is available, the update banner and the release dialog show that release's code name, from the major number of the release tag. The update check still parses the tag for the version. It does not parse the release title as the version.

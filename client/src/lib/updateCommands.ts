@@ -9,7 +9,7 @@ registerCommands([
     id: "app.about",
     title: "About NerdGram1337",
     section: "Help",
-    keywords: ["version", "update", "release", "docker"],
+    keywords: ["version", "update", "release", "docker", "support", "ko-fi", "license", "author"],
     order: 200,
     run: () => {
       window.dispatchEvent(new CustomEvent("nerdgram:about"));

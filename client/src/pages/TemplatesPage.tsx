@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { Brand } from "../components/Brand";
+import { SupportLink } from "../components/SupportLink";
 import { CommandsButton } from "../components/CommandPalette";
 import { FolderPicker } from "../components/FolderPicker";
 import { Modal } from "../components/Modal";
@@ -125,6 +126,7 @@ export function TemplatesPage() {
           <h1>Template gallery</h1>
         </div>
         <div className="reference-top-actions">
+          <SupportLink />
           <Link className="btn btn-ghost" to="/">
             Dashboard
           </Link>

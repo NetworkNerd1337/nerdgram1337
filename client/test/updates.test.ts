@@ -14,6 +14,7 @@ describe("update commands", () => {
     const about = commands.find((command) => command.id === "app.about");
     const check = commands.find((command) => command.id === "app.checkUpdates");
     expect(about?.title).toBe("About NerdGram1337");
+    expect(about?.keywords).toEqual(expect.arrayContaining(["support", "ko-fi", "license"]));
     expect(check?.title).toBe("Check for updates");
     expect(about?.shortcut).toBeUndefined();
     expect(check?.shortcut).toBeUndefined();

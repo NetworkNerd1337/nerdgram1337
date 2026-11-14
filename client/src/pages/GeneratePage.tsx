@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
+import { SupportLink } from "../components/SupportLink";
 import { FolderPicker } from "../components/FolderPicker";
 import { GenerateWizard } from "../components/GenerateWizard";
 import { useCommandHost } from "../components/commandPaletteContext";
@@ -71,12 +72,15 @@ export function GeneratePage() {
   return (
     <div className="paste-page">
       <div className="paste-shell generate-shell">
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem" }}>
+        <header className="paste-top">
           <Link to="/">
             <Brand />
           </Link>
-          <CommandsButton />
-        </div>
+          <div className="paste-top-actions">
+            <SupportLink />
+            <CommandsButton />
+          </div>
+        </header>
         <h1>Generate a diagram from data</h1>
         <p className="generate-lead">
           Paste a links table, a list of nodes and edges, Cisco CDP, or LLDP neighbor output from any vendor. The
