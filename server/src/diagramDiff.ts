@@ -45,6 +45,9 @@ const DIFF_STROKE = {
   same: "#66788a",
 } as const;
 
+/** Near-white. WCAG AA against every DIFF_FILL, including the slate unchanged nodes. */
+const DIFF_LABEL = "#f8fafc";
+
 export type FieldChange = {
   field: string;
   from: string;
@@ -929,10 +932,10 @@ function buildVisualSource(
     "---",
     "%% NerdGram diff preview. This is not the diagram source.",
     `flowchart ${toGraph.direction || fromGraph.direction}`,
-    `  classDef ngAdded fill:${DIFF_FILL.added},stroke:${DIFF_STROKE.added},color:#f4fff8,stroke-width:2px`,
-    `  classDef ngRemoved fill:${DIFF_FILL.removed},stroke:${DIFF_STROKE.removed},color:#fff5f6,stroke-width:2px,stroke-dasharray:5 4`,
-    `  classDef ngChanged fill:${DIFF_FILL.changed},stroke:${DIFF_STROKE.changed},color:#fff8ee,stroke-width:2px`,
-    `  classDef ngSame fill:${DIFF_FILL.same},stroke:${DIFF_STROKE.same},color:#c5ced8,stroke-width:1px`,
+    `  classDef ngAdded fill:${DIFF_FILL.added},stroke:${DIFF_STROKE.added},color:${DIFF_LABEL},stroke-width:2px`,
+    `  classDef ngRemoved fill:${DIFF_FILL.removed},stroke:${DIFF_STROKE.removed},color:${DIFF_LABEL},stroke-width:2px,stroke-dasharray:5 4`,
+    `  classDef ngChanged fill:${DIFF_FILL.changed},stroke:${DIFF_STROKE.changed},color:${DIFF_LABEL},stroke-width:2px`,
+    `  classDef ngSame fill:${DIFF_FILL.same},stroke:${DIFF_STROKE.same},color:${DIFF_LABEL},stroke-width:1px`,
   ];
 
   type Bucket = { title: string; nodes: { id: string; source: FlowNode; status: Status }[] };

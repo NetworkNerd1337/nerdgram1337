@@ -1,6 +1,8 @@
 /**
  * @vitest-environment happy-dom
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -140,5 +142,24 @@ describe("history diff dialog", () => {
     });
     expect(document.querySelector("[aria-label='Diff legend']")).toBeTruthy();
     expect(document.body.textContent).toContain("Unchanged");
+  });
+});
+
+describe("diff node label color", () => {
+  it("uses near-white text on the colored fills in the compare view and presentation", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/index.css"), "utf8");
+    const start = css.indexOf("/* Diff node labels");
+    const rule = css.slice(start, css.indexOf("}", start) + 1);
+    expect(rule).toContain(".diff-canvas .node.ngAdded .nodeLabel");
+    expect(rule).toContain(".diff-canvas .node.ngRemoved .nodeLabel");
+    expect(rule).toContain(".diff-canvas .node.ngChanged .nodeLabel");
+    expect(rule).toContain(".diff-canvas .node.ngSame .nodeLabel");
+    expect(rule).toContain(".presentation-canvas .node.ngAdded .nodeLabel");
+    expect(rule).toContain(".presentation-canvas .node.ngRemoved .nodeLabel p");
+    expect(rule).toContain(".presentation-canvas .node.ngChanged .nodeLabel p");
+    expect(rule).toContain(".presentation-canvas .node.ngSame .nodeLabel p");
+    expect(rule).toContain("color: #f8fafc");
+    expect(rule).toContain("opacity: 1");
+    expect(rule).not.toContain("edgeLabel");
   });
 });
