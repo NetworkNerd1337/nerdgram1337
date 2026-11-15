@@ -2,6 +2,14 @@
 
 Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code name" - YYYY-MM-DD`. It has to match the root `package.json` version. `npm run version:check` requires the quoted code name to match the `codenames` map. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date. The `vX.Y.Z` tag is the version the update check reads. The GitHub Release title is `vX.Y.Z "Code name"`, from that tag and the map.
 
+## 1.2.1 "Atlas" - 2026-11-14
+
+Patch on the Atlas line. The code name stays Atlas. The dashboard list of diagram findings is quieter and starts closed.
+
+### Diagram checks
+
+From #68 (#67). The panel that was titled **Workspace problems** is now **Diagram checks**. It is closed the first time you visit, and this browser remembers whether you left it open, including when you change folders and when you reload. The closed row already shows the result: a green check when every diagram looks good, an amber count of warnings, or a red count when a diagram has an error. While the check is running it says **Checking diagrams…**. The check runs once when the dashboard opens. It does not keep asking. Opening the panel shows a short explanation and the findings, grouped by diagram, with a link to each line. **Repair links** still opens from a broken diagram link. The checks themselves, and the **Parse error** and **Front matter** badges on thumbnails, are unchanged. A workspace with nothing to report looks neutral.
+
 ## 1.2.0 "Atlas" - 2026-11-14
 
 Minor release on the Atlas line. The code name stays Atlas. This adds a Support button and a fuller About panel, a read-only compare of revisions with named baselines, and find and replace across the workspace.

@@ -49,7 +49,7 @@ Run NerdGram with Docker, or with Node.js on the machine. Docker is the install 
 
 The app is for you, on your personal machine. The [security model](#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset.
 
-The Docker `pull` and `run` commands in this file use `v1.2.0`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](#versioning-and-releases) fails if an image pin in this file, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](#versioning-and-releases).
+The Docker `pull` and `run` commands in this file use `v1.2.1`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](#versioning-and-releases) fails if an image pin in this file, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](#versioning-and-releases).
 
 ### Docker
 
@@ -61,10 +61,10 @@ The package is public, so `docker pull` does not need a login. If a new package 
 
 **1. Install Docker.** Install Docker Engine and the Compose plugin from [Docker's documentation](https://docs.docker.com/get-docker/). `docker version` and `docker compose version` should both print a version.
 
-**2. Pull the image.** The command uses `v1.2.0`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)). Use the current tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when it differs. `:latest` is the newest full release.
+**2. Pull the image.** The command uses `v1.2.1`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)). Use the current tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when it differs. `:latest` is the newest full release.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v1.2.0
+docker pull ghcr.io/networknerd1337/nerdgram1337:v1.2.1
 ```
 
 ```bash
@@ -81,7 +81,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v1.2.0
+  ghcr.io/networknerd1337/nerdgram1337:v1.2.1
 ```
 
 **About → Show upgrade steps** prints the run command with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. Updating an install you already have is [Update a Docker install](#update-a-docker-install).
@@ -585,7 +585,7 @@ The token is not returned to the browser, not written into the git remote URL or
 
 ### In-app updates
 
-The running version is the **About** line at the bottom of the sidebar and **About NerdGram1337** in the command palette. Both show the version and its code name, for example `v1.2.0 "Atlas"`. The dialog also shows how this copy was installed, the commit when one is known, and links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi directly. `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`. `GET /api/health` returns those fields plus `"ok": true` and `dataDir`. `installKind` is `git`, `docker`, `zip`, or `unknown`. `commit` is a SHA when the build or the git checkout has one, and null otherwise. Docker never shells out to git to discover a commit. Set `NERDGRAM_COMMIT` at image build time when you want one. When a newer release is available, the banner and the release dialog show that release's code name. The version still comes from the tag. The code name comes from the major number of that tag.
+The running version is the **About** line at the bottom of the sidebar and **About NerdGram1337** in the command palette. Both show the version and its code name, for example `v1.2.1 "Atlas"`. The dialog also shows how this copy was installed, the commit when one is known, and links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi directly. `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`. `GET /api/health` returns those fields plus `"ok": true` and `dataDir`. `installKind` is `git`, `docker`, `zip`, or `unknown`. `commit` is a SHA when the build or the git checkout has one, and null otherwise. Docker never shells out to git to discover a commit. Set `NERDGRAM_COMMIT` at image build time when you want one. When a newer release is available, the banner and the release dialog show that release's code name. The version still comes from the tag. The code name comes from the major number of that tag.
 
 The server asks GitHub, with no token, whether `NetworkNerd1337/NerdGram1337` has a newer full release. That request uses the public Releases API for the latest stable release. It does not offer a prerelease. It does not use the GitHub sync token or `NERDGRAM_GITHUB_TOKEN`, and it does not send telemetry. The answer is cached for about 24 hours in `<data>/.meta/updates.json`. If GitHub is offline, rate-limits the check, or has not published a release yet, the automatic check stays quiet. **Check for updates** in the command palette can say that GitHub could not be reached. It has no keyboard shortcut. How a checkout of `main` differs from a checkout of a release tag is under [Pin a version or move to another](#pin-a-version-or-move-to-another).
 
@@ -866,7 +866,7 @@ By default, diagrams live in `diagrams/` inside the project. The server creates 
 
 In Docker, the named volume `nerdgram-data` mounted at `/data` is the whole workspace: `.mmd` files, `.meta` (trash, version history, locks, thumbnails, the search index, `updates.json`, syntax overrides, a synced reference, and the GitHub token), and `.nerdgram-git`. Copy the whole volume, including those hidden directories. One volume is one workspace.
 
-Stop the container, then copy the volume out. `tar` is in the image. The entrypoint is the server, so replace it, and use the image you actually run. A checkout build is `nerdgram1337:local`. The published image is `ghcr.io/networknerd1337/nerdgram1337:v1.2.0` (the tag [`compose.yaml`](compose.yaml) pins; use the current [Releases](https://github.com/NetworkNerd1337/NerdGram1337/releases) tag, or `:latest`, when that differs). The process runs as uid 1001, so the folder that receives the archive has to be writable by that user.
+Stop the container, then copy the volume out. `tar` is in the image. The entrypoint is the server, so replace it, and use the image you actually run. A checkout build is `nerdgram1337:local`. The published image is `ghcr.io/networknerd1337/nerdgram1337:v1.2.1` (the tag [`compose.yaml`](compose.yaml) pins; use the current [Releases](https://github.com/NetworkNerd1337/NerdGram1337/releases) tag, or `:latest`, when that differs). The process runs as uid 1001, so the folder that receives the archive has to be writable by that user.
 
 Local build:
 
@@ -882,7 +882,7 @@ docker run --rm --entrypoint tar \
 sudo chown "$(id -u):$(id -g)" nerdgram-backup/nerdgram-data.tgz
 ```
 
-Published image. Same command, with `ghcr.io/networknerd1337/nerdgram1337:v1.2.0` in place of `nerdgram1337:local`:
+Published image. Same command, with `ghcr.io/networknerd1337/nerdgram1337:v1.2.1` in place of `nerdgram1337:local`:
 
 ```bash
 docker stop nerdgram1337
@@ -891,7 +891,7 @@ sudo chown 1001:1001 nerdgram-backup
 docker run --rm --entrypoint tar \
   -v nerdgram-data:/data:ro \
   -v "$PWD/nerdgram-backup":/backup \
-  ghcr.io/networknerd1337/nerdgram1337:v1.2.0 \
+  ghcr.io/networknerd1337/nerdgram1337:v1.2.1 \
   -C /data -czf /backup/nerdgram-data.tgz .
 sudo chown "$(id -u):$(id -g)" nerdgram-backup/nerdgram-data.tgz
 ```
@@ -910,12 +910,12 @@ Stop the app before you replace it. Diagrams stay where they are when you keep t
 
 ### Update a Docker install
 
-The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v1.2.0`, the tag for this tree. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you are moving to a different release. If your names differ, keep the names you already use.
+The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v1.2.1`, the tag for this tree. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you are moving to a different release. If your names differ, keep the names you already use.
 
 1. Pull the new image.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v1.2.0
+docker pull ghcr.io/networknerd1337/nerdgram1337:v1.2.1
 ```
 
 2. Stop the old container. `docker stop` asks the process to finish the write it is in and any GitHub sync already running.
@@ -940,7 +940,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v1.2.0
+  ghcr.io/networknerd1337/nerdgram1337:v1.2.1
 ```
 
 5. Open [http://127.0.0.1:8787](http://127.0.0.1:8787) and choose **Check again** in About. The dialog says whether the running version matches that release.
@@ -987,7 +987,7 @@ There is no **Update now** for a ZIP. About shows the hand steps.
 
 Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. `X` is the major line, `Y` is the maintenance line, and `Z` is the patch. The root `package.json` `version` is the version of the tree you have. A GitHub Release and its git tag use the same numbers with a leading `v`.
 
-This tree is v1.2.0, code name Atlas. v1.0.5 was the first release on this line, and v1.0.6 was the patch after it. Each published tag has a GitHub Release and a container image. Both are listed on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). Later 1.x.y releases stay Atlas. The image for this tree is `ghcr.io/networknerd1337/nerdgram1337:v1.2.0` once the `v1.2.0` tag is pushed.
+This tree is v1.2.1, code name Atlas. v1.0.5 was the first release on this line, and v1.0.6 was the patch after it. Each published tag has a GitHub Release and a container image. Both are listed on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). Later 1.x.y releases stay Atlas. The image for this tree is `ghcr.io/networknerd1337/nerdgram1337:v1.2.1` once the `v1.2.1` tag is pushed.
 
 ### Version numbers and code names
 
@@ -998,7 +998,7 @@ Each major number has one code name for as long as that line is published. Maint
 | 1 | Atlas | v1.0.5 |
 | 2 | Meridian | v2.0.0 |
 
-v1.0.5 was the first release. Every later 1.x.y release is still Atlas. v1.2.0 is the version of this tree. Meridian begins at v2.0.0 and is the name of every 2.x.y release after that.
+v1.0.5 was the first release. Every later 1.x.y release is still Atlas. v1.2.1 is the version of this tree. Meridian begins at v2.0.0 and is the name of every 2.x.y release after that.
 
 Which number moves:
 
@@ -1010,7 +1010,7 @@ The running app shows the version and the code name together. A 1.x.y build is A
 
 ### Where the version is shown
 
-- The bottom of the sidebar is **About** and the version with its code name, written `v1.2.0 "Atlas"`.
+- The bottom of the sidebar is **About** and the version with its code name, written `v1.2.1 "Atlas"`.
 - **About NerdGram1337** in the command palette opens the same panel: that same version line, commit when there is one, and the install kind (git clone, Docker, ZIP, or unknown). It also links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi in a new tab and is hidden during presentation.
 - `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`.
 - `GET /api/health` returns those fields plus `"ok": true` and `dataDir`.
@@ -1020,11 +1020,11 @@ The running app shows the version and the code name together. A 1.x.y build is A
 
 ### Pin a version or move to another
 
-The Docker `pull` and `run` commands use `v1.2.0`, the Atlas tag for this tree, so they can be copied. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. Git and ZIP examples in this section still write the tag as `vX.Y.Z`. Substitute the release you want. `:latest` is not a version. It is the newest full release the image workflow has pushed.
+The Docker `pull` and `run` commands use `v1.2.1`, the Atlas tag for this tree, so they can be copied. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. Git and ZIP examples in this section still write the tag as `vX.Y.Z`. Substitute the release you want. `:latest` is not a version. It is the newest full release the image workflow has pushed.
 
-**Docker, stay on one release.** Use the immutable tag `ghcr.io/networknerd1337/nerdgram1337:v1.2.0` in `docker run` and as the `image:` line in `compose.yaml`. `docker pull` of that tag gets that release again. Recreate the container on the same `nerdgram-data` volume when you change tags. The steps are [Update a Docker install](#update-a-docker-install). The workflow also pushes `sha-<commit>` for that build. Pin the `sha-` tag when you need that exact image rather than the version tag.
+**Docker, stay on one release.** Use the immutable tag `ghcr.io/networknerd1337/nerdgram1337:v1.2.1` in `docker run` and as the `image:` line in `compose.yaml`. `docker pull` of that tag gets that release again. Recreate the container on the same `nerdgram-data` volume when you change tags. The steps are [Update a Docker install](#update-a-docker-install). The workflow also pushes `sha-<commit>` for that build. Pin the `sha-` tag when you need that exact image rather than the version tag.
 
-**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins `v1.2.0`, which matches `package.json`, not `:latest`. Change that pin when you want a different release, then `docker compose pull` and `docker compose up -d`.
+**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins `v1.2.1`, which matches `package.json`, not `:latest`. Change that pin when you want a different release, then `docker compose pull` and `docker compose up -d`.
 
 **Git, track `main`.** Check out `main` and pull. You get the commits on `main`. That history can contain commits the latest release tag does not. The update check's **ahead** state compares the `version` in this tree's `package.json` with the latest stable release tag. It is not a count of extra commits. **Update now** runs only when this is a clean checkout of the official origin, on `main` or a detached release tag, and the release tag is a fast-forward. On `main` it merges that tag with `--ff-only`, then runs `npm ci` and `npm run build`. You are still on `main` afterwards. If the tag is not a fast-forward from this checkout, **Update now** refuses it as not a fast-forward and does not reset you back to the tag.
 
