@@ -2,6 +2,34 @@
 
 Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code name" - YYYY-MM-DD`. It has to match the root `package.json` version. `npm run version:check` requires the quoted code name to match the `codenames` map. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date. The `vX.Y.Z` tag is the version the update check reads. The GitHub Release title is `vX.Y.Z "Code name"`, from that tag and the map.
 
+## 1.3.0 "Atlas" - 2026-11-15
+
+Minor release on the Atlas line. The code name stays Atlas. Settings can choose the address NerdGram listens on, the docs describe that address as a LAN tool port, and the Automation API reference lists every route. The app image is a new portrait.
+
+### Host setting
+
+From #75 (#73). Settings has a Host box. It defaults to `127.0.0.1` and is stored under the data directory, so it is still there after a restart. That default, and a missing file, keep today's loopback bind: `127.0.0.1` and `::1`. A machine IP listens on that interface only. `0.0.0.0` listens on every IPv4 interface, and `::` listens on every IPv6 interface. The box accepts an IPv4 or IPv6 address only. A hostname is not accepted. NerdGram does not restart itself. When the saved value is not `127.0.0.1`, the page tells you to restart NerdGram manually before that address takes effect. Saving `127.0.0.1` again clears that notice.
+
+When `HOST` is set, it wins over the saved value, and the page says so. `HOST=127.0.0.1` is IPv4 loopback only, which is not the same as the saved default. Inside Docker the image sets `HOST=0.0.0.0`, so the box is read-only. Other machines reach the container through the published port. `127.0.0.1:8787:8787` keeps the tool port on the host loopback. `<lan-ip>:8787:8787` publishes that address. The container does not see the host's LAN addresses, so those callers need `NERDGRAM_ALLOWED_HOSTS`.
+
+A saved machine IP is accepted as a `Host` name, including `IP:port` on the API port. `0.0.0.0` and `::` are not Host names. At startup NerdGram allows the machine's non-loopback interface addresses instead, so a caller can use any of those IPs without adding them to `NERDGRAM_ALLOWED_HOSTS`. Loopback names (`localhost`, `127.0.0.1`, `::1`) stay allowed. Names in `NERDGRAM_ALLOWED_HOSTS` are merged in. A DNS name still belongs there.
+
+### LAN tool port
+
+From #75 (#73). The README and the CLI docs call the API a tool port: a conduit other programs on a network you trust can call on demand, not an always-on server for many users. The default bind stays loopback. The docs say what publishing the port opens, and the full set of changes a Node install and a Docker install each need before a LAN call succeeds.
+
+### One call builds the whole diagram
+
+From #75 (#73). `generate` and `refresh` each send the complete data for the diagram. A later call replaces the generated block. It does not add one device at a time. The workspace path is the id a refresh uses. The docs include a CDP example that posts `show cdp neighbors detail` for two devices in one call, then refreshes that same path. Notes outside the generated markers stay. The previous diagram is kept as a revision.
+
+### Endpoint reference
+
+From #75 (#73). The Automation API section lists every `/api/v1` route in one table: method, path, token scope, what a success returns, and the main fields. `docs/cli.md` maps each route to the `nerdgram` command that calls it. A test reads that table and that map and fails when either one drifts from the routes the server serves.
+
+### App image
+
+The header, the About panel, and the browser icon use a new portrait of NetworkNerd1337.
+
 ## 1.2.2 "Atlas" - 2026-11-15
 
 Patch on the Atlas line. The code name stays Atlas. Clicking an object in the preview jumps the editor to the line that drew it.
