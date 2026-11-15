@@ -832,6 +832,12 @@ a {
   background: #1a2330;
 }
 
+/* Soft accent wash on the caret's line. 14% of the app accent stays behind
+   syntax colors in the dark editor and on a light editor background. */
+.mermaid-code-editor .cm-editor .cm-line.cm-activeLine {
+  background-color: rgba(47, 111, 143, 0.14);
+}
+
 .mermaid-code-editor .cm-tooltip-autocomplete {
   border: 1px solid #314257 !important;
   background: #151b23 !important;

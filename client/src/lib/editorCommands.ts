@@ -1,6 +1,7 @@
 import { SearchQuery, search, searchKeymap, gotoLine, openSearchPanel, setSearchQuery } from "@codemirror/search";
 import { Prec, type Extension } from "@codemirror/state";
-import { keymap, ViewPlugin, type EditorView, type KeyBinding, type ViewUpdate } from "@codemirror/view";
+import { EditorView, keymap, ViewPlugin, type EditorView as EditorViewType, type KeyBinding, type ViewUpdate } from "@codemirror/view";
+import { lineIsComfortablyVisible } from "./sourceJump";
 import { openWorkspaceReplace } from "./workspaceReplace";
 
 /**
@@ -47,7 +48,7 @@ function readPanelFlag(panel: ParentNode, name: string): boolean {
  */
 const workspaceReplaceLink = ViewPlugin.fromClass(
   class {
-    ensure(view: EditorView): void {
+    ensure(view: EditorViewType): void {
       const panel = view.dom.querySelector<HTMLElement>(".cm-search");
       if (!panel || panel.querySelector("[data-workspace-replace]")) return;
       const button = document.createElement("button");
@@ -70,7 +71,7 @@ const workspaceReplaceLink = ViewPlugin.fromClass(
       panel.appendChild(button);
     }
 
-    constructor(view: EditorView) {
+    constructor(view: EditorViewType) {
       this.ensure(view);
     }
 
@@ -84,17 +85,17 @@ export function editorSearchExtensions(): Extension[] {
   return [search({ top: true }), workspaceReplaceLink, Prec.high(keymap.of(editorSearchKeymap))];
 }
 
-let editorView: EditorView | null = null;
+let editorView: EditorViewType | null = null;
 
-export function bindEditorView(view: EditorView | null): void {
+export function bindEditorView(view: EditorViewType | null): void {
   editorView = view;
 }
 
-export function getEditorView(): EditorView | null {
+export function getEditorView(): EditorViewType | null {
   return editorView;
 }
 
-function withEditor(run: (view: EditorView) => boolean): boolean {
+function withEditor(run: (view: EditorViewType) => boolean): boolean {
   const view = editorView;
   if (!view) return false;
   view.focus();
@@ -166,4 +167,38 @@ export function revealEditorMatch(line: number | null, query: string): boolean {
   if (needle) openSearchPanel(view);
   view.focus();
   return true;
+}
+
+/**
+ * Put the caret on a source line. Scroll so the line is centered when it is
+ * outside the comfortable area; leave the scroll alone when it is already
+ * visible. Focus uses CodeMirror's prevent-scroll focus so the page does not jump.
+ */
+export function revealEditorLine(line: number, column: number): boolean {
+  const view = editorView;
+  if (!view) return false;
+  const doc = view.state.doc;
+  if (line < 1 || line > doc.lines) return false;
+  const lineObj = doc.line(line);
+  const clamped = Math.max(0, Math.min(column, lineObj.length));
+  const pos = lineObj.from + clamped;
+  const effects = lineComfortablyInView(view, pos)
+    ? []
+    : EditorView.scrollIntoView(pos, { y: "center", yMargin: 48 });
+  view.dispatch({
+    selection: { anchor: pos },
+    effects,
+  });
+  view.focus();
+  return true;
+}
+
+function lineComfortablyInView(view: EditorViewType, pos: number): boolean {
+  const coords = view.coordsAtPos(pos);
+  if (!coords) return false;
+  const scroller = view.scrollDOM.getBoundingClientRect();
+  const win = view.dom.ownerDocument.defaultView;
+  const top = Math.max(scroller.top, 0);
+  const bottom = Math.min(scroller.bottom, win?.innerHeight ?? scroller.bottom);
+  return lineIsComfortablyVisible(top, bottom, coords.top, coords.bottom);
 }
