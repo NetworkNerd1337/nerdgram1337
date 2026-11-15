@@ -47,13 +47,13 @@ The same page is in the app. **Support** is in the header on the dashboard, the 
 
 Run NerdGram with Docker, or with Node.js on the machine. Docker is the install to use when you want the app. Node.js is how you develop it, and it is also a full install when you do not want Docker. Use one of them at a time. Development and production both want port **8787**.
 
-The app is for you, on your personal machine. The [security model](#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset.
+The app is for you, on your personal machine. It is a single-user tool, not a client/server product. The API is a tool port: a conduit other programs can call on demand, not an always-on multi-user server. The [security model](#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset unless you want that tool port on the local network.
 
 The Docker `pull` and `run` commands in this file use `v1.2.2`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](#versioning-and-releases) fails if an image pin in this file, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](#versioning-and-releases).
 
 ### Docker
 
-You do not need Node.js, and you do not need to clone this repository, to run the published image. The image is Node.js 22 on Debian bookworm-slim (`node:22.23.5-bookworm-slim`), pinned by digest in the `NODE_IMAGE` argument of the [Dockerfile](Dockerfile). The process inside the container listens on `0.0.0.0` so Docker can publish the port. The log warns that `0.0.0.0` is not loopback. That warning is expected. On the host, publish **`127.0.0.1:8787:8787`**. Publishing `8787:8787` or `0.0.0.0:8787` opens every host interface. That setup is unsupported.
+You do not need Node.js, and you do not need to clone this repository, to run the published image. The image is Node.js 22 on Debian bookworm-slim (`node:22.23.5-bookworm-slim`), pinned by digest in the `NODE_IMAGE` argument of the [Dockerfile](Dockerfile). The process inside the container listens on `0.0.0.0` so Docker can publish the port. The image sets `HOST=0.0.0.0`, which wins over the saved Host setting, so the Settings page shows that box as read-only. The log notes that `0.0.0.0` is not loopback. That note is expected. On the host, publish **`127.0.0.1:8787:8787`** to keep the tool port on this machine. Publish **`<lan-ip>:8787:8787`** when another machine on that network should call the API. Publishing `8787:8787` or `0.0.0.0:8787` opens every host interface. The browser `/api` routes have no token, so anyone who can open the published port can use them. The container does not see the host's LAN addresses. Set `NERDGRAM_ALLOWED_HOSTS` to the address callers use, or those requests are **403**. See [Security model](#security-model).
 
 The image is `ghcr.io/networknerd1337/nerdgram1337`. Each full release is a tag `vX.Y.Z`, the same tag as the GitHub Release. The workflow also pushes `:latest` for the newest full release. The tag to use is on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). [`compose.yaml`](compose.yaml) pins the tag that matches this tree. [`npm run version:check`](#versioning-and-releases) fails if an image pin in this file, the Dockerfile, or `compose.yaml` disagrees with `package.json`.
 
@@ -142,7 +142,7 @@ That tags the image `nerdgram1337:local`. It does not label the local build with
 Optional variables go on `docker run -e`, or in a `.env` file next to `compose.yaml` (that file is gitignored):
 
 - `NERDGRAM_GITHUB_CLIENT_ID` for GitHub sync. `NERDGRAM_GITHUB_TOKEN` is optional. The token file is `/data/.meta/github-token` with mode `0600`. The git working copy is `/data/.nerdgram-git`.
-- `NERDGRAM_ALLOWED_HOSTS` and `NERDGRAM_CORS_ORIGINS` when you deliberately open the app on a name other than loopback. Saving from `diagrams.home` needs `NERDGRAM_ALLOWED_HOSTS=diagrams.home` and `NERDGRAM_CORS_ORIGINS=http://diagrams.home:8787`. That is still a single-user app with no login. See [Security model](#security-model).
+- `NERDGRAM_ALLOWED_HOSTS` and `NERDGRAM_CORS_ORIGINS` when callers use a DNS name, or when the published host address is not an address the container can see. Saving from `diagrams.home` needs `NERDGRAM_ALLOWED_HOSTS=diagrams.home` and `NERDGRAM_CORS_ORIGINS=http://diagrams.home:8787`. A LAN IP published as `<lan-ip>:8787:8787` needs that IP in `NERDGRAM_ALLOWED_HOSTS` because interface discovery inside the container is the container's own addresses, not the host's. That is still a single-user tool port, not a shared server. See [Security model](#security-model).
 
 ### Node.js
 
@@ -261,7 +261,7 @@ Error: Cannot find module '.../server/dist/index.js'
 
 Run `npm run build` from the project root, then `npm start` again.
 
-Leave `HOST` unset. That listens on `127.0.0.1` and `::1`. `PORT` changes the production port (`PORT=8790 npm start`; Command Prompt: `set PORT=8790` then `npm start`; PowerShell: `$env:PORT = "8790"`). During `npm run dev`, leave the API on 8787. See [Configuration](#configuration) for `HOST`, `NODE_ENV`, and `NERDGRAM_DATA_DIR`.
+Leave `HOST` unset unless another machine should call the API. Unset, the server listens on `127.0.0.1` and `::1`. The same default is the Host box on the settings page. `PORT` changes the production port (`PORT=8790 npm start`; Command Prompt: `set PORT=8790` then `npm start`; PowerShell: `$env:PORT = "8790"`). During `npm run dev`, leave the API on 8787 and leave the bind on loopback: the dev page proxies to `127.0.0.1:8787`. See [Configuration](#configuration) for `HOST`, the saved Host setting, `NODE_ENV`, and `NERDGRAM_DATA_DIR`.
 
 A git clone is updated with [Update a git clone](#update-a-git-clone). A ZIP copy is updated with [Update a ZIP copy](#update-a-zip-copy).
 
@@ -637,10 +637,10 @@ Set a variable in the same terminal before `npm run dev` or `npm start`, so the 
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `PORT` | `8787` | API port. Inside Docker this must equal the published host port. |
-| `HOST` | unset, which binds `127.0.0.1` and `::1` | One address replaces that pair. `HOST=127.0.0.1` is IPv4 loopback only. `HOST=::1` is IPv6 loopback only. `HOST=0.0.0.0` or `HOST=::` listens beyond this machine, prints the unsupported warning, and is intended only inside the container. |
+| `HOST` | unset, which binds `127.0.0.1` and `::1` | One address replaces that pair. When this variable is set, it wins over the Host setting saved in the UI, and the settings page says so. `HOST=127.0.0.1` is IPv4 loopback only. `HOST=::1` is IPv6 loopback only. `HOST=0.0.0.0` listens on every IPv4 interface. `HOST=::` listens on every IPv6 interface. The Docker image sets `HOST=0.0.0.0` so a published port can reach the process. |
 | `NODE_ENV` | inferred | Set `NODE_ENV=production` or `NODE_ENV=development` to override. Unset, a `tsx` dev process is development and `node dist/index.js` is production. Development allows the Vite origins on port 5173. |
 | `NERDGRAM_DATA_DIR` | `<repo>/diagrams` | Absolute path of the workspace. The image uses `/data`. |
-| `NERDGRAM_ALLOWED_HOSTS` | empty | Comma-separated extra `Host` names. `*` and `0.0.0.0` are ignored. This does not make a shared server supported. |
+| `NERDGRAM_ALLOWED_HOSTS` | empty | Comma-separated extra `Host` names, merged with the names the bind already allows. A star, `0.0.0.0`, and `::` are ignored. Use this for a DNS name, or for a Docker host address the container cannot discover. |
 | `NERDGRAM_CORS_ORIGINS` | empty | Comma-separated extra origins for mutations, such as `http://localhost:5174`. Not a wildcard. |
 | `NERDGRAM_INSTALL` | auto | `docker`, `git`, or `zip`. Any other explicit value is `unknown`. Unset, a `/.dockerenv` or `/run/.containerenv` file means docker, a `.git` at the app root means git, and a `package.json` means zip. |
 | `NERDGRAM_COMMIT` | git `HEAD` on a git install, otherwise unset | Hex SHA of 7 to 40 characters baked into an image. Docker does not run git to find one. |
@@ -677,13 +677,57 @@ An empty custom directory is seeded once with the sample diagrams, including the
 
 `HOST=127.0.0.1 npm start` listens on IPv4 loopback only (Command Prompt: `set HOST=127.0.0.1` then `npm start`; PowerShell: `$env:HOST = "127.0.0.1"`). `HOST=::1` listens on IPv6 loopback only. If `http://localhost:8787` does not open, use `http://127.0.0.1:8787`. The same variable applies to `npm run dev`. Set `NODE_ENV=development` or `NODE_ENV=production` only when you need to override the inferred mode.
 
+**Host setting.** Settings has a Host box. It is stored at `<data>/.meta/listen-host.json` and read on the next start. The box defaults to `127.0.0.1`. That saved value, and a missing file, keep the default pair `127.0.0.1` and `::1`. It is not the same as `HOST=127.0.0.1`, which is IPv4 only. A machine IP listens on that interface only and is accepted in the `Host` header, including `IP:port` on the API port. `0.0.0.0` or `::` listens on every interface of that family. Those two values are not `Host` names. At startup NerdGram allows the machine's non-loopback interface addresses instead, so a caller can use any of those IPs. Loopback names (`localhost`, `127.0.0.1`, `::1`) always stay allowed. `NERDGRAM_ALLOWED_HOSTS` is merged in, not replaced. The UI accepts an IPv4 or IPv6 address only. A DNS name belongs in `NERDGRAM_ALLOWED_HOSTS`.
+
+`HOST` wins when it is set. The settings page shows the override and does not pretend the saved value is the bind. NerdGram never restarts itself. The restart note appears only when the saved value is not `127.0.0.1`. Saving `127.0.0.1` again clears that note and returns to the default loopback pair on the next start.
+
+In Docker the image sets `HOST=0.0.0.0`, so the box is read-only. Change the published port, not the setting. `127.0.0.1:8787:8787` keeps the tool port on the host loopback. `<lan-ip>:8787:8787` publishes that address. Add the host address to `NERDGRAM_ALLOWED_HOSTS`, because the process discovers the container's interfaces, not the host's. Browser edits from another origin still need `NERDGRAM_CORS_ORIGINS`. A token call from `curl` does not send `Origin`, so the Host allow-list is the check that matters for it.
+
 ## Automation API
 
 `/api/v1` is for scripts, CI, and other tools. The browser UI keeps using `/api` and does not send a token. Create a token under **Automation tokens** on the settings page (`/settings`). The token is shown once. The server stores a SHA-256 hash in `<data>/.meta/api-tokens.json` (mode `0600`) and compares it in constant time. Revoke a token on that same page. A revoked token stops working immediately.
 
 A token is `read` or `read-write`. Read can list, search, fetch source, export, lint, render, and preview link repairs. Read-write can also create, update, rename, move, duplicate, trash, generate, refresh, and apply link repairs. A read token that tries to write gets **403**. A missing, wrong, or revoked token gets **401**.
 
-The OpenAPI document is `GET /api/v1/openapi.json`. That one route does not require a token. Every other `/api/v1` route does. Host and Origin checks still apply, including on token routes. A foreign `Host` is **403**. Every `POST`, `PUT`, `PATCH`, and `DELETE` needs `Content-Type: application/json`, including `DELETE /api/v1/diagrams`. Without that header the response is **415** and `{"error":"Content-Type must be application/json"}`. A foreign `Origin` is **403**. A token does not turn those checks off. The same header is required on the browser routes under `/api`. See [Security model](#security-model).
+The OpenAPI document is `GET /api/v1/openapi.json`. That one route does not require a token. Every other `/api/v1` route does. Host and Origin checks still apply, including on token routes. A foreign `Host` is **403**. Every `POST`, `PUT`, `PATCH`, and `DELETE` needs `Content-Type: application/json`, including `DELETE /api/v1/diagrams`. Without that header the response is **415** and `{"error":"Content-Type must be application/json"}`. A foreign `Origin` is **403**. A token does not turn those checks off. The same header is required on the browser routes under `/api`. See [Security model](#security-model). Full request schemas are in `GET /api/v1/openapi.json`.
+
+**Status codes.** **401** is a missing, unknown, or revoked token, on every route except the OpenAPI document. **403** is a read token calling a read-write route, a `Host` that is not allowed, or an `Origin` that is not allowed. **409** is a conflict: the path already exists, a sibling data file needs `copyData` or `deleteData`, `expectedHash` or `expectedMtimeMs` does not match, or a link-repair choice is not in the preview. **415** is a mutation without `Content-Type: application/json`. **423** is an editor lock on a write. **429** is the render limit, with `Retry-After`. **400** is a rejected body or query. The table below is every route. The purpose is the success response. The fields are the main query parameters or JSON body.
+
+<!-- v1-route-table -->
+| Method | Path | Scope | Purpose | Fields |
+| --- | --- | --- | --- | --- |
+| GET | `/api/v1/openapi.json` | `public` | Returns this OpenAPI document. No token. | none |
+| GET | `/api/v1/diagrams` | `read` | Lists folders and diagrams in one folder. | query `path` (empty is the root) |
+| GET | `/api/v1/search` | `read` | Searches diagram names and text. | query `q` (required), `names`, `contents`, `regex` (`0` or `1`) |
+| GET | `/api/v1/diagrams/content` | `read` | Reads one diagram's source and metadata. | query `path` (required) |
+| POST | `/api/v1/diagrams` | `read-write` | Creates a diagram. **409** when the path already exists. **201** on success. | body `path`, `content` |
+| PUT | `/api/v1/diagrams` | `read-write` | Creates or overwrites a diagram. `expectedHash` and `expectedMtimeMs` return **409** when the file changed. `force` overwrites. | body `path`, `content`, `force`, `expectedHash`, `expectedMtimeMs` |
+| POST | `/api/v1/diagrams/rename` | `read-write` | Renames a diagram or folder and updates click links. **409** when `updateLinks` is false and another diagram links here. | body `from`, `to`, `updateLinks` (default true) |
+| POST | `/api/v1/diagrams/move` | `read-write` | Moves a diagram or folder, updates click links, and moves a sibling data file. | body `from`, `toFolder` (empty is the root), `updateLinks` |
+| POST | `/api/v1/diagrams/duplicate` | `read-write` | Duplicates a diagram or folder. **409** with `files` when a sibling data file exists and `copyData` is omitted. | body `path`, `copyData` |
+| DELETE | `/api/v1/diagrams` | `read-write` | Moves a diagram or folder to the trash. **200** with `path` and `trashed`. **409** with `files` when a sibling data file exists and `deleteData` is omitted. | query or body `path`; body `confirmLinks` (default true), `deleteData` |
+| POST | `/api/v1/folders` | `read-write` | Creates a folder. | body `path` |
+| GET | `/api/v1/export` | `read` | Reads every diagram under a folder. | query `path` |
+| GET | `/api/v1/link-repairs` | `read` | Previews click-link repairs. Nothing is written. | none |
+| POST | `/api/v1/link-repairs` | `read-write` | Previews, or applies when `dryRun` is false and `confirm` is true. **409** when a pair is not in the preview. | body `dryRun` (default true), `confirm`, `lockToken`, `choices` (`from`, `to`) |
+| GET | `/api/v1/lint` | `read` | Lints one saved diagram, or every diagram when `path` is omitted. Use this for files already in the workspace. | query `path` |
+| POST | `/api/v1/lint` | `read` | Lints Mermaid source that is not necessarily saved. Use this to check a paste before writing it. | body `source`, `sourcePath`, `diagramPaths`, `rules` |
+| GET | `/api/v1/render` | `read` | Renders a saved diagram to SVG or PNG. **429** over 30 calls a minute per token. | query `path`, `format` (`svg` or `png`), `background` |
+| POST | `/api/v1/render` | `read` | Renders a saved diagram or posted source. Send `path` or `source`, not both. Same **429** limit. | body `path` or `source`, `format`, `background` |
+| POST | `/api/v1/generate/preview` | `read` | Builds a diagram from CSV, JSON, CDP, or LLDP and writes nothing. | body `text`, `format`, `direction`, `groupBy`, `localDevice`, `title`, `edgesText`, `mapping`, `grouping`, `shape` |
+| POST | `/api/v1/generate` | `read-write` | Creates the complete diagram from that same data and stores the data file beside it. **409** when the path exists. **201** on success. CDP and LLDP are accepted here, not only CSV and JSON. | body `text`, `path`, `format` (`csv`, `json`, `cdp`, `lldp`), `direction`, `groupBy`, `localDevice`, `title`, `edgesText`, `storeData`, `mapping`, `grouping`, `shape` |
+| POST | `/api/v1/generate/refresh` | `read-write` | Replaces the generated block of an existing diagram from the data in this call. | body `path`, `text`, `edgesText`, `diagramText`, `writeData`, `save` |
+| GET | `/api/v1/history` | `read` | Lists revisions for one diagram, including baseline name and note. | query `path` |
+| GET | `/api/v1/history/diff` | `read` | Diffs two revisions, or a revision and the current diagram. The file is not modified. | query `path`, `from`, `to` (id, baseline name, or `current`) |
+| POST | `/api/v1/history/baseline` | `read-write` | Names a revision, or saves the current diagram as a named baseline. **201** on success. | body `path`, `name`, `id`, `note` |
+| PATCH | `/api/v1/history/baseline` | `read-write` | Renames a baseline or changes its note. An empty `note` clears it. | body `path`, `id`, `name`, `note` |
+| DELETE | `/api/v1/history/baseline` | `read-write` | Removes a baseline name. The revision stays, and the 20-revision limit applies to it again. | body `path`, `id` |
+| POST | `/api/v1/replace/preview` | `read` | Previews a find and replace. Nothing is written. | body `find`, `replace`, `matchCase`, `wholeWord`, `regex`, `includeFrontMatter`, `scope` |
+| POST | `/api/v1/replace/apply` | `read-write` | Applies a previewed replace. Each saved diagram becomes a revision first. | body `find`, `replace`, `files` (`path`, `hash`, `skipMatchIds`) |
+| POST | `/api/v1/replace/undo` | `read-write` | Undoes one replace. Files edited since that replace are skipped. | body `id` |
+<!-- /v1-route-table -->
+
+`nerdgram` calls these routes as listed in [docs/cli.md](docs/cli.md#command-to-route-map). Routes with no command are API-only: create (as opposed to overwrite), folders, lint of unsaved source, GET render, generate preview, history list, and baseline rename or delete.
 
 ```bash
 curl -fsS "http://127.0.0.1:8787/api/v1/diagrams" \
@@ -717,7 +761,40 @@ curl -fsS "http://127.0.0.1:8787/api/v1/lint?path=Welcome.mmd" \
   -H "Authorization: Bearer ng_your_token"
 ```
 
-Generate and refresh use the same CSV and JSON pipeline as [Generate from data](#generate-from-data). `save: true` writes the refreshed diagram. Without it, the response is the new source and the diff, and the file stays as it was.
+### One call builds the whole diagram
+
+`generate` and `refresh` are not a way to add one device per call. Each call builds the **complete** generated diagram from the data in that call. A later call on the same diagram replaces that generated block. It does not append. `POST /api/v1/generate/refresh` rewrites only the lines between `%% nerdgram:generated` and `%% nerdgram:generated end`. A device or link left out of the new data drops off the diagram. Notes, styling, and hand-added nodes outside those markers stay. The workspace path, such as `Network/Core.mmd`, is the id a later refresh uses. Put every device's CDP or LLDP output in **one** `text` value, pasted one after another. The previous diagram is saved as a revision before the refresh is written, so history, baselines, and `diff` can compare old against new.
+
+CSV and JSON still use the [Generate from data](#generate-from-data) pipeline. CDP and LLDP use the same routes: `format` is `cdp` or `lldp`, `groupBy` is `platform` (the default) or `capability`, and `localDevice` is the hostname when the paste has no CLI prompt. `POST /api/v1/generate` returns **409** when `path` already exists. `save: true` on refresh writes the diagram. Without it, the response is the new source and the diff, and the file stays as it was. `writeData: true` stores the new `text` in the sibling data file.
+
+A network script can post `show cdp neighbors detail` and NerdGram builds the diagram. This paste is two devices in one call:
+
+```bash
+curl -fsS -X POST "http://127.0.0.1:8787/api/v1/generate" \
+  -H "Authorization: Bearer ng_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"Network/Core.mmd","format":"cdp","groupBy":"platform","text":"core-sw#show cdp neighbors detail\n-------------------------\nDevice ID: dist-sw\nPlatform: cisco WS-C3750X-48, Capabilities: Switch\nInterface: GigabitEthernet1/0/1, Port ID (outgoing port): GigabitEthernet1/0/48\n-------------------------\nDevice ID: access-sw\nPlatform: cisco WS-C2960-24TT-L, Capabilities: Switch\nInterface: GigabitEthernet1/0/2, Port ID (outgoing port): GigabitEthernet0/1\n"}'
+```
+
+LLDP is the same call with `"format":"lldp"`. A paste that has no prompt needs `"localDevice":"edge-sw"`. The samples are `docs/samples/neighbors/cisco-ios-cdp.cdp` and `docs/samples/neighbors/cisco-ios-lldp.lldp`.
+
+Later, the same path is the refresh. This replaces the generated block with the new neighbor output and keeps the previous diagram as a revision:
+
+```bash
+curl -fsS -X POST "http://127.0.0.1:8787/api/v1/generate/refresh" \
+  -H "Authorization: Bearer ng_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"Network/Core.mmd","text":"core-sw#show cdp neighbors detail\n-------------------------\nDevice ID: dist-sw\nPlatform: cisco WS-C3750X-48, Capabilities: Switch\nInterface: GigabitEthernet1/0/1, Port ID (outgoing port): GigabitEthernet1/0/48\n","writeData":true,"save":true}'
+```
+
+Refresh reads `format` from the diagram's front matter, so the new `text` has to match the format the generate call stored. The matching CLI, from a checkout that can read the sample file, is:
+
+```bash
+nerdgram generate --path Network/Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp --format cdp
+nerdgram refresh Network/Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp
+```
+
+`nerdgram refresh` sends `save: true`, and `writeData: true` when `--data` is set. CSV still works:
 
 ```bash
 curl -fsS -X POST "http://127.0.0.1:8787/api/v1/generate" \
@@ -728,11 +805,11 @@ curl -fsS -X POST "http://127.0.0.1:8787/api/v1/generate" \
 
 Render runs headless Chrome (the `chrome-headless-shell` build, not the full browser) so SVG and PNG match the editor. `format` is `svg` or `png` on `POST /api/v1/render` and on `GET /api/v1/render`. `jpg`, `pdf`, and any other value are **400** with `{"error":"format must be svg or png","code":"invalid"}`. A DOM emulator was not accurate enough for layout. The shell adds about 260 MB unpacked, plus the shared libraries the image installs for it. That is the size cost of a correct picture. Render is limited to 30 calls a minute per token (**429**, `Retry-After`). Posted source is limited to 512 KB, and the SVG is sanitized the same way cached thumbnails are.
 
-The server still binds to `127.0.0.1` and `::1` when `HOST` is unset. A token does not make it safe to publish port 8787. The browser routes under `/api` stay open on purpose, for the UI on this machine. Anyone who can reach a published port can use those routes without a token.
+The server binds to `127.0.0.1` and `::1` when `HOST` is unset and the saved Host setting is `127.0.0.1` or missing. To let another machine call this API, set Host to that machine's IP or to `0.0.0.0`, then start NerdGram again. The setting adds that address, or the machine's discovered interface addresses for `0.0.0.0` and `::`, to the allowed `Host` names. You do not set `NERDGRAM_ALLOWED_HOSTS` for those addresses on a Node install. A token does not protect the browser routes under `/api`. Those routes stay open on purpose, for the UI. Anyone who can reach the port can use them. Treat the open port as a tool port on a network you trust, and limit it with a firewall rule or a reverse proxy. Do not forward it from an ISP router. In Docker, publish the host port you want and set `NERDGRAM_ALLOWED_HOSTS` to the address callers use. See [Security model](#security-model).
 
 ## Command-line tool
 
-`nerdgram` is the client for that API. It talks to a NerdGram server on this machine, or on another machine you can reach. `lint` and `render` of a `.mmd` file that is already on disk do not need the server.
+`nerdgram` is the client for that API. It talks to a NerdGram server on this machine, or on another machine that can reach the tool port. `lint` and `render` of a `.mmd` file that is already on disk do not need the server. `generate` and `refresh` follow the [one-call model](#one-call-builds-the-whole-diagram): each call sends the complete data, and the path is the id. Every command and the route it calls is in [docs/cli.md](docs/cli.md#command-to-route-map).
 
 ### Install the CLI from npm
 
@@ -828,11 +905,15 @@ To render from a running server instead, create a read token, store it as a secr
 
 NerdGram1337 is a local, single-user personal tool. It has no accounts and no login, by design. Diagrams are plain `.mmd` files. An in-app login would not protect anything the operating system does not already protect. Your OS account and the permissions on the data directory are the access control. Automation tokens, described in [Automation API](#automation-api), apply only to `/api/v1`. They do not cover the browser routes.
 
-Shared servers, a computer offered as a service, and NAS deployments are unsupported. It doesn't mean those things would not work, but it's not the supported, designed or intended use. *DO NOT* forward port 8787 or 5173 from any ISP routing devices to this application, and do not publish `8787:8787`.
+NerdGram was built for one person on one machine. It was not designed as a client/server application, and it does not grow an account system when the port is reachable. The API is a tool port: other programs on a network you trust can ask for a diagram on demand. It is not an always-on service for many users. *DO NOT* forward port 8787 or 5173 from an ISP router. Know what a published port opens before you publish it.
 
-**What the process binds to.** With `HOST` unset, the API listens on `127.0.0.1` and then `::1` on the same port. If `::1` is unavailable, IPv4 loopback still serves, and the log says to use `http://127.0.0.1:<port>` when `localhost` does not open. Vite's dev server listens on `localhost` only. The image sets `HOST=0.0.0.0` so the published port works, and the log prints a warning that this is not loopback, that the browser API has no authentication, and that the only intended use is a container whose host publish is `127.0.0.1:8787:8787`. That warning is expected in the container. A bearer token on `/api/v1` does not change it. Publishing `8787:8787` still exposes the browser routes to anyone who can open the port.
+**What the process binds to.** With `HOST` unset and no non-default Host setting saved, the API listens on `127.0.0.1` and then `::1` on the same port. If `::1` is unavailable, IPv4 loopback still serves, and the log says to use `http://127.0.0.1:<port>` when `localhost` does not open. Vite's dev server listens on `localhost` only. `HOST`, when set, wins over `<data>/.meta/listen-host.json`, and the settings page shows that override. A saved `127.0.0.1` is the default pair, not IPv4-only. A saved machine IP listens on that address only. `0.0.0.0` and `::` listen on every interface of that family. The log then notes that the bind is not loopback, that `/api` has no authentication, and that anyone who can reach the port can change your diagrams. That note is expected. It is there so you know what you opened.
 
-**Checks on every request.** The `Host` header has to be a loopback name the server allows: `localhost`, `127.0.0.1`, or `::1`, including the API port. Any other `Host` is **403** (`Forbidden host`). That blocks a public DNS name that points back at your machine. `NERDGRAM_ALLOWED_HOSTS` adds extra hostnames. Adding one does not make shared-server use supported.
+The image sets `HOST=0.0.0.0` so Docker can publish the port. Publish `127.0.0.1:8787:8787` to keep the tool port on the host loopback. Publish `<lan-ip>:8787:8787` when another machine should call it. Publishing `8787:8787` opens every host interface. A bearer token on `/api/v1` does not protect `/api`. The Host box is read-only in Docker because the container env already chose the bind.
+
+**Checks on every request.** The `Host` header has to be a name the server allows, including the API port (`192.168.1.10:8787` and `192.168.1.10` are the same name plus the port check). Loopback names are always allowed: `localhost`, `127.0.0.1`, and `::1`. A specific saved IP or `HOST` value is allowed as well. For `0.0.0.0` and `::`, the wildcard itself is not a Host name. NerdGram allows the machine's non-loopback interface addresses discovered at startup, so a caller can use those IPs without `NERDGRAM_ALLOWED_HOSTS`. Values in `NERDGRAM_ALLOWED_HOSTS` are merged in. A star, `0.0.0.0`, and `::` in that list are ignored. Any other `Host` is **403** (`Forbidden host`). That still blocks a public DNS name that points at your machine unless you add the name yourself. Inside Docker, discovery sees the container's interfaces. Add the host address callers use to `NERDGRAM_ALLOWED_HOSTS`.
+
+Opening the UI on an allowed non-loopback address also allows that origin (`http://<address>:<port>`) for browser edits. A different origin, including a DNS name, still needs `NERDGRAM_CORS_ORIGINS`. `curl` does not send `Origin`, so a token call only has to pass the Host check.
 
 **Checks on changes.** `POST`, `PUT`, `PATCH`, and `DELETE` on `/api` and `/api/v1` require `Content-Type: application/json`. That includes `DELETE` and the POST routes that take no fields: `/api/trash/empty`, `/api/reference/sync`, `/api/sync/now`, `/api/sync/pull`, `/api/sync/device/start`, `/api/updates/check`, `/api/updates/skip`, `/api/updates/later`, and `/api/updates/apply`. Anything else, including a missing header or a browser form, is **415** with `{"error":"Content-Type must be application/json"}`. The curl examples include a JSON body. `{}` is enough when the path or id is already in the URL or the query string: `DELETE /api/item`, `DELETE /api/trash/item`, `DELETE /api/tokens/:id`, and `DELETE /api/v1/diagrams`. `DELETE /api/item` and `DELETE /api/trash/item` answer **204**. `DELETE /api/tokens/:id` answers **200**. Browsers also send `Origin` and `Sec-Fetch-Site`. The origin has to be the API itself (`http://127.0.0.1:8787`, `http://localhost:8787`, or `http://[::1]:8787`, on whatever `PORT` is). In development, `http://localhost:5173`, `http://127.0.0.1:5173`, and `http://[::1]:5173` are allowed too. `NERDGRAM_CORS_ORIGINS` adds explicit origins. It is not a wildcard. A foreign origin is **403**. `Sec-Fetch-Site` of `cross-site` is rejected unless that `Origin` is on the list. `same-origin`, `same-site`, and `none` are accepted. A local `curl` that sends neither `Origin` nor `Sec-Fetch-Site` is accepted. It still has to send `Content-Type: application/json`.
 
@@ -864,7 +945,7 @@ Production does not enable cross-origin browser access, because the UI and the A
 
 By default, diagrams live in `diagrams/` inside the project. The server creates that directory on startup if it is missing and prints the absolute path as `Data directory:`.
 
-In Docker, the named volume `nerdgram-data` mounted at `/data` is the whole workspace: `.mmd` files, `.meta` (trash, version history, locks, thumbnails, the search index, `updates.json`, syntax overrides, a synced reference, and the GitHub token), and `.nerdgram-git`. Copy the whole volume, including those hidden directories. One volume is one workspace.
+In Docker, the named volume `nerdgram-data` mounted at `/data` is the whole workspace: `.mmd` files, `.meta` (trash, version history, locks, thumbnails, the search index, `updates.json`, `listen-host.json`, syntax overrides, a synced reference, and the GitHub token), and `.nerdgram-git`. Copy the whole volume, including those hidden directories. One volume is one workspace. The image's `HOST=0.0.0.0` still overrides `listen-host.json`.
 
 Stop the container, then copy the volume out. `tar` is in the image. The entrypoint is the server, so replace it, and use the image you actually run. A checkout build is `nerdgram1337:local`. The published image is `ghcr.io/networknerd1337/nerdgram1337:v1.2.2` (the tag [`compose.yaml`](compose.yaml) pins; use the current [Releases](https://github.com/NetworkNerd1337/NerdGram1337/releases) tag, or `:latest`, when that differs). The process runs as uid 1001, so the folder that receives the archive has to be writable by that user.
 
@@ -1124,7 +1205,7 @@ The production build has not been created. From the project root run `npm run bu
 
 ### A save returns 403 or 415
 
-**403** means the `Host` or `Origin` is not on the allow-list. **415** means a change was sent without `Content-Type: application/json`. The [curl example](#security-model) has both headers. A Vite port other than 5173 needs `NERDGRAM_CORS_ORIGINS`. A name other than loopback needs `NERDGRAM_ALLOWED_HOSTS` as well.
+**403** means the `Host` or `Origin` is not on the allow-list. **415** means a change was sent without `Content-Type: application/json`. The [curl example](#security-model) has both headers. A Vite port other than 5173 needs `NERDGRAM_CORS_ORIGINS`. On a Node install, the machine's own IP is allowed after you save it as Host and start again, or when the bind is `0.0.0.0` or `::` and that IP was on an interface at startup. A DNS name still needs `NERDGRAM_ALLOWED_HOSTS`. In Docker, the published host address needs `NERDGRAM_ALLOWED_HOSTS` too.
 
 ### The container exits immediately, or the volume looks empty
 

@@ -34,6 +34,13 @@ import { lintDiagramSource } from "./mermaidSyntax.js";
 import { registerTokenRoutes } from "./tokens.js";
 import { mountAutomationApi } from "./v1.js";
 import type { RateLimit } from "./renderDiagram.js";
+import {
+  describeListenHost,
+  parseListenHostInput,
+  readSavedListenHost,
+  writeSavedListenHost,
+} from "./listenHost.js";
+import { detectInstallKind } from "./updates/installKind.js";
 
 export type ListenPort = { port: number };
 
@@ -49,6 +56,11 @@ export type CreateAppOptions = {
   bindHosts?: readonly string[];
   allowedHosts?: readonly string[];
   allowedOrigins?: readonly string[];
+  /**
+   * Non-loopback names implied by the bind. Added as `http://host:port` origins
+   * so the UI works when opened on a machine IP. Loopback origins stay built in.
+   */
+  allowedOriginHosts?: readonly string[];
   /** Override the /api/v1 render limiter. Defaults to 30 requests a minute per token. */
   renderRate?: RateLimit;
 };
@@ -126,14 +138,52 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   const bindHosts = options.bindHosts ?? resolveBindHosts(process.env.HOST);
   const extraHosts = options.allowedHosts ?? parseCsv(process.env.NERDGRAM_ALLOWED_HOSTS);
   const extraOrigins = options.allowedOrigins ?? parseCsv(process.env.NERDGRAM_CORS_ORIGINS);
+  const originHosts = options.allowedOriginHosts ?? [];
 
   const app = express();
   app.use(createHostGuard({ getPort, bindHosts, extraHosts }));
   if (mode === "development") {
-    app.use(createDevCors({ getPort, extraOrigins }));
+    app.use(createDevCors({ getPort, extraOrigins, extraHosts: originHosts }));
   }
-  app.use(createMutationGuard({ getPort, mode, extraOrigins }));
+  app.use(createMutationGuard({ getPort, mode, extraOrigins, extraHosts: originHosts }));
   app.use(express.json({ limit: "5mb" }));
+
+  const listenHostStatus = async () => {
+    const saved = await readSavedListenHost();
+    return describeListenHost({
+      envHost: process.env.HOST,
+      saved,
+      boundHosts: bindHosts,
+      docker: detectInstallKind() === "docker",
+    });
+  };
+
+  app.get("/api/host", async (_req, res) => {
+    try {
+      res.json(await listenHostStatus());
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/host", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      if (detectInstallKind() === "docker") {
+        throw httpFail(
+          409,
+          "The Host setting is read-only in Docker. The image sets HOST=0.0.0.0, and LAN reachability is the published port.",
+          "read_only",
+        );
+      }
+      const parsed = parseListenHostInput(req.body?.host);
+      if (!parsed.ok) throw httpFail(400, parsed.error, "invalid");
+      await writeSavedListenHost(parsed.host);
+      res.json(await listenHostStatus());
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
 
   app.get("/api/health", (_req, res) => {
     const version = getVersionInfo();

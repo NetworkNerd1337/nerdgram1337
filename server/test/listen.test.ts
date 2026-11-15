@@ -148,9 +148,10 @@ describe("startServer", () => {
       const address = started[0].address() as AddressInfo;
       expect(address.address).toBe("0.0.0.0");
       const text = captured.errors.join("\n");
-      expect(text).toMatch(/WARNING/);
+      expect(text).toMatch(/not loopback/);
       expect(text).toMatch(/NO authentication/);
-      expect(text).toMatch(/UNSUPPORTED/);
+      expect(text).toMatch(/tool port/);
+      expect(text).not.toMatch(/UNSUPPORTED/);
       expect(text).toContain("0.0.0.0");
       expect(await httpStatus(address.port, `127.0.0.1:${address.port}`)).toBe(200);
 

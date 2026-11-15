@@ -537,7 +537,7 @@ export function buildOpenApiSpec(): Record<string, unknown> {
       title: "NerdGram1337 automation API",
       version: serverPackage.version,
       description:
-        "Versioned API for scripts and CI. Browser routes under /api are unchanged and do not use these tokens. Tokens are created in Settings. Binding stays on loopback unless HOST is set. Publishing the port is unsupported: a token does not protect the browser routes.",
+        "Versioned API for scripts and CI. Browser routes under /api are unchanged and do not use these tokens. Tokens are created in Settings. The default bind is loopback. A Host setting or HOST can open a tool port on a trusted network. A token does not protect the browser routes.",
     },
     servers: [{ url: "/" }],
     tags: [

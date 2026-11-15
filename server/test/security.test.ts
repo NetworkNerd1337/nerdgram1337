@@ -43,11 +43,12 @@ describe("formatExposedBindWarning", () => {
     ).toBeNull();
   });
 
-  it("is loud for any non-loopback listener", () => {
+  it("tells you what a non-loopback listener opens", () => {
     const warning = formatExposedBindWarning(["http://0.0.0.0:8787"]);
-    expect(warning).toMatch(/WARNING/);
+    expect(warning).toMatch(/not loopback/);
     expect(warning).toMatch(/NO authentication/);
-    expect(warning).toMatch(/UNSUPPORTED/);
+    expect(warning).toMatch(/tool port/);
+    expect(warning).not.toMatch(/UNSUPPORTED/);
     expect(warning).toMatch(/0\.0\.0\.0/);
     expect(warning).toMatch(/\*{10,}/);
   });

@@ -83,7 +83,58 @@ nerdgram render Welcome.mmd -o Welcome.png
 
 The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. Every command other than offline `lint` and `render` needs the server and a token.
 
-Keep the server on loopback. A token does not make it safe to publish port 8787.
+### One call builds the whole diagram
+
+`nerdgram generate` and `nerdgram refresh` do not build a diagram up across several calls. Each call sends the complete data, and the server builds the complete generated diagram from that call. A later call on the same path replaces the generated block. It does not add to it. `POST /api/v1/generate/refresh` rewrites only the lines between `%% nerdgram:generated` and `%% nerdgram:generated end`. A device or link left out of the new data drops off the diagram. Notes, styling, and hand-added nodes outside those markers stay. The workspace path, such as `Network/Core.mmd`, is the id the refresh uses. Paste every device's CDP or LLDP output into one file, one after another, and pass that file to `--data`. The previous diagram is saved as a revision when the refresh is written, so `nerdgram diff` and baselines can compare old against new.
+
+```bash
+nerdgram generate --path Network/Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp --format cdp
+nerdgram refresh Network/Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp
+```
+
+`generate` is `POST /api/v1/generate`. It returns **409** when the path already exists. `refresh` is `POST /api/v1/generate/refresh` with `save: true`, and with `writeData: true` when `--data` is set. `format` on refresh comes from the diagram, so the new file has to match the format `generate` stored. CDP and LLDP use `--format cdp` or `--format lldp`, `--group-by platform|capability`, and `--local-device` when the paste has no prompt. The same two HTTP calls, including a multi-device CDP body, are in the README section [One call builds the whole diagram](../README.md#one-call-builds-the-whole-diagram).
+
+The default URL is loopback. Point `NERDGRAM_URL` at another machine only when that machine's Host setting or `HOST` is already open to you. The browser `/api` routes have no token. Anyone who can reach the port can use them. A token covers `/api/v1` only.
+
+### Command to route map
+
+Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` means the route has no command. Offline `lint` and `render` of a `.mmd` file on disk do not call the API. `lint` of a workspace path uses the GET route. `render --server` uses the POST route.
+
+<!-- cli-route-map -->
+| Command | Route |
+| --- | --- |
+| none | `GET /api/v1/openapi.json` |
+| `nerdgram list` | `GET /api/v1/diagrams` |
+| `nerdgram search` | `GET /api/v1/search` |
+| `nerdgram get` | `GET /api/v1/diagrams/content` |
+| none | `POST /api/v1/diagrams` |
+| `nerdgram put` | `PUT /api/v1/diagrams` |
+| `nerdgram rename` | `POST /api/v1/diagrams/rename` |
+| `nerdgram move` | `POST /api/v1/diagrams/move` |
+| `nerdgram duplicate` | `POST /api/v1/diagrams/duplicate` |
+| `nerdgram delete` | `DELETE /api/v1/diagrams` |
+| none | `POST /api/v1/folders` |
+| `nerdgram export` | `GET /api/v1/export` |
+| `nerdgram repair-links` | `GET /api/v1/link-repairs` |
+| `nerdgram repair-links --apply` | `POST /api/v1/link-repairs` |
+| `nerdgram lint` | `GET /api/v1/lint` |
+| none | `POST /api/v1/lint` |
+| none | `GET /api/v1/render` |
+| `nerdgram render --server` | `POST /api/v1/render` |
+| none | `POST /api/v1/generate/preview` |
+| `nerdgram generate` | `POST /api/v1/generate` |
+| `nerdgram refresh` | `POST /api/v1/generate/refresh` |
+| none | `GET /api/v1/history` |
+| `nerdgram diff` | `GET /api/v1/history/diff` |
+| `nerdgram baseline` | `POST /api/v1/history/baseline` |
+| none | `PATCH /api/v1/history/baseline` |
+| none | `DELETE /api/v1/history/baseline` |
+| `nerdgram replace` | `POST /api/v1/replace/preview` |
+| `nerdgram replace --yes` | `POST /api/v1/replace/apply` |
+| `nerdgram replace --undo` | `POST /api/v1/replace/undo` |
+<!-- /cli-route-map -->
+
+`nerdgram put` sends `force: true`, so it is the overwrite route, not `POST /api/v1/diagrams`. That POST creates a file and fails when the path exists. There is no `nerdgram` command for it, for folders, for linting unsaved source, for `GET /api/v1/render`, for generate preview, for listing history, or for renaming or deleting a baseline. Those are in the endpoint table in the README.
 
 ## Continuous integration
 

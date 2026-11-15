@@ -3093,6 +3093,69 @@ body[data-presenting="true"] .support-link {
   font-weight: 600;
 }
 
+.host-restart-notice,
+.host-override {
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  margin: 0 0 0.9rem;
+}
+
+.host-restart-notice {
+  background: #e8f4ec;
+  color: var(--ok);
+  border: 1px solid #c5e0cf;
+}
+
+.host-override {
+  background: #f8f1dc;
+  color: #6b5316;
+  border: 1px solid #e4d3a4;
+}
+
+.settings-screen input,
+.settings-screen select {
+  color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .settings-screen {
+    --bg: #121816;
+    --bg-elevated: #1b2420;
+    --bg-muted: #24302a;
+    --bg-sidebar: #161c19;
+    --ink: #e7eee9;
+    --ink-soft: #b7c4bc;
+    --line: #314038;
+    --accent: #8ec3dc;
+    --accent-soft: #1d3a4a;
+    --ok: #8fdeb4;
+    --danger: #ffb0b0;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    color: var(--ink);
+    background: #101614;
+    color-scheme: dark;
+  }
+
+  .settings-screen .status-banner,
+  .settings-screen .host-restart-notice {
+    background: #1c3328;
+    color: #c9f0da;
+    border-color: #2f6b4f;
+  }
+
+  .settings-screen .error-banner {
+    background: #3a1d1d;
+    color: #ffb0b0;
+    border-color: #6b3030;
+  }
+
+  .settings-screen .host-override {
+    background: #2a2618;
+    color: #f0d48a;
+    border-color: #6b5a28;
+  }
+}
+
 .sync-card[id] {
   scroll-margin-top: 1rem;
 }

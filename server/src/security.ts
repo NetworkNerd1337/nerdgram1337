@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import net from "node:net";
 import cors from "cors";
 
 export type RuntimeMode = "development" | "production";
@@ -78,12 +79,18 @@ export function parseHostHeader(
   return { hostname, port };
 }
 
-/** Hostname only. Accepts a bracketed IPv6 literal or `host:port`. */
+/**
+ * Hostname only. Accepts a bracketed IPv6 literal, `host:port`, and a bare
+ * IPv6 address such as `fe80::1` (interface discovery stores those without
+ * brackets). A Host header still has to use brackets when the address has
+ * more than one colon and a port.
+ */
 export function normalizeHostname(value: string): string | null {
   const trimmed = value.trim().toLowerCase();
-  if (!trimmed || trimmed.includes("/") || trimmed.includes("\\") || /\s/.test(trimmed)) {
+  if (!trimmed || trimmed.includes("/") || trimmed.includes("\\") || /\s/.test(trimmed) || trimmed.includes("%")) {
     return null;
   }
+  if (net.isIP(trimmed) === 6) return trimmed;
   return parseHostHeader(trimmed)?.hostname ?? null;
 }
 
@@ -151,6 +158,8 @@ export function buildAllowedOrigins(options: {
   mode: RuntimeMode;
   port: number;
   extraOrigins?: readonly string[];
+  /** Host names that should be allowed as `http://host:port` on the API port. */
+  extraHosts?: readonly string[];
 }): Set<string> {
   const origins = new Set<string>();
   const add = (host: string, port: number) => {
@@ -168,6 +177,12 @@ export function buildAllowedOrigins(options: {
     }
   }
 
+  for (const host of options.extraHosts ?? []) {
+    const name = normalizeHostname(host);
+    if (!name || name === "*" || name === "0.0.0.0" || name === "::") continue;
+    add(name.includes(":") ? `[${name}]` : name, options.port);
+  }
+
   for (const extra of options.extraOrigins ?? []) {
     const normalized = normalizeOrigin(extra);
     if (normalized) origins.add(normalized);
@@ -180,15 +195,19 @@ export function formatExposedBindWarning(listenAddresses: readonly string[]): st
   if (exposed.length === 0) return null;
   return [
     "********************************************************************************",
-    `WARNING: NerdGram1337 is listening on ${exposed.join(", ")}, which is NOT loopback.`,
-    "The browser API has NO authentication. Anyone who can reach this port can read,",
-    "create, overwrite, and delete your diagrams. A bearer token on /api/v1 does not",
-    "protect those browser routes.",
-    "Exposing NerdGram1337 beyond this machine is UNSUPPORTED. Do not use this",
-    "on a shared host, a LAN, or a NAS.",
-    "Bare metal should leave HOST unset (loopback only). The only intended reason",
-    "to set HOST=0.0.0.0 is inside a container whose published port is",
-    "127.0.0.1:8787 on the host, not 0.0.0.0:8787.",
+    `Note: NerdGram1337 is listening on ${exposed.join(", ")}, which is not loopback.`,
+    "This is a single-user app. The API is a tool port: an on-demand conduit for",
+    "programs on a network you trust, not an always-on multi-user server.",
+    "The browser routes under /api have NO authentication. Anyone who can reach",
+    "this port can read, create, overwrite, and delete your diagrams. A bearer",
+    "token on /api/v1 does not protect those browser routes.",
+    "Limit the port to machines you trust with a firewall rule or a reverse proxy.",
+    "Do not forward this port from an ISP router.",
+    "Inside Docker, HOST=0.0.0.0 lets the runtime publish the port. Publishing",
+    "127.0.0.1:8787:8787 keeps the tool port on the host loopback. Publishing a",
+    "LAN address is how other machines on that network reach it. The container",
+    "does not see the host's LAN addresses, so set NERDGRAM_ALLOWED_HOSTS to the",
+    "address callers use.",
     "********************************************************************************",
   ].join("\n");
 }
@@ -247,6 +266,7 @@ export function createHostGuard(options: {
 export function createDevCors(options: {
   getPort: () => number;
   extraOrigins: readonly string[];
+  extraHosts?: readonly string[];
 }): ReturnType<typeof cors> {
   return cors({
     origin(origin, callback) {
@@ -258,6 +278,7 @@ export function createDevCors(options: {
         mode: "development",
         port: options.getPort(),
         extraOrigins: options.extraOrigins,
+        extraHosts: options.extraHosts,
       });
       const normalized = normalizeOrigin(origin);
       callback(null, normalized != null && allowed.has(normalized));
@@ -276,6 +297,7 @@ export function createMutationGuard(options: {
   getPort: () => number;
   mode: RuntimeMode;
   extraOrigins: readonly string[];
+  extraHosts?: readonly string[];
 }): (req: Request, res: Response, next: NextFunction) => void {
   return (req, res, next) => {
     if (!MUTATING_METHODS.has(req.method.toUpperCase())) {
@@ -287,6 +309,7 @@ export function createMutationGuard(options: {
       mode: options.mode,
       port: options.getPort(),
       extraOrigins: options.extraOrigins,
+      extraHosts: options.extraHosts,
     });
 
     const originHeader = req.headers.origin;
