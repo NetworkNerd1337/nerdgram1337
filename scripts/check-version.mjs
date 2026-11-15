@@ -222,6 +222,29 @@ function assertReadmeVersions(markdown, version, label = "README.md") {
 }
 
 /**
+ * The image build copies README.md and leaves out `docs/` and `screenshots/`
+ * (see .dockerignore). A link into a directory this tree does not have is
+ * skipped. A missing file whose parent directory is here still fails.
+ *
+ * @param {string} fromFile
+ * @param {string} decodedPath
+ * @returns {boolean}
+ */
+export function linkPointsOutsideThisTree(fromFile, decodedPath) {
+  const parts = decodedPath.split("/");
+  let dir = dirname(fromFile);
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part === "" || part === ".") continue;
+    const next = join(dir, part);
+    const hasMore = parts.slice(i + 1).some((item) => item !== "" && item !== ".");
+    if (!existsSync(next)) return hasMore;
+    dir = next;
+  }
+  return false;
+}
+
+/**
  * Relative links and anchors in project Markdown. `reference/` is the upstream
  * Mermaid syntax mirror. Its heading ids belong to that site, so it is not
  * part of this check.
@@ -230,6 +253,7 @@ function assertMarkdownLinks(repoRoot) {
   const files = markdownFiles(repoRoot);
   const anchors = new Map();
   const problems = [];
+  let skipped = 0;
 
   function anchorsOf(file) {
     const cached = anchors.get(file);
@@ -265,6 +289,10 @@ function assertMarkdownLinks(repoRoot) {
       }
       const resolved = resolve(dirname(file), decoded);
       if (!existsSync(resolved)) {
+        if (linkPointsOutsideThisTree(file, decoded)) {
+          skipped += 1;
+          continue;
+        }
         problems.push(`${where}: missing file ${target}`);
         continue;
       }
@@ -282,6 +310,9 @@ function assertMarkdownLinks(repoRoot) {
     console.error("Markdown links do not resolve.");
     for (const item of problems) console.error(`  ${item}`);
     process.exit(1);
+  }
+  if (skipped > 0) {
+    console.log(`Markdown links skipped: ${skipped} (those directories are not in this tree).`);
   }
 }
 
