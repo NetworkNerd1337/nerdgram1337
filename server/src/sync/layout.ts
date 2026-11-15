@@ -66,7 +66,7 @@ export function isUserDiagram(relativePath: string): boolean {
   return relativePath.split("/").pop()?.toLowerCase().endsWith(".mmd") ?? false;
 }
 
-/** CSV, JSON, CDP, or LLDP stored next to a generated diagram. Synced with the `.mmd` files. */
+/** CSV, JSON, network JSON, CDP, or LLDP stored next to a generated diagram. Synced with the `.mmd` files. */
 export function isDataFile(relativePath: string): boolean {
   if (!safeWorkspacePath(relativePath)) return false;
   const name = relativePath.split("/").pop() ?? "";

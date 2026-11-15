@@ -209,6 +209,30 @@ describe("nerdgram CLI", () => {
       ).toBe(0);
       expect(JSON.parse(stdout.join("")).dataPath).toBe("Neighbors.lldp");
 
+      const network = path.join(dir, "campus.network.json");
+      await fs.writeFile(
+        network,
+        JSON.stringify({
+          schemaVersion: 1,
+          devices: [{ name: "core" }, { name: "dist" }],
+          interfaces: [
+            { device: "core", name: "Gi0/0", ipv4: [{ address: "10.1.0.1", prefix: 30 }] },
+            { device: "dist", name: "Gi0/1", ipv4: [{ address: "10.1.0.2", prefix: 30 }] },
+          ],
+        }),
+      );
+      stdout.length = 0;
+      expect(
+        await main(
+          ["generate", "--path", "Campus-L3.mmd", "--data", network, "--format", "network", "--view", "l3", ...flags],
+          io,
+        ),
+      ).toBe(0);
+      expect(JSON.parse(stdout.join("")).dataPath).toBe("Campus-L3.network.json");
+      stdout.length = 0;
+      expect(await main(["refresh", "Campus-L3.mmd", ...flags], io)).toBe(0);
+      expect(JSON.parse(stdout.join("")).saved).toBe(true);
+
       stdout.length = 0;
       expect(await main(["refresh", "Campus.mmd", ...flags], io)).toBe(0);
       expect(JSON.parse(stdout.join("")).saved).toBe(true);

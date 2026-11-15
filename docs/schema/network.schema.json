@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nerdgram1337.local/schema/network-v1.schema.json",
+  "title": "NerdGram network data",
+  "description": "Vendor-neutral network data for a Layer 3 or Layer 2 diagram. schemaVersion 1. Turning vendor output into this document is the caller's job.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "devices", "interfaces"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "format": { "const": "network" },
+    "devices": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/device" }
+    },
+    "interfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/interface" }
+    },
+    "links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/link" }
+    },
+    "vlans": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/vlan" }
+    },
+    "neighbors": { "$ref": "#/$defs/neighbors" }
+  },
+  "$defs": {
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "platform": { "type": "string" },
+        "role": { "type": "string" },
+        "site": { "type": "string" },
+        "managementIp": { "type": "string" }
+      }
+    },
+    "address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "prefix"],
+      "properties": {
+        "address": { "type": "string", "minLength": 1 },
+        "prefix": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["device", "name"],
+      "properties": {
+        "device": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "adminStatus": { "enum": ["up", "down"] },
+        "operStatus": { "enum": ["up", "down"] },
+        "ipv4": { "type": "array", "items": { "$ref": "#/$defs/address" } },
+        "ipv6": { "type": "array", "items": { "$ref": "#/$defs/address" } },
+        "vrf": { "type": "string" },
+        "switchportMode": { "enum": ["access", "trunk"] },
+        "accessVlan": { "type": "integer", "minimum": 1, "maximum": 4094 },
+        "trunkVlans": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 4094 }
+        },
+        "nativeVlan": { "type": "integer", "minimum": 1, "maximum": 4094 },
+        "lag": { "type": "string" }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["device", "interface"],
+      "properties": {
+        "device": { "type": "string", "minLength": 1 },
+        "interface": { "type": "string", "minLength": 1 }
+      }
+    },
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["a", "b"],
+      "properties": {
+        "a": { "$ref": "#/$defs/endpoint" },
+        "b": { "$ref": "#/$defs/endpoint" }
+      }
+    },
+    "vlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "integer", "minimum": 1, "maximum": 4094 },
+        "name": { "type": "string" }
+      }
+    },
+    "neighbors": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional CDP or LLDP text. NerdGram parses it with the existing neighbor parsers and adds those links to the Layer 2 view.",
+      "properties": {
+        "cdp": { "type": "string" },
+        "lldp": { "type": "string" },
+        "localDevice": { "type": "string" }
+      }
+    }
+  }
+}

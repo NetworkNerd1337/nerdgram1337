@@ -11,7 +11,7 @@ import {
 } from "./storage.js";
 
 /**
- * A generated diagram stores its CSV, JSON, CDP, or LLDP file beside it and
+ * A generated diagram stores its CSV, JSON, network JSON, CDP, or LLDP file beside it and
  * records that path under `nerdgram.source`. Rename, move, duplicate, and
  * delete keep that file with the diagram when it actually sits in the same
  * directory. A source path in some other directory stays where it is, and

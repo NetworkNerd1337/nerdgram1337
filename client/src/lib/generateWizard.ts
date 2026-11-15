@@ -7,7 +7,7 @@ import {
   type DataShape,
   type FieldSpec,
   type FlowDirection,
-  type GroupBy,
+  type NetworkView,
   type RowIssue,
 } from "../../../server/src/diagramData.ts";
 import { ensureMmd, joinPath } from "./paths";
@@ -15,6 +15,8 @@ import { ensureMmd, joinPath } from "./paths";
 export type WizardStep = "input" | "map" | "preview";
 
 export type WizardFormat = "auto" | DataFormat;
+
+export type WizardGroupBy = "" | "platform" | "capability" | "vrf" | "site" | "role";
 
 export type WizardInspection = {
   format: DataFormat;
@@ -43,7 +45,10 @@ export type WizardState = {
   edgesMapping: ColumnMapping;
   direction: FlowDirection;
   grouping: boolean;
-  groupBy: GroupBy;
+  groupBy: WizardGroupBy;
+  view: NetworkView;
+  includeDown: boolean;
+  vlan: string;
   localDevice: string;
   diagramName: string;
   folder: string;
@@ -64,7 +69,10 @@ export type WizardAction =
   | { type: "edges"; text: string; fileName?: string }
   | { type: "format"; format: WizardState["format"] }
   | { type: "localDevice"; localDevice: string }
-  | { type: "groupBy"; groupBy: GroupBy }
+  | { type: "groupBy"; groupBy: WizardGroupBy }
+  | { type: "view"; view: NetworkView }
+  | { type: "includeDown"; includeDown: boolean }
+  | { type: "vlan"; vlan: string }
   | { type: "shape"; shape: WizardState["shape"] }
   | { type: "mapping"; field: string; column: string }
   | { type: "edgesMapping"; field: string; column: string }
@@ -89,6 +97,9 @@ export function initialWizardState(folder = ""): WizardState {
     direction: "LR",
     grouping: true,
     groupBy: "platform",
+    view: "l3",
+    includeDown: false,
+    vlan: "",
     localDevice: "",
     diagramName: "Untitled",
     folder,
@@ -111,11 +122,13 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       const stem = stemFromFile(action.fileName);
       const untouched = state.diagramName === "Untitled" || state.diagramName === stemFromFile(state.fileName);
       const guessed = state.format === "auto" ? formatFromName(action.fileName) : null;
+      const format = guessed ?? state.format;
       return {
         ...state,
         text: action.text,
         fileName: action.fileName ?? state.fileName,
-        format: guessed ?? state.format,
+        format,
+        groupBy: guessed ? groupForFormat({ ...state, format }, guessed) : state.groupBy,
         diagramName: action.fileName && untouched && stem ? stem : state.diagramName,
         title: state.title || stem || state.title,
         fatal: null,
@@ -129,11 +142,29 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
         fatal: null,
       };
     case "format":
-      return { ...state, format: action.format, fatal: null };
+      return { ...state, format: action.format, groupBy: groupForFormat(state, action.format), fatal: null };
     case "localDevice":
       return { ...state, localDevice: action.localDevice, fatal: null };
     case "groupBy":
       return { ...state, groupBy: action.groupBy, fatal: null };
+    case "view":
+      return {
+        ...state,
+        view: action.view,
+        groupBy:
+          action.view === "l3"
+            ? state.groupBy === "vrf"
+              ? "vrf"
+              : ""
+            : state.groupBy === "site" || state.groupBy === "role"
+              ? state.groupBy
+              : "",
+        fatal: null,
+      };
+    case "includeDown":
+      return { ...state, includeDown: action.includeDown, fatal: null };
+    case "vlan":
+      return { ...state, vlan: action.vlan, fatal: null };
     case "shape":
       return {
         ...state,
@@ -223,22 +254,30 @@ export function previewRequest(state: WizardState): {
   edgesMapping: ColumnMapping;
   direction: FlowDirection;
   grouping: boolean;
-  groupBy: GroupBy;
+  groupBy?: WizardGroupBy;
   localDevice?: string;
+  view?: NetworkView;
+  includeDown?: boolean;
+  vlan?: number;
   title: string;
   sourceFile: string;
 } {
+  const network = isNetworkSource(state);
+  const vlan = network && state.view === "l2" && /^\d+$/.test(state.vlan.trim()) ? Number(state.vlan.trim()) : undefined;
   return {
     text: state.text,
     format: state.format,
-    shape: isNeighborSource(state) ? "links" : state.shape,
+    shape: isNeighborSource(state) || network ? "links" : state.shape,
     mapping: state.mapping,
-    edgesText: isNeighborSource(state) || !state.edgesText.trim() ? undefined : state.edgesText,
+    edgesText: isNeighborSource(state) || network || !state.edgesText.trim() ? undefined : state.edgesText,
     edgesMapping: state.edgesMapping,
     direction: state.direction,
     grouping: state.grouping,
-    groupBy: state.groupBy,
+    groupBy: state.groupBy || undefined,
     localDevice: state.localDevice.trim() || undefined,
+    view: network ? state.view : undefined,
+    includeDown: network ? state.includeDown : undefined,
+    vlan,
     title: state.title.trim() || state.diagramName.trim() || "Diagram",
     sourceFile: dataFilePath(state),
   };
@@ -250,6 +289,12 @@ export function isNeighborSource(state: WizardState): boolean {
   return false;
 }
 
+export function isNetworkSource(state: WizardState): boolean {
+  if (state.format === "network") return true;
+  if (state.format === "auto") return state.detectedFormat === "network";
+  return false;
+}
+
 export function diagramFilePath(state: WizardState): string {
   return joinPath(state.folder.trim(), ensureMmd(state.diagramName));
 }
@@ -257,11 +302,15 @@ export function diagramFilePath(state: WizardState): string {
 export function dataFilePath(state: WizardState): string {
   const selected = state.format === "auto" ? state.detectedFormat : state.format;
   const ext =
-    selected === "json" || selected === "cdp" || selected === "lldp"
-      ? selected
-      : state.fileName.toLowerCase().endsWith(".json")
-        ? "json"
-        : "csv";
+    selected === "network"
+      ? "network.json"
+      : selected === "json" || selected === "cdp" || selected === "lldp"
+        ? selected
+        : state.fileName.toLowerCase().endsWith(".network.json")
+          ? "network.json"
+          : state.fileName.toLowerCase().endsWith(".json")
+            ? "json"
+            : "csv";
   const stem = (state.diagramName.trim() || "data").replace(/\.mmd$/i, "");
   return joinPath(state.folder.trim(), `${stem}.${ext}`);
 }
@@ -283,14 +332,23 @@ function setColumn(mapping: ColumnMapping, field: string, column: string): Colum
 function stemFromFile(fileName: string | undefined): string {
   if (!fileName) return "";
   const base = fileName.split(/[/\\]/).pop() ?? "";
-  return base.replace(/\.(csv|json|txt|cdp|lldp)$/i, "").trim();
+  return base.replace(/\.network\.json$/i, "").replace(/\.(csv|json|txt|cdp|lldp)$/i, "").trim();
 }
 
 function formatFromName(fileName: string | undefined): WizardFormat | null {
   const lower = fileName?.toLowerCase() ?? "";
+  if (lower.endsWith(".network.json")) return "network";
   if (lower.endsWith(".cdp")) return "cdp";
   if (lower.endsWith(".lldp")) return "lldp";
   if (lower.endsWith(".json")) return "json";
   if (lower.endsWith(".csv")) return "csv";
   return null;
+}
+
+function groupForFormat(state: WizardState, format: WizardFormat): WizardGroupBy {
+  const networkGroups = new Set<WizardGroupBy>(["", "vrf", "site", "role"]);
+  const neighborGroups = new Set<WizardGroupBy>(["platform", "capability"]);
+  if (format === "network") return networkGroups.has(state.groupBy) ? state.groupBy : "";
+  if (format === "cdp" || format === "lldp") return neighborGroups.has(state.groupBy) ? state.groupBy : "platform";
+  return state.groupBy;
 }

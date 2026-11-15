@@ -58,6 +58,8 @@ nerdgram generate --path Campus.mmd --data docs/samples/campus-links.csv
 nerdgram generate --path Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp --format cdp
 nerdgram generate --path Core.mmd --data docs/samples/neighbors/cisco-ios-lldp.lldp --format lldp
 nerdgram generate --path Edge.mmd --data docs/samples/neighbors/lldpd.json --format lldp --local-device edge
+nerdgram generate --path Campus-L3.mmd --data docs/samples/network/campus.network.json --format network --view l3
+nerdgram generate --path Campus-L2.mmd --data docs/samples/network/campus.network.json --format network --view l2 --group-by site
 nerdgram refresh Campus.mmd
 nerdgram diff Campus.mmd --from "Baseline - pre-change" --to current --format md
 nerdgram diff Campus.mmd --from "Baseline - pre-change" --format svg -o campus-diff.svg
@@ -71,7 +73,7 @@ nerdgram render Welcome.mmd -o Welcome.png
 
 `render` writes `.svg` or `.png`. Another extension stops with `The output file must end in .svg or .png.` `--server` posts that format to the API, which accepts `svg` or `png` only. `jpg` and `pdf` are browser exports. `render` and `lint` of a `.mmd` file on disk do not need a server. `--server` sends `render` to the API instead. `nerdgram lint Welcome.mmd` is a workspace path: it needs a running server and `NERDGRAM_TOKEN` unless a file named `Welcome.mmd` is already in the current directory. In a checkout the sample is `diagrams/Welcome.mmd`, and `nerdgram lint diagrams/Welcome.mmd` (or `node server/dist/cli.js lint diagrams/Welcome.mmd` after `npm run build`) does not need a server. `lint` exits `1` when a diagnostic is an error. `--strict` also exits `1` for warnings.
 
-`rename`, `move`, `duplicate`, and `delete` need the server and a read-write token. `rename` and `move` also move a sibling CSV, JSON, CDP, or LLDP file and update `nerdgram.source`. `duplicate --copy-data` copies that file onto the new diagram. `duplicate --share-data` keeps both diagrams on the original file. `delete --with-data` moves the file to the trash with the diagram. `delete --keep-data` leaves it in the workspace. When a data file is present and the flag is omitted, `duplicate` and `delete` stop and list the file.
+`rename`, `move`, `duplicate`, and `delete` need the server and a read-write token. `rename` and `move` also move a sibling CSV, JSON, network JSON, CDP, or LLDP file and update `nerdgram.source`. `duplicate --copy-data` copies that file onto the new diagram. `duplicate --share-data` keeps both diagrams on the original file. `delete --with-data` moves the file to the trash with the diagram. `delete --keep-data` leaves it in the workspace. When a data file is present and the flag is omitted, `duplicate` and `delete` stop and list the file.
 
 `nerdgram repair-links` prints the preview and writes nothing. `--dry-run` is the same. `--apply` saves the rewrites. A read token can run the preview. `--apply` needs a read-write token.
 
@@ -92,7 +94,7 @@ nerdgram generate --path Network/Core.mmd --data docs/samples/neighbors/cisco-io
 nerdgram refresh Network/Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp
 ```
 
-`generate` is `POST /api/v1/generate`. It returns **409** when the path already exists. `refresh` is `POST /api/v1/generate/refresh` with `save: true`, and with `writeData: true` when `--data` is set. `format` on refresh comes from the diagram, so the new file has to match the format `generate` stored. CDP and LLDP use `--format cdp` or `--format lldp`, `--group-by platform|capability`, and `--local-device` when the paste has no prompt. The same two HTTP calls, including a multi-device CDP body, are in the README section [One call builds the whole diagram](../README.md#one-call-builds-the-whole-diagram).
+`generate` is `POST /api/v1/generate`. It returns **409** when the path already exists. `refresh` is `POST /api/v1/generate/refresh` with `save: true`, and with `writeData: true` when `--data` is set. `format` on refresh comes from the diagram, so the new file has to match the format `generate` stored. CDP and LLDP use `--format cdp` or `--format lldp`, `--group-by platform|capability`, and `--local-device` when the paste has no prompt. Network JSON uses `--format network` and `--view l3` or `--view l2`. `--include-down` draws shutdown and down interfaces. `--vlan` keeps Layer 2 links that carry that VLAN. `--group-by` is `vrf` for Layer 3, or `site` or `role` for Layer 2. Refresh does not take `--view`. The view and the options are already in the diagram. The same HTTP calls are in the README section [One call builds the whole diagram](../README.md#one-call-builds-the-whole-diagram). The format is described in [Layer 3 and Layer 2 from network data](../README.md#layer-3-and-layer-2-from-network-data).
 
 The default URL is loopback. Point `NERDGRAM_URL` at another machine only when that machine's Host setting or `HOST` is already open to you. The browser `/api` routes have no token. Anyone who can reach the port can use them. A token covers `/api/v1` only.
 

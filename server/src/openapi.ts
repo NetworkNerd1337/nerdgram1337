@@ -170,7 +170,7 @@ export const V1_ROUTES: readonly V1Route[] = [
     path: "/generate/preview",
     scope: "read",
     operationId: "previewGenerate",
-    summary: "Preview a diagram generated from CSV, JSON, Cisco CDP, or LLDP. Nothing is written.",
+    summary: "Preview a diagram generated from CSV, JSON, Cisco CDP, LLDP, or network JSON. Nothing is written.",
     tag: "Generate",
   },
   {
@@ -178,7 +178,7 @@ export const V1_ROUTES: readonly V1Route[] = [
     path: "/generate",
     scope: "write",
     operationId: "generateDiagram",
-    summary: "Create a diagram from CSV, JSON, Cisco CDP, or LLDP and store the data file beside it.",
+    summary: "Create a diagram from CSV, JSON, Cisco CDP, LLDP, or network JSON and store the data file beside it.",
     tag: "Generate",
   },
   {
@@ -325,7 +325,7 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
         updateLinks: { type: "boolean" },
       }, ["from"]);
     case "duplicateDiagram":
-      return jsonBody("Duplicate. copyData is required when a CSV, JSON, CDP, or LLDP file sits beside the diagram.", {
+      return jsonBody("Duplicate. copyData is required when a CSV, JSON, network JSON, CDP, or LLDP file sits beside the diagram.", {
         path: { type: "string" },
         copyData: {
           type: "boolean",
@@ -359,16 +359,23 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
       }, ["format"]);
     case "previewGenerate":
     case "generateDiagram":
-      return jsonBody("CSV, JSON, Cisco CDP, or LLDP neighbor output.", {
+      return jsonBody("CSV, JSON, Cisco CDP, LLDP, or network JSON. Network data also sends view.", {
         text: { type: "string" },
         path: { type: "string", description: "Required for generate. Diagram path ending in .mmd." },
-        format: { type: "string", enum: ["csv", "json", "cdp", "lldp"] },
+        format: { type: "string", enum: ["csv", "json", "cdp", "lldp", "network"] },
+        view: { type: "string", enum: ["l3", "l2"], description: "Required when format is network. l3 is subnets. l2 is VLANs, trunks, and LAGs." },
+        includeDown: { type: "boolean", description: "Network data. Include shutdown or down interfaces. Defaults to false." },
+        vlan: { type: "integer", description: "Layer 2 network view. Draw only links that carry this VLAN id." },
         shape: { type: "string" },
         direction: { type: "string", enum: ["TD", "TB", "LR", "RL", "BT"] },
         mapping: { type: "object" },
         grouping: { type: "boolean" },
-        groupBy: { type: "string", enum: ["platform", "capability"], description: "CDP and LLDP grouping. Defaults to platform." },
-        localDevice: { type: "string", description: "Hostname when the paste has no CLI prompt." },
+        groupBy: {
+          type: "string",
+          enum: ["platform", "capability", "vrf", "site", "role"],
+          description: "CDP and LLDP use platform or capability. Network data uses vrf, site, or role.",
+        },
+        localDevice: { type: "string", description: "Hostname when CDP or LLDP text has no CLI prompt." },
         title: { type: "string" },
         edgesText: { type: "string" },
         storeData: { type: "boolean" },

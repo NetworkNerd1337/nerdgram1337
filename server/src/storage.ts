@@ -24,7 +24,7 @@ import { getMetaPath } from "./paths.js";
  * `evaluateWrite`, and `resolveAvailablePath` instead of calling
  * `fs.writeFile` on a diagram directly. Creating a diagram from a bundled
  * template (#17) uses the same helpers. GitHub sync (#14) copies `.mmd`
- * files and the `.csv`, `.json`, `.cdp`, and `.lldp` data files stored next to a generated
+ * files and the `.csv`, `.json`, `.network.json`, `.cdp`, and `.lldp` data files stored next to a generated
  * diagram. It does not copy `.meta` (favorites, syntax overrides, trash,
  * revisions, locks, thumbnails, the search index, or tokens). Bundled
  * templates live outside this directory, in the repo `templates/` folder,

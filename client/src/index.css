@@ -3047,6 +3047,10 @@ body[data-presenting="true"] .support-link {
   margin: 0.4rem 0;
 }
 
+.generate-panel .generate-check input {
+  width: auto;
+}
+
 .generate-actions {
   display: flex;
   justify-content: flex-end;

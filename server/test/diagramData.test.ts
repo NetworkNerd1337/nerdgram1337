@@ -93,7 +93,7 @@ describe("diagram data import", () => {
   });
 
   it("rejects an unknown data source", () => {
-    expect(() => importDiagramData({ text: "device,port\n", format: "yaml" })).toThrow(/Cisco CDP output, or LLDP/);
+    expect(() => importDiagramData({ text: "device,port\n", format: "yaml" })).toThrow(/network JSON/);
   });
 
   it("refuses data larger than 512 KB", () => {

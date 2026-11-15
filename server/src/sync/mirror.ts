@@ -81,7 +81,7 @@ const README = `# NerdGram diagrams
 
 This repository is a copy of diagrams from NerdGram1337.
 
-The files are Mermaid \`.mmd\` diagrams, plus \`.csv\`, \`.json\`, \`.cdp\`, and \`.lldp\` data files stored next to a generated diagram. Favorites, syntax overrides, trash, version history, thumbnails, the search index, and the GitHub token stay on the computer that runs NerdGram. They are not in this repository.
+The files are Mermaid \`.mmd\` diagrams, plus \`.csv\`, \`.json\`, \`.network.json\`, \`.cdp\`, and \`.lldp\` data files stored next to a generated diagram. Favorites, syntax overrides, trash, version history, thumbnails, the search index, and the GitHub token stay on the computer that runs NerdGram. They are not in this repository.
 
 Editing a file on GitHub does not change NerdGram until you pull in the app. NerdGram will not force-push over commits made here.
 `;
