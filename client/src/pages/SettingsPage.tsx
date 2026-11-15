@@ -6,6 +6,7 @@ import { CommandsButton } from "../components/CommandPalette";
 import { SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { Modal } from "../components/Modal";
+import { HostSettings } from "../components/HostSettings";
 import { LintSettings } from "../components/LintSettings";
 import { TokenSettings } from "../components/TokenSettings";
 import { UpdateSettingsFields } from "../components/UpdateHost";
@@ -93,7 +94,7 @@ export function SettingsPage() {
   const needsConfirm = error?.includes("already has commits") || confirmNonEmpty;
 
   return (
-    <div className="reference-layout">
+    <div className="reference-layout settings-screen">
       <header className="reference-top">
         <div className="reference-top-left">
           <Link to="/">
@@ -102,10 +103,11 @@ export function SettingsPage() {
           <div>
             <h1>Settings</h1>
             <p className="reference-meta">
-              GitHub sync, automation tokens, and diagram checks.
+              GitHub sync, the listen host, automation tokens, and diagram checks.
             </p>
             <nav className="settings-nav" aria-label="Settings sections">
               <a href="#github-sync">GitHub sync</a>
+              <a href="#host">Host</a>
               <a href="#tokens">Automation tokens</a>
               <a href="#diagram-checks">Diagram checks</a>
               <a href="#app-updates">App updates</a>
@@ -393,6 +395,7 @@ export function SettingsPage() {
             ))}
           </section>
         ) : null}
+        <HostSettings />
         <TokenSettings />
         <LintSettings />
         <section className="sync-card" id="app-updates">

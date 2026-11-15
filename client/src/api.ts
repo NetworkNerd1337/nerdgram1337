@@ -21,6 +21,20 @@ import type {
   VersionInfo,
 } from "./types";
 
+export type ListenHostStatus = {
+  saved: string;
+  persisted: boolean;
+  invalid: boolean;
+  effectiveHosts: string[];
+  source: "env" | "saved" | "default";
+  envHost: string | null;
+  envOverrides: boolean;
+  docker: boolean;
+  readOnly: boolean;
+  restartNotice: boolean;
+  acceptedHosts: string[];
+};
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
@@ -481,6 +495,12 @@ export const api = {
     request<UpdateStatus>("/api/updates/settings", {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+  listenHost: () => request<ListenHostStatus>("/api/host"),
+  saveListenHost: (host: string) =>
+    request<ListenHostStatus>("/api/host", {
+      method: "POST",
+      body: JSON.stringify({ host }),
     }),
   skipUpdate: () =>
     request<UpdateStatus>("/api/updates/skip", {

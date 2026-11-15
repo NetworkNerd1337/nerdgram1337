@@ -45,7 +45,8 @@ export function TokenSettings() {
         The browser UI does not use a token. A token is shown once. Read can list, search,
         lint, and render. Read-write can also create, update, move, and trash diagrams.
         Revoking a token stops it immediately. These tokens do not protect the browser
-        routes, and the server still listens on loopback unless you set <code>HOST</code>.
+        routes. The server listens on loopback until you change <a href="#host">Host</a> or
+        set <code>HOST</code>. Anyone who can reach the port can use the browser routes.
       </p>
       {error ? <div className="error-banner">{error}</div> : null}
       {revealed ? (

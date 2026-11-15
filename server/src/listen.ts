@@ -12,10 +12,19 @@ import { seedEmptyDataDir } from "./seed.js";
 import { closeRenderer } from "./renderDiagram.js";
 import { getVersionInfo } from "./updates/versionInfo.js";
 import {
+  formatListenHostLog,
+  hostsFromListenAddress,
+  isWildcardBind,
+  listNonLoopbackInterfaceAddresses,
+  mergeAllowedHosts,
+  readSavedListenHost,
+  resolveEffectiveBind,
+} from "./listenHost.js";
+import {
   formatExposedBindWarning,
   formatListenUrl,
   inferRuntimeMode,
-  resolveBindHosts,
+  parseCsv,
   type RuntimeMode,
 } from "./security.js";
 
@@ -81,24 +90,43 @@ function boundUrl(server: Server): string | null {
 }
 
 /**
- * Bind the API. When HOST is unset, listen on 127.0.0.1 and then ::1 on the
- * same port. ::1 is optional: if IPv6 loopback is unavailable, IPv4 still serves.
- * Any other failed bind rejects. A non-loopback address logs a loud warning.
+ * Bind the API. When HOST is unset and no non-default Host setting is saved,
+ * listen on 127.0.0.1 and then ::1 on the same port. ::1 is optional: if IPv6
+ * loopback is unavailable, IPv4 still serves. Any other failed bind rejects.
+ * HOST wins over the saved setting. A non-loopback address logs what that opens.
  */
 export async function startServer(options: StartServerOptions = {}): Promise<Server[]> {
   const port = options.port ?? Number(process.env.PORT || 8787);
-  const hosts = [...(options.hosts ?? resolveBindHosts(process.env.HOST))];
   const mode = options.mode ?? inferRuntimeMode();
   const portRef: ListenPort = options.portRef ?? { port };
+  ensureDataRoot();
+  const saved = await readSavedListenHost();
+  if (saved.invalid) {
+    console.error(
+      "Saved listen host in .meta/listen-host.json is not a valid address. NerdGram is using the default loopback bind until the Host setting is saved again.",
+    );
+  }
+  const decision = options.hosts
+    ? { hosts: [...options.hosts], source: "default" as const, envOverrides: false }
+    : resolveEffectiveBind({
+        envHost: process.env.HOST,
+        savedHost: saved.invalid ? null : saved.host,
+      });
+  const hosts = [...decision.hosts];
+  const discovered = hosts.some((host) => isWildcardBind(host)) ? listNonLoopbackInterfaceAddresses() : [];
+  const fromBind = hostsFromListenAddress(hosts, discovered);
+  const allowedHosts =
+    options.allowedHosts ?? mergeAllowedHosts(fromBind, parseCsv(process.env.NERDGRAM_ALLOWED_HOSTS));
   const app = createApp({
     ...options,
     port,
     portRef,
     mode,
     bindHosts: options.bindHosts ?? hosts,
+    allowedHosts,
+    allowedOriginHosts: options.allowedOriginHosts ?? fromBind,
   });
 
-  ensureDataRoot();
   if (await seedEmptyDataDir()) {
     console.log("Seeded empty data directory with the sample diagrams.");
   }
@@ -145,6 +173,16 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
   const urls = servers.map(boundUrl).filter((url): url is string => url != null);
   for (const url of urls) {
     console.log(`NerdGram1337 API listening on ${url}`);
+  }
+  if (!options.hosts) {
+    console.log(
+      formatListenHostLog({
+        hosts,
+        source: decision.source,
+        envHost: process.env.HOST?.trim() ? process.env.HOST.trim() : null,
+        savedHost: saved.host,
+      }),
+    );
   }
   console.log(`Data directory: ${ensureDataRoot()}`);
   const version = getVersionInfo();

@@ -43,7 +43,7 @@ nerdgram render Welcome.mmd -o Welcome.svg
 
 `render` of a local `.mmd` file does not need a server. `--server` sends it to the API instead. `lint` of a local file does not need a server either. `lint` exits `1` when a diagnostic is an error.
 
-The app still has to be reachable for every other command. A token does not make it safe to publish port 8787. The server is a single-user app with no login. Keep it on loopback.
+The app still has to be reachable for every other command. NerdGram is a single-user app. The API is a tool port for programs you trust, not an always-on multi-user server. The browser routes have no token, so anyone who can reach the port can use them. The default URL is loopback. Point `NERDGRAM_URL` at another machine only when that machine has opened its Host setting to you.
 
 The full command list and the release notes are in the [repository README](https://github.com/NetworkNerd1337/NerdGram1337#command-line-tool).
 

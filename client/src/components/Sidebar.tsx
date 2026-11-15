@@ -120,6 +120,9 @@ export function Sidebar({
 
       <div className="nav-section">
         <div className="nav-label">Settings</div>
+        <Link className="nav-link" to="/settings#host">
+          Host
+        </Link>
         <Link className="nav-link" to="/settings#github-sync">
           GitHub sync
         </Link>
