@@ -30,17 +30,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Atlas title and the 1.3.0 section without the heading", () => {
-    const title = notes(["--title", "v1.3.0"]);
+  it("prints the Atlas title and the 1.4.0 section without the heading", () => {
+    const title = notes(["--title", "v1.4.0"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.3.0 "Atlas"\n');
-    const body = notes(["v1.3.0"]);
+    expect(title.stdout).toBe('v1.4.0 "Atlas"\n');
+    const body = notes(["v1.4.0"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Minor release on the Atlas line.")).toBe(true);
-    expect(body.stdout).toContain("Host setting");
-    expect(body.stdout).toContain("tool port");
-    expect(body.stdout).not.toContain('## 1.3.0 "Atlas"');
-    expect(body.stdout).not.toContain("Clicking an object in the preview jumps the editor to the line that drew it.");
+    expect(body.stdout).toContain("Diagram folder");
+    expect(body.stdout).toContain("Layer 3");
+    expect(body.stdout).not.toContain('## 1.4.0 "Atlas"');
+    expect(body.stdout).not.toContain("Settings can choose the address NerdGram listens on");
   });
 
   it("matches a quoted heading and a bracket heading, and not a longer patch", () => {
