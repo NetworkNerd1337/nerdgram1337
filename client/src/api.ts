@@ -254,12 +254,15 @@ export const api = {
     grouping?: boolean;
     groupBy?: string;
     localDevice?: string;
+    view?: "l3" | "l2";
+    includeDown?: boolean;
+    vlan?: number;
     title?: string;
     sourceFile?: string;
     edgesFile?: string;
   }) =>
     request<{
-      format: "csv" | "json" | "cdp" | "lldp";
+      format: "csv" | "json" | "cdp" | "lldp" | "network";
       shape: "links" | "nodes" | "edges" | "graph";
       headers: string[];
       edgesHeaders: string[];
@@ -287,6 +290,9 @@ export const api = {
     grouping?: boolean;
     groupBy?: string;
     localDevice?: string;
+    view?: "l3" | "l2";
+    includeDown?: boolean;
+    vlan?: number;
     title?: string;
     description?: string;
     sourceFile?: string;

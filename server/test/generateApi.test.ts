@@ -161,4 +161,78 @@ Enabled Capabilities: B
     expect(await fs.readFile(path.join(dir, "Network", "Core.lldp"), "utf8")).toBe(updated);
     expect(await fs.readFile(path.join(dir, "Network", "Core.mmd"), "utf8")).toBe(diagram);
   });
+
+  it("stores network JSON, previews both views, and refreshes only the generated block", async () => {
+    const server = app();
+    const text = JSON.stringify({
+      schemaVersion: 1,
+      devices: [
+        { name: "core", role: "core" },
+        { name: "dist", role: "distribution" },
+      ],
+      interfaces: [
+        { device: "core", name: "Gi0/0", adminStatus: "up", operStatus: "up", ipv4: [{ address: "10.0.0.1", prefix: 30 }] },
+        { device: "dist", name: "Gi0/1", adminStatus: "up", operStatus: "up", ipv4: [{ address: "10.0.0.2", prefix: 30 }] },
+        {
+          device: "core",
+          name: "Gi0/1",
+          switchportMode: "trunk",
+          trunkVlans: [10, 20, 30],
+          nativeVlan: 99,
+        },
+        { device: "dist", name: "Gi0/2", switchportMode: "trunk", trunkVlans: [10, 20, 30], nativeVlan: 99 },
+      ],
+      links: [{ a: { device: "core", interface: "GigabitEthernet0/1" }, b: { device: "dist", interface: "Gi0/2" } }],
+    });
+    const preview = await request(server).post("/api/generate/preview").set(json).send({ text, format: "network", view: "l3" });
+    expect(preview.status).toBe(200);
+    expect(preview.body.errors).toEqual([]);
+    expect(preview.body.mermaid).toContain("10.0.0.0/30");
+
+    const layer2 = await request(server).post("/api/generate/preview").set(json).send({ text, format: "network", view: "l2" });
+    expect(layer2.status).toBe(200);
+    expect(layer2.body.mermaid).toContain("10,20,30 native 99");
+
+    const created = await request(server)
+      .post("/api/generate")
+      .set(json)
+      .send({ text, format: "network", view: "l3", path: "Campus-L3.mmd", title: "Campus" });
+    expect(created.status).toBe(201);
+    expect(created.body.dataPath).toBe("Campus-L3.network.json");
+    const diagram = await fs.readFile(path.join(dir, "Campus-L3.mmd"), "utf8");
+    expect(diagram).toContain("format: network");
+    expect(diagram).toContain("view: l3");
+    expect(await fs.readFile(path.join(dir, "Campus-L3.network.json"), "utf8")).toBe(text);
+
+    const noted = `${diagram}%% hand note\n`;
+    const refreshed = await request(server)
+      .post("/api/generate/refresh")
+      .set(json)
+      .send({
+        path: "Campus-L3.mmd",
+        diagramText: noted,
+        text: text.replace("10.0.0.2", "10.0.0.3"),
+        writeData: false,
+      });
+    expect(refreshed.status).toBe(200);
+    expect(refreshed.body.mermaid).toContain("%% hand note");
+    expect(refreshed.body.mermaid).toContain("10.0.0.3");
+    expect(refreshed.body.mermaid).not.toContain("10.0.0.2");
+    expect(await fs.readFile(path.join(dir, "Campus-L3.mmd"), "utf8")).toBe(diagram);
+
+    const token = await request(server)
+      .post("/api/tokens")
+      .set(json)
+      .send({ name: "net", scope: "read-write" });
+    expect(token.status).toBe(201);
+    const v1 = await request(server)
+      .post("/api/v1/generate")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .set("Authorization", `Bearer ${token.body.token}`)
+      .send({ text, format: "network", view: "l2", path: "Campus-L2.mmd" });
+    expect(v1.status).toBe(201);
+    expect(v1.body.dataPath).toBe("Campus-L2.network.json");
+    expect(v1.body.mermaid).toContain("native 99");
+  });
 });

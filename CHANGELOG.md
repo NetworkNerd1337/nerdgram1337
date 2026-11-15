@@ -12,6 +12,10 @@ The Diagram folder setting stores `NERDGRAM_DATA_DIR` in that same startup confi
 
 The restart note on Host and on Diagram folder shows only while the saved value differs from the value this process started with. After a restart that is running the saved value, the note is gone.
 
+### Network data
+
+From #74. **From data** accepts a vendor-neutral network JSON file (`.network.json`, `schemaVersion` 1) and draws either a Layer 3 subnet view or a Layer 2 VLAN, trunk, and LAG view. NerdGram does not parse vendor CLI for this, and it does not call an LLM. The caller builds the JSON with the tools they already have. The same input always produces the same generated block. Generate, preview, and refresh take `format: "network"` and `view: "l3"` or `"l2"`. `nerdgram generate --format network --view l3|l2` and `nerdgram refresh` do the same. The data file is stored beside the diagram, and rename, move, duplicate, and delete move it the way they move a CSV. The schema is `docs/schema/network.schema.json`. A campus sample is `docs/samples/network/campus.network.json`.
+
 ## 1.3.0 "Atlas" - 2026-11-15
 
 Minor release on the Atlas line. The code name stays Atlas. Settings can choose the address NerdGram listens on, the docs describe that address as a LAN tool port, and the Automation API reference lists every route. The app image is a new portrait.

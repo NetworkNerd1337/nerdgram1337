@@ -53,7 +53,7 @@ const builtin: PaletteCommand[] = [
     id: "file.generate",
     title: "Generate diagram from data",
     section: "File",
-    keywords: ["csv", "json", "import", "links", "refresh"],
+    keywords: ["csv", "json", "network", "vlan", "subnet", "import", "links", "refresh"],
     order: 35,
     run: (ctx) => ctx.navigate("/generate"),
   },

@@ -143,6 +143,20 @@ export function importInputFromBody(body: Record<string, unknown>): ImportInput 
     if (typeof body.groupBy !== "string") throw dataFail(400, "groupBy must be a string.", "invalid");
     input.groupBy = body.groupBy;
   }
+  if (body.view != null) {
+    if (typeof body.view !== "string") throw dataFail(400, "view must be a string.", "invalid");
+    input.view = body.view;
+  }
+  if (body.includeDown != null) {
+    if (typeof body.includeDown !== "boolean") throw dataFail(400, "includeDown must be a boolean.", "invalid");
+    input.includeDown = body.includeDown;
+  }
+  if (body.vlan != null) {
+    if (typeof body.vlan !== "number" || !Number.isInteger(body.vlan)) {
+      throw dataFail(400, "vlan must be an integer from 1 to 4094.", "invalid");
+    }
+    input.vlan = body.vlan;
+  }
   return input;
 }
 
@@ -226,6 +240,9 @@ export async function refreshGeneratedDiagram(input: RefreshGeneratedInput): Pro
     edgesFile: config.edgesFile,
     localDevice: config.localDevice,
     groupBy: config.groupBy,
+    view: config.view,
+    includeDown: config.includeDown,
+    vlan: config.vlan,
   });
   if (imported.errors.length > 0) {
     throw dataFail(400, "Fix the rows listed before refreshing.", "invalid", { errors: imported.errors });
@@ -246,6 +263,9 @@ export async function refreshGeneratedDiagram(input: RefreshGeneratedInput): Pro
     edgesFormat: config.edgesFormat,
     groupBy: config.groupBy,
     localDevice: config.localDevice,
+    view: config.view,
+    includeDown: config.includeDown,
+    vlan: config.vlan,
   });
   if (input.writeData) {
     await writeDataFile(config.file, text);

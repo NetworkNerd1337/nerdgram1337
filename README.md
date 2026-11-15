@@ -288,7 +288,7 @@ You cannot rename, move, or trash a diagram, or a folder that contains it, while
 
 A move that would land in the item's current folder, or put a folder inside itself or one of its subfolders, is refused. Dragging onto a diagram does nothing. If the destination already has that name, the drag is refused and nothing is overwritten. Move to… offers **Move as Name (copy)** (then **Name (copy 2)**, and so on). Favorites and revision history follow the file or folder.
 
-**Duplicate** copies a diagram or a whole folder. The first copy is `Name (copy).mmd` (or `Name (copy)` for a folder), then `Name (copy 2)`. It never overwrites an existing item. The copy is not favorited, it does not share the source's editor lock, and it starts with no revision history. Hidden files, including anything under `.meta`, are not copied. If the diagram was generated from a data file that sits next to it, duplicate asks whether to copy that file or keep sharing the original. Copying writes `Name (copy).csv` (or `.json`, `.cdp`, `.lldp`, and an edges file when there is one) and points only the duplicate at it. Sharing leaves both diagrams on the original file. The original file is left unchanged either way.
+**Duplicate** copies a diagram or a whole folder. The first copy is `Name (copy).mmd` (or `Name (copy)` for a folder), then `Name (copy 2)`. It never overwrites an existing item. The copy is not favorited, it does not share the source's editor lock, and it starts with no revision history. Hidden files, including anything under `.meta`, are not copied. If the diagram was generated from a data file that sits next to it, duplicate asks whether to copy that file or keep sharing the original. Copying writes `Name (copy).csv` (or `.json`, `.network.json`, `.cdp`, `.lldp`, and an edges file when there is one) and points only the duplicate at it. Sharing leaves both diagrams on the original file. The original file is left unchanged either way.
 
 Renaming or moving a diagram asks first when other diagrams link to it, then updates those `click` targets and lists the files it changed. A relative link inside a diagram that moved is updated too, so it still points at the same file. A data file that sits in the same folder moves with the diagram, and `nerdgram.source` is updated so **Refresh from data** still finds it. Renaming `Campus.mmd` to `Core.mmd` also renames `Campus.csv` to `Core.csv` and `Campus.lldp` to `Core.lldp`. A data file that lives in a different folder stays where it is. If another diagram already shares that file, the move copies it for the diagram that left and leaves the original bytes in place. A rename or move made outside the app does not do this by itself. **Repair links** can fix the `click` targets after you confirm a preview, and it updates `nerdgram.source` when the data file moved with the diagram. See [Linked diagrams](#linked-diagrams).
 
@@ -410,13 +410,13 @@ Only `nerdgram:`, `diagram:`, and a relative `.mmd` path navigate inside the app
 
 ### Generate from data
 
-A CSV or JSON file can build the diagram. **From data** on the dashboard opens `/generate`. Paste the file or upload it, map columns, choose a flowchart direction and whether groups become subgraphs, preview the Mermaid, then create the diagram. The same action is **Generate diagram from data** in the command palette.
+A CSV, JSON, or network JSON file can build the diagram. **From data** on the dashboard opens `/generate`. Paste the file or upload it, map columns, choose a flowchart direction and whether groups become subgraphs, preview the Mermaid, then create the diagram. Network JSON skips the column map and asks for a Layer 3 or Layer 2 view instead. The same action is **Generate diagram from data** in the command palette.
 
 Two shapes are accepted. A links table has a local device, a local port, a remote device, and a remote port. A node list has an id and a label, and an optional second file of edges with source, target, and label. JSON can carry both lists in one object (`nodes` and `edges`) or a `links` array. Optional columns are group, type, style class, and a child diagram path. A group becomes a Mermaid `subgraph`. A type or style class becomes a `classDef` and a `class` line. A child diagram path becomes a `click` line such as `click Atlanta "nerdgram:Sites/Atlanta.mmd"`. The path has to be a `.mmd` file inside the workspace. `javascript:` and a path that leaves the workspace are rejected, and the error names the row.
 
 Sample files are [docs/samples/campus-links.csv](docs/samples/campus-links.csv) and [docs/samples/campus.json](docs/samples/campus.json). The CSV is a links table. The JSON is nodes, edges, and a link from Atlanta to `Sites/Atlanta.mmd`.
 
-The data file is saved next to the diagram (`Campus.mmd` and `Campus.csv`, or `Core.mmd` and `Core.lldp`). GitHub sync copies both. The diagram's front matter records the file, the column mapping, and the direction under `nerdgram.source`. CDP and LLDP also record `groupBy` and, when you typed one, the local device name. That path is from the workspace root. Renaming, moving, or duplicating the diagram moves or copies a data file that sits in the same folder and updates that path. Duplicate can instead keep sharing the original file. Delete can move the data file to the trash with the diagram or leave it in place. Generated lines sit between `%% nerdgram:generated` and `%% nerdgram:generated end`. **Refresh from data** in the editor reads that file, shows nodes and edges added, removed, and changed, and writes the generated block only after you apply it. Notes, the theme, and anything outside the markers stay, including a node you added by hand.
+The data file is saved next to the diagram (`Campus.mmd` and `Campus.csv`, `Core.mmd` and `Core.lldp`, or `Campus.mmd` and `Campus.network.json`). GitHub sync copies both. The diagram's front matter records the file, the column mapping, and the direction under `nerdgram.source`. CDP and LLDP also record `groupBy` and, when you typed one, the local device name. Network JSON records `view` (`l3` or `l2`) and the options used to build that view. That path is from the workspace root. Renaming, moving, or duplicating the diagram moves or copies a data file that sits in the same folder and updates that path. Duplicate can instead keep sharing the original file. Delete can move the data file to the trash with the diagram or leave it in place. Generated lines sit between `%% nerdgram:generated` and `%% nerdgram:generated end`. **Refresh from data** in the editor reads that file, shows nodes and edges added, removed, and changed, and writes the generated block only after you apply it. Notes, the theme, and anything outside the markers stay, including a node you added by hand.
 
 A file can be up to 512 KB, with at most 5,000 rows, 2,000 nodes, and 5,000 edges. A bad row, or a neighbor block that cannot be parsed, names its row or line and does not create the diagram. Labels are escaped so a cell or a hostname cannot close a Mermaid string or add a directive.
 
@@ -450,6 +450,48 @@ nerdgram generate --path Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cd
 nerdgram generate --path Edge.mmd --data docs/samples/neighbors/lldpd.json --format lldp --local-device edge
 ```
 
+#### Layer 3 and Layer 2 from network data
+
+CDP and LLDP draw physical neighbors. A Layer 3 or Layer 2 diagram needs addresses, VLANs, and bundles, and those commands are different on every platform. NerdGram does not parse that output and does not guess links. It reads one vendor-neutral JSON document, `format: "network"`, `schemaVersion: 1`, and draws the diagram from that document only. The same file always produces the same generated block. A later refresh replaces that block. It does not invent a link that is not in the file.
+
+You produce the JSON. NerdGram does not ship TextFSM, Genie, NAPALM, Batfish, Nautobot, or NetBox. The schema is [docs/schema/network.schema.json](docs/schema/network.schema.json). A file is stored as `.network.json`.
+
+| Field | Required | What it is |
+| --- | --- | --- |
+| `devices` | yes | `name`, plus optional `platform`, `role`, `site`, and `managementIp`. |
+| `interfaces` | yes | `device` and `name`. Optional description, `adminStatus` and `operStatus` (`up` or `down`), `ipv4` and `ipv6` as `{ "address", "prefix" }`, `vrf`, `switchportMode` (`access` or `trunk`), `accessVlan`, `trunkVlans`, `nativeVlan`, and `lag`. |
+| `links` | no | Undirected pairs `{ "a": { "device", "interface" }, "b": { "device", "interface" } }`, usually from CDP, LLDP, or a source of truth. |
+| `vlans` | no | `id` and optional `name`. A single access VLAN is labeled with the name when one is set. |
+| `neighbors` | no | Optional `cdp` or `lldp` text. The existing CDP and LLDP parsers add those pairs to the Layer 2 view. `localDevice` is the hostname when the paste has no prompt. |
+
+`Gi1/0/1` and `GigabitEthernet1/0/1` are the same interface, and `Po1` and `Port-channel1` are the same bundle. An omitted VRF and a VRF named `default` are the same VRF. Any other VRF name is its own. A validation error names the field, for example `/interfaces/1/ipv4/0/prefix: prefix must be an integer from 0 to 32.`
+
+**Layer 3** (`"view": "l3"`). Each address and prefix becomes a subnet. Two interfaces in the same `/30`, `/31`, or `/127` are one edge, labeled with the subnet and both interface names and addresses. Any other subnet with two or more attached devices is a segment node, such as `10.1.20.0/24`, with an edge to each device. A `/32` or `/128` is written on the device, not drawn as a link. A subnet with only one attached interface is written on the device the same way. The management IP is written on the device when that address is not already on the label. The same numbers in two VRFs stay two subnets. **Group by** can be VRF. Shutdown or `down` interfaces are left out unless **Include shutdown or down interfaces** is checked (`includeDown: true`).
+
+**Layer 2** (`"view": "l2"`). Links come from `links`, plus CDP or LLDP text under `neighbors` when that text is in the file. A trunk is labeled with the allowed VLANs compressed into ranges (`10,20,30-40`). The native VLAN is added when it is not 1. When both ends list allowed VLANs, the label is the VLANs they share. Members of the same LAG between the same two devices become one edge, labeled with the port-channel name, the member count, and the member interfaces. The VLAN configuration on the port-channel interface is used when that interface is in the file. **VLAN filter** (`vlan`) keeps only the links that carry that VLAN. **Group by** can be site or role. An access VLAN is labeled `access 20`, or `access 20 servers` when VLAN 20 has that name. A shutdown or down interface is left off the link unless `includeDown` is set. The management IP is written on the device.
+
+**From data** has a **Network data (JSON)** choice. Pick Layer 3 or Layer 2, set the options, preview, then create. The preview is the Mermaid that will be saved. `nerdgram.source` stores the file, the view, and the options. **Refresh from data** reads that file and rewrites only the generated block. Rename, move, duplicate, and delete treat `.network.json` the same way they treat `.csv`, `.json`, `.cdp`, and `.lldp`.
+
+The sample [docs/samples/network/campus.network.json](docs/samples/network/campus.network.json) is a small campus: a core router, a distribution switch, two access switches, and a WAN router. The same file produces both views. These commands need the server and a token, and they are run from the repository root.
+
+```bash
+nerdgram generate --path Campus-L3.mmd --data docs/samples/network/campus.network.json --format network --view l3
+nerdgram generate --path Campus-L2.mmd --data docs/samples/network/campus.network.json --format network --view l2 --group-by site --vlan 20
+nerdgram refresh Campus-L3.mmd
+```
+
+`--include-down` draws shutdown and down interfaces. `--group-by vrf` is the Layer 3 grouping. `--group-by site` and `--group-by role` are the Layer 2 grouping. Refresh does not take `--view`. The view and the options are already in the diagram.
+
+**Producing the file.** Map whatever you already collect into the fields above. Nothing below is bundled, and NerdGram does not run it.
+
+NAPALM `get_facts`, `get_interfaces`, and `get_interfaces_ip` cover the device and the addresses. `get_facts()["hostname"]` is `devices[].name`. `get_interfaces()[name]["is_enabled"]` is `adminStatus` (`false` is `down`) and `is_up` is `operStatus`. `get_interfaces_ip()[name]["ipv4"]` is a dict of address to `{ "prefix_length": N }`. Each entry becomes `{ "address", "prefix": prefix_length }`. IPv6 is the `ipv6` dict, with a prefix from 0 to 128. NAPALM has no single switchport getter on every driver. Map the switchport, the trunk list, the native VLAN, and the port-channel from the getter or the source of truth you already use.
+
+Cisco Genie `device.learn("interface")` returns structured JSON, not CLI text. For each interface, `info[name]["ipv4"][address]["prefix_length"]` is the prefix, and `info[name]["switchport"]["mode"]` becomes `access` or `trunk`. Expand a Genie VLAN range into the `trunkVlans` array of integers. NerdGram compresses ranges again when it draws the label.
+
+TextFSM, including ntc-templates, parses one command into rows. A `show ip interface` template that emits `INTERFACE`, `IPADDR`, and `PREFIX` becomes one `interfaces` entry per row. `show interfaces switchport` rows fill `switchportMode`, `accessVlan`, `trunkVlans`, and `nativeVlan`. Split `10,20,30-40` into the integers 10, 20, and 30 through 40 before you write the file. The same pattern works for `show etherchannel summary`: the port-channel name goes in `lag` on each member. Put the rows from every device in one JSON document. One generate call builds the whole diagram.
+
+CDP and LLDP links can be copied from a diagram you already imported, or from the parser you trust, into `links`. You can also paste the raw `show cdp neighbors detail` or `show lldp neighbors detail` into `neighbors.cdp` or `neighbors.lldp`. That text is parsed by the existing CDP and LLDP parsers. NerdGram does not add a parser for any other command.
+
 ### Thumbnails, find, and shortcuts
 
 Dashboard cards keep a thumbnail of each diagram. The first time a card is on screen, the app draws it. After that, the picture is saved under `.meta/thumbs` and reused until the diagram changes. Scrolling a large folder only draws the cards you are about to see. A diagram that cannot be drawn shows “Preview unavailable” and the rest of the grid stays up.
@@ -481,7 +523,7 @@ The sidebar search box matches file names and paths, titles, tags, descriptions,
 
 **Replace across…** on the dashboard, and **Replace across diagrams…** in the command palette, replace text in more than one diagram. The default scope is every diagram. You can limit it to the current folder, with or without subfolders, and uncheck diagrams or individual matches in the preview. Match case, whole word, and regular expressions (including `$1` in the replacement) match the editor's find bar. The default search is the diagram body. **Include front matter** also searches the YAML header. Hidden files, `.meta`, the trash, and templates are never changed.
 
-Nothing is written until you preview and then replace. The preview shows each match with the line before and after, and a total such as “23 replacements in 9 diagrams”. A long list shows the first matches and says how many were left out. Those unlisted matches are still replaced in a diagram you leave selected. After the replacement, each diagram is checked. One that would not parse, or that gains a new error, is unchecked. A diagram generated from a CSV, JSON, CDP, or LLDP file warns that **Refresh from data** would overwrite the change. A match inside a node id, a `click` target, or a path is marked, because changing an id can break styles or links from other diagrams. The data file itself is not edited.
+Nothing is written until you preview and then replace. The preview shows each match with the line before and after, and a total such as “23 replacements in 9 diagrams”. A long list shows the first matches and says how many were left out. Those unlisted matches are still replaced in a diagram you leave selected. After the replacement, each diagram is checked. One that would not parse, or that gains a new error, is unchecked. A diagram generated from a CSV, JSON, network JSON, CDP, or LLDP file warns that **Refresh from data** would overwrite the change. A match inside a node id, a `click` target, or a path is marked, because changing an id can break styles or links from other diagrams. The data file itself is not edited.
 
 Replace saves each selected diagram the usual way, so the previous text is a revision first. Thumbnails, search, link sightings, and GitHub sync then update as they do for any save. A diagram open in an editor is skipped. A file that changed after the preview is skipped. The summary lists what changed and what was skipped. **Undo this replace** restores that batch and skips any file edited since. One diagram can also be restored from History.
 
@@ -533,7 +575,7 @@ GitHub sync is optional. The folder on this computer stays the copy NerdGram edi
 
 NerdGram does not ship a client ID or a client secret. You register an OAuth app in your own GitHub account. There is no operating-system keychain in a typical container. The token file mode `0600` is the stored secret.
 
-**What is copied.** Synced files are the `.mmd` diagrams, the `.csv`, `.json`, `.cdp`, and `.lldp` data files stored next to a generated diagram, and the folders that contain them. The commit also includes a short README, `.gitignore`, and `.gitattributes` so the GitHub repository can be read on its own. A one-file commit is `Update Network/Core.mmd`.
+**What is copied.** Synced files are the `.mmd` diagrams, the `.csv`, `.json`, `.network.json`, `.cdp`, and `.lldp` data files stored next to a generated diagram, and the folders that contain them. The commit also includes a short README, `.gitignore`, and `.gitattributes` so the GitHub repository can be read on its own. A one-file commit is `Update Network/Core.mmd`.
 
 These stay on this computer and are not pushed:
 
@@ -784,9 +826,9 @@ Settings routes used by the settings page, not by `nerdgram`, are `GET` and `POS
 | POST | `/api/v1/lint` | `read` | Lints Mermaid source that is not necessarily saved. Use this to check a paste before writing it. | body `source`, `sourcePath`, `diagramPaths`, `rules` |
 | GET | `/api/v1/render` | `read` | Renders a saved diagram to SVG or PNG. **429** over 30 calls a minute per token. | query `path`, `format` (`svg` or `png`), `background` |
 | POST | `/api/v1/render` | `read` | Renders a saved diagram or posted source. Send `path` or `source`, not both. Same **429** limit. | body `path` or `source`, `format`, `background` |
-| POST | `/api/v1/generate/preview` | `read` | Builds a diagram from CSV, JSON, CDP, or LLDP and writes nothing. | body `text`, `format`, `direction`, `groupBy`, `localDevice`, `title`, `edgesText`, `mapping`, `grouping`, `shape` |
-| POST | `/api/v1/generate` | `read-write` | Creates the complete diagram from that same data and stores the data file beside it. **409** when the path exists. **201** on success. CDP and LLDP are accepted here, not only CSV and JSON. | body `text`, `path`, `format` (`csv`, `json`, `cdp`, `lldp`), `direction`, `groupBy`, `localDevice`, `title`, `edgesText`, `storeData`, `mapping`, `grouping`, `shape` |
-| POST | `/api/v1/generate/refresh` | `read-write` | Replaces the generated block of an existing diagram from the data in this call. | body `path`, `text`, `edgesText`, `diagramText`, `writeData`, `save` |
+| POST | `/api/v1/generate/preview` | `read` | Builds a diagram from CSV, JSON, CDP, LLDP, or network JSON and writes nothing. | body `text`, `format` (`csv`, `json`, `cdp`, `lldp`, `network`), `view` (`l3` or `l2`, required for network), `includeDown`, `vlan`, `direction`, `groupBy`, `localDevice`, `title`, `edgesText`, `mapping`, `grouping`, `shape` |
+| POST | `/api/v1/generate` | `read-write` | Creates the complete diagram from that same data and stores the data file beside it. **409** when the path exists. **201** on success. | body `text`, `path`, `format` (`csv`, `json`, `cdp`, `lldp`, `network`), `view` (`l3` or `l2`), `includeDown`, `vlan`, `direction`, `groupBy`, `localDevice`, `title`, `edgesText`, `storeData`, `mapping`, `grouping`, `shape` |
+| POST | `/api/v1/generate/refresh` | `read-write` | Replaces the generated block from the data in this call. Network view and options come from the diagram, not from this body. | body `path`, `text`, `edgesText`, `diagramText`, `writeData`, `save` |
 | GET | `/api/v1/history` | `read` | Lists revisions for one diagram, including baseline name and note. | query `path` |
 | GET | `/api/v1/history/diff` | `read` | Diffs two revisions, or a revision and the current diagram. The file is not modified. | query `path`, `from`, `to` (id, baseline name, or `current`) |
 | POST | `/api/v1/history/baseline` | `read-write` | Names a revision, or saves the current diagram as a named baseline. **201** on success. | body `path`, `name`, `id`, `note` |
@@ -813,7 +855,7 @@ curl -fsS -X POST "http://127.0.0.1:8787/api/v1/render" \
   -o Welcome.svg
 ```
 
-Rename and move update `click` links the same way the editor does after you confirm. Pass `"updateLinks": false` to refuse the change when another diagram links there (**409**, with the file list). A CSV, JSON, CDP, or LLDP file in the same folder moves with the diagram, and the response `dataFiles` list is the old path and the new path. `nerdgram.source` is updated. Duplicate is `POST /api/v1/diagrams/duplicate`. When a sibling data file exists, omit `copyData` and the call returns **409** with `files`. `"copyData": true` copies the file and points the duplicate at the copy. `"copyData": false` shares the original file and does not change it. Delete is `DELETE /api/v1/diagrams`. It answers **200** with `path` and `trashed`. The path can be a query parameter or a JSON field. Send `Content-Type: application/json` and a JSON body. `{}` is enough when `path` is in the query string. When a sibling data file exists, omit `deleteData` and the call returns **409** with `files`. `"deleteData": true` moves that file to the trash with the diagram. `"deleteData": false` leaves it in the workspace. `nerdgram rename`, `nerdgram move`, `nerdgram duplicate` (`--copy-data` or `--share-data`), and `nerdgram delete` (`--with-data` or `--keep-data`) call those routes. An editor lock returns **423**. Paths stay inside the data directory.
+Rename and move update `click` links the same way the editor does after you confirm. Pass `"updateLinks": false` to refuse the change when another diagram links there (**409**, with the file list). A CSV, JSON, network JSON, CDP, or LLDP file in the same folder moves with the diagram, and the response `dataFiles` list is the old path and the new path. `nerdgram.source` is updated. Duplicate is `POST /api/v1/diagrams/duplicate`. When a sibling data file exists, omit `copyData` and the call returns **409** with `files`. `"copyData": true` copies the file and points the duplicate at the copy. `"copyData": false` shares the original file and does not change it. Delete is `DELETE /api/v1/diagrams`. It answers **200** with `path` and `trashed`. The path can be a query parameter or a JSON field. Send `Content-Type: application/json` and a JSON body. `{}` is enough when `path` is in the query string. When a sibling data file exists, omit `deleteData` and the call returns **409** with `files`. `"deleteData": true` moves that file to the trash with the diagram. `"deleteData": false` leaves it in the workspace. `nerdgram rename`, `nerdgram move`, `nerdgram duplicate` (`--copy-data` or `--share-data`), and `nerdgram delete` (`--with-data` or `--keep-data`) call those routes. An editor lock returns **423**. Paths stay inside the data directory.
 
 ```bash
 curl -fsS -X DELETE "http://127.0.0.1:8787/api/v1/diagrams" \
@@ -835,7 +877,7 @@ curl -fsS "http://127.0.0.1:8787/api/v1/lint?path=Welcome.mmd" \
 
 `generate` and `refresh` are not a way to add one device per call. Each call builds the **complete** generated diagram from the data in that call. A later call on the same diagram replaces that generated block. It does not append. `POST /api/v1/generate/refresh` rewrites only the lines between `%% nerdgram:generated` and `%% nerdgram:generated end`. A device or link left out of the new data drops off the diagram. Notes, styling, and hand-added nodes outside those markers stay. The workspace path, such as `Network/Core.mmd`, is the id a later refresh uses. Put every device's CDP or LLDP output in **one** `text` value, pasted one after another. The previous diagram is saved as a revision before the refresh is written, so history, baselines, and `diff` can compare old against new.
 
-CSV and JSON still use the [Generate from data](#generate-from-data) pipeline. CDP and LLDP use the same routes: `format` is `cdp` or `lldp`, `groupBy` is `platform` (the default) or `capability`, and `localDevice` is the hostname when the paste has no CLI prompt. `POST /api/v1/generate` returns **409** when `path` already exists. `save: true` on refresh writes the diagram. Without it, the response is the new source and the diff, and the file stays as it was. `writeData: true` stores the new `text` in the sibling data file.
+CSV and JSON still use the [Generate from data](#generate-from-data) pipeline. CDP and LLDP use the same routes: `format` is `cdp` or `lldp`, `groupBy` is `platform` (the default) or `capability`, and `localDevice` is the hostname when the paste has no CLI prompt. Network JSON uses the same routes with `format` `network` and `view` `l3` or `l2`. `includeDown`, `vlan`, and `groupBy` (`vrf`, `site`, or `role`) are the view options. Refresh reads those from `nerdgram.source` and does not take them in the body. `POST /api/v1/generate` returns **409** when `path` already exists. `save: true` on refresh writes the diagram. Without it, the response is the new source and the diff, and the file stays as it was. `writeData: true` stores the new `text` in the sibling data file.
 
 A network script can post `show cdp neighbors detail` and NerdGram builds the diagram. This paste is two devices in one call:
 
@@ -862,6 +904,17 @@ Refresh reads `format` from the diagram's front matter, so the new `text` has to
 ```bash
 nerdgram generate --path Network/Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp --format cdp
 nerdgram refresh Network/Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp
+nerdgram generate --path Campus-L3.mmd --data docs/samples/network/campus.network.json --format network --view l3
+nerdgram refresh Campus-L3.mmd
+```
+
+Network JSON is the same one-call shape. `text` is the whole document. A later refresh of `Campus-L3.mmd` rebuilds the Layer 3 view from the new document and leaves notes outside the markers.
+
+```bash
+curl -fsS -X POST "http://127.0.0.1:8787/api/v1/generate" \
+  -H "Authorization: Bearer ng_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"Campus-L3.mmd","format":"network","view":"l3","text":"{\"schemaVersion\":1,\"devices\":[{\"name\":\"core\"},{\"name\":\"dist\"}],\"interfaces\":[{\"device\":\"core\",\"name\":\"Gi0/0\",\"ipv4\":[{\"address\":\"10.0.0.1\",\"prefix\":30}]},{\"device\":\"dist\",\"name\":\"Gi0/1\",\"ipv4\":[{\"address\":\"10.0.0.2\",\"prefix\":30}]}]}"}'
 ```
 
 `nerdgram refresh` sends `save: true`, and `writeData: true` when `--data` is set. CSV still works:
@@ -929,6 +982,7 @@ nerdgram repair-links
 nerdgram repair-links --apply
 nerdgram generate --path Campus.mmd --data docs/samples/campus-links.csv
 nerdgram generate --path Core.mmd --data docs/samples/neighbors/cisco-ios-lldp.lldp --format lldp
+nerdgram generate --path Campus-L3.mmd --data docs/samples/network/campus.network.json --format network --view l3
 nerdgram refresh Campus.mmd
 nerdgram diff Campus.mmd --from "Baseline - pre-change" --to current --format md
 nerdgram baseline Campus.mmd --name "Baseline - pre-change"

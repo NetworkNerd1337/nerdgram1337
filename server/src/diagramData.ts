@@ -4,6 +4,7 @@ import { clickTargetKind, resolveDiagramTarget } from "./diagramLinks.js";
 import { matchFrontMatter, type FrontMatterMatch } from "./frontMatter.js";
 import { detectNeighborKind, parseNeighborSource } from "./neighbors/index.js";
 import type { NormalizedNeighbor } from "./neighbors/types.js";
+import { importNetworkFormat } from "./network/import.js";
 
 /**
  * File-based diagram import.
@@ -54,14 +55,18 @@ export const DATA_FIELDS = [
 
 export type DataField = (typeof DATA_FIELDS)[number];
 export type ColumnMapping = Partial<Record<DataField, string>>;
-export type DataFormat = "csv" | "json" | "cdp" | "lldp";
+export type DataFormat = "csv" | "json" | "cdp" | "lldp" | "network";
 export type DataShape = "links" | "nodes" | "edges" | "graph";
 export type FlowDirection = "TD" | "TB" | "LR" | "RL" | "BT";
 export type GroupBy = "platform" | "capability";
+export type NetworkView = "l3" | "l2";
+export type NetworkGroupBy = "vrf" | "site" | "role";
 
 export type RowIssue = {
   row: number;
   message: string;
+  /** JSON pointer for a network-data field, when the error is a schema error. */
+  path?: string;
 };
 
 export type GraphNode = {
@@ -95,10 +100,19 @@ export type DataSourceConfig = {
   direction: FlowDirection;
   grouping: boolean;
   diagramType: "flowchart";
-  /** Set for CDP and LLDP. Refresh groups devices the same way. */
-  groupBy?: GroupBy;
-  /** Fallback hostname when neighbor output has no CLI prompt. */
+  /**
+   * CDP and LLDP use platform or capability.
+   * Network data uses vrf, site, or role. Refresh keeps the same grouping.
+   */
+  groupBy?: GroupBy | NetworkGroupBy;
+  /** Fallback hostname when neighbor output, or embedded CDP or LLDP, has no CLI prompt. */
   localDevice?: string;
+  /** Set for network data. Refresh builds the same view. */
+  view?: NetworkView;
+  /** Network data. Down and shutdown interfaces are excluded unless this is true. */
+  includeDown?: boolean;
+  /** Layer 2 network view. Only links that carry this VLAN are drawn. */
+  vlan?: number;
 };
 
 export type ImportInput = {
@@ -117,6 +131,10 @@ export type ImportInput = {
   edgesFile?: string;
   localDevice?: string;
   groupBy?: string;
+  /** Network data. `l3` or `l2`. */
+  view?: string;
+  includeDown?: boolean;
+  vlan?: number;
 };
 
 export type ImportResult = {
@@ -288,9 +306,10 @@ export function importDiagramData(input: ImportInput): ImportResult {
   const text = requireText(input.text, "Data");
   const requestedFormat = typeof input.format === "string" ? input.format.trim().toLowerCase() : "auto";
   const format = requestedFormat === "" || requestedFormat === "auto" ? detectFormat(text) : requestedFormat;
+  if (format === "network") return importNetworkFormat(input, text);
   if (format === "cdp" || format === "lldp") return importNeighborFormat(input, format, text);
   if (format !== "csv" && format !== "json") {
-    throw dataFail(400, "Use a CSV or JSON file, Cisco CDP output, or LLDP neighbor output.", "invalid");
+    throw dataFail(400, "Use a CSV or JSON file, Cisco CDP output, LLDP neighbor output, or network JSON.", "invalid");
   }
 
   const primary = format === "csv" ? tableFromCsv(text) : tableFromJson(text);
@@ -734,7 +753,7 @@ export function isSafeDataPath(relativePath: string): boolean {
 
 export function assertDataPath(relativePath: string): string {
   if (!isSafeDataPath(relativePath)) {
-    throw dataFail(400, "Data files have to be a .csv, .json, .cdp, or .lldp path inside the workspace.", "invalid");
+    throw dataFail(400, "Data files have to be a .csv, .json, .network.json, .cdp, or .lldp path inside the workspace.", "invalid");
   }
   return relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
 }
@@ -765,16 +784,31 @@ function requireText(value: unknown, label: string): string {
   if (value.length > DATA_LIMITS.maxChars) {
     throw dataFail(400, `${label} is larger than 512 KB.`, "invalid");
   }
-  if (!value.trim()) throw dataFail(400, `Paste or upload a CSV, JSON, CDP, or LLDP ${label.toLowerCase()} file.`, "invalid");
+  if (!value.trim()) throw dataFail(400, `Paste or upload a CSV, JSON, CDP, LLDP, or network JSON ${label.toLowerCase()} file.`, "invalid");
   return value.replace(/^\uFEFF/, "");
 }
 
 function detectFormat(text: string): DataFormat {
+  if (looksLikeNetwork(text)) return "network";
   const neighbor = detectNeighborKind(text);
   if (neighbor) return neighbor;
   const trimmed = text.trim();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) return "json";
   return "csv";
+}
+
+function looksLikeNetwork(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{")) return false;
+  try {
+    const value = JSON.parse(trimmed) as unknown;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const record = value as Record<string, unknown>;
+    if (record.format === "network") return true;
+    return record.schemaVersion === 1 && Array.isArray(record.devices) && Array.isArray(record.interfaces);
+  } catch {
+    return false;
+  }
 }
 
 function resolveGroupBy(value: string | undefined): GroupBy {
@@ -1368,23 +1402,26 @@ function acceptDiagram(raw: string, row: number, section: string | undefined, er
   return resolved.path;
 }
 
+/** Mermaid node id. The same name and the same set of used ids always produce the same id. */
+export function graphNodeId(raw: string, used: Set<string>): string {
+  let base = sanitizeId(raw);
+  if (!base || !/^[A-Za-z_]/.test(base)) base = `n_${base || "node"}`.replace(/^n_$/, "n");
+  if (RESERVED_IDS.has(base.toLowerCase())) base = `n_${base}`;
+  base = base.slice(0, 64);
+  let id = base;
+  let n = 2;
+  while (used.has(id.toLowerCase())) {
+    id = `${base.slice(0, 56)}_${n}`;
+    n += 1;
+  }
+  used.add(id.toLowerCase());
+  return id;
+}
+
 function assignIds(drafts: readonly DraftNode[]): Map<string, string> {
   const used = new Set<string>();
   const ids = new Map<string, string>();
-  for (const draft of drafts) {
-    let base = sanitizeId(draft.key);
-    if (!base || !/^[A-Za-z_]/.test(base)) base = `n_${base || "node"}`.replace(/^n_$/, "n");
-    if (RESERVED_IDS.has(base.toLowerCase())) base = `n_${base}`;
-    base = base.slice(0, 64);
-    let id = base;
-    let n = 2;
-    while (used.has(id.toLowerCase())) {
-      id = `${base.slice(0, 56)}_${n}`;
-      n += 1;
-    }
-    used.add(id.toLowerCase());
-    ids.set(draft.key, id);
-  }
+  for (const draft of drafts) ids.set(draft.key, graphNodeId(draft.key, used));
   return ids;
 }
 
@@ -1505,13 +1542,26 @@ function sourceToPlain(source: DataSourceConfig): Record<string, unknown> {
   if (source.edgesMapping && Object.keys(source.edgesMapping).length > 0) plain.edgesMapping = source.edgesMapping;
   if (source.groupBy) plain.groupBy = source.groupBy;
   if (source.localDevice) plain.localDevice = source.localDevice;
+  if (source.format === "network") {
+    plain.view = source.view ?? "l3";
+    plain.includeDown = source.includeDown === true;
+    if (source.vlan != null) plain.vlan = source.vlan;
+  }
   return plain;
 }
 
 function configFromPlain(block: Record<string, unknown>): DataSourceConfig | null {
   const file = typeof block.file === "string" ? block.file : "";
   if (!isSafeDataPath(file)) return null;
-  if (block.format !== "csv" && block.format !== "json" && block.format !== "cdp" && block.format !== "lldp") return null;
+  if (
+    block.format !== "csv" &&
+    block.format !== "json" &&
+    block.format !== "cdp" &&
+    block.format !== "lldp" &&
+    block.format !== "network"
+  ) {
+    return null;
+  }
   if (typeof block.shape !== "string" || !SHAPES.has(block.shape as DataShape)) return null;
   const direction = typeof block.direction === "string" ? block.direction.toUpperCase() : "TD";
   if (!DIRECTIONS.has(direction as FlowDirection)) return null;
@@ -1534,7 +1584,19 @@ function configFromPlain(block: Record<string, unknown>): DataSourceConfig | nul
   const edgesMapping = mappingFromPlain(block.edgesMapping);
   if (block.edgesMapping != null && !edgesMapping) return null;
   if (edgesMapping && Object.keys(edgesMapping).length > 0) config.edgesMapping = edgesMapping;
-  if (block.groupBy != null && block.groupBy !== "") {
+  if (block.format === "network") {
+    if (block.view !== "l3" && block.view !== "l2") return null;
+    config.view = block.view;
+    config.includeDown = block.includeDown === true;
+    if (block.vlan != null && block.vlan !== "") {
+      if (typeof block.vlan !== "number" || !Number.isInteger(block.vlan) || block.vlan < 1 || block.vlan > 4094) return null;
+      config.vlan = block.vlan;
+    }
+    if (block.groupBy != null && block.groupBy !== "") {
+      if (block.groupBy !== "vrf" && block.groupBy !== "site" && block.groupBy !== "role") return null;
+      config.groupBy = block.groupBy;
+    }
+  } else if (block.groupBy != null && block.groupBy !== "") {
     if (block.groupBy !== "platform" && block.groupBy !== "capability") return null;
     config.groupBy = block.groupBy;
   }

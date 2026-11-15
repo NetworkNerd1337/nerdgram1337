@@ -446,7 +446,7 @@ Chassis id: 0011.2233.4455
   });
 
   it("rejects an unknown source without mentioning a removed connector", () => {
-    expect(() => importDiagramData({ text: "device,port\n", format: "netbox" })).toThrow(/Cisco CDP output, or LLDP/);
+    expect(() => importDiagramData({ text: "device,port\n", format: "netbox" })).toThrow(/network JSON/);
     try {
       importDiagramData({ text: "device,port\n", format: "netbox" });
     } catch (err) {

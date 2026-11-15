@@ -43,6 +43,7 @@ const BOOL_FLAGS = new Set([
   "share-data",
   "with-data",
   "keep-data",
+  "include-down",
 ]);
 
 const HELP = `nerdgram — automation client for NerdGram1337
@@ -62,6 +63,8 @@ Usage
   nerdgram repair-links [--dry-run] [--apply]
   nerdgram generate --path Diagram.mmd --data data.csv
   nerdgram generate --path Diagram.mmd --data neighbors.lldp --format lldp --local-device edge-sw
+  nerdgram generate --path Campus-L3.mmd --data campus.network.json --format network --view l3
+  nerdgram generate --path Campus-L2.mmd --data campus.network.json --format network --view l2 --group-by site
   nerdgram refresh <path> [--data data.csv]
   nerdgram diff <path> --from <id|name|current> [--to <id|name|current>] [--format md|json|svg]
   nerdgram baseline <path> --name "…" [--note "…"] [--id <revision>]
@@ -72,9 +75,10 @@ A local .mmd file is rendered and linted in this process. Anything else uses
 NERDGRAM_URL (default http://127.0.0.1:8787) and NERDGRAM_TOKEN.
 --url and --token override those. --json prints one JSON object.
 --server forces render to use the API. Exit status is 1 on errors.
-Rename and move also move a CSV, JSON, CDP, or LLDP file that sits next to the
-diagram and update nerdgram.source. duplicate --copy-data gives the copy its
-own data file. duplicate --share-data keeps both diagrams on the original file.
+Rename and move also move a CSV, JSON, network JSON, CDP, or LLDP file that
+sits next to the diagram and update nerdgram.source. duplicate --copy-data
+gives the copy its own data file. duplicate --share-data keeps both diagrams
+on the original file.
 delete --with-data moves that file to the trash with the diagram.
 delete --keep-data leaves it in the workspace. When a data file is present and
 the flag is omitted, duplicate and delete stop and list the file.
@@ -499,19 +503,29 @@ async function generateCommand(parsed: Parsed, io: Io): Promise<void> {
   const diagramPath = flagString(parsed.flags, "path") ?? parsed.positionals[0];
   const dataFile = flagString(parsed.flags, "data");
   if (!diagramPath || !dataFile) {
-    throw new CliError("generate needs --path Diagram.mmd and --data file.csv, file.json, file.cdp, or file.lldp.");
+    throw new CliError("generate needs --path Diagram.mmd and --data file.csv, file.json, file.network.json, file.cdp, or file.lldp.");
   }
+  const format = flagString(parsed.flags, "format");
+  const view = flagString(parsed.flags, "view");
+  if (format === "network" && view !== "l3" && view !== "l2") {
+    throw new CliError("generate --format network needs --view l3 or --view l2.");
+  }
+  const vlanText = flagString(parsed.flags, "vlan");
+  if (vlanText != null && !/^\d+$/.test(vlanText)) throw new CliError("vlan must be an integer from 1 to 4094.");
   const text = await fs.readFile(dataFile, "utf8");
   const { base, token } = configOf(parsed.flags, io.env);
   const result = await callApi(base, requireToken(token), "POST", "/api/v1/generate", {
     path: diagramPath,
     text,
-    format: flagString(parsed.flags, "format"),
+    format,
     shape: flagString(parsed.flags, "shape"),
     direction: flagString(parsed.flags, "direction"),
     title: flagString(parsed.flags, "title"),
     localDevice: flagString(parsed.flags, "local-device"),
     groupBy: flagString(parsed.flags, "group-by"),
+    view,
+    ...(parsed.flags.get("include-down") === true ? { includeDown: true } : {}),
+    ...(vlanText != null ? { vlan: Number(vlanText) } : {}),
   });
   const body = result.json as { path: string; dataPath?: string; counts?: unknown };
   writeOut(io, isJson(parsed.flags), body, `Created ${body.path}${body.dataPath ? ` from ${body.dataPath}` : ""}`);

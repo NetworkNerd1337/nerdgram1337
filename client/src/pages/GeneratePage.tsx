@@ -83,8 +83,9 @@ export function GeneratePage() {
         </header>
         <h1>Generate a diagram from data</h1>
         <p className="generate-lead">
-          Paste a links table, a list of nodes and edges, Cisco CDP, or LLDP neighbor output from any vendor. The
-          diagram stays tied to that data file so it can be refreshed.
+          Paste a links table, a list of nodes and edges, Cisco CDP, LLDP neighbor output, or network JSON.
+          Network JSON draws a Layer 3 or Layer 2 view. The diagram stays tied to that data file so it can be
+          refreshed.
         </p>
         <GenerateWizard
           state={state}

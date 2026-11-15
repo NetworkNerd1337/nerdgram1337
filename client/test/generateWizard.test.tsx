@@ -175,6 +175,79 @@ describe("generate wizard flow", () => {
     expect(previewRequest(state).sourceFile).toBe(format === "cdp" ? "Sites/Untitled.cdp" : "Sites/Untitled.lldp");
   });
 
+  it("previews a Layer 3 diagram from network JSON", () => {
+    let state = initialWizardState("Sites");
+    const dispatch = (action: Parameters<typeof wizardReducer>[1]) => {
+      state = wizardReducer(state, action);
+    };
+    function render() {
+      act(() => {
+        if (!root) {
+          const host = document.createElement("div");
+          document.body.appendChild(host);
+          root = createRoot(host);
+        }
+        root?.render(
+          <GenerateWizard
+            state={state}
+            dispatch={dispatch}
+            busy={false}
+            onInspect={(step) => dispatch({ type: "result", result: inspection(state, step), step })}
+            onCreate={() => undefined}
+          />,
+        );
+      });
+    }
+
+    const network = JSON.stringify({
+      schemaVersion: 1,
+      devices: [{ name: "core-rtr", role: "core" }, { name: "dist-sw" }],
+      interfaces: [
+        { device: "core-rtr", name: "Loopback0", ipv4: [{ address: "10.255.0.1", prefix: 32 }] },
+        { device: "core-rtr", name: "Gi0/0", ipv4: [{ address: "10.1.0.1", prefix: 30 }] },
+        { device: "dist-sw", name: "Gi0/1", ipv4: [{ address: "10.1.0.2", prefix: 30 }] },
+      ],
+    });
+    render();
+    setValue(document.querySelector<HTMLSelectElement>("#generate-format")!, "network");
+    render();
+    expect(document.querySelector("label[for='generate-data']")?.textContent).toContain("Network data (JSON)");
+    expect(document.querySelector("#generate-view")).toBeTruthy();
+    expect(document.querySelector("#generate-include-down")).toBeTruthy();
+    expect(document.querySelector("#generate-edges")).toBeNull();
+    setValue(document.querySelector<HTMLTextAreaElement>("#generate-data")!, network);
+    render();
+    (document.querySelector("button.btn-primary") as HTMLButtonElement).click();
+    render();
+    expect(state.step).toBe("map");
+    expect(document.querySelector("#map-localDevice")).toBeNull();
+    expect(document.querySelector("#generate-view")).toBeTruthy();
+    setValue(document.querySelector<HTMLSelectElement>("#generate-network-group")!, "vrf");
+    render();
+    const previewButton = [...document.querySelectorAll("button")].find((button) => button.textContent === "Preview");
+    previewButton?.click();
+    render();
+    expect(state.step).toBe("preview");
+    expect(state.errors).toEqual([]);
+    expect(state.mermaid).toContain("flowchart LR");
+    expect(state.mermaid).toContain("10.1.0.0/30");
+    expect(state.mermaid).toContain("10.255.0.1/32");
+    expect(canCreate(state)).toBe(true);
+    expect(previewRequest(state).format).toBe("network");
+    expect(previewRequest(state).view).toBe("l3");
+    expect(previewRequest(state).groupBy).toBe("vrf");
+    expect(previewRequest(state).sourceFile).toBe("Sites/Untitled.network.json");
+
+    const back = [...document.querySelectorAll("button")].find((button) => button.textContent === "Back");
+    back?.click();
+    render();
+    expect(state.step).toBe("map");
+    setValue(document.querySelector<HTMLSelectElement>("#generate-view")!, "l2");
+    render();
+    expect(state.view).toBe("l2");
+    expect(document.querySelector("#generate-vlan")).toBeTruthy();
+  });
+
   it("keeps create disabled when a row is invalid", () => {
     let state = wizardReducer(initialWizardState(), { type: "text", text: "Local Device,Remote Device\nCore,\n" });
     const result = inspection(state, "preview");
