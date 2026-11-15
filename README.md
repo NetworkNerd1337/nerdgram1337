@@ -23,6 +23,7 @@ The full-quality recording is [screenshots/nerdgram1337_dashboard_editor_demo.mp
 - [Features](#features)
 - [Generate from data](#generate-from-data)
 - [Configuration](#configuration)
+- [Team use](#team-use)
 - [Automation API](#automation-api)
 - [Command-line tool](#command-line-tool)
 - [Install the CLI from npm](#install-the-cli-from-npm)
@@ -639,10 +640,11 @@ Set a variable in the same terminal before `npm run dev` or `npm start`, so the 
 | `PORT` | `8787` | API port. Inside Docker this must equal the published host port. |
 | `HOST` | unset, which binds `127.0.0.1` and `::1` | One address replaces that pair. When this variable is set, it wins over the Host setting saved in the UI, and the settings page says so. `HOST=127.0.0.1` is IPv4 loopback only. `HOST=::1` is IPv6 loopback only. `HOST=0.0.0.0` listens on every IPv4 interface. `HOST=::` listens on every IPv6 interface. The Docker image sets `HOST=0.0.0.0` so a published port can reach the process. |
 | `NODE_ENV` | inferred | Set `NODE_ENV=production` or `NODE_ENV=development` to override. Unset, a `tsx` dev process is development and `node dist/index.js` is production. Development allows the Vite origins on port 5173. |
-| `NERDGRAM_DATA_DIR` | `<repo>/diagrams` | Absolute path of the workspace. The image uses `/data`. |
+| `NERDGRAM_DATA_DIR` | `<repo>/diagrams` | Absolute path of the workspace. The image uses `/data`. The Diagram folder setting stores this same variable in the instance startup config. An external value, from the shell, a service file, or Docker, is the source of truth and the field is read-only. |
 | `NERDGRAM_ALLOWED_HOSTS` | empty | Comma-separated extra `Host` names, merged with the names the bind already allows. A star, `0.0.0.0`, and `::` are ignored. Use this for a DNS name, or for a Docker host address the container cannot discover. |
 | `NERDGRAM_CORS_ORIGINS` | empty | Comma-separated extra origins for mutations, such as `http://localhost:5174`. Not a wildcard. |
 | `NERDGRAM_INSTALL` | auto | `docker`, `git`, or `zip`. Any other explicit value is `unknown`. Unset, a `/.dockerenv` or `/run/.containerenv` file means docker, a `.git` at the app root means git, and a `package.json` means zip. |
+| `NERDGRAM_INSTANCE_FILE` | `~/.nerdgram/instance.json` | This install's instance id, instance name, and saved `NERDGRAM_DATA_DIR`. It is not in the diagram folder. Set it only to put that file somewhere else. It does not choose which folder the diagrams are in. |
 | `NERDGRAM_COMMIT` | git `HEAD` on a git install, otherwise unset | Hex SHA of 7 to 40 characters baked into an image. Docker does not run git to find one. |
 | `NERDGRAM_GITHUB_CLIENT_ID` | unset | OAuth client ID. Not a secret. |
 | `NERDGRAM_GITHUB_TOKEN` | unset | Access token. When set, it is used instead of `.meta/github-token` and is not copied to disk. |
@@ -679,9 +681,75 @@ An empty custom directory is seeded once with the sample diagrams, including the
 
 **Host setting.** Settings has a Host box. It is stored at `<data>/.meta/listen-host.json` and read on the next start. The box defaults to `127.0.0.1`. That saved value, and a missing file, keep the default pair `127.0.0.1` and `::1`. It is not the same as `HOST=127.0.0.1`, which is IPv4 only. A machine IP listens on that interface only and is accepted in the `Host` header, including `IP:port` on the API port. `0.0.0.0` or `::` listens on every interface of that family. Those two values are not `Host` names. At startup NerdGram allows the machine's non-loopback interface addresses instead, so a caller can use any of those IPs. Loopback names (`localhost`, `127.0.0.1`, `::1`) always stay allowed. `NERDGRAM_ALLOWED_HOSTS` is merged in, not replaced. The UI accepts an IPv4 or IPv6 address only. A DNS name belongs in `NERDGRAM_ALLOWED_HOSTS`.
 
-`HOST` wins when it is set. The settings page shows the override and does not pretend the saved value is the bind. NerdGram never restarts itself. The restart note appears only when the saved value is not `127.0.0.1`. Saving `127.0.0.1` again clears that note and returns to the default loopback pair on the next start.
+`HOST` wins when it is set. The settings page shows the override and does not pretend the saved value is the bind. NerdGram never restarts itself. The restart note appears only while the saved host differs from the address this process started with. After a restart that is already listening on the saved address, the note is gone, including when that address is not `127.0.0.1`. Saving `127.0.0.1` again, while the process is already on the default loopback pair, leaves the note hidden.
+
+**Diagram folder.** Settings has a Diagram folder box next to Host. It sets `NERDGRAM_DATA_DIR`. The value is stored in the instance startup config (`~/.nerdgram/instance.json`, or `NERDGRAM_INSTANCE_FILE`) and `getDataRoot()` reads it at the next start through `NERDGRAM_DATA_DIR`. A process cannot change its own shell environment for later runs, so the file is what startup reads. When `NERDGRAM_DATA_DIR` is already set in the shell, a service file, or Docker, the box shows that value read-only and says where it came from. There is one source of truth. In Docker the box is read-only: change the volume mount. The field is disabled while GitHub sync is on. The path has to be a writable folder, or a path whose parent exists so the folder can be created. The restart note uses the same rule as Host: it shows only while the saved folder differs from the folder this process started with.
 
 In Docker the image sets `HOST=0.0.0.0`, so the box is read-only. Change the published port, not the setting. `127.0.0.1:8787:8787` keeps the tool port on the host loopback. `<lan-ip>:8787:8787` publishes that address. Add the host address to `NERDGRAM_ALLOWED_HOSTS`, because the process discovers the container's interfaces, not the host's. Browser edits from another origin still need `NERDGRAM_CORS_ORIGINS`. A token call from `curl` does not send `Origin`, so the Host allow-list is the check that matters for it.
+
+## Team use
+
+NerdGram has no accounts and no roles. Two or three engineers can still share diagrams. Use one of the three setups below. GitHub sync is the one to use when the cloud is allowed. The shared folder, with the instance-aware locks described here, is for a team that has to keep diagrams on local or on-premises storage.
+
+### Shared hub
+
+One NerdGram process listens on the LAN. Set Host to that machine's address, or to `0.0.0.0` or `::`, and open a browser at that address. [Configuration](#configuration) has the bind, the Host allow-list, and the restart note. Everyone shares that one process. The editor lock is the lock that was already there: a second browser on the same server is "another window on this computer". The save still checks the file hash, so a diagram that changed on disk opens the usual conflict.
+
+What this protects: a live lock inside that one process, and the save-conflict check.
+
+What this does not do: it does not keep working when that computer is off, and it is not a copy on each laptop.
+
+### Shared folder
+
+Each engineer runs their own NerdGram. Set Diagram folder to the same directory on a share (SMB or NFS). That box sets `NERDGRAM_DATA_DIR`. The value is stored in the instance startup config, `~/.nerdgram/instance.json`, which is not on the share. On the next start, `getDataRoot()` reads it through `NERDGRAM_DATA_DIR`. If the shell, a service file, or Docker already set `NERDGRAM_DATA_DIR`, the box shows that value read-only and names the source. Docker stays read-only: change the volume mount.
+
+Each install creates an instance id the first time it starts and keeps it in that same file. Instance name defaults to the hostname. Set a friendlier name on the settings page, such as "Ryan's laptop". The name applies the next time a diagram is opened. It does not need a restart.
+
+A lock file in `<data>/.meta/locks/` records `instanceId`, `instanceName`, and `hostname` along with the session, token, pid, and heartbeat. Older lock files that lack those fields still open. The pid check runs only when the lock's instance id is this install. A lock from another instance stays live until its heartbeat is older than 90 seconds, even when that pid does not exist on this computer. The editor heartbeats every 15 seconds. Take over stays available only after the lock is stale, the same as it is today. The second instance shows who has the diagram: the diagram name, the instance name, the hostname when the two differ, and the time it was opened.
+
+The hash check is unchanged. A save that lost a race still reports that the file changed on disk.
+
+What this protects: a live "open on another instance" lock across installs that share the folder, and the existing save-conflict check.
+
+What this does not do: it does not merge two edits. The share has to report new and removed files promptly. Use a share that does not heavily cache file metadata. A stale cache can hide a lock that was just written, or keep showing a lock that was released.
+
+### GitHub sync
+
+Each instance has its own copy of one repository. GitHub sync does not grow a live "open elsewhere" lock between instances. GitHub, pull, and the conflict screen that is already in the app handle history. This is the recommended setup when the cloud is allowed. Use the shared folder when the diagrams have to stay on local or on-premises storage.
+
+If two engineers change the same diagram before either one syncs, NerdGram's existing conflict screen appears at pull or sync time and asks which version to keep. That is uncommon. Nothing in the lock code changes for it, and GitHub sync's conflict model is the same as it was.
+
+What this protects: history, and a choice when both copies changed.
+
+What this does not do: it does not stop both people from editing at once, and it does not say who has the diagram open.
+
+### Locks, heartbeats, and names
+
+The holder is written into the lock when the diagram is opened, and refreshed on the heartbeat. A second instance that tries to open, edit, rename, move, or delete the diagram gets **423** with that holder's instance name, hostname, `acquiredAt`, and `heartbeatAt`. `nerdgram` prints the holder in the error. Take over replaces the lock only after it is stale. Closing the diagram removes the lock. A crashed process on this computer drops its own lock immediately, because the pid is gone. A lock from another computer waits out the 90 second window, because this computer cannot see that pid.
+
+Set the instance name under **Instance name** on the settings page. Blank means the hostname. The id and the name live in `~/.nerdgram/instance.json` (or `NERDGRAM_INSTANCE_FILE`). They are not copied onto the share, and GitHub sync does not upload `.meta`, so locks stay local to the folder that holds them. In Docker the image user's home is `/tmp`, so the file is `/tmp/.nerdgram/instance.json` unless `NERDGRAM_INSTANCE_FILE` is set. It stays off the diagram volume. A new container is a new instance.
+
+Host and Diagram folder both apply on the next start. The restart note shows only while the saved value differs from the value this process started with. After a restart that is running the saved value, the note is gone. NerdGram does not restart itself.
+
+### Two engineers and one diagram
+
+Engineer A's instance and Engineer B's instance both use one shared folder. A opens diagram A. The lock is written with A's instance name and hostname. B opens the same diagram, sees the live lock, and gets "open on Engineer A's laptop". B can read it and can take over only after A closes it or the heartbeat goes stale. Then B can open it.
+
+```mermaid
+sequenceDiagram
+  participant A as Engineer A
+  participant Share as Shared folder
+  participant B as Engineer B
+  A->>Share: Open diagram A and write the lock
+  B->>Share: Read the live lock
+  Note over B: Open on Engineer A's laptop
+  alt A closes the diagram
+    A->>Share: Release the lock
+  else The heartbeat is older than 90 seconds
+    Note over Share: The lock is stale
+  end
+  B->>Share: Open diagram A
+```
 
 ## Automation API
 
@@ -691,7 +759,9 @@ A token is `read` or `read-write`. Read can list, search, fetch source, export, 
 
 The OpenAPI document is `GET /api/v1/openapi.json`. That one route does not require a token. Every other `/api/v1` route does. Host and Origin checks still apply, including on token routes. A foreign `Host` is **403**. Every `POST`, `PUT`, `PATCH`, and `DELETE` needs `Content-Type: application/json`, including `DELETE /api/v1/diagrams`. Without that header the response is **415** and `{"error":"Content-Type must be application/json"}`. A foreign `Origin` is **403**. A token does not turn those checks off. The same header is required on the browser routes under `/api`. See [Security model](#security-model). Full request schemas are in `GET /api/v1/openapi.json`.
 
-**Status codes.** **401** is a missing, unknown, or revoked token, on every route except the OpenAPI document. **403** is a read token calling a read-write route, a `Host` that is not allowed, or an `Origin` that is not allowed. **409** is a conflict: the path already exists, a sibling data file needs `copyData` or `deleteData`, `expectedHash` or `expectedMtimeMs` does not match, or a link-repair choice is not in the preview. **415** is a mutation without `Content-Type: application/json`. **423** is an editor lock on a write. **429** is the render limit, with `Retry-After`. **400** is a rejected body or query. The table below is every route. The purpose is the success response. The fields are the main query parameters or JSON body.
+**Status codes.** **401** is a missing, unknown, or revoked token, on every route except the OpenAPI document. **403** is a read token calling a read-write route, a `Host` that is not allowed, or an `Origin` that is not allowed. **409** is a conflict: the path already exists, a sibling data file needs `copyData` or `deleteData`, `expectedHash` or `expectedMtimeMs` does not match, or a link-repair choice is not in the preview. **415** is a mutation without `Content-Type: application/json`. **423** is an editor lock on a write. The JSON `lock` object includes `instanceName`, `hostname`, `acquiredAt`, `heartbeatAt`, and `sameInstance`. When another instance holds the diagram, `error` names that instance and the time it was opened, and `nerdgram` prints that same sentence. A lock on this computer still says the diagram is open in another window. **429** is the render limit, with `Retry-After`. **400** is a rejected body or query. The table below is every route. The purpose is the success response. The fields are the main query parameters or JSON body.
+
+Settings routes used by the settings page, not by `nerdgram`, are `GET` and `POST /api/host` (the listen address), `GET` and `POST /api/data-dir` (sets `NERDGRAM_DATA_DIR`; the JSON field is `path`), and `GET` and `POST /api/instance` (the instance name). Host and Diagram folder each report `saved` and `running`. The restart notice is shown only while those two differ. `POST /api/data-dir` answers **400** when the path is not a writable folder and cannot be created, and **409** when Docker, an external `NERDGRAM_DATA_DIR`, or GitHub sync makes the field read-only.
 
 <!-- v1-route-table -->
 | Method | Path | Scope | Purpose | Fields |

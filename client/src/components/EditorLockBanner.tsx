@@ -1,7 +1,10 @@
+import type { RemoteLockAlert } from "../lib/editorLock";
 import { Modal } from "./Modal";
 
 type EditorLockBannerProps = {
   note: string;
+  /** Set when another instance holds the diagram. The banner uses the existing alert styles. */
+  remote?: RemoteLockAlert | null;
   readOnly: boolean;
   dirty: boolean;
   copyNote: string | null;
@@ -11,6 +14,7 @@ type EditorLockBannerProps = {
 
 export function EditorLockBanner({
   note,
+  remote,
   readOnly,
   dirty,
   copyNote,
@@ -18,8 +22,16 @@ export function EditorLockBanner({
   onSaveCopy,
 }: EditorLockBannerProps) {
   return (
-    <div className="editor-banner" role="status">
-      <div>{note}</div>
+    <div className="editor-banner" role={remote ? "alert" : "status"} data-testid="editor-lock-banner">
+      {remote ? (
+        <div data-testid="instance-lock-alert">
+          <strong>{remote.diagramName}</strong> is open on <strong>{remote.instanceName}</strong>
+          {remote.hostname ? ` (${remote.hostname})` : ""} since {remote.since}. Try again when it's closed.
+        </div>
+      ) : (
+        <div>{note}</div>
+      )}
+      {remote && note ? <div>{note}</div> : null}
       {readOnly ? (
         <div className="editor-banner-actions">
           <button type="button" className="btn btn-primary" onClick={onTakeOver}>

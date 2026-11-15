@@ -31,8 +31,43 @@ export type ListenHostStatus = {
   envOverrides: boolean;
   docker: boolean;
   readOnly: boolean;
+  /** Address this process started with. The restart notice compares `saved` to this. */
+  running: string;
   restartNotice: boolean;
   acceptedHosts: string[];
+};
+
+export type DataDirStatus = {
+  saved: string;
+  running: string;
+  persisted: boolean;
+  source: "env" | "docker" | "saved" | "default";
+  envValue: string | null;
+  envSource: "shell" | "docker" | null;
+  envManaged: boolean;
+  docker: boolean;
+  githubSync: boolean;
+  readOnly: boolean;
+  restartNotice: boolean;
+  defaultPath: string;
+};
+
+export type InstanceStatus = {
+  instanceId: string;
+  instanceName: string;
+  hostname: string;
+  configuredName: string | null;
+  nameIsDefault: boolean;
+};
+
+export type LockConflict = {
+  acquiredAt: string | null;
+  heartbeatAt: string | null;
+  staleAfterMs: number | null;
+  instanceId: string | null;
+  instanceName: string | null;
+  hostname: string | null;
+  sameInstance: boolean;
 };
 
 export class ApiError extends Error {
@@ -49,6 +84,7 @@ export class ApiError extends Error {
     hash: string;
     size: number;
   };
+  readonly lock?: LockConflict;
 
   constructor(status: number, body: Record<string, unknown>) {
     super(typeof body.error === "string" ? body.error : `Request failed (${status})`);
@@ -84,6 +120,18 @@ export class ApiError extends Error {
           size: typeof current.size === "number" ? current.size : current.content.length,
         };
       }
+    }
+    if (body.lock && typeof body.lock === "object") {
+      const lock = body.lock as Record<string, unknown>;
+      this.lock = {
+        acquiredAt: typeof lock.acquiredAt === "string" ? lock.acquiredAt : null,
+        heartbeatAt: typeof lock.heartbeatAt === "string" ? lock.heartbeatAt : null,
+        staleAfterMs: typeof lock.staleAfterMs === "number" ? lock.staleAfterMs : null,
+        instanceId: typeof lock.instanceId === "string" ? lock.instanceId : null,
+        instanceName: typeof lock.instanceName === "string" ? lock.instanceName : null,
+        hostname: typeof lock.hostname === "string" ? lock.hostname : null,
+        sameInstance: lock.sameInstance !== false,
+      };
     }
   }
 }
@@ -501,6 +549,18 @@ export const api = {
     request<ListenHostStatus>("/api/host", {
       method: "POST",
       body: JSON.stringify({ host }),
+    }),
+  dataDir: () => request<DataDirStatus>("/api/data-dir"),
+  saveDataDir: (path: string) =>
+    request<DataDirStatus>("/api/data-dir", {
+      method: "POST",
+      body: JSON.stringify({ path }),
+    }),
+  instance: () => request<InstanceStatus>("/api/instance"),
+  saveInstanceName: (name: string) =>
+    request<InstanceStatus>("/api/instance", {
+      method: "POST",
+      body: JSON.stringify({ name }),
     }),
   skipUpdate: () =>
     request<UpdateStatus>("/api/updates/skip", {

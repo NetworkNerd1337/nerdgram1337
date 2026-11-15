@@ -25,7 +25,13 @@ import { getEditorView, revealEditorLine, revealEditorMatch, runFind, runGotoLin
 import { extractNodeIds } from "../lib/mermaidCompletions";
 import { applyLintFix } from "../lib/lintActions";
 import type { ReportedDiagnostic } from "../lib/mermaidLint";
-import { OTHER_WINDOW_NOTE, STILL_HELD_NOTE, releaseEditorLock } from "../lib/editorLock";
+import {
+  OTHER_WINDOW_NOTE,
+  releaseEditorLock,
+  remoteLockAlert,
+  stillHeldNote,
+  type RemoteLockAlert,
+} from "../lib/editorLock";
 import { exportDiagram, type ExportFormat } from "../lib/exportDiagram";
 import {
   cancelScheduledLockRelease,
@@ -121,6 +127,7 @@ export function EditorPage() {
   >("idle");
   const [exportError, setExportError] = useState<string | null>(null);
   const [lockNote, setLockNote] = useState<string | null>(null);
+  const [lockRemote, setLockRemote] = useState<RemoteLockAlert | null>(null);
   const [takeoverOpen, setTakeoverOpen] = useState(false);
   const [copyNote, setCopyNote] = useState<string | null>(null);
   const [conflict, setConflict] = useState<ConflictState | null>(null);
@@ -240,6 +247,7 @@ export function EditorPage() {
           setLockToken(null);
           clearStoredLock(scheduledPath);
           setAccess("readonly");
+          setLockRemote(null);
           setLockNote("Another window took over this diagram. Autosave has stopped.");
           setSaveState("error");
           return;
@@ -275,6 +283,7 @@ export function EditorPage() {
     setAccess("loading");
     setConflict(null);
     setLockNote(null);
+    setLockRemote(null);
     setTakeoverOpen(false);
     setCopyNote(null);
     setHistoryOpen(false);
@@ -323,7 +332,9 @@ export function EditorPage() {
         } catch (err) {
           if (!(err instanceof ApiError) || err.code !== "locked") throw err;
           if (!editorEpochIsCurrent(filePath, epoch)) return;
-          setLockNote(OTHER_WINDOW_NOTE);
+          const remote = remoteLockAlert(diagramHeading(parseDiagram(file.content).title, filePath), err.lock);
+          setLockRemote(remote);
+          setLockNote(remote ? null : OTHER_WINDOW_NOTE);
         }
 
         if (!editorEpochIsCurrent(filePath, epoch)) return;
@@ -432,6 +443,7 @@ export function EditorPage() {
           clearStoredLock(currentPath);
           accessRef.current = "readonly";
           setAccess("readonly");
+          setLockRemote(null);
           setLockNote("Another window took over this diagram. Autosave has stopped.");
           setSaveState("error");
         }
@@ -609,6 +621,7 @@ export function EditorPage() {
           open: true,
         });
         setAccess("edit");
+        setLockRemote(null);
         setLockNote(null);
         setSaveState("paused");
         return;
@@ -624,14 +637,17 @@ export function EditorPage() {
         baselineRef.current = { mtimeMs: disk.mtimeMs, hash: disk.hash };
       }
       setAccess("edit");
+      setLockRemote(null);
       setLockNote(null);
       setSaveState(localDirty ? "idle" : "saved");
     } catch (err) {
       if (pathRef.current !== currentPath) return;
       if (err instanceof ApiError && err.code === "locked") {
-        setLockNote(STILL_HELD_NOTE);
+        setLockRemote(remoteLockAlert(diagramHeading(parseDiagram(code).title, currentPath), err.lock));
+        setLockNote(stillHeldNote(err.lock));
         return;
       }
+      setLockRemote(null);
       setLockNote(err instanceof Error ? err.message : "Could not take over editing.");
     }
   };
@@ -981,9 +997,10 @@ export function EditorPage() {
           {info.initError && <div>{info.initError}</div>}
         </div>
       )}
-      {lockNote && (
+      {(lockNote || lockRemote) && (
         <EditorLockBanner
-          note={lockNote}
+          note={lockNote ?? ""}
+          remote={lockRemote}
           readOnly={access === "readonly"}
           dirty={dirty}
           copyNote={copyNote}

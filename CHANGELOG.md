@@ -2,6 +2,16 @@
 
 Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code name" - YYYY-MM-DD`. It has to match the root `package.json` version. `npm run version:check` requires the quoted code name to match the `codenames` map. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date. The `vX.Y.Z` tag is the version the update check reads. The GitHub Release title is `vX.Y.Z "Code name"`, from that tag and the map.
 
+## Unreleased
+
+### Team use
+
+Instance-aware editor locks for a shared diagram folder. Each install keeps an instance id and an optional instance name in its own startup config, not in the shared folder. Lock files record the instance id, instance name, and hostname. A lock from another instance is judged by heartbeat age. The pid check stays for this instance, and for older lock files that have no instance id. A second instance is told who has the diagram, in the **423** body, in `nerdgram`, and in the existing editor lock banner.
+
+The Diagram folder setting stores `NERDGRAM_DATA_DIR` in that same startup config. An external `NERDGRAM_DATA_DIR` stays the source of truth and the field is read-only. Docker stays read-only and points at the volume mount. The field is disabled while GitHub sync is on. GitHub sync itself is unchanged.
+
+The restart note on Host and on Diagram folder shows only while the saved value differs from the value this process started with. After a restart that is running the saved value, the note is gone.
+
 ## 1.3.0 "Atlas" - 2026-11-15
 
 Minor release on the Atlas line. The code name stays Atlas. Settings can choose the address NerdGram listens on, the docs describe that address as a LAN tool port, and the Automation API reference lists every route. The app image is a new portrait.

@@ -13,7 +13,7 @@ import { getMetaPath } from "./paths.js";
  *
  * - `.meta/trash/items/<id>/` — one soft-deleted file or folder
  * - `.meta/versions/p_<encoded-path>/` — previous contents of one diagram
- * - `.meta/locks/p_<encoded-path>.json` — single-editor lock for one path
+ * - `.meta/locks/p_<encoded-path>.json` — single-editor lock for one path. The record includes instanceId, instanceName, and hostname. Older files without those fields still read.
  * - `.meta/thumbs/p_<encoded-path>.json` — cached dashboard thumbnail SVG
  * - `.meta/search/index.json` — optional text-search cache; rebuilt from the diagrams if missing
  * - `.meta/replace/operations.json` — ids for workspace replace undo, pointing at revision ids

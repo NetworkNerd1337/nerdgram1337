@@ -3,7 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { api } from "../src/api";
 import { EditorLockBanner, TakeoverDialog } from "../src/components/EditorLockBanner";
-import { OTHER_WINDOW_NOTE, lockReleaseBeaconBody, releaseEditorLock } from "../src/lib/editorLock";
+import {
+  OTHER_WINDOW_NOTE,
+  lockReleaseBeaconBody,
+  releaseEditorLock,
+  remoteLockAlert,
+  remoteLockSentence,
+} from "../src/lib/editorLock";
 
 describe("editor lock release", () => {
   it("queues application/json with sendBeacon so navigation cannot abort the release", async () => {
@@ -114,5 +120,72 @@ describe("editor lock banner", () => {
     expect(dialog).toContain("Take over editing?");
     expect(dialog).toContain("stopped refreshing");
     expect(dialog).toContain("still editing keeps the lock");
+  });
+
+  it("says another window on this computer for a lock held on this instance", () => {
+    expect(OTHER_WINDOW_NOTE).toMatch(/another window on this computer/);
+    expect(remoteLockAlert("Network Core", { sameInstance: true, instanceName: "Ryan's laptop", hostname: "RYAN-LAPTOP", acquiredAt: "2026-11-15T15:42:00.000Z", heartbeatAt: null, staleAfterMs: 90000, instanceId: "same" })).toBeNull();
+    const banner = renderToStaticMarkup(
+      createElement(EditorLockBanner, {
+        note: OTHER_WINDOW_NOTE,
+        remote: null,
+        readOnly: true,
+        dirty: false,
+        copyNote: null,
+        onTakeOver: () => undefined,
+        onSaveCopy: () => undefined,
+      }),
+    );
+    expect(banner).toContain("another window on this computer");
+    expect(banner).not.toContain("instance-lock-alert");
+  });
+
+  it("names the other instance, the hostname when it differs, and how long the diagram has been open", () => {
+    const acquiredAt = "2026-11-15T15:42:00.000Z";
+    const remote = remoteLockAlert("Network Core", {
+      sameInstance: false,
+      instanceName: "Ryan's laptop",
+      hostname: "RYAN-LAPTOP",
+      acquiredAt,
+      heartbeatAt: acquiredAt,
+      staleAfterMs: 90_000,
+      instanceId: "other",
+    });
+    expect(remote?.hostname).toBe("RYAN-LAPTOP");
+    expect(remoteLockSentence(remote!)).toBe(
+      `Network Core is open on Ryan's laptop (RYAN-LAPTOP) since ${remote?.since}. Try again when it's closed.`,
+    );
+    const banner = renderToStaticMarkup(
+      createElement(EditorLockBanner, {
+        note: "",
+        remote,
+        readOnly: true,
+        dirty: true,
+        copyNote: null,
+        onTakeOver: () => undefined,
+        onSaveCopy: () => undefined,
+      }),
+    );
+    expect(banner).toContain('data-testid="instance-lock-alert"');
+    expect(banner).toContain('role="alert"');
+    expect(banner).toContain("<strong>Network Core</strong>");
+    expect(banner).toContain("<strong>Ryan&#x27;s laptop</strong>");
+    expect(banner).toContain("(RYAN-LAPTOP)");
+    expect(banner).toContain(`since ${remote?.since}`);
+    expect(banner).toContain("Try again when it&#x27;s closed.");
+    expect(banner).toContain("Take over editing");
+    expect(banner).toContain("Save a copy");
+
+    const sameName = remoteLockAlert("Network Core", {
+      sameInstance: false,
+      instanceName: "RYAN-LAPTOP",
+      hostname: "RYAN-LAPTOP",
+      acquiredAt,
+      heartbeatAt: acquiredAt,
+      staleAfterMs: 90_000,
+      instanceId: "other",
+    });
+    expect(sameName?.hostname).toBeNull();
+    expect(remoteLockSentence(sameName!)).not.toContain("(RYAN-LAPTOP)");
   });
 });

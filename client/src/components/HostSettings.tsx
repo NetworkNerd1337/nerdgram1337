@@ -36,7 +36,7 @@ export function HostSettings() {
   }, []);
 
   const readOnly = status?.readOnly === true;
-  const showRestart = status?.restartNotice === true;
+  const showRestart = Boolean(status?.persisted && status.saved !== status.running);
 
   return (
     <section className="sync-card" id="host">
@@ -124,10 +124,13 @@ export function HostSettings() {
                 .then((next) => {
                   setStatus(next);
                   setDraft(next.saved);
+                  const pending = next.persisted && next.saved !== next.running;
                   setNotice(
-                    next.restartNotice
+                    pending
                       ? `Saved ${next.saved}. Start NerdGram again for it to listen there.`
-                      : `Saved ${next.saved}. The default loopback bind stays in place.`,
+                      : next.saved === "127.0.0.1"
+                        ? `Saved ${next.saved}. The default loopback bind stays in place.`
+                        : `Saved ${next.saved}. NerdGram is already listening on that address.`,
                   );
                 })
                 .catch((err: unknown) => setError(messageOf(err)))

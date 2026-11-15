@@ -82,9 +82,39 @@ export function resolveEffectiveBind(input: {
   return { hosts: resolveBindHosts(undefined), source: "default", envOverrides: false };
 }
 
-/** True only when a saved value exists and it is not the default 127.0.0.1. */
-export function hostRestartNotice(savedHost: string | null): boolean {
-  return savedHost != null && savedHost !== DEFAULT_LISTEN_HOST;
+/**
+ * The Host value this process was started with.
+ * HOST wins. The default loopback pair is reported as 127.0.0.1, which is
+ * the saved value that produces that pair.
+ */
+export function runningListenHost(input: {
+  envHost: string | undefined;
+  boundHosts: readonly string[];
+}): string {
+  const env = input.envHost?.trim() ?? "";
+  if (env) {
+    const parsed = parseListenHostInput(env);
+    return parsed.ok ? parsed.host : env;
+  }
+  const hosts = input.boundHosts.map((host) => host.trim()).filter(Boolean);
+  const loopbackPair =
+    hosts.length === 2 && hosts.includes("127.0.0.1") && hosts.includes("::1");
+  if (hosts.length === 0 || loopbackPair) return DEFAULT_LISTEN_HOST;
+  if (hosts.length === 1) {
+    const parsed = parseListenHostInput(hosts[0] ?? "");
+    return parsed.ok ? parsed.host : hosts[0] ?? DEFAULT_LISTEN_HOST;
+  }
+  return DEFAULT_LISTEN_HOST;
+}
+
+/**
+ * True only while a persisted Host differs from the address this process
+ * started with. A restart that is already listening on the saved address
+ * clears it, including when that address is not 127.0.0.1.
+ */
+export function hostRestartNotice(savedHost: string | null, runningHost: string): boolean {
+  if (savedHost == null) return false;
+  return savedHost !== runningHost;
 }
 
 /**
@@ -221,7 +251,15 @@ export type ListenHostStatus = {
   docker: boolean;
   /** Docker installs cannot change the bind from the UI. */
   readOnly: boolean;
-  /** True only when a saved value exists and it is not 127.0.0.1. */
+  /**
+   * Host value this process started with. The UI shows the restart notice
+   * only while `saved` differs from this.
+   */
+  running: string;
+  /**
+   * True only while a persisted Host differs from `running`.
+   * A missing file does not ask for a restart.
+   */
   restartNotice: boolean;
   /**
    * Non-loopback Host names this process accepts because of the bind.
@@ -246,6 +284,7 @@ export function describeListenHost(input: {
     ? listNonLoopbackInterfaceAddresses(input.interfaces)
     : [];
   const envHost = input.envHost?.trim() ? input.envHost.trim() : null;
+  const running = runningListenHost({ envHost: input.envHost, boundHosts: effectiveHosts });
   return {
     saved: input.saved.host ?? DEFAULT_LISTEN_HOST,
     persisted: input.saved.persisted,
@@ -256,7 +295,8 @@ export function describeListenHost(input: {
     envOverrides: decision.envOverrides,
     docker: input.docker,
     readOnly: input.docker,
-    restartNotice: hostRestartNotice(input.saved.host),
+    running,
+    restartNotice: hostRestartNotice(input.saved.invalid ? null : input.saved.host, running),
     acceptedHosts: hostsFromListenAddress(effectiveHosts, discovered),
   };
 }

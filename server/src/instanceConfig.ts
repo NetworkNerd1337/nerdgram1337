@@ -1,0 +1,182 @@
+import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+/**
+ * Per-install settings. This file is not in the diagram folder, so two
+ * instances that share one NERDGRAM_DATA_DIR keep their own ids.
+ *
+ * NERDGRAM_DATA_DIR in this file is the Diagram folder setting. getDataRoot()
+ * still reads the environment variable. Startup copies the saved value into
+ * the environment only when the process was not given one.
+ */
+export type InstanceFile = {
+  instanceId: string;
+  instanceName?: string;
+  hostname?: string;
+  NERDGRAM_DATA_DIR?: string;
+};
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** NERDGRAM_DATA_DIR as this process was started. A later assignment is not external. */
+const processStartDataDir = process.env.NERDGRAM_DATA_DIR?.trim() || null;
+
+let externalForTests: string | null | undefined;
+
+export function instanceFilePath(): string {
+  const override = process.env.NERDGRAM_INSTANCE_FILE?.trim();
+  if (override) return path.resolve(override);
+  return path.join(os.homedir(), ".nerdgram", "instance.json");
+}
+
+/** Set in the shell, a service file, or Docker. Null when this process was started without it. */
+export function externalDataDir(): string | null {
+  if (externalForTests !== undefined) return externalForTests;
+  return processStartDataDir;
+}
+
+/** Tests simulate a process that was started with NERDGRAM_DATA_DIR. */
+export function setExternalDataDirForTests(value: string | null | undefined): void {
+  externalForTests = value;
+}
+
+export function readInstanceFileSync(): InstanceFile | null {
+  try {
+    const raw = fs.readFileSync(instanceFilePath(), "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as InstanceFile;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || err instanceof SyntaxError) return null;
+    throw err;
+  }
+}
+
+export function readStartupDataDir(): string | null {
+  const value = readInstanceFileSync()?.NERDGRAM_DATA_DIR;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+let startupApplied = false;
+
+/**
+ * Copy the saved Diagram folder into NERDGRAM_DATA_DIR when the process was
+ * not given that variable. A save writes the file and leaves this process's
+ * environment alone, so the running folder changes on the next start.
+ */
+export function applyStartupDataDir(): void {
+  if (startupApplied) return;
+  startupApplied = true;
+  if (externalDataDir()) return;
+  if (process.env.NERDGRAM_DATA_DIR?.trim()) return;
+  const saved = readStartupDataDir();
+  if (saved) process.env.NERDGRAM_DATA_DIR = saved;
+}
+
+export function resetStartupDataDirForTests(): void {
+  startupApplied = false;
+}
+
+export type InstanceIdentity = {
+  instanceId: string;
+  /** Shown to other instances. The hostname when no name has been saved. */
+  instanceName: string;
+  hostname: string;
+  configuredName: string | null;
+};
+
+let identityCache: InstanceIdentity | null = null;
+let identityCachePath = "";
+
+export function clearInstanceIdentityCache(): void {
+  identityCache = null;
+  identityCachePath = "";
+}
+
+function machineHostname(): string {
+  const name = os.hostname().trim();
+  return name || "localhost";
+}
+
+function displayName(configured: string | null | undefined, hostname: string): string {
+  const trimmed = configured?.trim() ?? "";
+  return trimmed || hostname;
+}
+
+async function writeInstanceFile(file: InstanceFile): Promise<void> {
+  const target = instanceFilePath();
+  await fs.promises.mkdir(path.dirname(target), { recursive: true });
+  const tmp = `${target}.${process.pid}.tmp`;
+  await fs.promises.writeFile(tmp, `${JSON.stringify(file, null, 2)}\n`, { mode: 0o600 });
+  await fs.promises.rename(tmp, target);
+}
+
+export async function getInstanceIdentity(): Promise<InstanceIdentity> {
+  const filePath = instanceFilePath();
+  if (identityCache && identityCachePath === filePath) return identityCache;
+  const hostname = machineHostname();
+  const existing = readInstanceFileSync();
+  let instanceId = existing?.instanceId?.trim() ?? "";
+  if (!UUID_RE.test(instanceId)) instanceId = randomUUID();
+  const configured = typeof existing?.instanceName === "string" ? existing.instanceName.trim() : "";
+  const next: InstanceFile = {
+    ...(existing ?? { instanceId }),
+    instanceId,
+    hostname,
+  };
+  if (configured) next.instanceName = configured;
+  else delete next.instanceName;
+  await writeInstanceFile(next);
+  identityCache = {
+    instanceId,
+    instanceName: displayName(configured, hostname),
+    hostname,
+    configuredName: configured || null,
+  };
+  identityCachePath = filePath;
+  return identityCache;
+}
+
+const NAME_MAX = 80;
+
+export function parseInstanceName(value: unknown): { ok: true; name: string } | { ok: false; error: string } {
+  if (typeof value !== "string") return { ok: false, error: "Instance name must be text." };
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: true, name: "" };
+  if (trimmed.length > NAME_MAX) {
+    return { ok: false, error: `Instance name must be ${NAME_MAX} characters or fewer.` };
+  }
+  if (/[\u0000-\u001f\u007f]/.test(trimmed)) {
+    return { ok: false, error: "Instance name cannot contain control characters." };
+  }
+  return { ok: true, name: trimmed };
+}
+
+export async function saveInstanceName(name: string): Promise<InstanceIdentity> {
+  const identity = await getInstanceIdentity();
+  const file = readInstanceFileSync() ?? { instanceId: identity.instanceId };
+  file.instanceId = identity.instanceId;
+  file.hostname = identity.hostname;
+  if (name) file.instanceName = name;
+  else delete file.instanceName;
+  await writeInstanceFile(file);
+  clearInstanceIdentityCache();
+  return getInstanceIdentity();
+}
+
+export async function saveStartupDataDir(value: string | null): Promise<void> {
+  const identity = await getInstanceIdentity();
+  const file = readInstanceFileSync() ?? { instanceId: identity.instanceId };
+  file.instanceId = identity.instanceId;
+  file.hostname = identity.hostname;
+  if (identity.configuredName) file.instanceName = identity.configuredName;
+  if (value && value.trim()) file.NERDGRAM_DATA_DIR = value.trim();
+  else delete file.NERDGRAM_DATA_DIR;
+  await writeInstanceFile(file);
+}
