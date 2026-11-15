@@ -2,6 +2,14 @@
 
 Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code name" - YYYY-MM-DD`. It has to match the root `package.json` version. `npm run version:check` requires the quoted code name to match the `codenames` map. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date. The `vX.Y.Z` tag is the version the update check reads. The GitHub Release title is `vX.Y.Z "Code name"`, from that tag and the map.
 
+## 1.2.2 "Atlas" - 2026-11-15
+
+Patch on the Atlas line. The code name stays Atlas. Clicking an object in the preview jumps the editor to the line that drew it.
+
+### Click to source
+
+From #71 (#70). A click on a rendered object in the preview puts the caret on the source line that defined it and scrolls that line into view when it is off screen. If the line is already on screen, the editor does not scroll. This covers a flowchart node, edge, edge label, and subgraph; a sequence participant and message; a class, a class member, and a relation; a state and a transition; and an ER entity, an attribute, and a relationship. The line the caret is on has a soft background highlight. The tint stays light enough that syntax colors stay readable, in the dark editor and on a light editor surface, and it stays on whichever line the caret is on while you type or click. A click that cannot be tied to one statement does nothing. Dragging, a linked-diagram click, and presentation mode behave as before.
+
 ## 1.2.1 "Atlas" - 2026-11-14
 
 Patch on the Atlas line. The code name stays Atlas. The dashboard list of diagram findings is quieter and starts closed.
