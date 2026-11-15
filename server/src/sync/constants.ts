@@ -1,5 +1,5 @@
-/** Public setup instructions. The anchor matches the README heading "GitHub sync". */
-export const SYNC_DOCS_URL = "https://github.com/NetworkNerd1337/NerdGram1337#github-sync";
+/** Public setup instructions. The page is docs/github-sync.md. */
+export const SYNC_DOCS_URL = "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/github-sync.md";
 
 /** Where the user finishes Device Flow. The server never sends the device code here. */
 export const GITHUB_DEVICE_URL = "https://github.com/login/device";

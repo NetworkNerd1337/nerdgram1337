@@ -1,6 +1,18 @@
 # nerdgram command
 
-`nerdgram` is the command-line client for NerdGram1337. The npm package name is `nerdgram1337`. The command it installs is `nerdgram`. The app README section [Command-line tool](../README.md#command-line-tool) is the full description. This page is the install and the commands you run against a server that is already up.
+`nerdgram` is the command-line client for NerdGram1337.
+
+[Back to the documentation index](README.md)
+
+## Contents
+
+- [Install](#install)
+- [Use](#use)
+- [One call builds the whole diagram](#one-call-builds-the-whole-diagram)
+- [Command to route map](#command-to-route-map)
+- [Continuous integration](#continuous-integration)
+
+`nerdgram` is the command-line client for NerdGram1337. The npm package name is `nerdgram1337`. The command it installs is `nerdgram`. This page is the install and the commands you run against a server that is already up. `nerdgram` is the client for that API. It talks to a NerdGram server on this machine, or on another machine that can reach the tool port. `lint` and `render` of a `.mmd` file that is already on disk do not need the server. `generate` and `refresh` follow the [one-call model](api.md#one-call-builds-the-whole-diagram): each call sends the complete data, and the path is the id. Every command and the route it calls is in [Command to route map](#command-to-route-map).
 
 ## Install
 
@@ -14,11 +26,11 @@ npm install -g nerdgram1337
 npx nerdgram1337 --help
 ```
 
-`npm install -g` puts `nerdgram` on your `PATH`. `npx` runs the command without a global install. The package is public.
+`npm install -g` puts `nerdgram` on your `PATH`. `npx` runs the command without a global install. The package is public. If the shell cannot find it, open a new terminal. npm warns when its global bin directory is not on `PATH`. `npx` downloads the package and runs the command without a global install. Point `NERDGRAM_URL` at the running app. The default is `http://127.0.0.1:8787`, which is right when the app is on the same computer. Node.js 20 or newer and npm 10 or newer are the same versions [the app uses](install.md#nodejs).
 
 **Do not run `npx nerdgram1337` inside a checkout of this repository.** The root `package.json` is also named `nerdgram1337` and has no `bin`. From that directory, npm stops with `could not determine executable to run`. Use `npm install -g` or `npx` from any other directory.
 
-From a checkout, after `npm run build`, run the program from the repository root with `node server/dist/cli.js` in place of `nerdgram`. `npm run install:all` does not link the server package's `nerdgram` bin, so `npm exec --prefix server -- nerdgram` does not print the command list. The shell reports `nerdgram: not found`.
+From a checkout, after `npm run build`, run the program from the repository root with `node server/dist/cli.js` in place of `nerdgram`. The `nerdgram` bin in `server/package.json` points at `server/dist/cli.js`, but `npm run install:all` does not link it, so `npm exec --prefix server -- nerdgram` does not print the command list. The shell reports `nerdgram: not found`.
 
 ```bash
 node server/dist/cli.js --help
@@ -30,11 +42,13 @@ Inside the running container the image already puts `nerdgram` on `PATH`:
 docker exec -e NERDGRAM_TOKEN=ng_your_token nerdgram1337 nerdgram list
 ```
 
-The install downloads Mermaid and Puppeteer's chrome-headless-shell. Offline `lint` and `render` use them. Commands that only call the API do not launch the shell.
+The install downloads Mermaid and Puppeteer's chrome-headless-shell. Offline `lint` and `render` use them. Commands that only call the API do not launch the shell. That shell is the large part of the install. The same kind of shell is what the server image uses for pictures.
+
+The `cli/` directory is what gets published. Its `prepack` script bundles that program into `cli/dist` before `npm pack` or `npm publish`. The Docker image does not use the bundle. It puts `node /app/server/dist/cli.js` on `PATH` as `nerdgram`. The package readme that npm shows is [`cli/README.md`](../cli/README.md).
 
 ## Use
 
-`NERDGRAM_URL` defaults to `http://127.0.0.1:8787`. `NERDGRAM_TOKEN` is an automation token from Settings. `--url` and `--token` override those. `--json` prints one JSON object. The process exits `1` when the command fails.
+`NERDGRAM_URL` defaults to `http://127.0.0.1:8787`. `NERDGRAM_TOKEN` is an automation token from Settings. `--url` and `--token` override those. `--json` prints one JSON object and nothing else. The process exits `1` when the command fails.
 
 ```bash
 export NERDGRAM_URL=http://127.0.0.1:8787
@@ -65,6 +79,7 @@ nerdgram diff Campus.mmd --from "Baseline - pre-change" --to current --format md
 nerdgram diff Campus.mmd --from "Baseline - pre-change" --format svg -o campus-diff.svg
 nerdgram baseline Campus.mmd --name "Baseline - pre-change"
 nerdgram replace CORE-SW1 ATL-CORE-01 --folder Sites/ATL
+nerdgram replace CORE-SW1 ATL-CORE-01 --yes
 nerdgram replace CORE-SW1 ATL-CORE-01 --regex --yes
 nerdgram replace --undo <id>
 nerdgram render Welcome.mmd -o Welcome.svg
@@ -94,7 +109,7 @@ nerdgram generate --path Network/Core.mmd --data docs/samples/neighbors/cisco-io
 nerdgram refresh Network/Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp
 ```
 
-`generate` is `POST /api/v1/generate`. It returns **409** when the path already exists. `refresh` is `POST /api/v1/generate/refresh` with `save: true`, and with `writeData: true` when `--data` is set. `format` on refresh comes from the diagram, so the new file has to match the format `generate` stored. CDP and LLDP use `--format cdp` or `--format lldp`, `--group-by platform|capability`, and `--local-device` when the paste has no prompt. Network JSON uses `--format network` and `--view l3` or `--view l2`. `--include-down` draws shutdown and down interfaces. `--vlan` keeps Layer 2 links that carry that VLAN. `--group-by` is `vrf` for Layer 3, or `site` or `role` for Layer 2. Refresh does not take `--view`. The view and the options are already in the diagram. The same HTTP calls are in the README section [One call builds the whole diagram](../README.md#one-call-builds-the-whole-diagram). The format is described in [Layer 3 and Layer 2 from network data](../README.md#layer-3-and-layer-2-from-network-data).
+`generate` is `POST /api/v1/generate`. It returns **409** when the path already exists. `refresh` is `POST /api/v1/generate/refresh` with `save: true`, and with `writeData: true` when `--data` is set. `format` on refresh comes from the diagram, so the new file has to match the format `generate` stored. CDP and LLDP use `--format cdp` or `--format lldp`, `--group-by platform|capability`, and `--local-device` when the paste has no prompt. Network JSON uses `--format network` and `--view l3` or `--view l2`. `--include-down` draws shutdown and down interfaces. `--vlan` keeps Layer 2 links that carry that VLAN. `--group-by` is `vrf` for Layer 3, or `site` or `role` for Layer 2. Refresh does not take `--view`. The view and the options are already in the diagram. The same HTTP calls are in [One call builds the whole diagram](api.md#one-call-builds-the-whole-diagram). The format is described in [Layer 3 and Layer 2 from network data](generate-from-data.md#layer-3-and-layer-2-from-network-data).
 
 The default URL is loopback. Point `NERDGRAM_URL` at another machine only when that machine's Host setting or `HOST` is already open to you. The browser `/api` routes have no token. Anyone who can reach the port can use them. A token covers `/api/v1` only.
 
@@ -136,7 +151,7 @@ Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` mea
 | `nerdgram replace --undo` | `POST /api/v1/replace/undo` |
 <!-- /cli-route-map -->
 
-`nerdgram put` sends `force: true`, so it is the overwrite route, not `POST /api/v1/diagrams`. That POST creates a file and fails when the path exists. There is no `nerdgram` command for it, for folders, for linting unsaved source, for `GET /api/v1/render`, for generate preview, for listing history, or for renaming or deleting a baseline. Those are in the endpoint table in the README.
+`nerdgram put` sends `force: true`, so it is the overwrite route, not `POST /api/v1/diagrams`. That POST creates a file and fails when the path exists. There is no `nerdgram` command for it, for folders, for linting unsaved source, for `GET /api/v1/render`, for generate preview, for listing history, or for renaming or deleting a baseline. Those are in the endpoint table in [Automation API](api.md).
 
 ## Continuous integration
 
@@ -164,3 +179,9 @@ jobs:
 ```
 
 To render from a running server instead, create a read token, store it as a secret, and set `NERDGRAM_URL` and `NERDGRAM_TOKEN`.
+
+## See also
+
+- [Automation API](api.md)
+- [Generate from data](generate-from-data.md)
+- [Install](install.md)

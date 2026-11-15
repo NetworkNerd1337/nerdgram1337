@@ -1,0 +1,263 @@
+# Features
+
+The dashboard lists folders and diagrams in a tree, with search and grid or list view.
+
+[Back to the documentation index](README.md)
+
+## Contents
+
+- [Editing](#editing)
+- [Files](#files)
+- [Trash and history](#trash-and-history)
+- [Titles, themes, and notes](#titles-themes-and-notes)
+- [Diagram checks](#diagram-checks)
+- [Linked diagrams](#linked-diagrams)
+- [Thumbnails, find, and shortcuts](#thumbnails-find-and-shortcuts)
+- [Search](#search)
+- [Presentation](#presentation)
+- [Template gallery](#template-gallery)
+- [Syntax reference](#syntax-reference)
+
+The dashboard lists folders and diagrams in a tree, with search and grid or list view. You can create, rename, and delete folders and diagrams. Delete moves them to trash. Favorites are stored in `<data>/.meta/favorites.json` and return when you restore a diagram from trash. The paste flow is `/new`, and it uses the same folder picker as move and import.
+
+Paths in this document use two placeholders, always in code formatting so GitHub does not treat the angle brackets as HTML tags. `<data>` is the data directory: `NERDGRAM_DATA_DIR` when that variable is set, and `diagrams/` inside the project when it is not. `<repo>` is the project folder, the git clone or the extracted ZIP.
+
+The editor is split code and live preview, with autosave about **500 ms** after you stop typing and an **Auto-Update** preview. The code pane has Mermaid syntax highlighting, autocomplete (diagram types, keywords, arrows, snippets, and existing node IDs), bracket matching, and inline parse errors. A parse error underlines the line and column Mermaid reported, and the last diagram that rendered stays on screen, marked out of date. Export from the editor is SVG, PNG, JPG, or PDF. JPG and PDF are built in the browser from the live SVG, so the current theme is kept. The API and the CLI render SVG or PNG only. [Diagram checks](#diagram-checks) lists the warnings and the quick fixes.
+
+## Editing
+
+Opening a diagram takes a lock for that browser tab. Another tab, or a second NerdGram process pointed at the same data directory with a different `PORT`, can open it read-only and is told that it is already open. The editor sends a heartbeat every **15 seconds**. If the heartbeat is missing for **90 seconds**, or the server process that held the lock has exited, the lock is stale. The read-only banner then offers **Take over editing**. After you confirm, that window takes the lock. A window that is still sending heartbeats keeps the lock, so two editors do not write the same file. Closing the tab, or leaving the editor, releases the lock with a beacon the browser can deliver while the page is going away. If that release does not arrive, the lock still expires on the heartbeat timer. These locks are not accounts, and they do not stop you from editing the `.mmd` file in another program.
+
+Each save sends the modification time and a content hash from the last time this editor loaded or saved the file. If the bytes on disk are different, autosave stops. You can reload the disk copy, overwrite the disk with your copy, or keep your copy without saving. Overwrite stores the disk copy as a revision first. Creating a diagram does not need a baseline. Saving over a file that already exists does: a second write with no baseline is refused, so a new diagram will not silently replace one that is already there.
+
+You cannot rename, move, or trash a diagram, or a folder that contains it, while an editor still holds its lock. Close the editor first.
+
+## Files
+
+**Move to…** is on every diagram and folder, next to Rename and Delete. It opens a folder list, including the workspace root. Arrow keys move through that list. You can also drag the item onto a folder in the dashboard or the sidebar tree. The Dashboard item at the top of the sidebar is the workspace root. Trash is not a drop target.
+
+A move that would land in the item's current folder, or put a folder inside itself or one of its subfolders, is refused. Dragging onto a diagram does nothing. If the destination already has that name, the drag is refused and nothing is overwritten. Move to… offers **Move as Name (copy)** (then **Name (copy 2)**, and so on). Favorites and revision history follow the file or folder.
+
+**Duplicate** copies a diagram or a whole folder. The first copy is `Name (copy).mmd` (or `Name (copy)` for a folder), then `Name (copy 2)`. It never overwrites an existing item. The copy is not favorited, it does not share the source's editor lock, and it starts with no revision history. Hidden files, including anything under `.meta`, are not copied. If the diagram was generated from a data file that sits next to it, duplicate asks whether to copy that file or keep sharing the original. Copying writes `Name (copy).csv` (or `.json`, `.network.json`, `.cdp`, `.lldp`, and an edges file when there is one) and points only the duplicate at it. Sharing leaves both diagrams on the original file. The original file is left unchanged either way.
+
+Renaming or moving a diagram asks first when other diagrams link to it, then updates those `click` targets and lists the files it changed. A relative link inside a diagram that moved is updated too, so it still points at the same file. A data file that sits in the same folder moves with the diagram, and `nerdgram.source` is updated so **Refresh from data** still finds it. Renaming `Campus.mmd` to `Core.mmd` also renames `Campus.csv` to `Core.csv` and `Campus.lldp` to `Core.lldp`. A data file that lives in a different folder stays where it is. If another diagram already shares that file, the move copies it for the diagram that left and leaves the original bytes in place. A rename or move made outside the app does not do this by itself. **Repair links** can fix the `click` targets after you confirm a preview, and it updates `nerdgram.source` when the data file moved with the diagram. See [Linked diagrams](#linked-diagrams).
+
+**Import** copies text you already have into the folder you are viewing, or into a folder you pick. Use **Import**, or drop `.mmd`, `.md`, and `.txt` files onto the dashboard or a folder. `.md` and `.txt` are stored as `.mmd`. Other file types are rejected. Each file can be up to 512 KB, with at most 25 files and 3 MB of text in one import. A dropped folder is not imported as a tree.
+
+If a name is already in that folder, choose **Skip**, **Rename** (`Name 2.mmd`, then `Name 3.mmd`), or **Replace**. Nothing is overwritten unless you choose Replace. Replace keeps the previous text as a revision. A diagram that is open in an editor is not replaced. If Mermaid cannot parse a file, the dialog warns you and still lets you import it. The imported file is a normal diagram, not a link back to the original path.
+
+## Trash and history
+
+Delete moves a diagram or a folder into the trash. It does not erase the files. If other diagrams link to it, the app lists those files and asks you to confirm before the move. The links become broken-link warnings; they are not deleted for you. If a data file sits next to the diagram, delete asks whether to move that file to the trash too or leave it in the workspace. Trash takes the data file with the diagram, and restore puts it back beside the diagram. Keep leaves the file where it is. **Trash** in the sidebar restores an item or deletes it permanently. **Empty trash** removes everything in the trash for good.
+
+Restore puts the item back at its original path. If something is already there, the app asks you to restore a copy (`Name (restored).mmd`, or `Name (restored 2)` and so on) or to replace the current item. Replacing moves that current item to the trash first. A folder is one trash entry. Restore puts the whole folder back.
+
+Favorites come off the sidebar while an item is in the trash and go back when you restore it. If you restore to a different path, the favorite follows that path.
+
+Every save that changes a diagram keeps the previous contents as a revision. **History** in the editor lists those revisions, shows the old text, and can restore one. Restoring writes the text you are replacing into history first. The last **20** unnamed revisions are kept for each diagram. Older unnamed ones are dropped. There is no age limit. Rename, move, and trash carry that history. Permanently deleting an item deletes its history. A duplicate starts with no history, including no baselines.
+
+A revision can be given a name and an optional note, such as `Baseline - pre-change CHG-1234`. **Save baseline** stores the current saved diagram under a name even when nothing has changed since the last save. Named baselines are not dropped by the 20-revision limit. Each diagram keeps up to **20** named baselines (`NERDGRAM_BASELINE_CAP`, a whole number from 1 to 200; anything else stays at 20). At the limit, saving another baseline is refused with a message that states the number and says to remove one first. Removing a name puts that revision back under the 20-revision limit, and an older one can then be dropped. The name, note, and the time it was named live in the same `.meta` revision index as the rest of history. They follow rename, move, and trash, and they are deleted with the history on a permanent delete.
+
+**Compare** in History shows what changed between two revisions, or between a revision and the current diagram. **Compare with baseline** starts from a named one. Flowcharts get a node and edge diff. Other diagram types get the text diff, and the panel says so. The merged picture colours added items green, removed items red and dashed, and changed items amber, with a legend. Side-by-side and text views are next to it. The summary lists the changes in words. Export writes an SVG, PNG, JPG, or PDF of that picture, or a Markdown summary. **Present** shows the same picture full screen. None of this writes the diagram. Restore is still the way to put an old revision back.
+
+History for scripts is on `/api`, and the same calls are on `/api/v1` with a bearer token. `GET /api/history?path=Welcome.mmd` returns `path`, `retention`, `baselineCap`, `baselineCount`, and `revisions`. Each revision's id is the field `id`, alongside `createdAt`, `mtimeMs`, `size`, `hash`, `name`, `note`, and `namedAt`. `name`, `note`, and `namedAt` are null when the revision is not a baseline. `POST /api/history/restore` expects `{"path","id"}`, and `id` is that revision id. A body that names `revisionId` instead is **400** (`path and id are required`). A save can return `revisionId` for the previous bytes it just archived. That value is a revision id, and the restore body still names the field `id`.
+
+`GET /api/history/diff?path=Welcome.mmd&from=<id|name|current>&to=<id|name|current>` returns the text diff, front matter changes, and, for a flowchart, nodes and edges that were added, removed, or changed. `from` and `to` accept a revision id, a baseline name, or `current`. The response includes `summary`, `markdown`, and `visualSource`. `visualSource` is a Mermaid document for the coloured picture. It is not written to the file. `POST /api/history/baseline` with `{"path","name","note"?}` saves the current diagram as a baseline. Add `"id"` to name an existing revision instead. `PATCH /api/history/baseline` with `{"path","id"}` and `name` or `note` renames it or edits the note. `DELETE /api/history/baseline` with `{"path","id"}` removes the name. Mutating calls need `Content-Type: application/json`. The same paths are under `/api/v1` (`/api/v1/history`, `/api/v1/history/diff`, `/api/v1/history/baseline`). Listing and diff need a read token. Creating, renaming, and removing a baseline need a read-write token.
+
+```bash
+curl -fsS -X POST "http://127.0.0.1:8787/api/history/restore" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"Welcome.mmd","id":"REVISION_ID"}'
+```
+
+The file you edit stays a plain `.mmd` file. Bookkeeping lives under the data directory:
+
+- `.meta/trash/items/<id>/` — one soft-deleted file or folder, plus the favorites and revisions that belonged to it
+- `.meta/versions/p_<encoded-path>/` — the previous contents of one diagram
+- `.meta/locks/p_<encoded-path>.json` — the editor lock for one path
+
+## Titles, themes, and notes
+
+A diagram can start with [Mermaid's YAML front matter](https://mermaid.js.org/config/configuration.html). The title, theme, look, and layout are stored in the `.mmd` file, so they stay with it when you duplicate, import, or copy the folder.
+
+```yaml
+---
+title: Network overview
+config:
+  theme: forest
+  look: handDrawn
+  layout: elk
+nerdgram:
+  description: Edge path into the lab
+  tags:
+    - network
+  notes: |
+    Draft for the lab write-up.
+---
+flowchart LR
+  Internet --> Firewall
+```
+
+**Diagram info** in the editor edits the title, description, notes, and tags, and sets the theme, look, and layout. The preview toolbar has the same theme, look, and layout controls. The preview, dashboard thumbnails, and the editor's SVG, PNG, JPG, and PDF export use the theme in the file. If the file does not set one, they use **dark**.
+
+The built-in Mermaid themes are `default`, `neutral`, `dark`, `forest`, `base`, `neo`, `neo-dark`, `redux`, `redux-dark`, `redux-color`, and `redux-dark-color`. Looks are `classic`, `handDrawn`, and `neo`. Layouts are `dagre` and `elk`.
+
+The dashboard shows the title when the file has one, and the file name otherwise. A description is shown under the title. Tags are chips. Click a chip, or use the tag row, to filter the dashboard. Search also matches this text. A file name match is listed before a title, tag, description, note, or label match.
+
+Description, notes, and tags live under `nerdgram:` because Mermaid has no field for them. Mermaid still reads `title` and `config` from the same header. A diagram with no front matter previews the same way as before. An older `%%{init: ...}%%` line still renders. The editor can move that config into the front matter. If the header is not valid YAML, the editor shows the error and leaves the file text alone.
+
+`%%` at the start of a line is a Mermaid comment. In the code pane, Ctrl+/ (Cmd+/ on a Mac) comments or uncomments the selected lines.
+
+## Diagram checks
+
+The code pane checks the diagram while you type. The check waits about **400 ms** after the last key so a large file does not lag. Mermaid's parser supplies the syntax error, including the line and column. The other checks are warnings. They do not block the preview or autosave. A warning is a gutter mark and a row in the problems list under the code. Click a row to jump to that line. `nerdgram lint` runs the same checks on a file, or on the workspace when you point it at a running server. A Mermaid syntax error is reported as an error, with the line and column, and the command exits non-zero. `POST /api/lint` and `POST /api/v1/lint` do the same for one diagram. `GET /api/diagram-lint` and `GET /api/v1/lint` run the checks on the workspace.
+
+The problems list can also offer a fix. **Rename** gives a duplicate id, or a class defined again with a different label, a new name. **Remove unused class** deletes a `classDef` nothing uses. **Create class** inserts a `classDef` for a name you already applied. **Declare class** and **Declare entity** insert the missing name. **Remove duplicate attribute** deletes the extra attribute line. **Remove duplicate** and **Remove empty node** delete a repeated or blank mindmap node, or a repeated or blank timeline event, when that line has no children. **Jump to definition** moves the cursor to the first definition of a duplicate id or class. Each of those can be undone with Ctrl+Z (Cmd+Z on a Mac). **Repair links** on a broken diagram link opens a preview of the rewrites. Confirming it saves the diagrams. Nothing is written before that confirmation.
+
+Turn a warning off under **Diagram checks** on the settings page (`/settings#diagram-checks`). The sidebar links there on its own, next to GitHub sync and automation tokens. The switches are saved in this browser. A diagram Mermaid cannot parse is always marked.
+
+| Rule | What it warns about |
+| --- | --- |
+| Duplicate ids | The same id is defined again with a different label. Flowcharts, sequence diagrams, and state diagrams. |
+| Unconnected nodes | A flowchart node is defined but never used in a connection. A single node with no connections is left alone. |
+| Unlabeled endpoints | A connection names a node that was never given a label. That is usually a typo. A flowchart that mostly uses bare ids, such as `A --> B`, is left alone, including when one extra node has a label. |
+| Unused classes | A `classDef` is never applied with `class` or `:::`. `classDef default` is treated as used. |
+| Undefined classes | A `class` or `:::` name has no `classDef`. |
+| Front matter | The YAML header cannot be parsed, or a theme, look, layout, curve, ELK placement, title, description, or tag list is not one the file format accepts. |
+| Broken diagram links | A `click` target that points at a workspace diagram (`nerdgram:`, `diagram:`, or a relative `.mmd` path) is missing, or the path leaves the workspace. Web links are not checked. |
+| Duplicate classes | The same class name is defined again with a different label. Repeating `class Animal` to add members is left alone. |
+| Undeclared classes | A class diagram relationship names a class that was never declared with `class` or a member line. A diagram that only uses relationships, with no `class` statement and no member line, is left alone. |
+| Duplicate attributes | An entity lists the same attribute name more than once. The same name on two entities is left alone. |
+| Undeclared entities | An ER relationship names an entity that was never declared with an attribute block or a bare entity line. A diagram that only uses relationships is left alone. |
+| Missing task ids | A Gantt task uses `after` or `until` with an id that no task defines. An id defined later in the file still counts. |
+| Invalid dates | A Gantt date does not match the diagram's `dateFormat`, or is not a real calendar date. Durations such as `3d`, and `excludes weekends`, are left alone. A `dateFormat` this check does not understand is left alone. |
+| Duplicate siblings | A mindmap repeats a label under the same parent, or a timeline repeats an event in one period. The same label under a different parent, or the same event in a different period, is left alone. |
+| Empty nodes | A mindmap node or a timeline event has no text. An icon line (`::icon(...)`) is not a node. |
+
+On the dashboard, **Diagram checks** is that list for every diagram. It is closed the first time you visit, and this browser remembers if you leave it open. The closed row already shows the result: a green check when every diagram looks good, an amber count of warnings, or a red count when a diagram has an error. Open it for a short explanation and the findings, grouped by diagram, with a link to each line. When a finding is a broken diagram link, **Repair links** is on that list. A thumbnail whose diagram cannot be drawn shows a **Parse error** badge. A header that cannot be parsed shows **Front matter**.
+
+![Diagram checks on the dashboard. The row stays closed, with a green check, when every diagram looks good.](images/diagram-checks.png)
+
+## Linked diagrams
+
+A node can open another diagram. The link is Mermaid's own `click` line, so the file stays valid Mermaid. Outside NerdGram the target is an ordinary link. Inside the preview and in presentation, a `nerdgram:` path or a relative `.mmd` path opens that diagram.
+
+```mermaid
+flowchart LR
+  Core[Core] --> Atlanta[Atlanta]
+  click Atlanta "nerdgram:Sites/Atlanta.mmd" "Open Atlanta"
+```
+
+A path such as `./Rack.mmd` or `../WAN.mmd` is relative to the diagram that contains the line. `nerdgram:Sites/Atlanta.mmd` is the same path counted from the workspace root, which is the data directory. The older `diagram:` prefix is accepted the same way. The strings are in the `.mmd` file, so GitHub sync copies them with the diagram and they still resolve after a pull.
+
+The sample pair is `WAN.mmd` and `Sites/Atlanta.mmd`. Click Atlanta on the overview to open the site. The trail along the top of the preview, and again in presentation, is the path you took, for example **WAN > Atlanta > Rack 3**, with **Back** and **Forward**. Presentation keeps that drill-down in the same full-screen view.
+
+**Link node to diagram...** in the command palette inserts the `click` line. On a `click` line, autocomplete offers the diagrams in the workspace. A missing target is a warning in the problems list. Clicking it shows that message on the current diagram instead of opening a blank page. **Diagram info** lists **Links to** and **Linked from**.
+
+Renaming or moving a diagram inside the app rewrites the `click` lines that point at it. A rename from the file manager, `git mv`, or a GitHub sync pull does not, so those links break. NerdGram remembers the path and content hash of each diagram it has seen, in `<data>/.meta/diagram-sightings.json`. **Repair links** compares that memory with the files now on disk. A path that disappeared and a new file that appeared in the same gap are a match when the content is the same, or, if the content is not, when the file name is the same and only one file fits. The dialog lists every rewrite. When the data file moved into the diagram's new folder, the same confirmation updates `nerdgram.source`. Confirming it saves those diagrams the same way an edit does, including revision history. Cancel, a dry run, or a preview writes nothing. If two files fit equally well, both are listed and neither is chosen. The same preview is `GET /api/link-repairs`, `GET /api/v1/link-repairs`, and `nerdgram repair-links`.
+
+Only `nerdgram:`, `diagram:`, and a relative `.mmd` path navigate inside the app. An `http` or `https` address opens in a new tab and does not keep a handle back to this window. `javascript:` and any other scheme are blocked. A path that would leave the data directory is blocked the same way as a file operation.
+
+
+## Thumbnails, find, and shortcuts
+
+Dashboard cards keep a thumbnail of each diagram. The first time a card is on screen, the app draws it. After that, the picture is saved under `.meta/thumbs` and reused until the diagram changes. Scrolling a large folder only draws the cards you are about to see. A diagram that cannot be drawn shows “Preview unavailable” and the rest of the grid stays up.
+
+**Ctrl** below means **Cmd** on a Mac. Find and go-to-line apply while the code pane is focused. The command palette applies everywhere except during presentation.
+
+| Action | Keys |
+| --- | --- |
+| Command palette | Ctrl+K. The **Commands** button does the same thing when the browser takes the shortcut. |
+| Find | Ctrl+F |
+| Find next | Ctrl+G or F3 |
+| Find previous | Ctrl+Shift+G or Shift+F3 |
+| Close find | Esc, while the find panel is open |
+| Select matches of the current selection | Ctrl+Shift+L |
+| Go to line | Ctrl+Alt+G |
+| Comment or uncomment | Ctrl+/ |
+| Present | F5, or Ctrl+Shift+Enter |
+| Address bar | Ctrl+L stays with the browser. The app does not bind it. |
+
+The find panel can match case, whole words, or a regular expression, and it can replace one match or all of them in the open diagram. **Replace in all diagrams…** on that panel opens the workspace replace with the same search filled in. The editor does not change any other file.
+
+On Windows, AltGr is reported as Ctrl+Alt. On a layout where AltGr+G types a character, Ctrl+Alt+G can type that character instead of opening Go to line. Use **Go to line** in the command palette.
+
+The palette lists the actions already in the app: new diagram, paste, folder, import, generate from data, refresh from data, search, replace across diagrams, open, rename, move, duplicate, trash, restore, diagram info, link node to diagram, history, theme, export, present, find, go to line, templates, GitHub sync, About, and check for updates. Template, sync, and update commands do not add a shortcut. The app also leaves Ctrl+D for the browser bookmark and does not bind F11.
+
+## Search
+
+The sidebar search box matches file names and paths, titles, tags, descriptions, notes, and the visible text in a diagram: node and edge labels, subgraph titles, sequence messages, and similar labels. It does not match a diagram only because the file says `flowchart` or `sequenceDiagram`. Results show the matching text. Opening a result jumps to that line in the editor. The command palette uses the same search. **Names only**, under the search box, limits the dashboard to file names and paths. Diagrams in the trash are not included. The gallery has its own search. Dashboard search does not list the bundled templates.
+
+**Replace across…** on the dashboard, and **Replace across diagrams…** in the command palette, replace text in more than one diagram. The default scope is every diagram. You can limit it to the current folder, with or without subfolders, and uncheck diagrams or individual matches in the preview. Match case, whole word, and regular expressions (including `$1` in the replacement) match the editor's find bar. The default search is the diagram body. **Include front matter** also searches the YAML header. Hidden files, `.meta`, the trash, and templates are never changed.
+
+Nothing is written until you preview and then replace. The preview shows each match with the line before and after, and a total such as “23 replacements in 9 diagrams”. A long list shows the first matches and says how many were left out. Those unlisted matches are still replaced in a diagram you leave selected. After the replacement, each diagram is checked. One that would not parse, or that gains a new error, is unchecked. A diagram generated from a CSV, JSON, network JSON, CDP, or LLDP file warns that **Refresh from data** would overwrite the change. A match inside a node id, a `click` target, or a path is marked, because changing an id can break styles or links from other diagrams. The data file itself is not edited.
+
+Replace saves each selected diagram the usual way, so the previous text is a revision first. Thumbnails, search, link sightings, and GitHub sync then update as they do for any save. A diagram open in an editor is skipped. A file that changed after the preview is skipped. The summary lists what changed and what was skipped. **Undo this replace** restores that batch and skips any file edited since. One diagram can also be restored from History.
+
+`POST /api/replace/preview`, `POST /api/replace/apply`, and `POST /api/replace/undo` do the same work. Apply sends each file's preview hash and any match ids to skip. The same paths are under `/api/v1` (`/api/v1/replace/preview`, `/api/v1/replace/apply`, `/api/v1/replace/undo`). Preview needs a read token. Apply and undo need a read-write token. Mutating calls need `Content-Type: application/json`. `nerdgram replace` prints the preview. `--yes` applies it. See [docs/cli.md](cli.md).
+
+## Presentation
+
+**Present** shows the diagram on its own, using the theme, look, and layout stored in the file. The title is the front-matter title when the file has one, and the file name otherwise. The control bar can hide the title.
+
+In the editor, use **Present** on the preview toolbar, press **F5**, or press **Ctrl+Shift+Enter** (**Cmd+Shift+Enter** on a Mac). **Present diagram** is also in the command palette. **F5** is the browser reload key. NerdGram uses it for presentation only when a diagram is open and the cursor is not in a form field (search, rename, diagram info, go to line, or the command palette). It does work from the code pane. On the dashboard, the new-diagram page, and the reference, F5 still reloads the page. Ctrl+F5, Alt+F5, and Shift+F5 stay a reload. Pan and zoom keys do not run while you are typing in the editor. They run only during presentation.
+
+**Esc** or **Exit** leaves presentation and returns to the editor or the dashboard. If the browser is showing its own fullscreen and blocks the first Esc, press Esc again or use **Exit**.
+
+A linked node drills into that diagram without leaving full screen. **Back**, **Forward**, and the trail (**WAN > Atlanta > Rack 3**) move through the diagrams you opened. The control bar still hides until you move the pointer or press Tab. Leaving presentation returns to the diagram you started from.
+
+On the dashboard, **Present** on a card or a list row opens that diagram without the editor. The address looks like `/present/Welcome.mmd`. Presentation does not save the file and does not take the editor lock. A template opens at `/templates/present/<id>` and is not copied.
+
+The bar hides after about 2.5 seconds. Move the pointer, or press Tab, to bring it back. It has zoom in, zoom out, the zoom percent, rotate left, rotate right, fit, title, full screen, and exit.
+
+| Action | Keys and pointer |
+| --- | --- |
+| Zoom toward the pointer | Mouse wheel, or a trackpad pinch |
+| Zoom toward the last pointer position, or the center | + or =, and - |
+| Pan | Drag, a trackpad two-finger scroll, W A S D, or Shift+arrow |
+| Pan after you have left the fitted view | Plain arrow keys. At the fitted view they do nothing, so a later slideshow can use them for the next diagram. |
+| Rotate 90° | R clockwise, Shift+R the other way. Alt+drag rotates by any angle. |
+| Fit, and clear zoom, pan, and rotation | 0 or F, or **Fit** |
+| Leave | Esc or **Exit** |
+
+Zoom from the keys and buttons stays between 10% and 800% of the diagram's own size. **Fit** can go outside that range so the whole diagram is visible. A quarter turn uses the rotated size, so a tall diagram turned sideways fills a landscape screen. If fullscreen is unavailable, the diagram still fills the window. **Full screen** tries again after a click. A bad header or a diagram that cannot be drawn shows the error. The last good picture stays up when a later refresh fails. Animated fades are skipped when the system asks for reduced motion.
+
+## Template gallery
+
+**New diagram** on the dashboard, **Browse templates** on the Paste Mermaid page, **Templates** in the sidebar, and the command palette all open the gallery at `/templates`. The palette lists **Open template gallery** and **New from template:** plus each template name. Those commands do not add a shortcut.
+
+Each card shows a preview, the name, a short description, a category, and the diagram type. Search matches the name, description, tags, category, and diagram type. The category, type, and tag menus narrow the grid further. **Present** opens the template full screen without copying it.
+
+**Use template** asks for a name and a folder. The folder list is the same picker used when you move a diagram. The app writes a new `.mmd` file and opens that copy in the editor. If the name is already there, the new file is `Name 2.mmd`, then `Name 3.mmd`. The existing file is left as it is. Editing the copy does not change the template.
+
+The six starters are a network topology, a home lab, a firewall rule policy, a rack elevation, a flowchart, and a sequence. Addresses in them are documentation ranges from [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) and [RFC 5737](https://www.rfc-editor.org/rfc/rfc5737).
+
+The files live in `templates/` at the project root, next to `reference/`. They are not in `diagrams/`, and they are not under `.meta`. To add one, drop a `.mmd` file in `templates/` and refresh the gallery. The file name is lowercase letters, numbers, and hyphens, such as `lab-wireless.mmd`. Files in subfolders are skipped. Start the file with Mermaid front matter: `title`, `config.theme` set to a built-in Mermaid theme, and a `nerdgram` block with `description`, `tags`, and `category`. The diagram has to be valid Mermaid or the preview shows “Preview unavailable.” No manifest is required.
+
+`templates/` is part of the app. The image copies that folder in and leaves it read-only, the same way it copies `reference/`. Diagrams you create from a template are saved with your other diagrams. This version does not keep a separate folder of templates you save yourself.
+
+
+## Syntax reference
+
+NerdGram1337 ships a local mirror of the Mermaid diagram syntax docs so you can look up syntax with no internet connection. In the sidebar, **Open Syntax Reference Library**, or the same link in the editor top bar, opens `/reference`.
+
+- Bundled mirror: `reference/manifest.json` and `reference/pages/*.md`, checked into the repo and copied read-only into the image.
+- When `NERDGRAM_DATA_DIR` is set, a sync writes to `<data>/.meta/reference`. Reads use that copy when it has a manifest, and the bundled tree otherwise.
+- When `NERDGRAM_DATA_DIR` is unset, sync replaces `reference/` at the repo root.
+- Local annotations: `diagrams/.meta/syntax-overrides.json`, or `<data>/.meta/syntax-overrides.json` when `NERDGRAM_DATA_DIR` is set. These notes are per page and are not part of the replace.
+
+While online, **Sync Syntax Reference** on the reference page fetches [the Mermaid syntax reference](https://mermaid.js.org/intro/syntax-reference.html) and the linked `/syntax/*.html` diagram pages, rebuilds the mirror in a staging folder, then replaces the live copy. The sync rewrites a few retired Mermaid URLs, including the old Getting Started page, onto the current docs pages so they are not copied back in. A successful sync updates `lastSyncedAt` in the manifest. A failed sync leaves the existing copy in place and the UI shows the error. From the project root:
+
+```bash
+npm run sync:reference --prefix server
+```
+
+Mirrored content is from the Mermaid documentation (MIT License). Each page keeps attribution and a link back to its source on [mermaid.js.org](https://mermaid.js.org/).
+
+## See also
+
+- [Generate from data](generate-from-data.md)
+- [GitHub sync](github-sync.md)
+- [Configuration](configuration.md)
+- [Upgrading](upgrading.md)
+- [nerdgram command](cli.md)

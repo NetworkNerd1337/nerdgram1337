@@ -23,7 +23,7 @@
     "url": "git+https://github.com/NetworkNerd1337/NerdGram1337.git",
     "directory": "cli"
   },
-  "homepage": "https://github.com/NetworkNerd1337/NerdGram1337#command-line-tool",
+  "homepage": "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/cli.md",
   "bugs": {
     "url": "https://github.com/NetworkNerd1337/NerdGram1337/issues"
   },

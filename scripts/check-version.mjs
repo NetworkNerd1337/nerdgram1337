@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findChangelogSection } from "./changelog-notes.mjs";
 import { currentCodename } from "./codenames.mjs";
@@ -169,12 +169,13 @@ if (!existsSync(readmePath)) {
   console.error("README.md is missing. Version examples in the README are checked against package.json.");
   process.exit(1);
 }
-const readme = readFileSync(readmePath, "utf8");
-assertReadmeVersions(readme, expected);
-assertReadmeLinks(readme, root);
+for (const file of versionedMarkdown(root)) {
+  assertReadmeVersions(readFileSync(file, "utf8"), expected, relative(root, file));
+}
+assertMarkdownLinks(root);
 
 console.log(
-  `Version ${expected} "${codename}" matches in root, client, server, cli (${CLI_PACKAGE_NAME}), Dockerfile, compose.yaml, compose.build.yaml, CHANGELOG.md, and README.md.`,
+  `Version ${expected} "${codename}" matches in root, client, server, cli (${CLI_PACKAGE_NAME}), Dockerfile, compose.yaml, compose.build.yaml, CHANGELOG.md, README.md, and the docs. Markdown links resolve.`,
 );
 }
 
@@ -186,7 +187,18 @@ console.log(
  * The versioning section also names planned releases. Those are not the
  * package that is checked out today, so they are allowed in prose only.
  */
-function assertReadmeVersions(markdown, version) {
+function versionedMarkdown(repoRoot) {
+  const files = [join(repoRoot, "README.md")];
+  const docs = join(repoRoot, "docs");
+  if (existsSync(docs)) {
+    for (const name of readdirSync(docs)) {
+      if (name.endsWith(".md")) files.push(join(docs, name));
+    }
+  }
+  return files;
+}
+
+function assertReadmeVersions(markdown, version, label = "README.md") {
   const pinPatterns = [
     /ghcr\.io\/networknerd1337\/nerdgram1337:v(\d+\.\d+\.\d+)/g,
     /nerdgram1337@(\d+\.\d+\.\d+)/g,
@@ -202,55 +214,90 @@ function assertReadmeVersions(markdown, version) {
     if (match[1] !== version && !POLICY_VERSIONS.has(match[1])) bad.add(match[0]);
   }
   if (bad.size > 0) {
-    console.error(`README version examples must match package.json ${version}, or use the vX.Y.Z placeholder.`);
+    console.error(`${label} version examples must match package.json ${version}, or use the vX.Y.Z placeholder.`);
     console.error("Prose may also name v1.0.5, v1.0.6, and v2.0.0 (Meridian).");
     for (const item of bad) console.error(`  ${item}`);
     process.exit(1);
   }
 }
 
-function assertReadmeLinks(markdown, repoRoot) {
-  const { headings, links } = markdownOutsideFences(markdown);
-  const slugs = githubSlugs(headings);
-  const missingAnchors = [];
-  const missingFiles = [];
-  let skippedFiles = 0;
+/**
+ * Relative links and anchors in project Markdown. `reference/` is the upstream
+ * Mermaid syntax mirror. Its heading ids belong to that site, so it is not
+ * part of this check.
+ */
+function assertMarkdownLinks(repoRoot) {
+  const files = markdownFiles(repoRoot);
+  const anchors = new Map();
+  const problems = [];
 
-  for (const target of links) {
-    if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
-    const hash = target.startsWith("#") ? target.slice(1) : null;
-    if (hash != null && !target.includes("/")) {
-      const id = decodeURIComponent(hash);
-      if (!slugs.has(id)) missingAnchors.push(`#${id}`);
-      continue;
-    }
-    const pathPart = target.split("#")[0] ?? "";
-    if (!pathPart) continue;
-    const relative = decodeURIComponent(pathPart);
-    if (existsSync(join(repoRoot, relative))) continue;
-    if (relative.includes("/")) {
-      const top = relative.split("/")[0];
-      if (!existsSync(join(repoRoot, top))) {
-        skippedFiles += 1;
+  function anchorsOf(file) {
+    const cached = anchors.get(file);
+    if (cached) return cached;
+    const text = readFileSync(file, "utf8");
+    const { headings, headingIds } = markdownOutsideFences(text);
+    const slugs = githubSlugs(headings);
+    for (const id of headingIds) slugs.add(id);
+    anchors.set(file, slugs);
+    return slugs;
+  }
+
+  for (const file of files) {
+    const { links } = markdownOutsideFences(readFileSync(file, "utf8"));
+    for (const target of links) {
+      if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith("//") || target.startsWith("/")) continue;
+      const hashAt = target.indexOf("#");
+      const pathPart = hashAt >= 0 ? target.slice(0, hashAt) : target;
+      const hash = hashAt >= 0 ? target.slice(hashAt + 1) : "";
+      const where = relative(repoRoot, file);
+      if (!pathPart) {
+        if (!hash) continue;
+        const id = decodeURIComponent(hash);
+        if (!anchorsOf(file).has(id)) problems.push(`${where}: missing anchor #${id}`);
         continue;
       }
+      let decoded = pathPart;
+      try {
+        decoded = decodeURIComponent(pathPart);
+      } catch {
+        problems.push(`${where}: bad link ${target}`);
+        continue;
+      }
+      const resolved = resolve(dirname(file), decoded);
+      if (!existsSync(resolved)) {
+        problems.push(`${where}: missing file ${target}`);
+        continue;
+      }
+      if (!hash) continue;
+      if (!statSync(resolved).isFile() || !resolved.endsWith(".md")) {
+        problems.push(`${where}: anchor on a non-markdown path ${target}`);
+        continue;
+      }
+      const id = decodeURIComponent(hash);
+      if (!anchorsOf(resolved).has(id)) problems.push(`${where}: missing anchor ${target}`);
     }
-    missingFiles.push(relative);
   }
 
-  if (missingAnchors.length > 0 || missingFiles.length > 0) {
-    console.error("README links do not resolve.");
-    for (const item of missingAnchors) console.error(`  missing anchor ${item}`);
-    for (const item of missingFiles) console.error(`  missing file ${item}`);
+  if (problems.length > 0) {
+    console.error("Markdown links do not resolve.");
+    for (const item of problems) console.error(`  ${item}`);
     process.exit(1);
   }
-  if (skippedFiles > 0) {
-    console.log(`README file links skipped: ${skippedFiles} (those directories are not in this tree).`);
+}
+
+function markdownFiles(dir, out = []) {
+  for (const name of readdirSync(dir)) {
+    if (name === "node_modules" || name === "reference" || name === ".git") continue;
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) markdownFiles(full, out);
+    else if (name.endsWith(".md")) out.push(full);
   }
+  return out;
 }
 
 function markdownOutsideFences(markdown) {
   const headings = [];
+  const headingIds = [];
   const links = [];
   let fence = null;
   for (const line of markdown.split(/\r?\n/)) {
@@ -263,12 +310,15 @@ function markdownOutsideFences(markdown) {
     }
     if (fence) continue;
     const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
-    if (heading) headings.push(headingText(heading[2]));
+    if (heading) {
+      headings.push(headingText(heading[2]));
+      for (const id of line.matchAll(/\]\(#([^)\s]+)\)/g)) headingIds.push(decodeURIComponent(id[1]));
+    }
     for (const match of line.matchAll(/!?\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
       links.push(match[1]);
     }
   }
-  return { headings, links };
+  return { headings, headingIds, links };
 }
 
 function headingText(raw) {

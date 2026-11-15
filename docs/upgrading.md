@@ -1,0 +1,122 @@
+# Upgrading
+
+Stop the app before you replace it.
+
+[Back to the documentation index](README.md)
+
+## Contents
+
+- [Update a Docker install](#update-a-docker-install)
+- [Update a git clone](#update-a-git-clone)
+- [Update a ZIP copy](#update-a-zip-copy)
+- [In-app updates](#in-app-updates)
+
+Paths in this document use two placeholders, always in code formatting so GitHub does not treat the angle brackets as HTML tags. `<data>` is the data directory: `NERDGRAM_DATA_DIR` when that variable is set, and `diagrams/` inside the project when it is not. `<repo>` is the project folder, the git clone or the extracted ZIP.
+
+Stop the app before you replace it. Diagrams stay where they are when you keep the same data directory or the same volume. Do not run `docker volume rm` on a volume you still want. There is no updater inside the container.
+
+## Update a Docker install
+
+The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v1.4.0`, the tag for this tree. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you are moving to a different release. If your names differ, keep the names you already use.
+
+1. Pull the new image.
+
+```bash
+docker pull ghcr.io/networknerd1337/nerdgram1337:v1.4.0
+```
+
+2. Stop the old container. `docker stop` asks the process to finish the write it is in and any GitHub sync already running.
+
+```bash
+docker stop nerdgram1337
+```
+
+3. Remove the old container. The volume stays.
+
+```bash
+docker rm nerdgram1337
+```
+
+4. Start it again on the same volume and the same loopback port.
+
+```bash
+docker run -d \
+  --name nerdgram1337 \
+  --restart unless-stopped \
+  -p 127.0.0.1:8787:8787 \
+  -e NERDGRAM_DATA_DIR=/data \
+  -e NERDGRAM_INSTALL=docker \
+  -v nerdgram-data:/data \
+  ghcr.io/networknerd1337/nerdgram1337:v1.4.0
+```
+
+5. Open [http://127.0.0.1:8787](http://127.0.0.1:8787) and choose **Check again** in About. The dialog says whether the running version matches that release.
+
+These `docker run` lines match the in-app steps. They do not set a read-only root or a `tmpfs` on `/tmp`. `compose.yaml` does. If you installed with Compose, change the pinned tag in `compose.yaml` when the file pins an older `vX.Y.Z`. If the image line is `:latest`, pull and up are enough. Then:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Keep the volume mounted on `/data`.
+
+## Update a git clone
+
+From the project root, with the app stopped (Ctrl+C):
+
+1. Pull tracked files. Diagrams you created under `diagrams/` stay put, because git ignores those extra files and ignores `diagrams/.meta/`. The sample diagrams are tracked. If you edited one of them, including `diagrams/WAN.mmd` or `diagrams/Sites/Atlanta.mmd`, git may stop and ask you to handle those local edits before the pull can finish.
+
+```bash
+git pull
+```
+
+2. Install again. The pull can change lockfiles.
+
+```bash
+npm run install:all
+```
+
+3. Start the same way you were running it: `npm run dev`, or `npm run build` and then `npm start`.
+
+A clean git clone whose `origin` is this repository can do the same fetch, fast-forward, `npm ci`, and build from **Update now** in About. You still restart afterwards. See [In-app updates](#in-app-updates). `npm ci` replaces `node_modules` under the running process. If the process dies in the middle, the error names the previous commit and the recovery is `git reset --keep <previous>` from the project root, then the three `npm ci` commands and `npm run build` again. Diagrams are untouched.
+
+## Update a ZIP copy
+
+There is no **Update now** for a ZIP. About shows the hand steps.
+
+1. Download a fresh ZIP from [main.zip](https://github.com/NetworkNerd1337/NerdGram1337/archive/refs/heads/main.zip) or from the release page, and extract it to a new folder. GitHub names a `main` archive `NerdGram1337-main`.
+2. `cd` into that folder and run `npm run install:all`. The ZIP does not include `node_modules`.
+3. If your diagrams are still in the old project's `diagrams/` folder, copy that folder into the new project, including the hidden `.meta` directory. If you set `NERDGRAM_DATA_DIR`, point the new copy at the same path and leave the files where they are.
+4. Start with `npm run dev`, or `npm run build` and `npm start`.
+
+
+## In-app updates
+
+The running version is the **About** line at the bottom of the sidebar and **About NerdGram1337** in the command palette. Both show the version and its code name, for example `v1.4.0 "Atlas"`. The dialog also shows how this copy was installed, the commit when one is known, and links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi directly. `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`. `GET /api/health` returns those fields plus `"ok": true` and `dataDir`. `installKind` is `git`, `docker`, `zip`, or `unknown`. `commit` is a SHA when the build or the git checkout has one, and null otherwise. Docker never shells out to git to discover a commit. Set `NERDGRAM_COMMIT` at image build time when you want one. When a newer release is available, the banner and the release dialog show that release's code name. The version still comes from the tag. The code name comes from the major number of that tag.
+
+The server asks GitHub, with no token, whether `NetworkNerd1337/NerdGram1337` has a newer full release. That request uses the public Releases API for the latest stable release. It does not offer a prerelease. It does not use the GitHub sync token or `NERDGRAM_GITHUB_TOKEN`, and it does not send telemetry. The answer is cached for about 24 hours in `<data>/.meta/updates.json`. If GitHub is offline, rate-limits the check, or has not published a release yet, the automatic check stays quiet. **Check for updates** in the command palette can say that GitHub could not be reached. It has no keyboard shortcut. How a checkout of `main` differs from a checkout of a release tag is under [Pin a version or move to another](releases.md#pin-a-version-or-move-to-another).
+
+`NERDGRAM_UPDATE_CHECK=false` (also `0`, `off`, or `no`) turns checks off, including **Check for updates** and **Update now**. Clearing **Check for updates automatically** in About stops only the automatic check. The checkbox is stored in `updates.json`. **Include prereleases** in About opts in to prereleases. `NERDGRAM_UPDATE_INCLUDE_PRERELEASE=true` (also `1`, `yes`, or `on`) opts in from the environment even when the checkbox is clear.
+
+**Git clone.** On a clean checkout of this repository whose `origin` is `https://github.com/NetworkNerd1337/NerdGram1337` (or the matching `git@github.com:` / `ssh://git@github.com/` URL), on `main` or a detached release tag, **Update now** fetches the tag, fast-forwards only, runs `npm ci` in the root, `client/`, and `server/`, then `npm run build`, and tells you to restart. It stops if the tree is dirty, if `origin` is some other repository, if the branch is not `main` and not detached, or if the release is not a fast-forward. It does not force, reset away uncommitted work, or modify `NERDGRAM_DATA_DIR`. Extra diagrams under the data folder are ignored by git and are not a reason to stop when the rest of the tree is clean.
+
+`npm ci` replaces `node_modules` under the process that is running the update. If install or build fails, NerdGram tries to return to the previous commit with `git reset --keep` (or a detached checkout of that commit). That reset refuses to discard uncommitted work. If the process dies in the middle, automatic rollback may not run. The error names the previous commit. From the project root, when the working tree is still clean:
+
+```bash
+git reset --keep <previous>
+```
+
+Then run `npm ci`, `npm ci --prefix client`, `npm ci --prefix server`, and `npm run build` again. Your diagrams are untouched.
+
+After a successful update, stop the process and start it again (`npm run dev`, or `npm start` for a production build), then reload the page.
+
+**Docker.** The app does not update itself inside the container. **Show upgrade steps** copies the pull, stop, remove, and run commands. See [Upgrading](#upgrading). **Check again** after you recreate the container says whether the running version matches that release.
+
+**ZIP or an unknown copy.** You can read the release notes. There is no **Update now**. Download the new ZIP and keep your `diagrams` folder, or the same `NERDGRAM_DATA_DIR`.
+
+## See also
+
+- [Versioning and releases](releases.md)
+- [Install](install.md)
+- [Data and backups](data-and-backups.md)

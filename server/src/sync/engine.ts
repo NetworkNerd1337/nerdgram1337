@@ -117,7 +117,7 @@ type Failure = { code: string; message: string; status: number; docsUrl?: string
 const CLIENT_ID_RE = /^[A-Za-z0-9._-]{8,100}$/;
 const REPO_RE = /^[A-Za-z0-9._-]{1,100}$/;
 const DEVICE_HELP =
-  "Create an OAuth app in your own GitHub account, enable Device flow, and paste that app's client ID. NerdGram does not ship a client ID or client secret. The README section GitHub sync has the steps.";
+  "Create an OAuth app in your own GitHub account, enable Device flow, and paste that app's client ID. NerdGram does not ship a client ID or client secret. The GitHub sync page has the steps.";
 
 let suppress = 0;
 let timer: NodeJS.Timeout | null = null;
