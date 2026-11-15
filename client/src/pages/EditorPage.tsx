@@ -19,8 +19,9 @@ import { ProblemsPanel } from "../components/ProblemsPanel";
 import { RepairLinksDialog } from "../components/RepairLinksDialog";
 import { PresentationView } from "../components/PresentationView";
 import { actionForClickTarget, clickTargetOnElement, openExternalLink } from "../lib/diagramClicks";
+import { anchorsFromElement, pointerMovedPastClick, sourceLocationForElement } from "../lib/sourceJump";
 import { drillForward, drillIndex, trailFromState, withCrumbTitle } from "../lib/drillTrail";
-import { getEditorView, revealEditorMatch, runFind, runGotoLine, runReplace } from "../lib/editorCommands";
+import { getEditorView, revealEditorLine, revealEditorMatch, runFind, runGotoLine, runReplace } from "../lib/editorCommands";
 import { extractNodeIds } from "../lib/mermaidCompletions";
 import { applyLintFix } from "../lib/lintActions";
 import type { ReportedDiagnostic } from "../lib/mermaidLint";
@@ -146,6 +147,7 @@ export function EditorPage() {
   const [lockToken, setLockToken] = useState<string | null>(null);
 
   const previewRef = useRef<HTMLDivElement>(null);
+  const previewPress = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const renderedRef = useRef<{ source: string; svg: string } | null>(null);
   const renderGen = useRef(0);
   const renderTimer = useRef<number | null>(null);
@@ -718,8 +720,16 @@ export function EditorPage() {
   };
 
   const followPreviewClick = (event: { target: EventTarget | null; preventDefault: () => void }) => {
+    const dragged = previewPress.current?.moved ?? false;
+    previewPress.current = null;
     const raw = clickTargetOnElement(code, event.target);
-    if (!raw) return;
+    if (!raw) {
+      if (dragged) return;
+      const hit = sourceLocationForElement(code, anchorsFromElement(event.target));
+      if (!hit) return;
+      revealEditorLine(hit.line, hit.column);
+      return;
+    }
     event.preventDefault();
     const action = actionForClickTarget(raw, filePath, diagramPaths ?? null);
     if (action.type === "ignore") return;
@@ -1146,6 +1156,15 @@ export function EditorPage() {
           <div
             className={`preview-stage${previewStale ? " is-stale" : ""}`}
             ref={previewRef}
+            onPointerDown={(event) => {
+              if (event.button !== 0 && event.pointerType === "mouse") return;
+              previewPress.current = { x: event.clientX, y: event.clientY, moved: false };
+            }}
+            onPointerMove={(event) => {
+              const press = previewPress.current;
+              if (!press || press.moved) return;
+              if (pointerMovedPastClick(event.clientX - press.x, event.clientY - press.y)) press.moved = true;
+            }}
             onClick={followPreviewClick}
           >
             {previewStale && svgHtml ? (
