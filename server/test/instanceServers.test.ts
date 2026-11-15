@@ -71,17 +71,26 @@ function startInstance(env: NodeJS.ProcessEnv): Promise<Instance> {
   });
 }
 
-async function post(port: number, pathname: string, body: unknown): Promise<{ status: number; json: Record<string, unknown> }> {
-  const response = await fetch(`http://127.0.0.1:${port}${pathname}`, {
-    method: "POST",
+async function requestInstance(
+  port: number,
+  pathname: string,
+  body?: unknown,
+  connectHost = "127.0.0.1",
+): Promise<{ status: number; json: Record<string, unknown> }> {
+  const response = await fetch(`http://${connectHost}:${port}${pathname}`, {
+    method: body === undefined ? "GET" : "POST",
     headers: {
-      "Content-Type": "application/json",
-      Host: `127.0.0.1:${port}`,
+      Host: `${connectHost}:${port}`,
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   return { status: response.status, json };
+}
+
+async function post(port: number, pathname: string, body: unknown): Promise<{ status: number; json: Record<string, unknown> }> {
+  return requestInstance(port, pathname, body);
 }
 
 describe("two instances, one diagram folder", () => {
@@ -171,5 +180,111 @@ describe("two instances, one diagram folder", () => {
     const held = JSON.parse(await fs.readFile(lockPath, "utf8")) as { instanceId: string; instanceName: string };
     expect(held.instanceId).toBe("22222222-2222-4222-8222-222222222222");
     expect(held.instanceName).toBe("Engineer B");
+  }, 40_000);
+
+  it("keeps an independent Host for each instance that shares one folder", async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), "nerdgram-shared-"));
+    const instanceDir = await fs.mkdtemp(path.join(os.tmpdir(), "nerdgram-instances-"));
+    extraDirs.push(instanceDir);
+    const legacy = path.join(dir, ".meta", "listen-host.json");
+    await fs.mkdir(path.dirname(legacy), { recursive: true });
+    await fs.writeFile(legacy, `${JSON.stringify({ host: "10.9.9.9" })}\n`);
+    const instanceA = path.join(instanceDir, "instance-a.json");
+    const instanceB = path.join(instanceDir, "instance-b.json");
+    await fs.writeFile(
+      instanceA,
+      `${JSON.stringify({ instanceId: "11111111-1111-4111-8111-111111111111", instanceName: "Engineer A" }, null, 2)}\n`,
+    );
+    await fs.writeFile(
+      instanceB,
+      `${JSON.stringify({ instanceId: "22222222-2222-4222-8222-222222222222", instanceName: "Engineer B" }, null, 2)}\n`,
+    );
+    const baseEnv = {
+      ...process.env,
+      HOST: "",
+      NERDGRAM_INSTALL: "",
+      NERDGRAM_DATA_DIR: dir,
+      NERDGRAM_TEST_FIXED_BIND: "1",
+    };
+
+    const first = await startInstance({ ...baseEnv, NERDGRAM_INSTANCE_FILE: instanceA });
+    stops.push(first.stop);
+    const second = await startInstance({ ...baseEnv, NERDGRAM_INSTANCE_FILE: instanceB });
+    stops.push(second.stop);
+
+    expect((await requestInstance(first.port, "/api/host")).json.saved).toBe("10.9.9.9");
+    expect((await requestInstance(second.port, "/api/host")).json.saved).toBe("10.9.9.9");
+
+    expect((await post(first.port, "/api/host", { host: "127.0.0.2" })).status).toBe(200);
+    expect((await post(second.port, "/api/host", { host: "127.0.0.3" })).status).toBe(200);
+    expect((await requestInstance(first.port, "/api/host")).json.saved).toBe("127.0.0.2");
+    expect((await requestInstance(second.port, "/api/host")).json.saved).toBe("127.0.0.3");
+    expect(JSON.parse(await fs.readFile(legacy, "utf8"))).toEqual({ host: "10.9.9.9" });
+
+    await fs.writeFile(legacy, `${JSON.stringify({ host: "10.8.8.8" })}\n`);
+    await stops.shift()?.();
+    await stops.shift()?.();
+    const againA = await startInstance({ ...baseEnv, NERDGRAM_INSTANCE_FILE: instanceA });
+    stops.push(againA.stop);
+    const againB = await startInstance({ ...baseEnv, NERDGRAM_INSTANCE_FILE: instanceB });
+    stops.push(againB.stop);
+    expect((await requestInstance(againA.port, "/api/host")).json.saved).toBe("127.0.0.2");
+    expect((await requestInstance(againB.port, "/api/host")).json.saved).toBe("127.0.0.3");
+    expect(JSON.parse(await fs.readFile(legacy, "utf8"))).toEqual({ host: "10.8.8.8" });
+    const fileA = JSON.parse(await fs.readFile(instanceA, "utf8")) as { listenHost?: string };
+    const fileB = JSON.parse(await fs.readFile(instanceB, "utf8")) as { listenHost?: string };
+    expect(fileA.listenHost).toBe("127.0.0.2");
+    expect(fileB.listenHost).toBe("127.0.0.3");
+  }, 40_000);
+
+  it("applies a new Host and a new Diagram folder after one restart", async () => {
+    const current = await fs.mkdtemp(path.join(os.tmpdir(), "nerdgram-current-"));
+    const next = await fs.mkdtemp(path.join(os.tmpdir(), "nerdgram-next-"));
+    extraDirs.push(current, next);
+    const instanceDir = await fs.mkdtemp(path.join(os.tmpdir(), "nerdgram-instances-"));
+    extraDirs.push(instanceDir);
+    const instanceFile = path.join(instanceDir, "instance.json");
+    await fs.writeFile(
+      instanceFile,
+      `${JSON.stringify(
+        {
+          instanceId: "33333333-3333-4333-8333-333333333333",
+          instanceName: "Engineer A",
+          NERDGRAM_DATA_DIR: current,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    const env = { ...process.env, NERDGRAM_INSTANCE_FILE: instanceFile, NERDGRAM_TEST_FIXED_BIND: "1" };
+    delete env.HOST;
+    delete env.NERDGRAM_INSTALL;
+    delete env.NERDGRAM_DATA_DIR;
+
+    const first = await startInstance(env);
+    stops.push(first.stop);
+    expect((await requestInstance(first.port, "/api/data-dir")).json.running).toBe(current);
+    expect((await post(first.port, "/api/host", { host: "127.0.0.2" })).status).toBe(200);
+    const savedDir = await post(first.port, "/api/data-dir", { path: next });
+    expect(savedDir.status).toBe(200);
+    expect(savedDir.json.restartNotice).toBe(true);
+    expect(savedDir.json.running).toBe(current);
+    await expect(fs.access(path.join(current, ".meta", "listen-host.json"))).rejects.toThrow();
+    await stops.shift()?.();
+
+    const restarted = await startInstance({ ...env, NERDGRAM_TEST_FIXED_BIND: "0" });
+    stops.push(restarted.stop);
+    const host = await requestInstance(restarted.port, "/api/host", undefined, "127.0.0.2");
+    expect(host.status).toBe(200);
+    expect(host.json.saved).toBe("127.0.0.2");
+    expect(host.json.running).toBe("127.0.0.2");
+    expect(host.json.restartNotice).toBe(false);
+    expect(host.json.effectiveHosts).toEqual(["127.0.0.2"]);
+    const folder = await requestInstance(restarted.port, "/api/data-dir", undefined, "127.0.0.2");
+    expect(folder.status).toBe(200);
+    expect(folder.json.running).toBe(next);
+    expect(folder.json.saved).toBe(next);
+    expect(folder.json.restartNotice).toBe(false);
+    await expect(fs.access(path.join(next, ".meta", "listen-host.json"))).rejects.toThrow();
   }, 40_000);
 });

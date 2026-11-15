@@ -4,9 +4,17 @@ import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app.js";
+import { saveDataDir } from "../src/dataDir.js";
+import {
+  clearInstanceIdentityCache,
+  instanceFilePath,
+  readInstanceListenHost,
+  resetStartupDataDirForTests,
+  setExternalDataDirForTests,
+} from "../src/instanceConfig.js";
 import {
   DEFAULT_LISTEN_HOST,
   describeListenHost,
@@ -21,6 +29,7 @@ import {
   resolveEffectiveBind,
   writeSavedListenHost,
 } from "../src/listenHost.js";
+import { getDataRoot } from "../src/paths.js";
 import { closeServers, startServer } from "../src/listen.js";
 import { buildAllowedHostnames, buildAllowedOrigins, isAllowedHostHeader } from "../src/security.js";
 import { captureConsole, makeTempDataDir } from "./helpers.js";
@@ -195,11 +204,20 @@ describe("allowed hosts from the bind", () => {
 
 describe("listen host file and API", () => {
   let cleanup = async () => {};
+  let instanceCleanup = async () => {};
   const previousInstall = process.env.NERDGRAM_INSTALL;
+
+  beforeEach(async () => {
+    instanceCleanup = await isolateInstanceFile();
+  });
 
   afterEach(async () => {
     await cleanup();
     cleanup = async () => {};
+    await instanceCleanup();
+    instanceCleanup = async () => {};
+    setExternalDataDirForTests(undefined);
+    resetStartupDataDirForTests();
     if (previousInstall === undefined) delete process.env.NERDGRAM_INSTALL;
     else process.env.NERDGRAM_INSTALL = previousInstall;
   });
@@ -235,9 +253,10 @@ describe("listen host file and API", () => {
     expect(saved.body.restartNotice).toBe(true);
     expect(saved.body.effectiveHosts).toEqual(["127.0.0.1", "::1"]);
 
-    const file = JSON.parse(await fs.readFile(listenHostPath(), "utf8")) as { host: string };
-    expect(file).toEqual({ host: "192.168.1.10" });
-    expect(listenHostPath()).toBe(path.join(temp.dir, ".meta", "listen-host.json"));
+    const file = JSON.parse(await fs.readFile(instanceFilePath(), "utf8")) as { listenHost?: string };
+    expect(file.listenHost).toBe("192.168.1.10");
+    expect(instanceFilePath()).not.toBe(path.join(temp.dir, ".meta", "listen-host.json"));
+    await expect(fs.access(path.join(temp.dir, ".meta", "listen-host.json"))).rejects.toThrow();
 
     const again = await readSavedListenHost();
     expect(again).toEqual({ persisted: true, host: "192.168.1.10", invalid: false });
@@ -353,17 +372,53 @@ describe("listen host file and API", () => {
       else process.env.HOST = previousHost;
     }
   });
+
+  it("copies a legacy listen-host.json once and then ignores it", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    const legacy = path.join(temp.dir, ".meta", "listen-host.json");
+    await fs.mkdir(path.dirname(legacy), { recursive: true });
+    await fs.writeFile(legacy, `${JSON.stringify({ host: "192.168.4.4" })}\n`, "utf8");
+
+    const migrated = await readSavedListenHost();
+    expect(migrated).toEqual({ persisted: true, host: "192.168.4.4", invalid: false });
+    expect(readInstanceListenHost()).toEqual({ present: true, value: "192.168.4.4" });
+    expect(await fs.readFile(legacy, "utf8")).toContain("192.168.4.4");
+
+    await fs.writeFile(legacy, `${JSON.stringify({ host: "10.1.1.1" })}\n`, "utf8");
+    expect(await readSavedListenHost()).toEqual({ persisted: true, host: "192.168.4.4", invalid: false });
+  });
+
+  it("does not copy a legacy file when the instance config already has a Host", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    await writeSavedListenHost("127.0.0.8");
+    const legacy = path.join(temp.dir, ".meta", "listen-host.json");
+    await fs.mkdir(path.dirname(legacy), { recursive: true });
+    await fs.writeFile(legacy, `${JSON.stringify({ host: "10.2.2.2" })}\n`, "utf8");
+    expect(await readSavedListenHost()).toEqual({ persisted: true, host: "127.0.0.8", invalid: false });
+    expect(await fs.readFile(legacy, "utf8")).toContain("10.2.2.2");
+  });
 });
 
 describe("startServer uses the saved host", () => {
   const servers: Server[] = [];
   let cleanup = async () => {};
+  let instanceCleanup = async () => {};
+
+  beforeEach(async () => {
+    instanceCleanup = await isolateInstanceFile();
+  });
 
   afterEach(async () => {
     await closeServers(servers);
     servers.length = 0;
     await cleanup();
     cleanup = async () => {};
+    await instanceCleanup();
+    instanceCleanup = async () => {};
+    setExternalDataDirForTests(undefined);
+    resetStartupDataDirForTests();
   });
 
   async function listen(options: Parameters<typeof startServer>[0] = {}) {
@@ -490,13 +545,82 @@ describe("startServer uses the saved host", () => {
       expect(addresses).toContain("127.0.0.1");
       expect(captured.errors.join("\n")).toMatch(/not a valid address/);
       expect(await readSavedListenHost()).toMatchObject({ invalid: true, host: null });
+      expect(readInstanceListenHost().present).toBe(false);
     } finally {
       captured.restore();
       if (previous === undefined) delete process.env.HOST;
       else process.env.HOST = previous;
     }
   });
+
+  it("applies a saved Host and a saved Diagram folder on one restart", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    const next = await fs.mkdtemp(path.join(os.tmpdir(), "nerdgram-next-diagrams-"));
+    const previousHost = process.env.HOST;
+    delete process.env.HOST;
+    setExternalDataDirForTests(undefined);
+    resetStartupDataDirForTests();
+    const captured = captureConsole();
+    try {
+      const app = createApp({ mode: "production", port: 8787 });
+      const savedHost = await request(app)
+        .post("/api/host")
+        .set("Host", HOST_HEADER)
+        .set("Content-Type", "application/json")
+        .send({ host: "127.0.0.2" });
+      expect(savedHost.status).toBe(200);
+      expect(savedHost.body.restartNotice).toBe(true);
+      const savedDir = await saveDataDir(next);
+      expect(savedDir.restartNotice).toBe(true);
+      expect(savedDir.saved).toBe(next);
+      expect(savedDir.running).toBe(temp.dir);
+
+      const stored = JSON.parse(await fs.readFile(instanceFilePath(), "utf8")) as {
+        listenHost?: string;
+        NERDGRAM_DATA_DIR?: string;
+      };
+      expect(stored.listenHost).toBe("127.0.0.2");
+      expect(stored.NERDGRAM_DATA_DIR).toBe(next);
+      await expect(fs.access(path.join(temp.dir, ".meta", "listen-host.json"))).rejects.toThrow();
+
+      delete process.env.NERDGRAM_DATA_DIR;
+      resetStartupDataDirForTests();
+      clearInstanceIdentityCache();
+      const started = await listen();
+      expect(getDataRoot()).toBe(next);
+      expect(started).toHaveLength(1);
+      const address = started[0].address() as AddressInfo;
+      expect(address.address).toBe("127.0.0.2");
+      expect(await readSavedListenHost()).toEqual({ persisted: true, host: "127.0.0.2", invalid: false });
+      const restarted = createApp({ mode: "production", port: 8787, bindHosts: ["127.0.0.2"] });
+      const after = await request(restarted).get("/api/host").set("Host", "127.0.0.2:8787");
+      expect(after.body.saved).toBe("127.0.0.2");
+      expect(after.body.running).toBe("127.0.0.2");
+      expect(after.body.restartNotice).toBe(false);
+      expect(captured.logs.join("\n")).toContain(`Data directory: ${next}`);
+      await expect(fs.access(path.join(next, ".meta", "listen-host.json"))).rejects.toThrow();
+    } finally {
+      captured.restore();
+      await fs.rm(next, { recursive: true, force: true });
+      if (previousHost === undefined) delete process.env.HOST;
+      else process.env.HOST = previousHost;
+    }
+  });
 });
+
+async function isolateInstanceFile(): Promise<() => Promise<void>> {
+  const previous = process.env.NERDGRAM_INSTANCE_FILE;
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "nerdgram-host-instance-"));
+  process.env.NERDGRAM_INSTANCE_FILE = path.join(dir, "instance.json");
+  clearInstanceIdentityCache();
+  return async () => {
+    clearInstanceIdentityCache();
+    if (previous === undefined) delete process.env.NERDGRAM_INSTANCE_FILE;
+    else process.env.NERDGRAM_INSTANCE_FILE = previous;
+    await fs.rm(dir, { recursive: true, force: true });
+  };
+}
 
 function httpStatus(port: number, hostHeader: string, connectHost = "127.0.0.1"): Promise<number> {
   return new Promise((resolve, reject) => {

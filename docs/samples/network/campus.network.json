@@ -239,6 +239,46 @@
       "switchportMode": "trunk",
       "trunkVlans": [20, 10],
       "nativeVlan": 1
+    },
+    {
+      "device": "core-rtr",
+      "name": "GigabitEthernet0/1/0",
+      "description": "L2 uplink to dist-sw",
+      "adminStatus": "up",
+      "operStatus": "up",
+      "switchportMode": "trunk",
+      "trunkVlans": [10, 20, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40],
+      "nativeVlan": 99
+    },
+    {
+      "device": "dist-sw",
+      "name": "GigabitEthernet1/0/51",
+      "description": "L2 uplink to core-rtr",
+      "adminStatus": "up",
+      "operStatus": "up",
+      "switchportMode": "trunk",
+      "trunkVlans": [10, 20, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40],
+      "nativeVlan": 99
+    },
+    {
+      "device": "core-rtr",
+      "name": "GigabitEthernet0/1/1",
+      "description": "L2 to wan-rtr",
+      "adminStatus": "up",
+      "operStatus": "up",
+      "switchportMode": "trunk",
+      "trunkVlans": [10, 20, 30],
+      "nativeVlan": 99
+    },
+    {
+      "device": "wan-rtr",
+      "name": "GigabitEthernet0/1/0",
+      "description": "L2 to core-rtr",
+      "adminStatus": "up",
+      "operStatus": "up",
+      "switchportMode": "trunk",
+      "trunkVlans": [10, 20, 30],
+      "nativeVlan": 99
     }
   ],
   "links": [
@@ -261,6 +301,14 @@
     {
       "a": { "device": "access-b", "interface": "Gi1/0/47" },
       "b": { "device": "access-a", "interface": "Gi1/0/47" }
+    },
+    {
+      "a": { "device": "core-rtr", "interface": "Gi0/1/0" },
+      "b": { "device": "dist-sw", "interface": "Gi1/0/51" }
+    },
+    {
+      "a": { "device": "wan-rtr", "interface": "Gi0/1/0" },
+      "b": { "device": "core-rtr", "interface": "Gi0/1/1" }
     }
   ],
   "vlans": [

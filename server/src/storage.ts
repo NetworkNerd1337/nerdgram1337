@@ -18,7 +18,7 @@ import { getMetaPath } from "./paths.js";
  * - `.meta/search/index.json` — optional text-search cache; rebuilt from the diagrams if missing
  * - `.meta/replace/operations.json` — ids for workspace replace undo, pointing at revision ids
  * - `.meta/diagram-sightings.json` — path and content hash of diagrams already seen, used to repair click links after a rename outside the app
- * - `.meta/listen-host.json` — saved Host setting (`{"host":"127.0.0.1"}`). HOST overrides it. Git sync does not copy `.meta`
+ * - `.meta/listen-host.json` — older Host setting. A valid value is copied once into the instance config (`~/.nerdgram/instance.json` or `NERDGRAM_INSTANCE_FILE`) when that config has no Host yet. The file is left in place and then ignored. New saves do not write it. HOST still overrides the saved Host. Git sync does not copy `.meta`
  *
  * Move, duplicate, and import (#9) should reuse `atomicWriteText`,
  * `evaluateWrite`, and `resolveAvailablePath` instead of calling

@@ -103,7 +103,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
   const saved = await readSavedListenHost();
   if (saved.invalid) {
     console.error(
-      "Saved listen host in .meta/listen-host.json is not a valid address. NerdGram is using the default loopback bind until the Host setting is saved again.",
+      "Saved listen host is not a valid address. NerdGram is using the default loopback bind until the Host setting is saved again.",
     );
   }
   const decision = options.hosts

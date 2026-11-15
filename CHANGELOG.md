@@ -12,6 +12,14 @@ The Diagram folder setting stores `NERDGRAM_DATA_DIR` in that same startup confi
 
 The restart note on Host and on Diagram folder shows only while the saved value differs from the value this process started with. After a restart that is running the saved value, the note is gone.
 
+### Host setting
+
+The Host setting is stored in the instance startup config (`~/.nerdgram/instance.json`, or `NERDGRAM_INSTANCE_FILE`), with the instance id and the Diagram folder. It is not stored in the diagram folder, so installs that share a folder keep their own bind address. An existing `<data>/.meta/listen-host.json` is copied into that config once, when the config has no Host yet, and the old file is left in place and then ignored. `HOST` still wins. Docker is unchanged: the image sets `HOST=0.0.0.0` and the box stays read-only. Saving Host and Diagram folder, then restarting once, applies both. The restart note still shows only until that restart.
+
+### Campus sample
+
+The campus network sample connects `core-rtr` to the distribution switch and `wan-rtr` to the core on Layer 2 trunks. The Layer 2 view no longer warns that those nodes are defined but never connected. The Layer 3 view is unchanged.
+
 ### Network data
 
 From #74. **From data** accepts a vendor-neutral network JSON file (`.network.json`, `schemaVersion` 1) and draws either a Layer 3 subnet view or a Layer 2 VLAN, trunk, and LAG view. NerdGram does not parse vendor CLI for this, and it does not call an LLM. The caller builds the JSON with the tools they already have. The same input always produces the same generated block. Generate, preview, and refresh take `format: "network"` and `view: "l3"` or `"l2"`. `nerdgram generate --format network --view l3|l2` and `nerdgram refresh` do the same. The data file is stored beside the diagram, and rename, move, duplicate, and delete move it the way they move a CSV. The schema is `docs/schema/network.schema.json`. A campus sample is `docs/samples/network/campus.network.json`.
