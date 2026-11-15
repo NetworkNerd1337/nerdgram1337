@@ -30,18 +30,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Atlas title and the 1.2.0 section without the heading", () => {
-    const title = notes(["--title", "v1.2.0"]);
+  it("prints the Atlas title and the 1.2.1 section without the heading", () => {
+    const title = notes(["--title", "v1.2.1"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.2.0 "Atlas"\n');
-    const body = notes(["v1.2.0"]);
+    expect(title.stdout).toBe('v1.2.1 "Atlas"\n');
+    const body = notes(["v1.2.1"]);
     expect(body.code).toBe(0);
-    expect(body.stdout.startsWith("Minor release on the Atlas line.")).toBe(true);
-    expect(body.stdout).toContain("Support on Ko-fi");
-    expect(body.stdout).toContain("nerdgram diff");
-    expect(body.stdout).toContain("nerdgram replace");
-    expect(body.stdout).not.toContain('## 1.2.0 "Atlas"');
-    expect(body.stdout).not.toContain("Maintenance release on the Atlas line.");
+    expect(body.stdout.startsWith("Patch on the Atlas line.")).toBe(true);
+    expect(body.stdout).toContain("Diagram checks");
+    expect(body.stdout).toContain("Workspace problems");
+    expect(body.stdout).not.toContain('## 1.2.1 "Atlas"');
+    expect(body.stdout).not.toContain("Minor release on the Atlas line.");
   });
 
   it("matches a quoted heading and a bracket heading, and not a longer patch", () => {
