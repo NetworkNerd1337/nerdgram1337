@@ -264,6 +264,20 @@ const errorSchema = {
   properties: {
     error: { type: "string" },
     code: { type: "string" },
+    lock: {
+      type: "object",
+      description:
+        "Present when code is locked. instanceName, hostname, acquiredAt, and heartbeatAt identify the holder. sameInstance is false when another NerdGram instance holds the diagram.",
+      properties: {
+        instanceId: { type: "string" },
+        instanceName: { type: "string" },
+        hostname: { type: "string" },
+        acquiredAt: { type: "string" },
+        heartbeatAt: { type: "string" },
+        sameInstance: { type: "boolean" },
+        staleAfterMs: { type: "number" },
+      },
+    },
   },
   required: ["error"],
 };
@@ -511,7 +525,11 @@ export function buildOpenApiSpec(): Record<string, unknown> {
     }
     if (route.scope === "write") {
       responses["403"] = { description: "The token is read-only.", content: { "application/json": { schema: errorSchema } } };
-      responses["423"] = { description: "An editor lock is held.", content: { "application/json": { schema: errorSchema } } };
+      responses["423"] = {
+        description:
+          "An editor lock is held. The body names the holding instance (instanceName, hostname, acquiredAt, heartbeatAt) when the lock has one.",
+        content: { "application/json": { schema: errorSchema } },
+      };
     }
     if (route.tag === "Render") {
       responses["429"] = { description: "Render rate limit.", content: { "application/json": { schema: errorSchema } } };

@@ -1,18 +1,29 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { applyStartupDataDir } from "./instanceConfig.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** Repo root: server/src -> server -> root */
 export const REPO_ROOT = path.resolve(__dirname, "../..");
 
+export function defaultDataRoot(): string {
+  return path.join(REPO_ROOT, "diagrams");
+}
+
+/**
+ * NERDGRAM_DATA_DIR when it is set, otherwise `<repo>/diagrams`.
+ * Startup copies a saved Diagram folder into that variable first, and only
+ * when the process was not already given NERDGRAM_DATA_DIR.
+ */
 export function getDataRoot(): string {
+  applyStartupDataDir();
   const fromEnv = process.env.NERDGRAM_DATA_DIR;
   if (fromEnv && fromEnv.trim()) {
     return path.resolve(fromEnv);
   }
-  return path.join(REPO_ROOT, "diagrams");
+  return defaultDataRoot();
 }
 
 export function ensureDataRoot(): string {

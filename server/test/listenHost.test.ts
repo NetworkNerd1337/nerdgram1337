@@ -126,13 +126,17 @@ describe("resolveEffectiveBind", () => {
 });
 
 describe("hostRestartNotice", () => {
-  it("appears only when a saved value exists and it is not 127.0.0.1", () => {
-    expect(hostRestartNotice(null)).toBe(false);
-    expect(hostRestartNotice("127.0.0.1")).toBe(false);
-    expect(hostRestartNotice("0.0.0.0")).toBe(true);
-    expect(hostRestartNotice("::")).toBe(true);
-    expect(hostRestartNotice("192.168.1.10")).toBe(true);
-    expect(hostRestartNotice("::1")).toBe(true);
+  it("appears only while the saved host differs from the host this process started with", () => {
+    expect(hostRestartNotice(null, "127.0.0.1")).toBe(false);
+    expect(hostRestartNotice("127.0.0.1", "127.0.0.1")).toBe(false);
+    expect(hostRestartNotice("0.0.0.0", "127.0.0.1")).toBe(true);
+    expect(hostRestartNotice("0.0.0.0", "0.0.0.0")).toBe(false);
+    expect(hostRestartNotice("::", "127.0.0.1")).toBe(true);
+    expect(hostRestartNotice("::", "::")).toBe(false);
+    expect(hostRestartNotice("192.168.1.10", "127.0.0.1")).toBe(true);
+    expect(hostRestartNotice("192.168.1.10", "192.168.1.10")).toBe(false);
+    expect(hostRestartNotice("::1", "::1")).toBe(false);
+    expect(hostRestartNotice("192.168.1.10", "0.0.0.0")).toBe(true);
   });
 });
 
@@ -253,6 +257,52 @@ describe("listen host file and API", () => {
       .send({ host: "127.0.0.1" });
     expect(cleared.body.restartNotice).toBe(false);
     expect(cleared.body.saved).toBe("127.0.0.1");
+    expect(cleared.body.running).toBe("127.0.0.1");
+  });
+
+  it("hides the restart notice once the process is bound to the saved host", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    const previous = process.env.HOST;
+    delete process.env.HOST;
+    try {
+      await writeSavedListenHost("0.0.0.0");
+      const pending = createApp({ mode: "production", port: 8787 });
+      const before = await request(pending).get("/api/host").set("Host", HOST_HEADER);
+      expect(before.body.saved).toBe("0.0.0.0");
+      expect(before.body.running).toBe("127.0.0.1");
+      expect(before.body.restartNotice).toBe(true);
+
+      const restarted = createApp({ mode: "production", port: 8787, bindHosts: ["0.0.0.0"] });
+      const after = await request(restarted).get("/api/host").set("Host", HOST_HEADER);
+      expect(after.body.saved).toBe("0.0.0.0");
+      expect(after.body.running).toBe("0.0.0.0");
+      expect(after.body.restartNotice).toBe(false);
+      expect(after.body.envOverrides).toBe(false);
+    } finally {
+      if (previous === undefined) delete process.env.HOST;
+      else process.env.HOST = previous;
+    }
+  });
+
+  it("does not ask for a restart when HOST already matches the saved host", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    const previous = process.env.HOST;
+    process.env.HOST = "0.0.0.0";
+    try {
+      await writeSavedListenHost("0.0.0.0");
+      const app = createApp({ mode: "production", port: 8787, bindHosts: ["0.0.0.0"] });
+      const status = await request(app).get("/api/host").set("Host", HOST_HEADER);
+      expect(status.body.envOverrides).toBe(true);
+      expect(status.body.envHost).toBe("0.0.0.0");
+      expect(status.body.saved).toBe("0.0.0.0");
+      expect(status.body.running).toBe("0.0.0.0");
+      expect(status.body.restartNotice).toBe(false);
+    } finally {
+      if (previous === undefined) delete process.env.HOST;
+      else process.env.HOST = previous;
+    }
   });
 
   it("refuses to save in Docker and shows the env override", async () => {

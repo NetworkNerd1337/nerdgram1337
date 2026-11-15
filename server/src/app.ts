@@ -40,6 +40,8 @@ import {
   readSavedListenHost,
   writeSavedListenHost,
 } from "./listenHost.js";
+import { describeDataDir, saveDataDir } from "./dataDir.js";
+import { getInstanceIdentity, parseInstanceName, saveInstanceName } from "./instanceConfig.js";
 import { detectInstallKind } from "./updates/installKind.js";
 
 export type ListenPort = { port: number };
@@ -180,6 +182,54 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       if (!parsed.ok) throw httpFail(400, parsed.error, "invalid");
       await writeSavedListenHost(parsed.host);
       res.json(await listenHostStatus());
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.get("/api/data-dir", async (_req, res) => {
+    try {
+      res.json(await describeDataDir());
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/data-dir", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      res.json(await saveDataDir(req.body?.path));
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  const instanceStatus = async () => {
+    const identity = await getInstanceIdentity();
+    return {
+      instanceId: identity.instanceId,
+      instanceName: identity.instanceName,
+      hostname: identity.hostname,
+      configuredName: identity.configuredName,
+      nameIsDefault: identity.configuredName == null,
+    };
+  };
+
+  app.get("/api/instance", async (_req, res) => {
+    try {
+      res.json(await instanceStatus());
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/instance", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      const parsed = parseInstanceName(req.body?.name);
+      if (!parsed.ok) throw httpFail(400, parsed.error, "invalid");
+      await saveInstanceName(parsed.name);
+      res.json(await instanceStatus());
     } catch (err) {
       sendError(res, err);
     }

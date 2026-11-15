@@ -6,7 +6,9 @@ import { CommandsButton } from "../components/CommandPalette";
 import { SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { Modal } from "../components/Modal";
+import { DiagramFolderSettings } from "../components/DiagramFolderSettings";
 import { HostSettings } from "../components/HostSettings";
+import { InstanceSettings } from "../components/InstanceSettings";
 import { LintSettings } from "../components/LintSettings";
 import { TokenSettings } from "../components/TokenSettings";
 import { UpdateSettingsFields } from "../components/UpdateHost";
@@ -103,11 +105,13 @@ export function SettingsPage() {
           <div>
             <h1>Settings</h1>
             <p className="reference-meta">
-              GitHub sync, the listen host, automation tokens, and diagram checks.
+              GitHub sync, the listen host, the diagram folder, the instance name, automation tokens, and diagram checks.
             </p>
             <nav className="settings-nav" aria-label="Settings sections">
               <a href="#github-sync">GitHub sync</a>
               <a href="#host">Host</a>
+              <a href="#diagram-folder">Diagram folder</a>
+              <a href="#instance">Instance name</a>
               <a href="#tokens">Automation tokens</a>
               <a href="#diagram-checks">Diagram checks</a>
               <a href="#app-updates">App updates</a>
@@ -396,6 +400,8 @@ export function SettingsPage() {
           </section>
         ) : null}
         <HostSettings />
+        <DiagramFolderSettings githubSync={status?.enabled === true} />
+        <InstanceSettings />
         <TokenSettings />
         <LintSettings />
         <section className="sync-card" id="app-updates">

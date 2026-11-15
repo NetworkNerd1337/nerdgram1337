@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { getInstanceIdentity, type InstanceIdentity } from "./instanceConfig.js";
 import {
   LOCK_HEARTBEAT_MS,
   LOCK_STALE_MS,
@@ -23,14 +24,24 @@ export type LockRecord = {
   pid: number;
   acquiredAt: string;
   heartbeatAt: string;
+  /** Absent on locks written before instance ids. */
+  instanceId?: string;
+  instanceName?: string;
+  hostname?: string;
 };
 
 type LockFile = LockRecord & { stale: boolean };
 
-const LOCKED_MESSAGE = "This diagram is open in another window.";
+const SAME_INSTANCE_MESSAGE = "This diagram is open in another window.";
 
 function lockFile(relativePath: string): string {
   return path.join(getLocksRoot(), `${encodeStorageKey(relativePath)}.json`);
+}
+
+function optionalText(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
 }
 
 function isLockRecord(value: unknown): value is LockRecord {
@@ -46,29 +57,97 @@ function isLockRecord(value: unknown): value is LockRecord {
   );
 }
 
-export function lockIsStale(record: LockRecord, now = Date.now()): boolean {
+function normalizeLock(record: LockRecord): LockRecord {
+  const instanceId = optionalText(record.instanceId);
+  const instanceName = optionalText(record.instanceName);
+  const hostname = optionalText(record.hostname);
+  return {
+    path: record.path,
+    token: record.token,
+    sessionId: record.sessionId,
+    pid: record.pid,
+    acquiredAt: record.acquiredAt,
+    heartbeatAt: record.heartbeatAt,
+    ...(instanceId ? { instanceId } : {}),
+    ...(instanceName ? { instanceName } : {}),
+    ...(hostname ? { hostname } : {}),
+  };
+}
+
+/**
+ * A dead pid is stale only for this instance, and for a legacy lock that has
+ * no instance id (it was written on one computer, before instance ids).
+ * Another instance is judged by heartbeat age alone. Its pid is not in this
+ * process table.
+ */
+export function lockIsStale(record: LockRecord, now = Date.now(), instanceId?: string): boolean {
   const heartbeat = Date.parse(record.heartbeatAt);
   if (!Number.isFinite(heartbeat) || now - heartbeat > LOCK_STALE_MS) return true;
-  // A dead pid is another server process that crashed. This process is always
-  // "alive", including when the lock belongs to a different browser tab.
-  if (record.pid !== process.pid && !isProcessAlive(record.pid)) return true;
+  const legacy = !optionalText(record.instanceId);
+  const sameInstance = Boolean(instanceId) && record.instanceId === instanceId;
+  if ((sameInstance || legacy) && record.pid !== process.pid && !isProcessAlive(record.pid)) return true;
   return false;
+}
+
+function sameInstance(record: LockRecord, identity: InstanceIdentity): boolean {
+  return !optionalText(record.instanceId) || record.instanceId === identity.instanceId;
+}
+
+function diagramLabel(relativePath: string): string {
+  const base = relativePath.split("/").pop() || relativePath;
+  return base.replace(/\.mmd$/i, "") || base;
+}
+
+export function formatLockSince(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(date);
+}
+
+export function lockedMessage(record: LockRecord, identity: InstanceIdentity): string {
+  if (sameInstance(record, identity)) return SAME_INSTANCE_MESSAGE;
+  const name = record.instanceName || record.hostname || "another instance";
+  const host =
+    record.hostname && record.instanceName && record.hostname !== record.instanceName
+      ? ` (${record.hostname})`
+      : "";
+  return `${diagramLabel(record.path)} is open on ${name}${host} since ${formatLockSince(record.acquiredAt)}. Try again when it's closed.`;
 }
 
 async function readLock(relativePath: string): Promise<LockFile | null> {
   const parsed = await readJsonFile<unknown>(lockFile(relativePath));
   if (!isLockRecord(parsed)) return null;
-  return { ...parsed, stale: lockIsStale(parsed) };
+  const record = normalizeLock(parsed);
+  const identity = await getInstanceIdentity();
+  return { ...record, stale: lockIsStale(record, Date.now(), identity.instanceId) };
 }
 
-function lockedError(record: LockRecord): Error {
-  return httpFail(423, LOCKED_MESSAGE, "locked", {
-    lock: {
-      acquiredAt: record.acquiredAt,
-      heartbeatAt: record.heartbeatAt,
-      staleAfterMs: LOCK_STALE_MS,
-    },
+function holderDetails(record: LockRecord, identity: InstanceIdentity) {
+  return {
+    acquiredAt: record.acquiredAt,
+    heartbeatAt: record.heartbeatAt,
+    staleAfterMs: LOCK_STALE_MS,
+    instanceId: record.instanceId ?? null,
+    instanceName: record.instanceName ?? null,
+    hostname: record.hostname ?? null,
+    sameInstance: sameInstance(record, identity),
+  };
+}
+
+async function lockedError(record: LockRecord): Promise<Error> {
+  const identity = await getInstanceIdentity();
+  return httpFail(423, lockedMessage(record, identity), "locked", {
+    lock: holderDetails(record, identity),
   });
+}
+
+function stampIdentity(record: LockRecord, identity: InstanceIdentity): LockRecord {
+  return {
+    ...record,
+    instanceId: identity.instanceId,
+    instanceName: identity.instanceName,
+    hostname: identity.hostname,
+  };
 }
 
 function publicLock(record: LockRecord) {
@@ -94,38 +173,49 @@ export async function acquireLock(
   assertSafeId(sessionId);
   await fs.mkdir(getLocksRoot(), { recursive: true });
   const file = lockFile(normalized);
+  const identity = await getInstanceIdentity();
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const existing = await readLock(normalized);
     if (existing && !existing.stale) {
       // Same tab (same session id, same server process) can take its token back
       // after a refresh. A different tab has a different session id.
-      if (existing.sessionId === sessionId && existing.pid === process.pid) {
-        const refreshed: LockRecord = {
-          path: existing.path,
-          token: existing.token,
-          sessionId: existing.sessionId,
-          pid: existing.pid,
-          acquiredAt: existing.acquiredAt,
-          heartbeatAt: new Date().toISOString(),
-        };
+      if (
+        existing.sessionId === sessionId &&
+        existing.pid === process.pid &&
+        sameInstance(existing, identity)
+      ) {
+        const refreshed = stampIdentity(
+          {
+            path: existing.path,
+            token: existing.token,
+            sessionId: existing.sessionId,
+            pid: existing.pid,
+            acquiredAt: existing.acquiredAt,
+            heartbeatAt: new Date().toISOString(),
+          },
+          identity,
+        );
         await atomicWriteJson(file, refreshed);
         const confirmed = await readLock(normalized);
         if (confirmed?.token === refreshed.token) return publicLock(refreshed);
         continue;
       }
-      throw lockedError(existing);
+      throw await lockedError(existing);
     }
 
     const now = new Date().toISOString();
-    const record: LockRecord = {
-      path: normalized,
-      token: createId(),
-      sessionId,
-      pid: process.pid,
-      acquiredAt: existing?.stale ? existing.acquiredAt : now,
-      heartbeatAt: now,
-    };
+    const record = stampIdentity(
+      {
+        path: normalized,
+        token: createId(),
+        sessionId,
+        pid: process.pid,
+        acquiredAt: existing?.stale ? existing.acquiredAt : now,
+        heartbeatAt: now,
+      },
+      identity,
+    );
     await atomicWriteJson(file, record);
     const confirmed = await readLock(normalized);
     if (confirmed?.token === record.token) return publicLock(record);
@@ -142,14 +232,18 @@ export async function heartbeatLock(
   if (!existing || existing.stale || existing.token !== token) {
     throw httpFail(423, "The editor lock is no longer held by this window.", "locked");
   }
-  const next: LockRecord = {
-    path: existing.path,
-    token: existing.token,
-    sessionId: existing.sessionId,
-    pid: existing.pid,
-    acquiredAt: existing.acquiredAt,
-    heartbeatAt: new Date().toISOString(),
-  };
+  const identity = await getInstanceIdentity();
+  const next = stampIdentity(
+    {
+      path: existing.path,
+      token: existing.token,
+      sessionId: existing.sessionId,
+      pid: existing.pid,
+      acquiredAt: existing.acquiredAt,
+      heartbeatAt: new Date().toISOString(),
+    },
+    identity,
+  );
   await atomicWriteJson(lockFile(normalizeRelative(relativePath)), next);
   const confirmed = await readLock(relativePath);
   if (!confirmed || confirmed.token !== token) {
@@ -168,12 +262,13 @@ export async function takeoverLock(
 ): Promise<ReturnType<typeof publicLock>> {
   const normalized = normalizeRelative(relativePath);
   const existing = await readLock(normalized);
+  const identity = await getInstanceIdentity();
   if (
     existing &&
     !existing.stale &&
-    !(existing.sessionId === sessionId && existing.pid === process.pid)
+    !(existing.sessionId === sessionId && existing.pid === process.pid && sameInstance(existing, identity))
   ) {
-    throw lockedError(existing);
+    throw await lockedError(existing);
   }
   return acquireLock(relativePath, sessionId);
 }
@@ -182,7 +277,7 @@ export async function releaseLock(relativePath: string, token: string): Promise<
   const existing = await readLock(relativePath);
   if (!existing) return;
   if (existing.token !== token) {
-    throw httpFail(423, LOCKED_MESSAGE, "locked");
+    throw await lockedError(existing);
   }
   await fs.rm(lockFile(normalizeRelative(relativePath)), { force: true });
 }
@@ -198,7 +293,7 @@ export async function assertWriteAllowed(
   const existing = await readLock(relativePath);
   if (!existing || existing.stale) return;
   if (token && existing.token === token) return;
-  throw lockedError(existing);
+  throw await lockedError(existing);
 }
 
 async function eachLock(): Promise<LockFile[]> {
@@ -217,7 +312,9 @@ async function eachLock(): Promise<LockFile[]> {
     if (!itemPath) continue;
     const parsed = await readJsonFile<unknown>(path.join(getLocksRoot(), name));
     if (!isLockRecord(parsed)) continue;
-    locks.push({ ...parsed, path: itemPath, stale: lockIsStale(parsed) });
+    const record = normalizeLock({ ...parsed, path: itemPath });
+    const identity = await getInstanceIdentity();
+    locks.push({ ...record, stale: lockIsStale(record, Date.now(), identity.instanceId) });
   }
   return locks;
 }
@@ -230,7 +327,7 @@ function covers(lockPath: string, relativePath: string, isDir: boolean): boolean
 export async function assertUnlocked(relativePath: string, isDir: boolean): Promise<void> {
   for (const lock of await eachLock()) {
     if (lock.stale || !covers(lock.path, relativePath, isDir)) continue;
-    throw lockedError(lock);
+    throw await lockedError(lock);
   }
 }
 
@@ -259,6 +356,9 @@ export async function relocateLocks(
       pid: lock.pid,
       acquiredAt: lock.acquiredAt,
       heartbeatAt: lock.heartbeatAt,
+      ...(lock.instanceId ? { instanceId: lock.instanceId } : {}),
+      ...(lock.instanceName ? { instanceName: lock.instanceName } : {}),
+      ...(lock.hostname ? { hostname: lock.hostname } : {}),
     };
     await fs.rm(lockFile(lock.path), { force: true });
     if (!(await pathExists(lockFile(nextPath)))) {
