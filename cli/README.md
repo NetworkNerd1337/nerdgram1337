@@ -45,7 +45,7 @@ nerdgram render Welcome.mmd -o Welcome.svg
 
 The app still has to be reachable for every other command. NerdGram is a single-user app. The API is a tool port for programs you trust, not an always-on multi-user server. The browser routes have no token, so anyone who can reach the port can use them. The default URL is loopback. Point `NERDGRAM_URL` at another machine only when that machine has opened its Host setting to you.
 
-The full command list and the release notes are in the [repository README](https://github.com/NetworkNerd1337/NerdGram1337#command-line-tool).
+The full command list is in the [command-line tool](https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/cli.md) page. Release notes are in the [changelog](https://github.com/NetworkNerd1337/NerdGram1337/blob/main/CHANGELOG.md).
 
 ## License
 

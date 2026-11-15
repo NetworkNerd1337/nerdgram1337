@@ -477,7 +477,7 @@ describe("GitHub sync", () => {
     const missing = await request(app).post("/api/sync/device/start").set(json).send({});
     expect(missing.status).toBe(400);
     expect(missing.body.code).toBe("invalid_client");
-    expect(missing.body.error).toMatch(/README/i);
+    expect(missing.body.error).toMatch(/GitHub sync page/i);
     expect(missing.body.error).toContain("github-sync");
 
     await request(app).post("/api/sync/client-id").set(json).send({ clientId: CLIENT_ID });

@@ -13,7 +13,7 @@ import { sanitizeThumbnailSvg } from "./thumbnails.js";
  * back as a guess and the layout collapses. Puppeteer's chrome-headless-shell
  * is the same engine family as the editor, so SVG and PNG match what the
  * preview draws. The shell is smaller than full Chrome; the image still grows
- * by that browser plus the libraries it links. See the README.
+ * by that browser plus the libraries it links. See docs/api.md.
  *
  * `securityLevel` is forced to `strict` and the SVG is passed through the
  * same sanitizer as cached thumbnails. A diagram directive cannot turn that off.

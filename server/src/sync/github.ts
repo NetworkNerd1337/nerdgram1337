@@ -36,7 +36,7 @@ export function githubApi(): string {
 }
 
 const DEVICE_HELP =
-  "Create an OAuth app in your own GitHub account, enable Device flow, and paste that app's client ID. NerdGram does not ship a client ID or client secret. The steps are in the README under GitHub sync.";
+  "Create an OAuth app in your own GitHub account, enable Device flow, and paste that app's client ID. NerdGram does not ship a client ID or client secret. The steps are on the GitHub sync page.";
 
 export async function requestDeviceCode(clientId: string): Promise<DeviceCode> {
   const response = await githubFetch(`${githubWeb()}/login/device/code`, {

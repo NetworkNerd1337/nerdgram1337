@@ -14,7 +14,7 @@ import { TokenSettings } from "../components/TokenSettings";
 import { UpdateSettingsFields } from "../components/UpdateHost";
 import type { SyncStatus } from "../types";
 
-const DOCS = "https://github.com/NetworkNerd1337/NerdGram1337#github-sync";
+const DOCS = "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/github-sync.md";
 
 function formatWhen(iso: string | null): string {
   if (!iso) return "Not yet";
@@ -142,7 +142,7 @@ export function SettingsPage() {
             keystroke. Renames, moves, deletes, and imports commit after about a second.
           </p>
           <p>
-            <a href={docs}>Setup steps in the README</a>
+            <a href={docs}>Setup steps</a>
           </p>
         </section>
 

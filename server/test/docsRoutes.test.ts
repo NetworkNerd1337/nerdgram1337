@@ -30,11 +30,11 @@ function routeRows(block: string): { method: string; path: string; scope: string
 }
 
 describe("automation docs stay aligned with V1_ROUTES", () => {
-  const readme = fs.readFileSync(path.join(repoRoot, "README.md"), "utf8");
+  const readme = fs.readFileSync(path.join(repoRoot, "docs/api.md"), "utf8");
   const cli = fs.readFileSync(path.join(repoRoot, "docs/cli.md"), "utf8");
   const serverCli = fs.readFileSync(path.join(repoRoot, "server/src/cli.ts"), "utf8");
 
-  it("lists every V1 route in the README endpoint table", () => {
+  it("lists every V1 route in the docs/api.md endpoint table", () => {
     const rows = routeRows(between(readme, "<!-- v1-route-table -->", "<!-- /v1-route-table -->"));
     const expected = V1_ROUTES.map((route) => `${route.method} ${openApiPath(route)}`).sort();
     const found = rows.map((row) => `${row.method} ${row.path}`).sort();

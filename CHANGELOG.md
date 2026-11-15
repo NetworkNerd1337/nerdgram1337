@@ -4,6 +4,8 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- The README is a short overview. Install, features, the API, the CLI, and the other guides are pages under `docs/`.
+
 ## 1.4.0 "Atlas" - 2026-11-15
 
 Minor release on the Atlas line. The code name stays Atlas. Two installs can share one diagram folder, with instance-aware file locks, a Diagram folder setting, and team use docs. A vendor-neutral network JSON file draws a Layer 3 subnet view or a Layer 2 VLAN, trunk, and LAG view. Host is stored per instance, and the campus sample connects the Layer 2 uplinks.
