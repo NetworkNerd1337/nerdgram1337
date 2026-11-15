@@ -1,13 +1,14 @@
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { readInstanceListenHost, saveInstanceListenHost } from "./instanceConfig.js";
 import { getMetaPath } from "./paths.js";
 import {
   isLoopbackBindHost,
   normalizeHostname,
   resolveBindHosts,
 } from "./security.js";
-import { atomicWriteJson, readJsonFile } from "./storage.js";
+import { readJsonFile } from "./storage.js";
 
 /**
  * The Host setting shown in the UI. Saving this value keeps today's default:
@@ -16,7 +17,12 @@ import { atomicWriteJson, readJsonFile } from "./storage.js";
  */
 export const DEFAULT_LISTEN_HOST = "127.0.0.1";
 
-/** Persisted under the data directory, next to the other `.meta` settings. */
+/**
+ * Older saves wrote the Host setting here, inside the diagram folder.
+ * A one-time migration copies a valid value into the instance config when
+ * that config has no Host yet. The file is left in place and then ignored.
+ * New saves do not write it, so installs that share a folder keep their own Host.
+ */
 export const LISTEN_HOST_FILE = "listen-host.json";
 
 export type ListenHostSource = "env" | "saved" | "default";
@@ -33,6 +39,7 @@ export type HostParse = { ok: true; host: string } | { ok: false; error: string 
 const HOST_ERROR =
   "Host must be an IPv4 or IPv6 address, 0.0.0.0, or ::. A hostname is not accepted here; add a DNS name with NERDGRAM_ALLOWED_HOSTS.";
 
+/** Legacy `<data>/.meta/listen-host.json`. Not the current save location. */
 export function listenHostPath(): string {
   return path.join(getMetaPath(), LISTEN_HOST_FILE);
 }
@@ -217,7 +224,25 @@ export function formatListenHostLog(input: {
   return `Listen host: ${list} (default). HOST is unset and the saved Host setting is ${input.savedHost ?? DEFAULT_LISTEN_HOST}.`;
 }
 
+function interpretSavedHost(value: unknown): SavedListenHost {
+  const parsed = parseListenHostInput(value);
+  if (!parsed.ok) return { persisted: true, host: null, invalid: true };
+  return { persisted: true, host: parsed.host, invalid: false };
+}
+
+/**
+ * Read the Host setting from the instance config. When that config has no
+ * Host yet, copy a valid `<data>/.meta/listen-host.json` in once and then
+ * stop reading it. The old file stays where it is. A broken legacy file is
+ * still reported until a valid Host is saved, so the warning does not disappear.
+ */
 export async function readSavedListenHost(): Promise<SavedListenHost> {
+  const stored = readInstanceListenHost();
+  if (stored.present) return interpretSavedHost(stored.value);
+  return migrateLegacyListenHost();
+}
+
+async function migrateLegacyListenHost(): Promise<SavedListenHost> {
   let file: unknown;
   try {
     file = await readJsonFile<unknown>(listenHostPath());
@@ -230,11 +255,12 @@ export async function readSavedListenHost(): Promise<SavedListenHost> {
   }
   const parsed = parseListenHostInput((file as { host?: unknown }).host);
   if (!parsed.ok) return { persisted: true, host: null, invalid: true };
+  await saveInstanceListenHost(parsed.host);
   return { persisted: true, host: parsed.host, invalid: false };
 }
 
 export async function writeSavedListenHost(host: string): Promise<void> {
-  await atomicWriteJson(listenHostPath(), { host });
+  await saveInstanceListenHost(host);
 }
 
 export type ListenHostStatus = {

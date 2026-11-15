@@ -54,9 +54,14 @@ export function HostSettings() {
         Docker the image sets <code>HOST=0.0.0.0</code>, so this box cannot change the bind.
         Other machines reach the container only through the published port.
       </p>
+      <p>
+        The saved address belongs to this install. It is stored with the instance name and the
+        Diagram folder, not in the diagram folder, so two installs that share a folder keep
+        their own Host.
+      </p>
       {status?.invalid ? (
         <div className="error-banner">
-          The saved host file is not a valid address. NerdGram is using the default loopback bind until you save a new value.
+          The saved host is not a valid address. NerdGram is using the default loopback bind until you save a new value.
         </div>
       ) : null}
       {error ? <div className="error-banner">{error}</div> : null}

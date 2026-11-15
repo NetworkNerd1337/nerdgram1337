@@ -10,12 +10,18 @@ import path from "node:path";
  * NERDGRAM_DATA_DIR in this file is the Diagram folder setting. getDataRoot()
  * still reads the environment variable. Startup copies the saved value into
  * the environment only when the process was not given one.
+ *
+ * listenHost is the Host setting. It stays in this file and is never copied
+ * into the HOST environment variable. HOST, when set, still wins at bind time.
+ * A saved 127.0.0.1 is the loopback pair, which is not the same as HOST=127.0.0.1.
  */
 export type InstanceFile = {
   instanceId: string;
   instanceName?: string;
   hostname?: string;
   NERDGRAM_DATA_DIR?: string;
+  /** Saved Host setting. Absent until a save or a one-time migration from the data folder. */
+  listenHost?: string;
 };
 
 const UUID_RE =
@@ -178,5 +184,28 @@ export async function saveStartupDataDir(value: string | null): Promise<void> {
   if (identity.configuredName) file.instanceName = identity.configuredName;
   if (value && value.trim()) file.NERDGRAM_DATA_DIR = value.trim();
   else delete file.NERDGRAM_DATA_DIR;
+  await writeInstanceFile(file);
+}
+
+/**
+ * The Host field in the instance file. `present` is false when the key has
+ * never been written, which is the only time a legacy data-folder file is read.
+ */
+export function readInstanceListenHost(): { present: boolean; value: unknown } {
+  const existing = readInstanceFileSync();
+  if (!existing || !Object.prototype.hasOwnProperty.call(existing, "listenHost")) {
+    return { present: false, value: undefined };
+  }
+  return { present: true, value: existing.listenHost };
+}
+
+export async function saveInstanceListenHost(host: string): Promise<void> {
+  const identity = await getInstanceIdentity();
+  const file = readInstanceFileSync() ?? { instanceId: identity.instanceId };
+  file.instanceId = identity.instanceId;
+  file.hostname = identity.hostname;
+  if (identity.configuredName) file.instanceName = identity.configuredName;
+  else delete file.instanceName;
+  file.listenHost = host;
   await writeInstanceFile(file);
 }

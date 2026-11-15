@@ -1,10 +1,11 @@
 import type { AddressInfo } from "node:net";
 import { startServer } from "../src/listen.js";
 
+const fixedBind = process.env.NERDGRAM_TEST_FIXED_BIND !== "0";
 const servers = await startServer({
   port: 0,
   mode: "production",
-  hosts: ["127.0.0.1"],
+  ...(fixedBind ? { hosts: ["127.0.0.1"] } : {}),
 });
 const address = servers[0]?.address();
 if (!address || typeof address === "string") {

@@ -9,6 +9,7 @@ import {
   readDataSource,
   renderRefresh,
 } from "../src/diagramData.js";
+import { lintDiagram } from "../src/diagramLint.js";
 import { ipv4Network, ipv6Network } from "../src/network/ip.js";
 import { validateNetwork } from "../src/network/validate.js";
 import { compressVlans } from "../src/network/vlans.js";
@@ -121,6 +122,11 @@ describe("network subnet math", () => {
     expect(block).not.toContain("10.9.9.0/30");
     expect(block).not.toContain("mgmt 10.255.0.1");
     expect(block).toContain("mgmt 10.255.0.2");
+    expect(block).not.toContain("Gi0/1/0");
+    expect(block).not.toContain("Gi0/1/1");
+    expect(block).not.toContain("Gi1/0/51");
+    const layer3 = importDiagramData({ text: sampleText, format: "network", view: "l3", sourceFile: "campus.network.json" });
+    expect(lintDiagram(layer3.mermaid).filter((item) => item.ruleId === "unconnected-node")).toEqual([]);
 
     const included = generated(sampleText, { includeDown: true });
     expect(included).toContain("10.9.9.0/30");
@@ -175,6 +181,11 @@ describe("network layer 2", () => {
     expect(block).not.toContain("native 1");
     expect(block).toContain('["hq"]');
     expect(block).toContain('["branch"]');
+    expect(block).toContain("Gi0/1/0 – Gi1/0/51");
+    expect(block).toContain("10,20,30-40 native 99");
+    expect(block).toContain("Gi0/1/1 – Gi0/1/0");
+    expect(block).toContain("10,20,30 native 99");
+    expect(lintDiagram(result.mermaid).filter((item) => item.ruleId === "unconnected-node")).toEqual([]);
 
     const filtered = importDiagramData({ text: sampleText, format: "network", view: "l2", vlan: 20 });
     expect(filtered.errors).toEqual([]);
@@ -188,6 +199,8 @@ describe("network layer 2", () => {
     const usersBlock = extractGenerated(users.mermaid) ?? "";
     expect(usersBlock).toContain("access 10 users");
     expect(usersBlock).not.toContain("access 20 servers");
+    expect(lintDiagram(filtered.mermaid).filter((item) => item.ruleId === "unconnected-node")).toEqual([]);
+    expect(lintDiagram(users.mermaid).filter((item) => item.ruleId === "unconnected-node")).toEqual([]);
   });
 
   it("uses the existing CDP parser when neighbors are supplied, and treats Gi and GigabitEthernet as one link", () => {
