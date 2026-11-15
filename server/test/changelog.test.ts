@@ -30,17 +30,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Atlas title and the 1.2.1 section without the heading", () => {
-    const title = notes(["--title", "v1.2.1"]);
+  it("prints the Atlas title and the 1.2.2 section without the heading", () => {
+    const title = notes(["--title", "v1.2.2"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.2.1 "Atlas"\n');
-    const body = notes(["v1.2.1"]);
+    expect(title.stdout).toBe('v1.2.2 "Atlas"\n');
+    const body = notes(["v1.2.2"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Atlas line.")).toBe(true);
-    expect(body.stdout).toContain("Diagram checks");
-    expect(body.stdout).toContain("Workspace problems");
-    expect(body.stdout).not.toContain('## 1.2.1 "Atlas"');
-    expect(body.stdout).not.toContain("Minor release on the Atlas line.");
+    expect(body.stdout).toContain("Click to source");
+    expect(body.stdout).toContain("preview");
+    expect(body.stdout).not.toContain('## 1.2.2 "Atlas"');
+    expect(body.stdout).not.toContain("The dashboard list of diagram findings is quieter and starts closed.");
   });
 
   it("matches a quoted heading and a bracket heading, and not a longer patch", () => {
