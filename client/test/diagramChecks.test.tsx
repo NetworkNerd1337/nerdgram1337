@@ -208,7 +208,7 @@ describe("diagram checks panel", () => {
     expect(details().open).toBe(false);
     expect(details().dataset.status).toBe("loading");
     expect(summaryText()).toBe("Checking diagrams…");
-    expect(details().querySelector(".diagram-checks-chevron")).toBeTruthy();
+    expect(chevronPath()).toBe("M6 3.5 10.5 8 6 12.5");
     expect(details().querySelector(".diagram-checks-mark")).toBeNull();
 
     await act(async () => {
@@ -225,6 +225,7 @@ describe("diagram checks panel", () => {
 
     await toggleOpen();
     expect(details().open).toBe(true);
+    expect(chevronPath()).toBe("M3.5 6 8 10.5 12.5 6");
     expect(diagramLint).toHaveBeenCalledTimes(1);
     expect(document.body.textContent).not.toContain("Repair links");
   });
@@ -366,6 +367,10 @@ function rerenderPanel(): void {
 
 function summaryText(): string {
   return details().querySelector("summary")?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+}
+
+function chevronPath(): string {
+  return details().querySelector(".diagram-checks-chevron path")?.getAttribute("d") ?? "";
 }
 
 function memoryStorage(): Storage {

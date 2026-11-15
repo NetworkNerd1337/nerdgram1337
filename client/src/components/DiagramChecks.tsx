@@ -63,7 +63,7 @@ export function DiagramChecks() {
       }}
     >
       <summary>
-        <Chevron />
+        <Chevron open={open} />
         {status === "loading" || status === "failed" ? null : <StatusMark status={status} />}
         <span className="diagram-checks-label">{summary}</span>
       </summary>
@@ -119,11 +119,15 @@ export function DiagramChecks() {
   );
 }
 
-function Chevron() {
+/** Closed points right. Open points down. */
+const CHEVRON_RIGHT = "M6 3.5 10.5 8 6 12.5";
+const CHEVRON_DOWN = "M3.5 6 8 10.5 12.5 6";
+
+function Chevron({ open }: { open: boolean }) {
   return (
     <svg className="diagram-checks-chevron" viewBox="0 0 16 16" aria-hidden="true">
       <path
-        d="M6 3.5 10.5 8 6 12.5"
+        d={open ? CHEVRON_DOWN : CHEVRON_RIGHT}
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"

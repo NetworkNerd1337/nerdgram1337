@@ -1192,18 +1192,8 @@ a {
   width: 1.05rem;
   height: 1.05rem;
   flex: none;
+  overflow: visible;
   color: var(--checks-ink);
-  transition: transform 160ms ease;
-}
-
-.diagram-checks[open] .diagram-checks-chevron {
-  transform: rotate(90deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .diagram-checks-chevron {
-    transition: none;
-  }
 }
 
 .diagram-checks-mark {
@@ -1341,6 +1331,22 @@ a {
   flex: 1 1 14rem;
   font-size: 0.85rem;
   line-height: 1.4;
+}
+
+@media (prefers-color-scheme: dark) {
+  .diagram-checks {
+    --checks-ok: #8fdeb4;
+    --checks-warn: #f0d48a;
+    --checks-bad: #ffb0b0;
+    --checks-muted: #c5d0df;
+    --checks-bg: #151b23;
+    --checks-border: #314257;
+    --checks-ink: #e8eef5;
+    --checks-hover: #1c2530;
+    --checks-link: #9ec9ff;
+    --checks-focus: #9ec9ff;
+    color-scheme: dark;
+  }
 }
 
 .toggle {
