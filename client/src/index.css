@@ -2726,7 +2726,7 @@ a {
 }
 
 .sync-card input[type="text"],
-.sync-card input:not([type="checkbox"]),
+.sync-card input:not([type="checkbox"]):not([type="radio"]),
 .sync-card select {
   width: 100%;
   border: 1px solid var(--line);
@@ -2738,13 +2738,33 @@ a {
 
 .sync-check {
   display: flex;
+  flex-direction: row;
   align-items: flex-start;
   gap: 0.5rem;
   margin-bottom: 0.8rem;
 }
 
+.sync-card label.sync-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
 .sync-check input {
+  width: auto;
+  flex: none;
   margin-top: 0.2rem;
+  margin-bottom: 0;
+  padding: 0;
+}
+
+.sync-card .appearance-choices label.sync-check {
+  align-items: center;
+}
+
+.appearance-choices .sync-check input[type="radio"] {
+  margin-top: 0;
 }
 
 .token-once {
