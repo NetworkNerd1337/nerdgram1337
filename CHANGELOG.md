@@ -5,6 +5,16 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 ## Unreleased
 
 - The README is a short overview. Install, features, the API, the CLI, and the other guides are pages under `docs/`.
+- `npm run install:all` leaves the git tree clean. The verify job fails if an install changes a lockfile.
+- A malformed JSON body returns **400** and a body over 5 MB returns **413**, both as `{error, code}`. The server log is one line, with no stack and no absolute path. `npm start` does not set `NODE_ENV`.
+- Deleting a diagram with `deleteData` keeps a data file that another diagram still uses. The API response and the dashboard name that diagram.
+- The editor lock alert clears as soon as this window gets the lock. A stale or taken-over lock records a new open time.
+- Diagram info and a long source keep the preview in view. The preview uses the width of its pane.
+- A saved or effective Host on another loopback address, such as `127.0.0.2`, is an allowed origin. Other origin checks are unchanged.
+- `nerdgram generate` and `nerdgram refresh` print the row and field errors the API returns, in text and in `--json`.
+- The Syntax Reference no longer shows the source and license comments or a repeated title. The upstream link stays on the page.
+- Escape closes a dialog. The Move dialog focuses its folder list. An error banner sits above an open dialog.
+- A file name the filesystem cannot store returns **400** with a name-length message. A long diagram path no longer makes the lock filename too long.
 
 ## 1.4.0 "Atlas" - 2026-11-15
 

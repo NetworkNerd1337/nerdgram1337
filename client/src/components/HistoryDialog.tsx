@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
 import type { FileWriteResult, RevisionSummary } from "../types";
+import { useCloseOnEscape } from "./useCloseOnEscape";
 import { RevisionDiff } from "./RevisionDiff";
 
 type HistoryDialogProps = {
@@ -18,6 +19,7 @@ function formatStamp(iso: string): string {
 }
 
 export function HistoryDialog({ path, lockToken, canRestore, onClose, onRestored }: HistoryDialogProps) {
+  useCloseOnEscape(onClose);
   const [revisions, setRevisions] = useState<RevisionSummary[]>([]);
   const [retention, setRetention] = useState<number | null>(null);
   const [baselineCap, setBaselineCap] = useState<number | null>(null);

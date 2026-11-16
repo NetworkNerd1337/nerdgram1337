@@ -8,7 +8,7 @@ import {
   atomicWriteText,
   createId,
   decodeStorageKey,
-  encodeStorageKey,
+  safeStorageKey,
   getVersionsRoot,
   httpFail,
   normalizeRelative,
@@ -49,8 +49,16 @@ type RevisionIndex = {
   revisions: RevisionMeta[];
 };
 
+async function pathForVersionKey(root: string, key: string): Promise<string | null> {
+  const decoded = decodeStorageKey(key);
+  if (decoded) return decoded;
+  if (!key.startsWith("h_")) return null;
+  const index = await readJsonFile<{ path?: string }>(path.join(root, key, "index.json"));
+  return typeof index?.path === "string" ? index.path : null;
+}
+
 function versionDirFor(relativePath: string): string {
-  return path.join(getVersionsRoot(), encodeStorageKey(relativePath));
+  return path.join(getVersionsRoot(), safeStorageKey(relativePath));
 }
 
 function indexPath(dir: string): string {
@@ -237,7 +245,7 @@ async function matchingVersionDirs(
   const from = normalizeRelative(relativePath);
   const matches: { key: string; itemPath: string; dir: string }[] = [];
   for (const key of names) {
-    const itemPath = decodeStorageKey(key);
+    const itemPath = await pathForVersionKey(root, key);
     if (!itemPath) continue;
     const hit = itemPath === from || (isDir && itemPath.startsWith(`${from}/`));
     if (!hit) continue;
@@ -323,7 +331,7 @@ export async function unarchiveHistory(
     throw err;
   }
   for (const key of names) {
-    const itemPath = decodeStorageKey(key);
+    const itemPath = await pathForVersionKey(archiveDir, key);
     if (!itemPath) continue;
     const source = path.join(archiveDir, key);
     const stat = await fs.stat(source).catch(() => null);

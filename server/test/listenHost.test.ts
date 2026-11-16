@@ -20,6 +20,7 @@ import {
   describeListenHost,
   hostRestartNotice,
   hostsFromListenAddress,
+  loopbackOriginHosts,
   isWildcardBind,
   listNonLoopbackInterfaceAddresses,
   listenHostPath,
@@ -199,6 +200,22 @@ describe("allowed hosts from the bind", () => {
     expect(opened.has("http://192.168.1.10:8787")).toBe(true);
     expect(opened.has("http://[fe80::1]:8787")).toBe(true);
     expect(opened.has("http://127.0.0.1:8787")).toBe(true);
+    expect(opened.has("http://127.0.0.2:8787")).toBe(false);
+  });
+
+  it("allows a saved or effective loopback host other than 127.0.0.1 as an origin", () => {
+    expect(loopbackOriginHosts(["127.0.0.2"], null)).toEqual(["127.0.0.2"]);
+    expect(loopbackOriginHosts(["127.0.0.1", "::1"], "127.0.0.2")).toEqual(["127.0.0.2"]);
+    expect(loopbackOriginHosts(["10.1.1.1"], "127.0.0.1")).toEqual([]);
+    expect(loopbackOriginHosts(["127.0.0.2"], "127.0.0.3")).toEqual(["127.0.0.2", "127.0.0.3"]);
+    const origins = buildAllowedOrigins({
+      mode: "production",
+      port: 8787,
+      extraHosts: loopbackOriginHosts(["127.0.0.2"], null),
+    });
+    expect(origins.has("http://127.0.0.2:8787")).toBe(true);
+    expect(origins.has("http://127.0.0.3:8787")).toBe(false);
+    expect(origins.has("http://10.1.1.1:8787")).toBe(false);
   });
 });
 

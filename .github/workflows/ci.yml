@@ -32,6 +32,16 @@ jobs:
           npm ci --prefix client
           npm ci --prefix server
 
+      - name: Lockfiles stay clean
+        run: |
+          dirty="$(git status --porcelain)"
+          if [ -n "$dirty" ]; then
+            echo "Install changed tracked files:"
+            printf '%s\n' "$dirty"
+            git diff
+            exit 1
+          fi
+
       - name: Lint
         run: npm run lint --prefix client
 

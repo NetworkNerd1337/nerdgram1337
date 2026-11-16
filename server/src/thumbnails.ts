@@ -7,7 +7,7 @@ import { getMetaPath, resolveSafePath, toRelativePath } from "./paths.js";
 import {
   atomicWriteJson,
   decodeStorageKey,
-  encodeStorageKey,
+  safeStorageKey,
   httpFail,
   normalizeRelative,
   pathExists,
@@ -58,8 +58,18 @@ function thumbsRoot(): string {
   return path.join(getMetaPath(), THUMBS_DIR_NAME);
 }
 
+async function pathForThumbName(root: string, name: string): Promise<string | null> {
+  if (!name.endsWith(".json")) return null;
+  const key = name.slice(0, -".json".length);
+  const decoded = decodeStorageKey(key);
+  if (decoded) return decoded;
+  if (!key.startsWith("h_")) return null;
+  const stored = await readJsonFile<{ path?: string }>(path.join(root, name));
+  return typeof stored?.path === "string" ? stored.path : null;
+}
+
 function thumbFile(relativePath: string): string {
-  return path.join(thumbsRoot(), `${encodeStorageKey(relativePath)}.json`);
+  return path.join(thumbsRoot(), `${safeStorageKey(relativePath, ".json")}.json`);
 }
 
 function requireDiagram(relativePath: string): string {
@@ -275,7 +285,7 @@ async function matchingThumbs(relativePath: string, isDir: boolean): Promise<Thu
   for (const name of names) {
     if (!name.endsWith(".json")) continue;
     const key = name.slice(0, -".json".length);
-    const itemPath = decodeStorageKey(key);
+    const itemPath = await pathForThumbName(root, name);
     if (!itemPath) continue;
     const hit = itemPath === from || (isDir && itemPath.startsWith(`${from}/`));
     if (!hit) continue;
@@ -333,8 +343,7 @@ export async function unarchiveThumbnails(
   }
   for (const name of names) {
     if (!name.endsWith(".json")) continue;
-    const key = name.slice(0, -".json".length);
-    const itemPath = decodeStorageKey(key);
+    const itemPath = await pathForThumbName(archiveDir, name);
     if (!itemPath) continue;
     const nextPath = rewriteMovedPath(itemPath, originalPath, restoredPath, isDir);
     const dest = thumbFile(nextPath);

@@ -42,6 +42,17 @@ export function remoteLockAlert(
   };
 }
 
+/**
+ * The other-instance alert stays only while this window does not hold the lock.
+ * Acquiring the lock, including after a retry, clears it.
+ */
+export function remoteLockAlertWhileHeld(
+  alert: RemoteLockAlert | null,
+  heldHere: boolean,
+): RemoteLockAlert | null {
+  return heldHere ? null : alert;
+}
+
 export function remoteLockSentence(alert: RemoteLockAlert): string {
   const host = alert.hostname ? ` (${alert.hostname})` : "";
   return `${alert.diagramName} is open on ${alert.instanceName}${host} since ${alert.since}. Try again when it's closed.`;
