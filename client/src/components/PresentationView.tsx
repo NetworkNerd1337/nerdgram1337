@@ -1,8 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api";
 import { DrillTrail } from "./DrillTrail";
 import { useDiagramView } from "../hooks/useDiagramView";
+import { useStageSize } from "../hooks/useStageSize";
+import { useViewGestures } from "../hooks/useViewGestures";
 import { actionForClickTarget, clickTargetOnElement, openExternalLink } from "../lib/diagramClicks";
 import { sessionJump, sessionOpen, sessionStart, sessionSyncRoot, type DrillSession } from "../lib/drillSession";
 import { diagramHeading, FALLBACK_THEME, parseDiagram } from "../lib/frontMatter";
@@ -18,19 +20,11 @@ import {
   isFormField,
   keyEventFrom,
   presentationAction,
-  wheelGesture,
   type PresentationAction,
 } from "../lib/presentationKeys";
+import { readSvgSize } from "../lib/svgBox";
 import { backgroundFromSvg, themeBackground } from "../lib/svgBackground";
-import {
-  cssTransform,
-  pinchUpdate,
-  pointerAngle,
-  rotationDelta,
-  ZOOM_STEP,
-  type Point,
-  type Size,
-} from "../lib/viewTransform";
+import { cssTransform, ZOOM_STEP, type Size } from "../lib/viewTransform";
 
 const CONTROL_IDLE_MS = 2500;
 
@@ -43,69 +37,6 @@ export type PresentationViewProps = {
   fileError?: string | null;
   onExit: () => void;
 };
-
-function readSvgSize(svg: SVGSVGElement): Size | null {
-  const box = svg.viewBox?.baseVal;
-  if (box && box.width > 0 && box.height > 0) return { width: box.width, height: box.height };
-  const widthAttr = svg.getAttribute("width") ?? "";
-  const heightAttr = svg.getAttribute("height") ?? "";
-  const width = Number.parseFloat(widthAttr);
-  const height = Number.parseFloat(heightAttr);
-  if (width > 0 && height > 0 && !widthAttr.includes("%") && !heightAttr.includes("%")) {
-    return { width, height };
-  }
-  try {
-    const bounds = svg.getBBox();
-    if (bounds.width > 0 && bounds.height > 0) return { width: bounds.width, height: bounds.height };
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-function useStageSize(stage: React.RefObject<HTMLElement | null>): Size | null {
-  const [size, setSize] = useState<Size | null>(null);
-  useEffect(() => {
-    const element = stage.current;
-    if (!element) return;
-    const measure = () => {
-      const rect = element.getBoundingClientRect();
-      setSize((prev) =>
-        prev && Math.abs(prev.width - rect.width) < 0.5 && Math.abs(prev.height - rect.height) < 0.5
-          ? prev
-          : { width: rect.width, height: rect.height },
-      );
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    window.addEventListener("resize", measure);
-    window.addEventListener("orientationchange", measure);
-    const visual = window.visualViewport;
-    visual?.addEventListener("resize", measure);
-    let media: MediaQueryList | null = null;
-    const onResolution = () => {
-      measure();
-      media?.removeEventListener("change", onResolution);
-      media = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
-      media.addEventListener("change", onResolution);
-    };
-    try {
-      media = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
-      media.addEventListener("change", onResolution);
-    } catch {
-      media = null;
-    }
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("orientationchange", measure);
-      visual?.removeEventListener("resize", measure);
-      media?.removeEventListener("change", onResolution);
-    };
-  }, [stage]);
-  return size;
-}
 
 function slideFor(path: string, source: string | null, error: string | null) {
   const title = diagramHeading(source ? parseDiagram(source).title : null, path || "diagram");
@@ -123,21 +54,13 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
   const barRef = useRef<HTMLDivElement>(null);
   const onExitRef = useRef(onExit);
   const engaged = useRef(false);
-  const lastFocal = useRef<Point>({ x: 0, y: 0 });
-  const pointers = useRef(new Map<number, Point>());
-  const gesture = useRef<
-    | { kind: "none" }
-    | { kind: "pan"; id: number; last: Point }
-    | { kind: "rotate"; id: number; lastAngle: number }
-    | { kind: "pinch"; distance: number; midpoint: Point }
-  >({ kind: "none" });
   const overBar = useRef(false);
-  const dragging = useRef(false);
+  const activityRef = useRef<(() => void) | null>(null);
+  const gestureClickRef = useRef<((info: { target: EventTarget | null }) => void) | null>(null);
   const idleTimer = useRef(0);
   const barVisibleRef = useRef(true);
   const idleRef = useRef(false);
   const hadSvg = useRef(false);
-  const press = useRef<{ x: number; y: number; dragged: boolean; target: EventTarget | null } | null>(null);
   const handledPress = useRef(false);
 
   const [session, setSession] = useState<DrillSession>(() => sessionStart(slideFor(path, source, fileError)));
@@ -150,13 +73,20 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
   const [barVisible, setBarVisible] = useState(true);
   const [idle, setIdle] = useState(false);
   const [nativeFs, setNativeFs] = useState(false);
-  const [panning, setPanning] = useState(false);
 
   const viewport = useStageSize(stageRef);
   const camera = useDiagramView(viewport, content);
   const cameraRef = useRef(camera);
   cameraRef.current = camera;
   onExitRef.current = onExit;
+  const gestures = useViewGestures({
+    stageRef,
+    wheelTargetRef: rootRef,
+    camera,
+    rotate: true,
+    activityRef,
+    onClickRef: gestureClickRef,
+  });
 
   const frame = session.slides[session.index] ?? session.slides[0] ?? slideFor(path, source, fileError);
   const parsed = useMemo(() => (frame.source == null ? null : parseDiagram(frame.source)), [frame.source]);
@@ -307,7 +237,7 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
     idleTimer.current = window.setTimeout(() => {
       const active = document.activeElement;
       const keep =
-        dragging.current ||
+        gestures.isDragging() ||
         overBar.current ||
         (active instanceof Node && Boolean(barRef.current?.contains(active)));
       if (keep) {
@@ -320,6 +250,7 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
       setIdle(true);
     }, CONTROL_IDLE_MS);
   };
+  activityRef.current = revealBar;
 
   useEffect(() => {
     revealBar();
@@ -355,34 +286,10 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const element = rootRef.current;
-    if (!element) return;
-    const onWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      const stage = stageRef.current;
-      const rect = stage?.getBoundingClientRect();
-      const focal = rect
-        ? {
-            x: event.clientX - rect.left - rect.width / 2,
-            y: event.clientY - rect.top - rect.height / 2,
-          }
-        : lastFocal.current;
-      lastFocal.current = focal;
-      const gestureEvent = wheelGesture(event);
-      if (gestureEvent.type === "zoom") cameraRef.current.zoomAtPoint(focal, gestureEvent.factor);
-      else cameraRef.current.pan(gestureEvent.dx, gestureEvent.dy);
-      revealBar();
-    };
-    element.addEventListener("wheel", onWheel, { passive: false });
-    return () => element.removeEventListener("wheel", onWheel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   function applyAction(action: PresentationAction) {
     const api = cameraRef.current;
     if (action.type === "pan") api.pan(action.dx, action.dy);
-    else if (action.type === "zoom") api.zoomAtPoint(lastFocal.current, action.factor);
+    else if (action.type === "zoom") api.zoomAtPoint(gestures.focalRef.current, action.factor);
     else if (action.type === "rotate") api.rotate(action.degrees);
     else if (action.type === "reset") api.reset();
   }
@@ -399,15 +306,6 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
       engaged.current = ok && element != null && currentFullscreen() === element;
       setNativeFs(engaged.current);
     });
-  }
-
-  function stagePoint(event: { clientX: number; clientY: number }): Point {
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    return {
-      x: event.clientX - rect.left - rect.width / 2,
-      y: event.clientY - rect.top - rect.height / 2,
-    };
   }
 
   async function openTarget(raw: string) {
@@ -436,106 +334,13 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
     }
   }
 
-  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (event.button !== 0 && event.pointerType === "mouse") return;
+  gestureClickRef.current = ({ target }) => {
     handledPress.current = false;
-    press.current = { x: event.clientX, y: event.clientY, dragged: false, target: event.target };
-    const point = stagePoint(event);
-    lastFocal.current = point;
-    pointers.current.set(event.pointerId, point);
-    dragging.current = true;
-    // Capture only after the pointer actually moves. Capturing on pointer down
-    // retargets the click to this stage, so a linked node never receives it.
-    if (pointers.current.size >= 2) {
-      const node = event.currentTarget;
-      if (typeof node.setPointerCapture === "function" && node.hasPointerCapture?.(event.pointerId) !== true) {
-        node.setPointerCapture(event.pointerId);
-      }
-      const info = pairInfo();
-      if (info) gesture.current = { kind: "pinch", ...info };
-      return;
-    }
-    if (event.altKey) {
-      gesture.current = { kind: "rotate", id: event.pointerId, lastAngle: pointerAngle(point) };
-    } else {
-      gesture.current = { kind: "pan", id: event.pointerId, last: point };
-      setPanning(true);
-    }
-    revealBar();
-  }
-
-  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!pointers.current.has(event.pointerId)) {
-      revealBar();
-      return;
-    }
-    const point = stagePoint(event);
-    const origin = press.current;
-    if (origin && Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 6) {
-      origin.dragged = true;
-      const node = event.currentTarget;
-      if (typeof node.setPointerCapture === "function" && node.hasPointerCapture?.(event.pointerId) !== true) {
-        node.setPointerCapture(event.pointerId);
-      }
-    }
-    pointers.current.set(event.pointerId, point);
-    lastFocal.current = point;
-    const current = gesture.current;
-    if (current.kind === "pinch") {
-      const info = pairInfo();
-      if (!info) return;
-      const update = pinchUpdate(current, info);
-      cameraRef.current.zoomAtPoint(info.midpoint, update.factor);
-      cameraRef.current.pan(update.panX, update.panY);
-      gesture.current = { kind: "pinch", ...info };
-      return;
-    }
-    if (current.kind === "rotate" && current.id === event.pointerId) {
-      const angle = pointerAngle(point);
-      cameraRef.current.rotateFree(rotationDelta(current.lastAngle, angle));
-      current.lastAngle = angle;
-      return;
-    }
-    if (current.kind === "pan" && current.id === event.pointerId) {
-      cameraRef.current.pan(point.x - current.last.x, point.y - current.last.y);
-      current.last = point;
-    }
-  }
-
-  function onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
-    const origin = press.current;
-    pointers.current.delete(event.pointerId);
-    if (pointers.current.size === 0) {
-      const dragged = origin?.dragged ?? false;
-      gesture.current = { kind: "none" };
-      dragging.current = false;
-      setPanning(false);
-      revealBar();
-      if (!dragged && origin && (event.button === 0 || event.pointerType !== "mouse")) {
-        const raw = frame.source ? clickTargetOnElement(frame.source, origin.target) : null;
-        if (raw) {
-          handledPress.current = true;
-          void openTarget(raw);
-        }
-      }
-      return;
-    }
-    if (pointers.current.size === 1) {
-      const entry = pointers.current.entries().next().value as [number, Point] | undefined;
-      if (entry) gesture.current = { kind: "pan", id: entry[0], last: entry[1] };
-    }
-  }
-
-  function pairInfo(): { distance: number; midpoint: Point } | null {
-    const points = [...pointers.current.values()];
-    if (points.length < 2) return null;
-    const [a, b] = points;
-    if (!a || !b) return null;
-    return {
-      distance: Math.hypot(b.x - a.x, b.y - a.y),
-      midpoint: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
-    };
-  }
+    const raw = frame.source ? clickTargetOnElement(frame.source, target) : null;
+    if (!raw) return;
+    handledPress.current = true;
+    void openTarget(raw);
+  };
 
   function onTab(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Tab") return;
@@ -600,7 +405,7 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
       />
       <div
         ref={stageRef}
-        className={`presentation-stage${panning ? " is-panning" : ""}`}
+        className={`presentation-stage${gestures.panning ? " is-panning" : ""}`}
         onClick={(event) => {
           const anchor = event.target instanceof Element ? event.target.closest("a") : null;
           if (anchor) event.preventDefault();
@@ -608,17 +413,20 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
             handledPress.current = false;
             return;
           }
-          if (press.current?.dragged) return;
+          if (gestures.dragged()) return;
           const raw = frame.source ? clickTargetOnElement(frame.source, event.target) : null;
           if (!raw) return;
           event.preventDefault();
           event.stopPropagation();
           void openTarget(raw);
         }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerDown={(event) => {
+          handledPress.current = false;
+          gestures.onPointerDown(event);
+        }}
+        onPointerMove={gestures.onPointerMove}
+        onPointerUp={gestures.onPointerUp}
+        onPointerCancel={gestures.onPointerCancel}
       >
         {svg ? (
           <div
@@ -674,13 +482,13 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
         }}
         onFocus={() => revealBar()}
       >
-        <button type="button" className="btn" aria-label="Zoom out" onClick={() => camera.zoomAtPoint(lastFocal.current, 1 / ZOOM_STEP)}>
+        <button type="button" className="btn" aria-label="Zoom out" onClick={() => camera.zoomAtPoint(gestures.focalRef.current, 1 / ZOOM_STEP)}>
           −
         </button>
         <span className="presentation-zoom" aria-label={`Zoom ${pct}%`}>
           {pct}%
         </span>
-        <button type="button" className="btn" aria-label="Zoom in" onClick={() => camera.zoomAtPoint(lastFocal.current, ZOOM_STEP)}>
+        <button type="button" className="btn" aria-label="Zoom in" onClick={() => camera.zoomAtPoint(gestures.focalRef.current, ZOOM_STEP)}>
           +
         </button>
         <button type="button" className="btn" aria-label="Rotate left" onClick={() => camera.rotate(-90)}>

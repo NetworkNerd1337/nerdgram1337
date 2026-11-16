@@ -6,6 +6,7 @@ import { CommandsButton } from "../components/CommandPalette";
 import { SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { Modal } from "../components/Modal";
+import { AppearanceSettings } from "../components/AppearanceSettings";
 import { DiagramFolderSettings } from "../components/DiagramFolderSettings";
 import { HostSettings } from "../components/HostSettings";
 import { InstanceSettings } from "../components/InstanceSettings";
@@ -105,9 +106,10 @@ export function SettingsPage() {
           <div>
             <h1>Settings</h1>
             <p className="reference-meta">
-              GitHub sync, the listen host, the diagram folder, the instance name, automation tokens, and diagram checks.
+              Appearance, GitHub sync, the listen host, the diagram folder, the instance name, automation tokens, and diagram checks.
             </p>
             <nav className="settings-nav" aria-label="Settings sections">
+              <a href="#appearance">Appearance</a>
               <a href="#github-sync">GitHub sync</a>
               <a href="#host">Host</a>
               <a href="#diagram-folder">Diagram folder</a>
@@ -128,6 +130,7 @@ export function SettingsPage() {
       </header>
 
       <main className="sync-page">
+        <AppearanceSettings />
         <section className="sync-card" id="github-sync">
           <p>
             NerdGram does not ship a GitHub app or a client secret. You register an OAuth app

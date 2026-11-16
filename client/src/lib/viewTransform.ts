@@ -114,6 +114,24 @@ export function isFitted(view: ViewTransform, viewport: Size, content: Size): bo
   return viewsClose(view, fit(viewport, content, view.rotation));
 }
 
+/**
+ * Next camera after the viewport or the diagram size changes.
+ * A view that has left the fitted baseline is kept, so a keystroke that
+ * re-renders the picture does not snap pan or zoom back. Returns null when
+ * the caller should leave the current view alone. The returned baseline is
+ * the fit for this size.
+ */
+export function viewAfterMeasure(
+  current: ViewTransform,
+  baseline: ViewTransform | null,
+  viewport: Size,
+  content: Size,
+): { view: ViewTransform; baseline: ViewTransform } | null {
+  if (baseline && !viewsClose(current, baseline)) return null;
+  const next = fit(viewport, content, baseline ? current.rotation : 0);
+  return { view: next, baseline: next };
+}
+
 export function defaultZoomLimits(fitScale: number): ZoomLimits {
   return {
     min: Math.min(MIN_ZOOM, fitScale),

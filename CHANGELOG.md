@@ -4,6 +4,14 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+### Editor scrolling, preview pan and zoom, and appearance
+
+From #92.
+
+- The code pane scrolls inside its frame. The wheel, the scrollbars, a trackpad, and the keyboard move through a long diagram, and the caret stays in view. This holds with the info panel open or closed, and in a narrow window.
+- The preview pane drags to pan, and the wheel zooms toward the pointer. **Fit** on the preview toolbar resets pan and zoom. The zoom percent sits beside it. Typing does not snap the view back.
+- **Appearance** on the settings page is Light, Dark, or Match system. Match system is the default. The choice is stored in this browser. The dashboard, sidebar, settings, dialogs, the reference, and the editor follow it. A diagram's own theme, look, and layout are unchanged.
+
 ## 1.4.2 "Atlas" - 2026-11-15
 
 Patch on the Atlas line. The code name stays Atlas. Fixes from 1.4.0 testing print the CLI version and flag help, reject a bad folder, path, or view, keep generated descriptions and replace undo honest, and correct network views, Host and sync settings, editor lock retries, and the npm 11 Puppeteer note.
