@@ -330,7 +330,7 @@ export function WorkspaceReplaceDialog({ seed, onClose }: { seed: ReplaceSeed; o
                 .filter((item) => item.reason !== "none")
                 .map((item) => (
                   <li key={`${item.path}-${item.reason}`}>
-                    Skipped {item.path} ({item.reason === "locked" ? "open in an editor" : item.reason === "changed" ? "changed since the preview" : item.reason === "edited" ? "edited since the replace" : item.reason}).
+                    Skipped {item.path} ({item.reason === "locked" ? "open in an editor" : item.reason === "changed" ? "changed since the preview" : item.reason === "edited" ? "edited since the replace" : item.reason === "undone" ? "already undone" : item.reason}).
                   </li>
                 ))}
               {result.errors.map((item) => (

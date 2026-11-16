@@ -469,6 +469,23 @@ describe("GitHub sync", () => {
     for (const [file, hash] of before) expect(after.get(file)).toBe(hash);
   });
 
+  it("says not_connected before any account exists and clears an empty client id", async () => {
+    const connect = await request(app).post("/api/sync/connect").set(json).send({});
+    expect(connect.status).toBe(401);
+    expect(connect.body.code).toBe("not_connected");
+    expect(connect.body.error).toMatch(/Connect a GitHub account/i);
+
+    const saved = await request(app).post("/api/sync/client-id").set(json).send({ clientId: CLIENT_ID });
+    expect(saved.status).toBe(200);
+    expect(saved.body.clientId).toBe(CLIENT_ID);
+    const cleared = await request(app).post("/api/sync/client-id").set(json).send({ clientId: "  " });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.clientId).toBeNull();
+    const missing = await request(app).post("/api/sync/device/start").set(json).send({});
+    expect(missing.status).toBe(400);
+    expect(missing.body.code).toBe("invalid_client");
+  });
+
   it("explains a missing client id and device flow that is turned off", async () => {
     remote = await startGitHttp();
     const bare = remote.bare;

@@ -255,6 +255,11 @@ describe("workspace replace", () => {
     expect(keptUndo.status).toBe(200);
     expect(keptUndo.body.restored.map((item: { path: string }) => item.path)).toEqual(["Kept.mmd"]);
     expect((await readDiagram(server, "Kept.mmd")).content).toContain("A[CORE]");
+
+    const again = await request(server).post("/api/replace/undo").set(json).send({ id: both.body.operationId });
+    expect(again.status).toBe(200);
+    expect(again.body.restored).toEqual([]);
+    expect(again.body.skipped.find((item: { path: string }) => item.path === "Kept.mmd").reason).toBe("undone");
   });
 
   it("does not touch templates, trash, hidden files, or .meta", async () => {

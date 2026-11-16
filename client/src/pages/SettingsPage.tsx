@@ -172,15 +172,24 @@ export function SettingsPage() {
               spellCheck={false}
               placeholder="Iv1.…"
             />
+            <p>Leave the box empty and save to clear a client ID stored on this computer.</p>
             <div className="modal-actions">
               <button
                 type="button"
                 className="btn btn-ghost"
-                disabled={busy || clientId.trim().length < 8}
+                disabled={busy || (clientId.trim().length > 0 && clientId.trim().length < 8)}
                 onClick={() =>
                   void run(async () => {
-                    await api.saveGithubClientId(clientId.trim());
-                    setNotice("Client ID saved on this computer.");
+                    const trimmed = clientId.trim();
+                    const next = await api.saveGithubClientId(trimmed);
+                    setClientId(trimmed);
+                    setNotice(
+                      trimmed
+                        ? "Client ID saved on this computer."
+                        : next.clientIdSource === "env"
+                          ? "The saved client ID was cleared. NERDGRAM_GITHUB_CLIENT_ID is still set."
+                          : "Client ID cleared.",
+                    );
                   })
                 }
               >

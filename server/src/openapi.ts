@@ -106,7 +106,7 @@ export const V1_ROUTES: readonly V1Route[] = [
     path: "/folders",
     scope: "write",
     operationId: "createFolder",
-    summary: "Create a folder.",
+    summary: "Create a folder. 409 when that folder already exists.",
     tag: "Diagrams",
   },
   {

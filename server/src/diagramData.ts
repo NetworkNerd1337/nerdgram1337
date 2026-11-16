@@ -614,6 +614,14 @@ export function replaceDataSourcePaths(
   if ("error" in loaded) return source;
   loaded.doc.setIn(["nerdgram", "source", "file"], file);
   if (edgesFile) loaded.doc.setIn(["nerdgram", "source", "edgesFile"], edgesFile);
+  const described = loaded.doc.getIn(["nerdgram", "description"]);
+  if (
+    typeof described === "string" &&
+    file !== current.file &&
+    described === `Generated from ${current.file}`
+  ) {
+    loaded.doc.setIn(["nerdgram", "description"], `Generated from ${file}`);
+  }
   return fence(loaded.doc, loaded.body, loaded.bom);
 }
 

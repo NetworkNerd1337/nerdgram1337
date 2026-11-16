@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { PresentationView } from "../components/PresentationView";
 import { useCommandHost } from "../components/commandPaletteContext";
-import { DIAGRAM_MISSING_MESSAGE } from "../lib/presentPoll";
+
+const TEMPLATE_NOT_FOUND = "Template not found.";
 
 /**
  * Present a bundled template without copying it into the workspace.
@@ -42,7 +43,7 @@ export function TemplatePresentPage() {
         if (cancelled) return;
         const message =
           err instanceof ApiError && err.status === 404
-            ? DIAGRAM_MISSING_MESSAGE
+            ? TEMPLATE_NOT_FOUND
             : err instanceof Error
               ? err.message
               : "Could not open this template";
@@ -55,7 +56,7 @@ export function TemplatePresentPage() {
   }, [id]);
 
   const source = !id ? "" : current?.error ? "" : (current?.source ?? null);
-  const fileError = !id ? DIAGRAM_MISSING_MESSAGE : (current?.error ?? null);
+  const fileError = !id ? TEMPLATE_NOT_FOUND : (current?.error ?? null);
 
   return (
     <PresentationView

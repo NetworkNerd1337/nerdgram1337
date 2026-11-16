@@ -105,6 +105,30 @@ describe("repair links dialog", () => {
     expect(onApplied).toHaveBeenCalledWith(["WAN.mmd"]);
   });
 
+  it("disables Repair links when nothing matches", async () => {
+    previewLinkRepairs.mockResolvedValue({
+      suggestions: [],
+      changes: [],
+      dataFiles: [],
+      applied: false,
+      saved: [],
+    });
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root?.render(<RepairLinksDialog onClose={() => undefined} onApplied={() => undefined} />);
+    });
+    await settle();
+    expect(document.body.textContent).toContain("No renamed diagram matches a broken link.");
+    const submit = document.querySelector<HTMLButtonElement>("button[type='submit']");
+    expect(submit?.disabled).toBe(true);
+    await act(async () => {
+      document.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    expect(applyLinkRepairs).not.toHaveBeenCalled();
+  });
+
   it("does not offer a choice when the match is ambiguous", async () => {
     previewLinkRepairs.mockResolvedValue(ambiguousPlan);
     const host = document.createElement("div");

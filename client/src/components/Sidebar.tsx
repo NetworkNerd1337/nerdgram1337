@@ -123,6 +123,12 @@ export function Sidebar({
         <Link className="nav-link" to="/settings#host">
           Host
         </Link>
+        <Link className="nav-link" to="/settings#diagram-folder">
+          Diagram folder
+        </Link>
+        <Link className="nav-link" to="/settings#instance">
+          Instance name
+        </Link>
         <Link className="nav-link" to="/settings#github-sync">
           GitHub sync
         </Link>

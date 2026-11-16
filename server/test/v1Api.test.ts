@@ -169,6 +169,18 @@ describe("automation API", () => {
 
     const folder = await request(server).post("/api/v1/folders").set(auth).send({ path: "Sites" });
     expect(folder.status).toBe(201);
+    const folderAgain = await request(server).post("/api/v1/folders").set(auth).send({ path: "Sites" });
+    expect(folderAgain.status).toBe(409);
+    expect(folderAgain.body.code).toBe("exists");
+    const blankName = await request(server).post("/api/v1/diagrams").set(auth).send({ path: "  .mmd", content: "flowchart LR\n  A-->B\n" });
+    expect(blankName.status).toBe(400);
+    expect(blankName.body.error).toMatch(/Invalid path/);
+    const drive = await request(server)
+      .post("/api/v1/diagrams")
+      .set(auth)
+      .send({ path: "C:\\evil.mmd", content: "flowchart LR\n  A-->B\n" });
+    expect(drive.status).toBe(400);
+    expect(drive.body.error).toMatch(/Invalid path/);
     const detail = await request(server)
       .put("/api/v1/diagrams")
       .set(auth)
@@ -183,6 +195,14 @@ describe("automation API", () => {
     expect(renamed.body.updated).toContain("WAN.mmd");
     const wan = await request(server).get("/api/v1/diagrams/content").set(auth).query({ path: "WAN.mmd" });
     expect(wan.body.content).toContain("nerdgram:Sites/City.mmd");
+
+    const sameFolder = await request(server)
+      .post("/api/v1/diagrams/move")
+      .set(auth)
+      .send({ from: "Sites/City.mmd", toFolder: "Sites" });
+    expect(sameFolder.status).toBe(409);
+    expect(sameFolder.body.code).toBe("same");
+    expect(sameFolder.body.error).toMatch(/already in this folder/i);
 
     const blocked = await request(server)
       .post("/api/v1/diagrams/move")

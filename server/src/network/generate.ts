@@ -90,7 +90,8 @@ export function buildNetwork(
   }
 
   if (options.view === "l3") {
-    return { ...buildLayer3(devices, interfaces, options), errors, warnings };
+    const layer3 = buildLayer3(devices, interfaces, options, warnings);
+    return { nodes: layer3.nodes, edges: layer3.edges, errors, warnings };
   }
   const links = collectLinks(document, devices, interfaces, options, errors, warnings);
   if (errors.length > 0) return { nodes: [], edges: [], errors, warnings };
@@ -166,7 +167,8 @@ function buildLayer3(
   devices: Map<string, DeviceRecord>,
   interfaces: Map<string, IfaceRecord>,
   options: NetworkGenerateOptions,
-): { nodes: BuiltNode[]; edges: BuiltEdge[]; warnings: NetIssue[] } {
+  warnings: NetIssue[],
+): { nodes: BuiltNode[]; edges: BuiltEdge[] } {
   type Member = {
     deviceKey: string;
     ifaceDisplay: string;
@@ -178,8 +180,10 @@ function buildLayer3(
   const groups = new Map<string, Member[]>();
   const annotations = new Map<string, string[]>();
   const vrfsByDevice = new Map<string, Set<string>>();
+  const addressed: Member[] = [];
 
   const addMember = (member: Member, loopback: boolean) => {
+    addressed.push(member);
     const id = `${member.vrf}\0${member.prefix}\0${member.address.includes(":") ? "6" : "4"}\0${networkOf(member)}`;
     if (loopback) {
       const list = annotations.get(member.deviceKey) ?? [];
@@ -214,6 +218,8 @@ function buildLayer3(
     }
   }
 
+  warnDuplicateAddresses(addressed, devices, warnings);
+
   const edges: BuiltEdge[] = [];
   const segmentNodes: BuiltNode[] = [];
   for (const members of groups.values()) {
@@ -226,6 +232,19 @@ function buildLayer3(
       devicesInGroup.size === 2 &&
       sorted.length === 2 &&
       (first.prefix === 30 || first.prefix === 31 || first.prefix === 127);
+    const sameAddress =
+      sorted.length >= 2 &&
+      new Set(sorted.map((member) => member.deviceKey)).size > 1 &&
+      sorted.every((member) => member.address === first.address);
+    if (pointToPoint && sameAddress) {
+      for (const member of sorted) {
+        const list = annotations.get(member.deviceKey) ?? [];
+        list.push(annotation(member));
+        annotations.set(member.deviceKey, list);
+        touchVrf(vrfsByDevice, member.deviceKey, member.vrf);
+      }
+      continue;
+    }
     if (pointToPoint) {
       const [left, right] = orderPair(sorted[0]!, sorted[1]!);
       edges.push({
@@ -266,14 +285,10 @@ function buildLayer3(
 
   const nodes = deviceNodes(devices, annotations, (device) => {
     if (!options.grouping || !options.groupBy) return "";
-    if (options.groupBy === "vrf") {
-      const set = vrfsByDevice.get(device.key);
-      if (!set || set.size !== 1) return "";
-      return vrfLabel([...set][0] ?? "");
-    }
+    if (options.groupBy === "vrf") return vrfGroupLabel(vrfsByDevice.get(device.key));
     return device[options.groupBy] ?? "";
   });
-  return { nodes: [...nodes, ...segmentNodes.sort((a, b) => a.key.localeCompare(b.key))], edges: sortEdges(edges), warnings: [] };
+  return { nodes: [...nodes, ...segmentNodes.sort((a, b) => a.key.localeCompare(b.key))], edges: sortEdges(edges) };
 }
 
 function buildLayer2(
@@ -532,7 +547,15 @@ function vlanLabel(left: Switchport, right: Switchport, names: Map<number, strin
     if (allowed === "all") bits.push("trunk");
     else if (allowed.length > 0) bits.push(compressVlans(allowed));
     else bits.push("trunk");
-    if (natives.length > 0) bits.push(`native ${natives.join("/")}`);
+    if (natives.length > 0) {
+      const text = natives
+        .map((id) => {
+          const name = names.get(id);
+          return name ? `${id} ${name}` : String(id);
+        })
+        .join("/");
+      bits.push(`native ${text}`);
+    }
     parts.push(bits.join(" "));
   }
   return parts.join("\n");
@@ -647,6 +670,45 @@ function vrfKey(value: string): string {
 
 function vrfLabel(key: string): string {
   return key || "default";
+}
+
+/** One VRF stays in that subgraph. Several VRFs share a subgraph named for the set. */
+function vrfGroupLabel(set: Set<string> | undefined): string {
+  if (!set || set.size === 0) return "";
+  return [...set]
+    .map((key) => vrfLabel(key))
+    .sort((a, b) => a.localeCompare(b))
+    .join(", ");
+}
+
+function warnDuplicateAddresses(
+  members: { deviceKey: string; address: string; prefix: number; vrf: string }[],
+  devices: Map<string, DeviceRecord>,
+  warnings: NetIssue[],
+): void {
+  const buckets = new Map<string, { address: string; prefix: number; vrf: string; names: Set<string> }>();
+  for (const member of members) {
+    const key = `${member.vrf}\0${member.address}\0${member.prefix}`;
+    const bucket = buckets.get(key) ?? {
+      address: member.address,
+      prefix: member.prefix,
+      vrf: member.vrf,
+      names: new Set<string>(),
+    };
+    bucket.names.add(devices.get(member.deviceKey)?.name ?? member.deviceKey);
+    buckets.set(key, bucket);
+  }
+  const rows = [...buckets.values()]
+    .filter((bucket) => bucket.names.size > 1)
+    .sort((a, b) => a.address.localeCompare(b.address) || a.prefix - b.prefix || a.vrf.localeCompare(b.vrf));
+  for (const bucket of rows) {
+    const names = [...bucket.names].sort((a, b) => a.localeCompare(b));
+    const vrf = bucket.vrf ? ` in ${bucket.vrf}` : "";
+    warnings.push({
+      row: 0,
+      message: `${bucket.address}/${bucket.prefix}${vrf} is configured on more than one device (${names.join(", ")}).`,
+    });
+  }
 }
 
 function className(role: string): string {

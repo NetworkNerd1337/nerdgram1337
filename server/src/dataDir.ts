@@ -83,6 +83,7 @@ export async function validateDataDir(value: unknown): Promise<{ ok: true; path:
   const trimmed = value.trim();
   if (!trimmed) return { ok: false, error: "Diagram folder is required." };
   if (trimmed.length > PATH_MAX) return { ok: false, error: "Diagram folder is too long." };
+  if (!path.isAbsolute(trimmed)) return { ok: false, error: "An absolute path is required." };
   if (trimmed.includes("\0") || /[\u0000-\u001f]/.test(trimmed)) {
     return { ok: false, error: "Diagram folder cannot include control characters." };
   }

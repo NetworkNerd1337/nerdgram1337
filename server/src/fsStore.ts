@@ -323,6 +323,19 @@ export async function createFolder(relativePath: string): Promise<{ path: string
   const cleaned = normalizeRelative(relativePath);
   if (!cleaned) throw httpFail(400, "Folder path required", "invalid");
   const abs = resolveSafePath(cleaned);
+  let existing: Awaited<ReturnType<typeof fs.stat>> | null = null;
+  try {
+    existing = await fs.stat(abs);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") throw err;
+  }
+  if (existing?.isDirectory()) {
+    throw httpFail(409, "That folder already exists.", "exists", { path: toRelativePath(abs) });
+  }
+  if (existing) {
+    throw httpFail(409, "Something already exists at that path.", "exists", { path: toRelativePath(abs) });
+  }
   await fs.mkdir(abs, { recursive: true });
   const created = toRelativePath(abs);
   noteSync({ kind: "structural", summary: `Create folder ${created}` });
@@ -449,9 +462,13 @@ export async function moveItem(
   toFolder: string,
   options: RenameOptions = {},
 ): Promise<{ path: string; updated: string[]; dataFiles: DataFileMove[] }> {
-  const name = path.posix.basename(normalizeRelative(fromPath));
+  const from = normalizeRelative(fromPath);
+  const name = path.posix.basename(from);
   const folder = normalizeRelative(toFolder);
   const dest = folder ? `${folder}/${name}` : name;
+  if (dest === from) {
+    throw httpFail(409, "That item is already in this folder.", "same");
+  }
   return renameItem(fromPath, dest, options);
 }
 

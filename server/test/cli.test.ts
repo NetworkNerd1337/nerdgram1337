@@ -76,6 +76,23 @@ describe("nerdgram CLI", () => {
     expect(help.stdout).toContain("--copy-data");
     expect(help.stdout).toContain("--with-data");
     expect(help.stdout).toContain("NERDGRAM_TOKEN");
+    expect(help.stdout).toContain("--url");
+    expect(help.stdout).toContain("--token");
+    expect(help.stdout).toContain("--include-down");
+    expect(help.stdout).toContain("--vlan");
+    expect(help.stdout).toContain("platform or capability");
+    expect(help.stdout).toContain("vrf");
+    expect(help.stdout).toContain("site or role");
+    expect(help.stdout).toContain('{"ok":true');
+
+    const version = await runCli(["--version"]);
+    expect(version.code).toBe(0);
+    expect(version.stdout.trim()).toMatch(/^nerdgram \d+\.\d+\.\d+$/);
+    expect(version.stderr).toBe("");
+
+    const refreshView = await runCli(["refresh", "Campus.mmd", "--view", "l2"]);
+    expect(refreshView.code).toBe(1);
+    expect(refreshView.stderr).toMatch(/does not take --view/);
 
     const unknown = await runCli(["nope"]);
     expect(unknown.code).toBe(1);
@@ -200,6 +217,10 @@ describe("nerdgram CLI", () => {
       stdout.length = 0;
       const rendered = await main(["render", source, "-o", svg, "--json"], io);
       expect(rendered).toBe(0);
+      stderr.length = 0;
+      const serverRender = await main(["render", source, "--server", "-o", svg, ...flags.filter((flag) => flag !== "--json")], io);
+      expect(serverRender).toBe(1);
+      expect(stderr.join("")).toMatch(/Drop --server/);
       const svgText = await fs.readFile(svg, "utf8");
       expect(svgText).toContain("<svg");
       expect(svgText).toContain("Alpha");

@@ -14,6 +14,7 @@ function status(overrides: Partial<ListenHostStatus> = {}): ListenHostStatus {
     persisted: false,
     invalid: false,
     effectiveHosts: ["127.0.0.1", "::1"],
+    savedHosts: ["127.0.0.1", "::1"],
     source: "default",
     envHost: null,
     envOverrides: false,

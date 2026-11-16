@@ -92,8 +92,8 @@ export function DiagramFolderSettings({ githubSync = false }: { githubSync?: boo
         aria-describedby="diagram-folder-help"
       />
       <p id="diagram-folder-help">
-        An absolute path works on the next start. The folder has to exist, or its parent has to
-        exist so NerdGram can create it, and it has to be writable.
+        An absolute path is required. A relative path is rejected. The folder has to exist, or
+        its parent has to exist so NerdGram can create it, and it has to be writable.
         {status ? ` This process is using ${status.running}.` : ""}
       </p>
       {showRestart && status ? (

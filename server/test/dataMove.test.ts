@@ -111,6 +111,17 @@ describe("companion path planning", () => {
     expect(next).toContain("title: Campus");
     expect(next).toContain("theme: forest");
     expect(next).toContain("notes: Keep me");
+    const described = source.replace(
+      "  notes: Keep me",
+      "  description: Generated from Sites/Campus.csv\n  notes: Keep me",
+    );
+    const renamed = replaceDataSourcePaths(described, { file: "Regions/Core.csv" });
+    expect(renamed).toContain("Generated from Regions/Core.csv");
+    expect(renamed).not.toContain("Generated from Sites/Campus.csv");
+    const custom = source.replace("  notes: Keep me", "  description: Campus core\n  notes: Keep me");
+    const kept = replaceDataSourcePaths(custom, { file: "Regions/Core.csv" });
+    expect(kept).toContain("description: Campus core");
+    expect(kept).not.toContain("Generated from Regions/Core.csv");
     expect(next).toContain("A-->B");
     expect(readDataSource(next)?.file).toBe("Regions/Core.csv");
     expect(readDataSource(next)?.edgesFile).toBe("Regions/Core.edges.csv");

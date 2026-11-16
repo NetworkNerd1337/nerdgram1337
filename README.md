@@ -63,7 +63,7 @@ npm install -g nerdgram1337
 npx nerdgram1337 --help
 ```
 
-`npm install -g` puts `nerdgram` on your `PATH`. `npx` runs the command without a global install. The package is public. Point `NERDGRAM_URL` at the running app. The default is `http://127.0.0.1:8787`, which is right when the app is on the same computer.
+`npm install -g` puts `nerdgram` on your `PATH`. `npx` runs the command without a global install. The package is public. Point `NERDGRAM_URL` at the running app. The default is `http://127.0.0.1:8787`, which is right when the app is on the same computer. npm 11 can warn that Puppeteer's postinstall is not covered by `allowScripts`. Chrome still installs. See [Command-line tool](docs/cli.md#install).
 
 The full command list is in [the command-line tool](docs/cli.md).
 
