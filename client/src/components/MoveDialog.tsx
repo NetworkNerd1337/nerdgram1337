@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import {
   collectPaths,
@@ -12,6 +12,7 @@ import { basename, displayName } from "../lib/paths";
 import type { TreeNode } from "../types";
 import { AffectedLinksDialog } from "./AffectedLinksDialog";
 import { FolderPicker } from "./FolderPicker";
+import { useCloseOnEscape } from "./useCloseOnEscape";
 
 type MoveDialogProps = {
   itemPath: string;
@@ -42,7 +43,16 @@ export function MoveDialog({
   const [busy, setBusy] = useState(false);
   const [linkFiles, setLinkFiles] = useState<string[] | null>(null);
   const [pending, setPending] = useState<null | { kind: "move" } | { kind: "rename"; to: string }>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const taken = useMemo(() => collectPaths(tree), [tree]);
+  useCloseOnEscape(onClose);
+  useEffect(() => {
+    const root = pickerRef.current;
+    if (!root) return;
+    const selected = root.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]:not([aria-disabled="true"])');
+    const first = root.querySelector<HTMLElement>('[role="radio"]:not([aria-disabled="true"])');
+    (selected ?? first)?.focus();
+  }, []);
   const blocked = moveBlockReason(itemPath, isFolder, folder);
   const dest = destinationPath(itemPath, folder);
   const collision = !blocked && taken.has(dest);
@@ -157,6 +167,7 @@ export function MoveDialog({
           folder. Trash is not a destination.
         </p>
         <FolderPicker
+          ref={pickerRef}
           tree={tree}
           value={folder}
           onChange={(path) => {

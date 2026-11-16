@@ -6,7 +6,7 @@ import request from "supertest";
 import { createApp } from "../src/app.js";
 import { main } from "../src/cli.js";
 import { clearInstanceIdentityCache, getInstanceIdentity } from "../src/instanceConfig.js";
-import { acquireLock, lockIsStale, type LockRecord } from "../src/locks.js";
+import { acquireLock, lockIsStale, lockStorageKey, type LockRecord } from "../src/locks.js";
 import { encodeStorageKey } from "../src/storage.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -59,6 +59,15 @@ describe("lock rules", () => {
         "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       ),
     ).toBe(true);
+  });
+
+  it("keeps a short lock key and hashes one that would not fit in a filename", () => {
+    expect(lockStorageKey("Notes.mmd")).toBe(encodeStorageKey("Notes.mmd"));
+    const longName = `${"n".repeat(250)}.mmd`;
+    const key = lockStorageKey(longName);
+    expect(key.startsWith("h_")).toBe(true);
+    expect(Buffer.byteLength(`${key}.json`)).toBeLessThanOrEqual(255);
+    expect(lockStorageKey(longName)).toBe(key);
   });
 });
 
@@ -122,6 +131,7 @@ describe("lock acquire across instances", () => {
 
   it("takes over another instance once the heartbeat is old, and keeps a legacy lock readable", async () => {
     const { identity, lockPath } = await setup();
+    const staleSince = new Date(Date.now() - 120_000).toISOString();
     await fs.writeFile(
       lockPath,
       JSON.stringify(
@@ -129,13 +139,17 @@ describe("lock acquire across instances", () => {
           instanceId: OTHER_ID,
           instanceName: "Engineer A",
           hostname: "laptop-a",
-          heartbeatAt: new Date(Date.now() - 120_000).toISOString(),
+          acquiredAt: staleSince,
+          heartbeatAt: staleSince,
           pid: process.pid,
         }),
       ),
     );
+    const before = Date.now();
     const taken = await acquireLock("Network Core.mmd", "tab-two");
     expect(taken.sessionId).toBe("tab-two");
+    expect(taken.acquiredAt).not.toBe(staleSince);
+    expect(Date.parse(taken.acquiredAt)).toBeGreaterThanOrEqual(before - 1000);
     const stored = JSON.parse(await fs.readFile(lockPath, "utf8")) as LockRecord;
     expect(stored.instanceId).toBe(identity.instanceId);
     expect(stored.instanceName).toBe(identity.instanceName);

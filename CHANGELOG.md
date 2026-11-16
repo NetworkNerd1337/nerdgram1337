@@ -4,8 +4,30 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- The README is a short overview. Install, features, the API, the CLI, and the other guides are pages under `docs/`.
 - Small fixes from 1.4.0 testing. `nerdgram --version` prints the version, and `--help` lists `--vlan`, `--include-down`, `--group-by`, `--url`, `--token`, and the `--json` object. `refresh` rejects `--view`. A local file passed to `render --server` says to drop `--server`. Creating a folder that already exists is **409**. A move into the current folder is **409**. Whitespace-only names and names with a drive letter or other invalid path characters are rejected. A rename updates an automatic `Generated from <path>` description. A second replace undo says already undone. The Generate direction list has one Top to bottom choice. VRF grouping keeps a multi-VRF device in a subgraph named for those VRFs. A named native VLAN is shown with its name. The same address on two devices is a warning. A relative Diagram folder says an absolute path is required. `/api/host` reports `savedHosts` next to `effectiveHosts`, and the fields are documented. A missing template says the template was not found. Repair links stays disabled when nothing matches. Sync connect with no account is `not_connected`. An empty client ID clears a saved one. A lock retry while another window holds the diagram does not log a **423** each time. Sidebar Settings links to Diagram folder and Instance name. The CLI docs note the npm 11 `allowScripts` warning for the Puppeteer postinstall.
+
+## 1.4.1 "Atlas" - 2026-11-15
+
+Patch on the Atlas line. The code name stays Atlas. The README is a short overview, and the guides are pages under `docs/`. Fixes from 1.4.0 testing keep a fresh install's git tree clean, return JSON for a bad request body, and correct shared data files, editor locks, the preview, a loopback Host, CLI errors, the syntax reference, dialogs, and long file names.
+
+### Documentation
+
+From #83 (#82). The README is a short overview. Install, features, the API, the CLI, and the other guides are pages under `docs/`.
+
+### Fixes from 1.4.0 testing
+
+From #85 (#84).
+
+- `npm run install:all` leaves the git tree clean. The verify job fails if an install changes a lockfile.
+- A malformed JSON body returns **400** and a body over 5 MB returns **413**, both as `{error, code}`. The server log is one line, with no stack and no absolute path. `npm start` does not set `NODE_ENV`.
+- Deleting a diagram with `deleteData` keeps a data file that another diagram still uses. The API response and the dashboard name that diagram.
+- The editor lock alert clears as soon as this window gets the lock. A stale or taken-over lock records a new open time.
+- Diagram info and a long source keep the preview in view. The preview uses the width of its pane.
+- A saved or effective Host on another loopback address, such as `127.0.0.2`, is an allowed origin. Other origin checks are unchanged.
+- `nerdgram generate` and `nerdgram refresh` print the row and field errors the API returns, in text and in `--json`.
+- The Syntax Reference no longer shows the source and license comments or a repeated title. The upstream link stays on the page.
+- Escape closes a dialog. The Move dialog focuses its folder list. An error banner sits above an open dialog.
+- A file name the filesystem cannot store returns **400** with a name-length message. A long diagram path no longer makes the lock filename too long.
 
 ## 1.4.0 "Atlas" - 2026-11-15
 

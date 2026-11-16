@@ -29,6 +29,7 @@ import {
   OTHER_WINDOW_NOTE,
   releaseEditorLock,
   remoteLockAlert,
+  remoteLockAlertWhileHeld,
   stillHeldNote,
   type RemoteLockAlert,
 } from "../lib/editorLock";
@@ -480,6 +481,7 @@ export function EditorPage() {
           baselineRef.current = { mtimeMs: file.mtimeMs, hash: file.hash };
           setCode(file.content);
           setAccess("edit");
+          setLockRemote((current) => remoteLockAlertWhileHeld(current, true));
           setLockNote(null);
           setSaveState("saved");
         } catch {

@@ -277,15 +277,42 @@ export async function getReferencePage(id: string): Promise<ReferencePagePayload
     throw Object.assign(new Error("Reference page not found"), { status: 404 });
   }
   const filename = meta.filename || `${pageId}.md`;
-  const content = rewriteReferenceLinks(await fs.readFile(pageFile(root, filename), "utf8"));
+  const raw = rewriteReferenceLinks(await fs.readFile(pageFile(root, filename), "utf8"));
   const overrides = await readOverrides();
   return {
     id: meta.id,
     title: meta.title,
     sourceUrl: meta.sourceUrl,
-    content,
+    content: presentReferenceContent(raw, meta.title),
     override: overrides[pageId] || "",
   };
+}
+
+const REFERENCE_COMMENT = /^<!--\s*(?:Source|License):\s*.*-->$/;
+
+/**
+ * Drop the leading Source and License comments and a first heading that
+ * repeats the page title. The upstream link blockquote stays. The files on
+ * disk keep the comments.
+ */
+export function presentReferenceContent(content: string, title: string): string {
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/);
+  let index = 0;
+  const skipBlanks = () => {
+    while (index < lines.length && lines[index].trim() === "") index += 1;
+  };
+  skipBlanks();
+  while (index < lines.length && REFERENCE_COMMENT.test(lines[index].trim())) {
+    index += 1;
+    skipBlanks();
+  }
+  const heading = index < lines.length ? /^#\s+(.+?)\s*$/.exec(lines[index]) : null;
+  if (heading && heading[1].trim() === title.trim()) {
+    index += 1;
+    skipBlanks();
+  }
+  const body = lines.slice(index).join("\n").replace(/\s+$/, "");
+  return body ? `${body}\n` : "";
 }
 
 export async function setOverride(id: string, text: string): Promise<{ override: string }> {

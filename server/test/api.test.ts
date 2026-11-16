@@ -104,6 +104,27 @@ describe("API host, origin, and path guards", () => {
     expect(curl.status).toBe(201);
   });
 
+  it("allows the bound loopback origin and still rejects a different loopback address", async () => {
+    const bound = createApp({ mode: "production", port: 8787, bindHosts: ["127.0.0.2"] });
+    const ok = await request(bound)
+      .post("/api/folder")
+      .set("Host", "127.0.0.2:8787")
+      .set("Origin", "http://127.0.0.2:8787")
+      .set("Content-Type", "application/json")
+      .send({ path: "Loop" });
+    expect(ok.status).toBe(201);
+
+    const other = await request(bound)
+      .post("/api/folder")
+      .set("Host", "127.0.0.2:8787")
+      .set("Origin", "http://127.0.0.3:8787")
+      .set("Content-Type", "application/json")
+      .send({ path: "Nope" });
+    expect(other.status).toBe(403);
+    expect(other.body.error).toBe("Forbidden origin");
+    await expect(fs.access(path.join(dir, "Nope"))).rejects.toThrow();
+  });
+
   it("rejects a cross-origin DELETE and keeps the diagram", async () => {
     const app = makeApp("production");
     await request(app)

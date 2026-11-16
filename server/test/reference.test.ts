@@ -6,6 +6,7 @@ import { REPO_ROOT } from "../src/paths.js";
 import {
   getReferencePage,
   listReference,
+  presentReferenceContent,
   referenceWriteLayout,
   rewriteReferenceLinks,
   syncReference,
@@ -108,6 +109,21 @@ describe("reference sync layout", () => {
     const served = await getReferencePage("syntax-reference");
     expect(served.content).toContain("https://mermaid.js.org/intro/getting-started.html");
     expect(served.content).not.toContain("https://mermaid.js.org/getting-started.html");
+  });
+
+  it("strips source comments and a repeated title from the served page", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    const page = await getReferencePage("flowchart");
+    expect(page.content).not.toContain("<!-- Source:");
+    expect(page.content).not.toContain("<!-- License:");
+    expect(page.content.startsWith("# Flowchart\n")).toBe(false);
+    expect(page.content).toContain("Offline mirror for NerdGram1337");
+    expect(page.content).toContain("# Flowcharts - Basic Syntax");
+    const kept = presentReferenceContent("<!-- License: MIT (Mermaid documentation) -->\n\n# Other heading\n\nBody\n", "Flowchart");
+    expect(kept).toContain("# Other heading");
+    const raw = await fs.readFile(path.join(REPO_ROOT, "reference", "pages", "flowchart.md"), "utf8");
+    expect(raw).toContain("<!-- Source:");
   });
 
   it("keeps the repo-root layout when NERDGRAM_DATA_DIR is unset", async () => {

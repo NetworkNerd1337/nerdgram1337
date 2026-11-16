@@ -560,8 +560,10 @@ a {
 
 .editor-layout {
   display: grid;
-  grid-template-rows: auto 1fr;
-  min-height: 100vh;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   background: #0f141a;
   color: #e8eef5;
 }
@@ -759,6 +761,18 @@ a {
   display: grid;
   grid-template-columns: minmax(280px, 42%) 1fr;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.editor-panels > .panel,
+.editor-panels > .diagram-info {
+  min-width: 0;
+  min-height: 0;
+}
+
+.editor-panels > .panel {
+  overflow: hidden;
 }
 
 .editor-panels.with-info {
@@ -979,14 +993,23 @@ a {
 
 .preview-stage {
   flex: 1;
+  min-height: 0;
+  min-width: 0;
   overflow: auto;
+  display: flex;
   padding: 1rem;
-  display: grid;
-  place-items: center;
+}
+
+.preview-stage > div {
+  margin: auto;
+  width: 100%;
+  min-width: 0;
 }
 
 .preview-stage svg {
-  max-width: 100%;
+  display: block;
+  width: 100%;
+  max-width: none !important;
   height: auto;
 }
 
@@ -1002,9 +1025,8 @@ a {
   font-size: 0.85rem;
 }
 
-.preview-stage.is-stale {
-  place-items: stretch;
-  align-content: start;
+.preview-stage.is-stale > div {
+  margin-top: 0;
 }
 
 .preview-stale {
@@ -1455,6 +1477,8 @@ a {
 }
 
 .error-banner {
+  position: relative;
+  z-index: 50;
   background: #fdecec;
   color: var(--danger);
   border: 1px solid #f3c7c7;
@@ -1678,15 +1702,27 @@ a {
     border-bottom: 1px solid var(--line);
   }
 
+  .editor-layout {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
   .editor-panels,
   .editor-panels.with-info {
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .code-panel {
     border-right: 0;
     border-bottom: 1px solid #243041;
     min-height: 40vh;
+    max-height: 70vh;
+  }
+
+  .preview-panel {
+    min-height: 50vh;
   }
 
   .view-toggle {

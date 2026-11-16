@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import request from "supertest";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
-import { main } from "../src/cli.js";
+import { formatRowIssues, main } from "../src/cli.js";
 import { closeRenderer } from "../src/renderDiagram.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -134,6 +134,59 @@ describe("nerdgram CLI", () => {
       expect(body.diagnostics.some((item) => item.severity === "error")).toBe(true);
     } finally {
       await fs.rm(broken, { force: true });
+    }
+  });
+
+  it("prints generate row and field errors in text and json", async () => {
+    expect(
+      formatRowIssues([
+        { row: 2, message: "source is empty." },
+        { row: 0, path: "/devices/0/name", message: "duplicate device \"core\"." },
+      ]),
+    ).toEqual(["row 2: source is empty.", "/devices/0/name: duplicate device \"core\"."]);
+
+    const server = createApp({ mode: "production", port: 8787, bindHosts: ["127.0.0.1", "::1"] });
+    const created = await request(server)
+      .post("/api/tokens")
+      .set("Host", "127.0.0.1:8787")
+      .set("Content-Type", "application/json")
+      .send({ name: "cli", scope: "read-write" });
+    expect(created.status).toBe(201);
+    const running = await listen(server);
+    const url = `http://127.0.0.1:${running.port}`;
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const io = {
+      stdout: (chunk: string) => stdout.push(chunk),
+      stderr: (chunk: string) => stderr.push(chunk),
+      env: {} as NodeJS.ProcessEnv,
+    };
+    const bad = path.join(dir, "bad.network.json");
+    await fs.writeFile(
+      bad,
+      JSON.stringify({
+        schemaVersion: 1,
+        devices: [{ name: "core" }, { name: "core" }],
+        interfaces: [],
+      }),
+    );
+    const args = ["generate", "--path", "Dup.mmd", "--data", bad, "--format", "network", "--view", "l3", "--url", url, "--token", created.body.token as string];
+    try {
+      expect(await main(args, io)).toBe(1);
+      const text = stderr.join("");
+      expect(text).toContain("Fix the rows listed before creating the diagram.");
+      expect(text).toContain("duplicate device");
+      expect(text).toContain("/devices/");
+
+      stdout.length = 0;
+      stderr.length = 0;
+      expect(await main([...args, "--json"], io)).toBe(1);
+      const body = JSON.parse(stdout.join("")) as { ok: boolean; error: string; errors: { path?: string; message: string }[] };
+      expect(body.ok).toBe(false);
+      expect(body.error).toContain("duplicate device");
+      expect(body.errors.some((item) => item.message.includes("duplicate device"))).toBe(true);
+    } finally {
+      await running.close();
     }
   });
 

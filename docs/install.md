@@ -10,7 +10,7 @@ Run NerdGram with Docker, or with Node.js on the machine. Docker is the install 
 
 The app is for you, on your personal machine. It is a single-user tool, not a client/server product. The API is a tool port: a conduit other programs can call on demand, not an always-on multi-user server. The [security model](security.md#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset unless you want that tool port on the local network.
 
-The Docker `pull` and `run` commands in this file use `v1.4.0`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](../compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](releases.md#versioning-and-releases) fails if an image pin in the README or the docs, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](releases.md#versioning-and-releases).
+The Docker `pull` and `run` commands in this file use `v1.4.1`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](../compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](releases.md#versioning-and-releases) fails if an image pin in the README or the docs, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](releases.md#versioning-and-releases).
 
 ### Docker
 
@@ -22,10 +22,10 @@ The package is public, so `docker pull` does not need a login. If a new package 
 
 **1. Install Docker.** Install Docker Engine and the Compose plugin from [Docker's documentation](https://docs.docker.com/get-docker/). `docker version` and `docker compose version` should both print a version.
 
-**2. Pull the image.** The command uses `v1.4.0`, the tag for this tree (the same pin as [`compose.yaml`](../compose.yaml)). Use the current tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when it differs. `:latest` is the newest full release.
+**2. Pull the image.** The command uses `v1.4.1`, the tag for this tree (the same pin as [`compose.yaml`](../compose.yaml)). Use the current tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when it differs. `:latest` is the newest full release.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v1.4.0
+docker pull ghcr.io/networknerd1337/nerdgram1337:v1.4.1
 ```
 
 ```bash
@@ -42,7 +42,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v1.4.0
+  ghcr.io/networknerd1337/nerdgram1337:v1.4.1
 ```
 
 **About → Show upgrade steps** prints the run command with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. Updating an install you already have is [Update a Docker install](upgrading.md#update-a-docker-install).
@@ -157,7 +157,9 @@ The root scripts call `client/package.json` and `server/package.json` with `--pr
 npm run install:all
 ```
 
-That runs `npm install && npm install --prefix client && npm install --prefix server`. Root installs `concurrently` into `node_modules/`. Client installs React, Vite, and mermaid.js into `client/node_modules/`. Server installs Express and the server toolchain into `server/node_modules/`. The three `node_modules` folders together are roughly 900 MB, and on a typical connection the command takes a couple of minutes. The server install also downloads Puppeteer's chrome-headless-shell (about 260 MB) into Puppeteer's cache at `~/.cache/puppeteer`, or into `PUPPETEER_CACHE_DIR` when that is set. `npm install -g nerdgram1337` downloads that same shell, because the CLI package depends on puppeteer. npm 11 can warn that the puppeteer postinstall script is not yet covered by `allowScripts`. Chrome still downloads, and offline PNG render still works. The same note is in [the command-line tool](cli.md#install). You will see three install reports, each with a line like `added N packages`. Depending on the npm version and config, an audit summary may follow that line, or it may not appear at all. If the server summary lists high-severity findings, including ones that come from puppeteer, that is expected and the install still succeeded. The command does not start the app. Run it again after you update the code, delete a `node_modules` folder, or see a missing-package error.
+That runs `npm install && npm install --prefix client && npm install --prefix server`. Root installs `concurrently` into `node_modules/`. Client installs React, Vite, and mermaid.js into `client/node_modules/`. Server installs Express and the server toolchain into `server/node_modules/`. The three `node_modules` folders together are roughly 900 MB, and on a typical connection the command takes a couple of minutes. The server install also downloads Puppeteer's chrome-headless-shell (about 260 MB) into Puppeteer's cache at `~/.cache/puppeteer`, or into `PUPPETEER_CACHE_DIR` when that is set. `npm install -g nerdgram1337` downloads that same shell, because the CLI package depends on puppeteer. You will see three install reports, each with a line like `added N packages`. Depending on the npm version and config, an audit summary may follow that line, or it may not appear at all. If the server summary lists high-severity findings, including ones that come from puppeteer, that is expected and the install still succeeded. The command does not start the app. Run it again after you update the code, delete a `node_modules` folder, or see a missing-package error. A finished install leaves `git status` clean.
+
+npm 11 can warn that an install script is not covered by `allowScripts`. Puppeteer, installed under `server/` and by `npm install -g nerdgram1337`, uses its postinstall script to download Chrome. The warning means npm has not yet classified that script. Chrome still downloads, and offline PNG render still works, including when `PUPPETEER_CACHE_DIR` was empty before the install. The same note is in [the command-line tool](cli.md#install). If a later export or render says Chrome is missing, run `npx puppeteer browsers install` from `server/`. To let that script run on the next install, from `server/` run `npm install-scripts approve puppeteer` and then `npm install`.
 
 **5. Run in development.**
 
@@ -210,7 +212,7 @@ npm run build
 npm start
 ```
 
-`npm run build` runs the client build (`tsc -b && vite build`, output `client/dist/`) and then the server build (`tsc`, output `server/dist/`). It does not start the server. `npm start` runs `node dist/index.js` in `server/`. When `client/dist` exists, Express serves those files and sends other non-API routes to `client/dist/index.html`.
+`npm run build` runs the client build (`tsc -b && vite build`, output `client/dist/`) and then the server build (`tsc`, output `server/dist/`). It does not start the server. `npm start` runs `node dist/index.js` in `server/`. It does not set `NODE_ENV`. When `client/dist` exists, Express serves those files and sends other non-API routes to `client/dist/index.html`.
 
 Open [http://127.0.0.1:8787](http://127.0.0.1:8787) or [http://localhost:8787](http://localhost:8787). There is no Vite server, so port 5173 will not respond. The log matches the dev server lines above, and `Server module dir` ends in `server/dist`. `npm start` does not watch files. After you change code, press Ctrl+C, run `npm run build`, then `npm start`.
 

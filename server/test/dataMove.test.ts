@@ -358,6 +358,53 @@ describe("data files follow the diagram", () => {
     expect(await fs.readFile(path.join(dir, "Sites", "Campus.csv"), "utf8")).toContain("Core");
   });
 
+  it("keeps a shared data file when deleteData is set and names the diagram that still uses it", async () => {
+    await generate("Rep2/Net.mmd");
+    const shared = await request(app)
+      .post("/api/duplicate")
+      .set(json)
+      .send({ path: "Rep2/Net.mmd", copyData: false });
+    expect(shared.status).toBe(201);
+    expect(shared.body.path).toBe("Rep2/Net (copy).mmd");
+
+    const removed = await request(app)
+      .delete("/api/item")
+      .set(json)
+      .query({ path: "Rep2/Net.mmd", deleteData: "1" });
+    expect(removed.status).toBe(200);
+    expect(removed.body.trashed).toBe(true);
+    expect(removed.body.dataKept).toEqual([{ file: "Rep2/Net.csv", diagrams: ["Rep2/Net (copy).mmd"] }]);
+    expect(removed.body.message).toBe("Kept Rep2/Net.csv because Rep2/Net (copy) still uses it.");
+    expect(await fs.readFile(path.join(dir, "Rep2", "Net.csv"), "utf8")).toContain("Core");
+    await expect(fs.access(path.join(dir, "Rep2", "Net.mmd"))).rejects.toThrow();
+
+    const refreshed = await request(app)
+      .post("/api/generate/refresh")
+      .set(json)
+      .send({ path: "Rep2/Net (copy).mmd" });
+    expect(refreshed.status).toBe(200);
+
+    const token = await request(app)
+      .post("/api/tokens")
+      .set(json)
+      .send({ name: "ci", scope: "read-write" });
+    expect(token.status).toBe(201);
+    const auth = { ...json, Authorization: `Bearer ${token.body.token}` };
+    await generate("Rep2/Other.mmd");
+    const again = await request(app)
+      .post("/api/v1/diagrams/duplicate")
+      .set(auth)
+      .send({ path: "Rep2/Other.mmd", copyData: false });
+    expect(again.status).toBe(201);
+    const apiDelete = await request(app)
+      .delete("/api/v1/diagrams")
+      .set(auth)
+      .send({ path: "Rep2/Other.mmd", deleteData: true });
+    expect(apiDelete.status).toBe(200);
+    expect(apiDelete.body.message).toContain("Rep2/Other (copy)");
+    expect(await fs.readFile(path.join(dir, "Rep2", "Other.csv"), "utf8")).toContain("Core");
+  });
+
   it("keeps folder data in place when deleteData is false and takes it along when true", async () => {
     await generate("Lab/Campus.mmd");
     const kept = await request(app).delete("/api/item").set(json).query({ path: "Lab", deleteData: "0" });

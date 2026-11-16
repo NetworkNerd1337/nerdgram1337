@@ -8,6 +8,7 @@ import {
   lockReleaseBeaconBody,
   releaseEditorLock,
   remoteLockAlert,
+  remoteLockAlertWhileHeld,
   remoteLockSentence,
 } from "../src/lib/editorLock";
 
@@ -187,5 +188,7 @@ describe("editor lock banner", () => {
     });
     expect(sameName?.hostname).toBeNull();
     expect(remoteLockSentence(sameName!)).not.toContain("(RYAN-LAPTOP)");
+    expect(remoteLockAlertWhileHeld(remote, false)).toBe(remote);
+    expect(remoteLockAlertWhileHeld(remote, true)).toBeNull();
   });
 });

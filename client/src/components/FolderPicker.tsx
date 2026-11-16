@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import { forwardRef, type KeyboardEvent } from "react";
 import type { TreeNode } from "../types";
 
 type FolderPickerProps = {
@@ -8,7 +8,10 @@ type FolderPickerProps = {
   disabledReason?: (path: string) => string | null;
 };
 
-export function FolderPicker({ tree, value, onChange, disabledReason }: FolderPickerProps) {
+export const FolderPicker = forwardRef<HTMLDivElement, FolderPickerProps>(function FolderPicker(
+  { tree, value, onChange, disabledReason },
+  ref,
+) {
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") {
       return;
@@ -32,6 +35,7 @@ export function FolderPicker({ tree, value, onChange, disabledReason }: FolderPi
 
   return (
     <div
+      ref={ref}
       className="folder-picker"
       role="radiogroup"
       aria-label="Destination folder"
@@ -54,7 +58,7 @@ export function FolderPicker({ tree, value, onChange, disabledReason }: FolderPi
       />
     </div>
   );
-}
+});
 
 function FolderChoices({
   nodes,

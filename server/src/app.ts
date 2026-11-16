@@ -1,7 +1,7 @@
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { httpError, sendError } from "./httpError.js";
+import { apiErrorHandler, httpError, sendError } from "./httpError.js";
 import * as store from "./fsStore.js";
 import { importDiagrams } from "./import.js";
 import * as history from "./history.js";
@@ -36,6 +36,7 @@ import { mountAutomationApi } from "./v1.js";
 import type { RateLimit } from "./renderDiagram.js";
 import {
   describeListenHost,
+  loopbackOriginHosts,
   parseListenHostInput,
   readSavedListenHost,
   writeSavedListenHost,
@@ -140,7 +141,10 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   const bindHosts = options.bindHosts ?? resolveBindHosts(process.env.HOST);
   const extraHosts = options.allowedHosts ?? parseCsv(process.env.NERDGRAM_ALLOWED_HOSTS);
   const extraOrigins = options.allowedOrigins ?? parseCsv(process.env.NERDGRAM_CORS_ORIGINS);
-  const originHosts = options.allowedOriginHosts ?? [];
+  const originHosts = [
+    ...(options.allowedOriginHosts ?? []),
+    ...loopbackOriginHosts(bindHosts, null),
+  ];
 
   const app = express();
   app.use(createHostGuard({ getPort, bindHosts, extraHosts }));
@@ -700,7 +704,11 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       }
       const confirmLinks = req.query.confirmLinks === "1" || body.confirmLinks === true;
       const deleteData = queryBoolean(req.query.deleteData, "deleteData") ?? optionalBoolean(body.deleteData, "deleteData");
-      await store.deleteItem(itemPath, { confirmLinks, deleteData });
+      const deleted = await store.deleteItem(itemPath, { confirmLinks, deleteData });
+      if (deleted.dataKept.length > 0) {
+        res.status(200).json(deleted);
+        return;
+      }
       res.status(204).send();
     } catch (err) {
       sendError(res, err);
@@ -1155,6 +1163,8 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       res.sendFile(path.join(clientDist, "index.html"));
     });
   }
+
+  app.use(apiErrorHandler);
 
   return app;
 }

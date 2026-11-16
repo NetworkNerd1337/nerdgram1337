@@ -63,6 +63,12 @@ export function resolveSafePath(relativePath: string): string {
     const stem = part.toLowerCase().endsWith(".mmd") ? part.slice(0, -4) : part;
     if (!stem.trim()) throw new Error(INVALID_PATH_MESSAGE);
   }
+  if (hidden.some((part) => Buffer.byteLength(part) > 255)) {
+    throw Object.assign(
+      new Error("That name is too long. Each folder or file name has to be 255 bytes or fewer."),
+      { status: 400, code: "invalid" },
+    );
+  }
 
   const absolute = path.resolve(root, cleaned === "" ? "." : cleaned);
   const relative = path.relative(root, absolute);

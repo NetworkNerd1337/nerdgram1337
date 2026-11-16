@@ -235,8 +235,12 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
       const deleteData = queryFlag(req.query.deleteData, "deleteData") ?? (
         typeof req.body?.deleteData === "boolean" ? req.body.deleteData : undefined
       );
-      await store.deleteItem(itemPath, { confirmLinks, deleteData });
-      res.json({ path: itemPath, trashed: true });
+      const deleted = await store.deleteItem(itemPath, { confirmLinks, deleteData });
+      res.json({
+        path: deleted.path,
+        trashed: true,
+        ...(deleted.dataKept.length > 0 ? { dataKept: deleted.dataKept, message: deleted.message } : {}),
+      });
     }),
     createFolder: asyncHandler(async (req, res) => {
       if (!jsonObject(req, res)) return;

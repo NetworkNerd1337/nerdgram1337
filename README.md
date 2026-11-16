@@ -30,10 +30,10 @@ The full install is in [Install](docs/install.md).
 
 ### Docker
 
-The command uses `v1.4.0`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)).
+The command uses `v1.4.1`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)).
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v1.4.0
+docker pull ghcr.io/networknerd1337/nerdgram1337:v1.4.1
 ```
 
 ```bash
@@ -44,7 +44,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v1.4.0
+  ghcr.io/networknerd1337/nerdgram1337:v1.4.1
 ```
 
 Open [http://127.0.0.1:8787](http://127.0.0.1:8787) or [http://localhost:8787](http://localhost:8787).
