@@ -4,7 +4,18 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- The README is a short overview. Install, features, the API, the CLI, and the other guides are pages under `docs/`.
+## 1.4.1 "Atlas" - 2026-11-15
+
+Patch on the Atlas line. The code name stays Atlas. The README is a short overview, and the guides are pages under `docs/`. Fixes from 1.4.0 testing keep a fresh install's git tree clean, return JSON for a bad request body, and correct shared data files, editor locks, the preview, a loopback Host, CLI errors, the syntax reference, dialogs, and long file names.
+
+### Documentation
+
+From #83 (#82). The README is a short overview. Install, features, the API, the CLI, and the other guides are pages under `docs/`.
+
+### Fixes from 1.4.0 testing
+
+From #85 (#84).
+
 - `npm run install:all` leaves the git tree clean. The verify job fails if an install changes a lockfile.
 - A malformed JSON body returns **400** and a body over 5 MB returns **413**, both as `{error, code}`. The server log is one line, with no stack and no absolute path. `npm start` does not set `NODE_ENV`.
 - Deleting a diagram with `deleteData` keeps a data file that another diagram still uses. The API response and the dashboard name that diagram.
