@@ -19,7 +19,9 @@ The planned work after v1.4.2 Atlas, still on the Atlas line.
 - [1.8.5 Additional exports](#185-additional-exports)
 - [Later ideas](#later-ideas)
 
-This roadmap is a plan, not a commitment. Each planned version is tracked as a GitHub milestone. The work starts from the v1.4.2 Atlas tree. Later 1.x.y releases stay Atlas.
+Progress is tracked in [GitHub milestones](https://github.com/NetworkNerd1337/NerdGram1337/milestones).
+
+This roadmap is a plan, not a commitment. The work starts from the v1.4.2 Atlas tree. Later 1.x.y releases stay Atlas.
 
 ## Where we are
 
@@ -142,7 +144,7 @@ The create-or-update upsert lives in 1.5.0 even though it does not depend on whi
 
 **1.8.0 follows the same logic on the way out.** It exports the settled document to text files, and it should reuse the modular pattern 1.7.0 proves. **1.8.5 is gated on 1.8.0** the same way 1.7.5 is gated on 1.7.0. If the export system does not hold, 1.8.5 is simply dropped.
 
-## 1.5.0 Canonical JSON and one upsert
+## [1.5.0 Canonical JSON and one upsert](https://github.com/NetworkNerd1337/NerdGram1337/milestone/1)
 
 Settle the document shape, write the compatibility rule those changes need, and add the one create-or-update call. Four complete one-PR issues, in this order. Still Atlas. Old documents without new optional fields must still validate and draw the same diagram.
 
@@ -170,7 +172,7 @@ Add a single call that creates the diagram on first push and refreshes the gener
 
 **Success.** Posting the same path twice does not 409; the second call updates the generated block and the sibling data file; notes outside the markers survive; tests cover create, refresh, conflict-on-create-only, and the CLI.
 
-## 1.6.0 Published schemas and push scripts
+## [1.6.0 Published schemas and push scripts](https://github.com/NetworkNerd1337/NerdGram1337/milestone/2)
 
 Publish the contract against the shape 1.5.0 already settled. Do not add fields here. Two complete one-PR issues. Still Atlas.
 
@@ -186,7 +188,7 @@ Add copy-paste curl and cron examples under `docs/samples` that preview and upse
 
 **Success.** A script in the repo creates a diagram on the first run and updates it on the second, without a generate-then-refresh fallback, and the docs point at the served OpenAPI and JSON Schema.
 
-## 1.7.0 Stateless translators
+## [1.7.0 Stateless translators](https://github.com/NetworkNerd1337/NerdGram1337/milestone/3)
 
 Do not add a NetBox pipeline or a LibreNMS pipeline as first-class NerdGram features. Add small, stateless translators that take a file or a JSON payload from those tools and write NerdGram's canonical network JSON. These mappers target the JSON shape settled in 1.5.0 and the schema and upsert published in 1.6.0, so they do not have to be rewritten when the contract changes. Translators hold no credentials and make no outbound calls. The always-on piece, and any tokens, stay in NetBox, LibreNMS, or a cron job the operator already runs.
 
@@ -222,7 +224,7 @@ One PR that adds a second mapping module, CLI source, and `/api/v1/convert/libre
 
 **Success.** Adding or removing the LibreNMS translator is done by adding or deleting its module file, with no core edits and no changes to the NetBox module; docs show one command per source; tests cover both happy-path fixtures and a payload that is missing links.
 
-## 1.7.5 Additional translators
+## [1.7.5 Additional translators](https://github.com/NetworkNerd1337/NerdGram1337/milestone/4)
 
 **Gated on 1.7.0.** This milestone exists only if 1.7.0 proves the modular translator system works. If 1.7.0 shows that system will not work, 1.7.5 is simply dropped from the roadmap. Nothing in 1.5.0 or 1.6.0 depends on it.
 
@@ -284,7 +286,13 @@ Lower priority. Topology data is thinner, so this module may map a smaller subse
 
 **Success.** One module, honest about what PRTG can and cannot supply, still with no stored credentials.
 
-## 1.8.0 Design exports
+### 1.7.5-j Terraform
+
+Read Terraform state or plan JSON, the output of `terraform show -json`, and write canonical network JSON so NerdGram can draw a Mermaid diagram of what that Terraform describes. One mapping module in its own file. It is stateless, stores no credentials, makes no outbound calls, and makes no provider calls. NerdGram never runs Terraform. When the issue is written, verify the state and plan JSON shape against current Terraform docs.
+
+**Success.** One module file converts a saved `terraform show -json` document to canonical JSON that validates and upserts, with no core edits and no call to Terraform or a provider.
+
+## [1.8.0 Design exports](https://github.com/NetworkNerd1337/NerdGram1337/milestone/5)
 
 Export a diagram, Mermaid plus its network JSON, to text files that outside test and lab tools can open. NerdGram never connects to devices, and it never stores credentials. Any password or token field in an exported file is a placeholder for the tool, or the operator, to fill in. The workflow assumption, especially for pyATS, is that the user makes sure the node names and IPs in the diagram match the real environment they test with.
 
@@ -310,7 +318,7 @@ A CML lab YAML from the same document.
 
 **Success.** One module file, no core edits; credentials if the format requires them are placeholders only; NerdGram does not log in to CML. Verify the current CML lab format when the issue is written.
 
-## 1.8.5 Additional exports
+## [1.8.5 Additional exports](https://github.com/NetworkNerd1337/NerdGram1337/milestone/6)
 
 **Gated on 1.8.0.** This milestone exists only if 1.8.0 proves the modular export system works. If 1.8.0 shows that system will not work, 1.8.5 is simply dropped from the roadmap. It does not depend on 1.7.5, and nothing in 1.5.0 or 1.6.0 depends on it.
 
