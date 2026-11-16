@@ -8,8 +8,8 @@ import {
   atomicWriteJson,
   createId,
   decodeStorageKey,
-  encodeStorageKey,
   getLocksRoot,
+  safeStorageKey,
   httpFail,
   isProcessAlive,
   normalizeRelative,
@@ -34,8 +34,17 @@ type LockFile = LockRecord & { stale: boolean };
 
 const SAME_INSTANCE_MESSAGE = "This diagram is open in another window.";
 
+/**
+ * Lock filenames stay under 255 bytes. A short path keeps the reversible
+ * `p_` key. A longer path is `h_` plus a sha256 of the path, and the record
+ * still stores the path.
+ */
+export function lockStorageKey(relativePath: string): string {
+  return safeStorageKey(relativePath, ".json");
+}
+
 function lockFile(relativePath: string): string {
-  return path.join(getLocksRoot(), `${encodeStorageKey(relativePath)}.json`);
+  return path.join(getLocksRoot(), `${lockStorageKey(relativePath)}.json`);
 }
 
 function optionalText(value: unknown): string | undefined {
@@ -211,7 +220,7 @@ export async function acquireLock(
         token: createId(),
         sessionId,
         pid: process.pid,
-        acquiredAt: existing?.stale ? existing.acquiredAt : now,
+        acquiredAt: now,
         heartbeatAt: now,
       },
       identity,
@@ -308,10 +317,11 @@ async function eachLock(): Promise<LockFile[]> {
   const locks: LockFile[] = [];
   for (const name of names) {
     if (!name.endsWith(".json")) continue;
-    const itemPath = decodeStorageKey(name.slice(0, -".json".length));
-    if (!itemPath) continue;
+    const decoded = decodeStorageKey(name.slice(0, -".json".length));
     const parsed = await readJsonFile<unknown>(path.join(getLocksRoot(), name));
     if (!isLockRecord(parsed)) continue;
+    const itemPath = decoded ?? parsed.path;
+    if (!itemPath) continue;
     const record = normalizeLock({ ...parsed, path: itemPath });
     const identity = await getInstanceIdentity();
     locks.push({ ...record, stale: lockIsStale(record, Date.now(), identity.instanceId) });

@@ -15,6 +15,7 @@ import {
   formatListenHostLog,
   hostsFromListenAddress,
   isWildcardBind,
+  loopbackOriginHosts,
   listNonLoopbackInterfaceAddresses,
   mergeAllowedHosts,
   readSavedListenHost,
@@ -124,7 +125,9 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
     mode,
     bindHosts: options.bindHosts ?? hosts,
     allowedHosts,
-    allowedOriginHosts: options.allowedOriginHosts ?? fromBind,
+    allowedOriginHosts:
+      options.allowedOriginHosts ??
+      [...fromBind, ...loopbackOriginHosts([], saved.invalid ? null : saved.host)],
   });
 
   if (await seedEmptyDataDir()) {

@@ -98,7 +98,7 @@ export const V1_ROUTES: readonly V1Route[] = [
     path: "/diagrams",
     scope: "write",
     operationId: "deleteDiagram",
-    summary: "Move a diagram or folder to the trash. deleteData chooses whether a sibling data file goes too.",
+    summary: "Move a diagram or folder to the trash. deleteData chooses whether a sibling data file goes too. A file another diagram still uses is kept, and the response names that diagram.",
     tag: "Diagrams",
   },
   {

@@ -189,6 +189,44 @@ function referencedByOther(
   return files.some((file) => file.path !== diagramPath && recordedSourcePaths(file.content).includes(dataPath));
 }
 
+/** Diagrams outside a delete that still point at `dataPath`. */
+export function diagramsUsingDataFile(
+  files: readonly { path: string; content: string }[],
+  dataPath: string,
+  exceptRoot: string,
+  exceptIsDirectory: boolean,
+): string[] {
+  const target = normalizeRelative(dataPath);
+  const root = normalizeRelative(exceptRoot);
+  return files
+    .filter((file) => {
+      const inside = exceptIsDirectory ? file.path === root || file.path.startsWith(`${root}/`) : file.path === root;
+      if (inside) return false;
+      return recordedSourcePaths(file.content).includes(target);
+    })
+    .map((file) => file.path)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export type KeptDataFile = { file: string; diagrams: string[] };
+
+/** One sentence per kept file, naming the diagrams that still use it. */
+export function dataKeptMessage(kept: readonly KeptDataFile[]): string {
+  return kept
+    .map((item) => {
+      const name = item.file;
+      const diagrams = item.diagrams.map((diagram) => diagram.replace(/\.mmd$/i, ""));
+      const who =
+        diagrams.length === 0
+          ? "another diagram"
+          : diagrams.length === 1
+            ? diagrams[0]
+            : `${diagrams.slice(0, -1).join(", ")} and ${diagrams[diagrams.length - 1]}`;
+      return `Kept ${name} because ${who} still ${diagrams.length === 1 ? "uses" : "use"} it.`;
+    })
+    .join(" ");
+}
+
 /**
  * Move or copy sibling data files after the diagram or folder is already at `to`.
  * A folder rename has already carried the files inside it. A shared file is copied

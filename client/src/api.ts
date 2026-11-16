@@ -341,7 +341,12 @@ export const api = {
       body: JSON.stringify({ folder, files }),
     }),
   delete: (path: string, confirmLinks = false, deleteData?: boolean) =>
-    request<void>(
+    request<{
+      path?: string;
+      trashed?: boolean;
+      message?: string;
+      dataKept?: { file: string; diagrams: string[] }[];
+    }>(
       `/api/item?path=${encodeURIComponent(path)}${confirmLinks ? "&confirmLinks=1" : ""}${
         deleteData == null ? "" : `&deleteData=${deleteData ? "1" : "0"}`
       }`,

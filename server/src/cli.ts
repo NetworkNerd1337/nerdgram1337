@@ -122,10 +122,38 @@ export async function shutdownCli(): Promise<void> {
 
 class CliError extends Error {
   readonly status: number | undefined;
-  constructor(message: string, status?: number) {
+  readonly details: Record<string, unknown> | undefined;
+  constructor(message: string, status?: number, details?: Record<string, unknown>) {
     super(message);
     this.status = status;
+    this.details = details;
   }
+}
+
+type RowIssue = { row?: unknown; message?: unknown; path?: unknown };
+
+/** Lines for the row and field errors a generate or refresh response includes. */
+export function formatRowIssues(errors: unknown): string[] {
+  if (!Array.isArray(errors)) return [];
+  const lines: string[] = [];
+  for (const item of errors) {
+    if (!item || typeof item !== "object") continue;
+    const issue = item as RowIssue;
+    if (typeof issue.message !== "string" || !issue.message.trim()) continue;
+    const message = issue.message.trim();
+    const field = typeof issue.path === "string" ? issue.path.trim() : "";
+    if (field && !message.includes(field)) {
+      lines.push(`${field}: ${message}`);
+      continue;
+    }
+    const row = typeof issue.row === "number" ? issue.row : 0;
+    if (row > 0 && !message.toLowerCase().includes(`row ${row}`)) {
+      lines.push(`row ${row}: ${message}`);
+      continue;
+    }
+    lines.push(message);
+  }
+  return lines;
 }
 
 function parseArgs(argv: string[]): Parsed {
@@ -226,9 +254,11 @@ async function callApi(
     }
   }
   if (!response.ok) {
-    const record = json && typeof json === "object" ? (json as { error?: unknown }) : {};
-    const message = typeof record.error === "string" ? record.error : `Request failed (${response.status})`;
-    throw new CliError(message, response.status);
+    const record = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
+    const summary = typeof record.error === "string" ? record.error : `Request failed (${response.status})`;
+    const rows = formatRowIssues(record.errors);
+    const message = rows.length > 0 ? `${summary}\n${rows.join("\n")}` : summary;
+    throw new CliError(message, response.status, record);
   }
   return { status: response.status, json, bytes, contentType };
 }
@@ -495,8 +525,9 @@ async function deleteCommand(parsed: Parsed, io: Io): Promise<void> {
     ...(withData ? { deleteData: true } : {}),
     ...(keepData ? { deleteData: false } : {}),
   });
-  const body = result.json as { path?: string; trashed?: boolean };
-  writeOut(io, isJson(parsed.flags), body, `Moved ${body.path ?? itemPath} to the trash.`);
+  const body = result.json as { path?: string; trashed?: boolean; message?: string };
+  const kept = body.message ? ` ${body.message}` : "";
+  writeOut(io, isJson(parsed.flags), body, `Moved ${body.path ?? itemPath} to the trash.${kept}`);
 }
 
 async function generateCommand(parsed: Parsed, io: Io): Promise<void> {
@@ -808,8 +839,12 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const status = err instanceof CliError ? err.status : undefined;
-    if (isJson(parsed.flags)) streams.stdout(`${JSON.stringify({ ok: false, error: message, status: status ?? null })}\n`);
-    else streams.stderr(`${message}\n`);
+    if (isJson(parsed.flags)) {
+      const errors = err instanceof CliError && Array.isArray(err.details?.errors) ? err.details.errors : undefined;
+      streams.stdout(
+        `${JSON.stringify({ ok: false, error: message, status: status ?? null, ...(errors ? { errors } : {}) })}\n`,
+      );
+    } else streams.stderr(`${message}\n`);
     return 1;
   }
 }

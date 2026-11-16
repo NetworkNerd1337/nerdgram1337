@@ -13,7 +13,7 @@ import { getMetaPath } from "./paths.js";
  *
  * - `.meta/trash/items/<id>/` — one soft-deleted file or folder
  * - `.meta/versions/p_<encoded-path>/` — previous contents of one diagram
- * - `.meta/locks/p_<encoded-path>.json` — single-editor lock for one path. The record includes instanceId, instanceName, and hostname. Older files without those fields still read.
+ * - `.meta/locks/p_<encoded-path>.json` — single-editor lock for one path. A path whose encoded name would exceed 255 bytes uses `h_<sha256>.json` instead, and the record still stores the path. The record includes instanceId, instanceName, and hostname. Older files without those fields still read.
  * - `.meta/thumbs/p_<encoded-path>.json` — cached dashboard thumbnail SVG
  * - `.meta/search/index.json` — optional text-search cache; rebuilt from the diagrams if missing
  * - `.meta/replace/operations.json` — ids for workspace replace undo, pointing at revision ids
@@ -98,6 +98,18 @@ export function encodeStorageKey(relativePath: string): string {
     throw httpFail(400, "Invalid path", "invalid");
   }
   return `p_${encodeURIComponent(normalized)}`;
+}
+
+/**
+ * A storage filename that fits in 255 bytes. Short paths keep the reversible
+ * `p_` key. Longer paths use `h_` plus a sha256 of the path. `suffix` is the
+ * extra the caller appends, such as `.json`, and is counted in the limit.
+ */
+export function safeStorageKey(relativePath: string, suffix = ""): string {
+  const encoded = encodeStorageKey(relativePath);
+  if (Buffer.byteLength(`${encoded}${suffix}`) <= 255) return encoded;
+  const digest = createHash("sha256").update(normalizeRelative(relativePath), "utf8").digest("hex");
+  return `h_${digest}`;
 }
 
 export function decodeStorageKey(key: string): string | null {
@@ -259,10 +271,7 @@ async function replaceFile(tmp: string, dest: string): Promise<void> {
 export async function atomicWriteText(absolutePath: string, content: string): Promise<void> {
   const dir = path.dirname(absolutePath);
   await fs.mkdir(dir, { recursive: true });
-  const tmp = path.join(
-    dir,
-    `.${path.basename(absolutePath)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`,
-  );
+  const tmp = path.join(dir, `.ng-${process.pid}-${randomBytes(6).toString("hex")}.tmp`);
   try {
     await fs.writeFile(tmp, content, "utf8");
     await replaceFile(tmp, absolutePath);

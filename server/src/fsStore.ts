@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   applyExternalDataRepairs,
+  dataKeptMessage,
+  diagramsUsingDataFile,
   existingCompanions,
   externalDataRepairs,
   parkDataFiles,
@@ -11,6 +13,7 @@ import {
   copyCompanionsBeside,
   copyFolderCompanions,
   type DataFileMove,
+  type KeptDataFile,
 } from "./diagramCompanions.js";
 import {
   inboundLinkFiles,
@@ -568,12 +571,20 @@ export type DeleteOptions = {
   /**
    * When a sibling data file exists, true moves it to the trash with the diagram.
    * False leaves the file in the workspace. Omitted while a sibling exists is
-   * refused so the caller chooses.
+   * refused so the caller chooses. A file another diagram still uses is kept
+   * even when this is true.
    */
   deleteData?: boolean;
 };
 
-export async function deleteItem(relativePath: string, options: DeleteOptions = {}): Promise<void> {
+export type DeleteResult = {
+  path: string;
+  trashed: true;
+  dataKept: KeptDataFile[];
+  message: string;
+};
+
+export async function deleteItem(relativePath: string, options: DeleteOptions = {}): Promise<DeleteResult> {
   const abs = resolveSafePath(relativePath);
   let stat: Awaited<ReturnType<typeof fs.stat>>;
   try {
@@ -605,6 +616,15 @@ export async function deleteItem(relativePath: string, options: DeleteOptions = 
       { files: companions },
     );
   }
+  const kept: KeptDataFile[] = [];
+  const exclusive: string[] = [];
+  if (options.deleteData === true) {
+    for (const dataPath of companions) {
+      const diagrams = diagramsUsingDataFile(sources, dataPath, rel, stat.isDirectory());
+      if (diagrams.length > 0) kept.push({ file: dataPath, diagrams });
+      else exclusive.push(dataPath);
+    }
+  }
   if (options.deleteData === false && stat.isDirectory() && companions.length > 0) {
     const parked = await parkDataFiles(rel, companions);
     try {
@@ -614,13 +634,23 @@ export async function deleteItem(relativePath: string, options: DeleteOptions = 
       throw err;
     }
     await unparkDataFiles(parked);
+  } else if (options.deleteData === true && stat.isDirectory() && kept.length > 0) {
+    const parked = await parkDataFiles(rel, kept.map((item) => item.file));
+    try {
+      await moveToTrash(relativePath);
+    } catch (err) {
+      await unparkDataFiles(parked);
+      throw err;
+    }
+    await unparkDataFiles(parked);
   } else if (options.deleteData === true && !stat.isDirectory()) {
-    await moveToTrash(relativePath, { dataFiles: companions });
+    await moveToTrash(relativePath, { dataFiles: exclusive });
   } else {
     await moveToTrash(relativePath);
   }
   await forgetDiagramSighting(rel, stat.isDirectory());
   noteSync({ kind: "structural", summary: `Delete ${normalizeRelative(relativePath)}` });
+  return { path: rel, trashed: true, dataKept: kept, message: dataKeptMessage(kept) };
 }
 
 async function readDiagramSourcesWithHash(): Promise<{ path: string; content: string; hash: string }[]> {

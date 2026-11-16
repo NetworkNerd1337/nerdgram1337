@@ -185,6 +185,35 @@ export function hostsFromListenAddress(
 }
 
 /**
+ * Loopback addresses that are not already built into the origin list.
+ * `127.0.0.1`, `localhost`, and `::1` stay in `buildAllowedOrigins`. A saved
+ * Host or an effective bind such as `127.0.0.2` is added. Other addresses
+ * are ignored here.
+ */
+export function loopbackOriginHosts(
+  bindHosts: readonly string[],
+  savedHost: string | null | undefined,
+): string[] {
+  const extra: string[] = [];
+  const seen = new Set<string>();
+  const add = (value: string | null | undefined) => {
+    if (!value) return;
+    const name = normalizeHostname(value);
+    if (!name || !isLoopbackBindHost(name)) return;
+    if (name === "localhost" || name === "127.0.0.1" || name === "::1") return;
+    if (seen.has(name)) return;
+    seen.add(name);
+    extra.push(name);
+  };
+  for (const host of bindHosts) {
+    if (isWildcardBind(host)) continue;
+    add(host);
+  }
+  add(savedHost);
+  return extra;
+}
+
+/**
  * Setting-derived names first, then NERDGRAM_ALLOWED_HOSTS. Duplicates drop.
  * `*`, `0.0.0.0`, and `::` stay ignored, matching the Host check.
  */

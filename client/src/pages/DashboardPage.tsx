@@ -362,7 +362,8 @@ export function DashboardPage() {
 
   const finishDelete = async (path: string, confirmLinks: boolean, deleteData?: boolean) => {
     try {
-      await api.delete(path, confirmLinks, deleteData);
+      const deleted = await api.delete(path, confirmLinks, deleteData);
+      if (deleted?.message) setStatus(deleted.message);
     } catch (err) {
       if (err instanceof ApiError && err.code === "data") {
         const prompt = deleteDataPrompt();

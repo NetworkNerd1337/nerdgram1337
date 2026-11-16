@@ -1,4 +1,6 @@
-import type { Response } from "express";
+import type { NextFunction, Request, Response } from "express";
+
+const NAME_TOO_LONG = "That name is too long. Each folder or file name has to be 255 bytes or fewer.";
 
 export function httpError(err: unknown): { status: number; body: Record<string, unknown> } {
   if (err && typeof err === "object") {
@@ -19,10 +21,14 @@ export function httpError(err: unknown): { status: number; body: Record<string, 
       !/^[A-Z0-9]+$/.test(String((err as { code?: unknown }).code))
         ? String((err as { code?: unknown }).code)
         : undefined;
+    const nameTooLong = errno === "ENAMETOOLONG" || message.includes("ENAMETOOLONG");
 
     let status = explicit ?? 500;
     let errorMessage = message;
-    if (explicit === undefined) {
+    if (nameTooLong) {
+      status = explicit ?? 400;
+      errorMessage = NAME_TOO_LONG;
+    } else if (explicit === undefined) {
       if (errno === "ENOENT" || message.includes("ENOENT")) {
         status = 404;
         errorMessage = "Not found";
@@ -33,6 +39,7 @@ export function httpError(err: unknown): { status: number; body: Record<string, 
 
     const body: Record<string, unknown> = { error: errorMessage };
     if (appCode) body.code = appCode;
+    else if (nameTooLong) body.code = "invalid";
     if (details) {
       for (const [key, value] of Object.entries(details)) {
         if (key !== "error" && key !== "status" && key !== "code") body[key] = value;
@@ -45,5 +52,45 @@ export function httpError(err: unknown): { status: number; body: Record<string, 
 
 export function sendError(res: Response, err: unknown): void {
   const { status, body } = httpError(err);
+  res.status(status).json(body);
+}
+
+export type BodyParseFailure = { status: number; error: string; code: string };
+
+/** Malformed JSON is 400. A body over the parser limit is 413. Anything else is not a body error. */
+export function classifyBodyError(err: unknown): BodyParseFailure | null {
+  if (!err || typeof err !== "object") return null;
+  const type = "type" in err ? String((err as { type: unknown }).type) : "";
+  const status = "status" in err && typeof (err as { status: unknown }).status === "number"
+    ? (err as { status: number }).status
+    : undefined;
+  if (type === "entity.too.large" || (status === 413 && type.startsWith("entity."))) {
+    return { status: 413, error: "Request body is too large.", code: "too_large" };
+  }
+  if (type === "entity.parse.failed") {
+    return { status: 400, error: "Request body is not valid JSON.", code: "invalid" };
+  }
+  return null;
+}
+
+/**
+ * Last-resort JSON errors. Body-parser failures become `{error, code}` and
+ * one log line. Other failures use the same shape and never include a stack
+ * or an absolute path from the filesystem.
+ */
+export function apiErrorHandler(err: unknown, req: Request, res: Response, next: NextFunction): void {
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  const parsed = classifyBodyError(err);
+  if (parsed) {
+    console.error(`${parsed.status} ${req.method} ${req.path} ${parsed.error}`);
+    res.status(parsed.status).json({ error: parsed.error, code: parsed.code });
+    return;
+  }
+  const { status, body } = httpError(err);
+  const message = typeof body.error === "string" ? body.error : "Request failed";
+  console.error(`${status} ${req.method} ${req.path} ${message}`);
   res.status(status).json(body);
 }
