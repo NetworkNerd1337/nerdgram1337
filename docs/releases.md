@@ -112,3 +112,4 @@ After the tag is pushed, check the release and the image:
 
 - [Upgrading](upgrading.md)
 - [Developing](developing.md)
+- [Roadmap](roadmap.md)
