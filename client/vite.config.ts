@@ -2,11 +2,20 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import { injectAppearanceBoot } from "./src/lib/appearanceBoot.ts";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "appearance-boot",
+      transformIndexHtml(html) {
+        return injectAppearanceBoot(html);
+      },
+    },
+  ],
   server: {
     fs: {
       // The shared front matter parser lives in server/src and is imported by the client.

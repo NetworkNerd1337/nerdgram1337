@@ -19,7 +19,8 @@ import { ProblemsPanel } from "../components/ProblemsPanel";
 import { RepairLinksDialog } from "../components/RepairLinksDialog";
 import { PresentationView } from "../components/PresentationView";
 import { actionForClickTarget, clickTargetOnElement, openExternalLink } from "../lib/diagramClicks";
-import { anchorsFromElement, pointerMovedPastClick, sourceLocationForElement } from "../lib/sourceJump";
+import { usePreviewViewport } from "../hooks/usePreviewViewport";
+import { anchorsFromElement, sourceLocationForElement } from "../lib/sourceJump";
 import { drillForward, drillIndex, trailFromState, withCrumbTitle } from "../lib/drillTrail";
 import { getEditorView, revealEditorLine, revealEditorMatch, runFind, runGotoLine, runReplace } from "../lib/editorCommands";
 import { extractNodeIds } from "../lib/mermaidCompletions";
@@ -154,8 +155,10 @@ export function EditorPage() {
   const [savedCode, setSavedCode] = useState("");
   const [lockToken, setLockToken] = useState<string | null>(null);
 
-  const previewRef = useRef<HTMLDivElement>(null);
-  const previewPress = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const preview = usePreviewViewport(svgHtml);
+  const previewStageRef = preview.stageRef;
+  const previewCanvasRef = preview.canvasRef;
+  const previewGestures = preview.gestures;
   const renderedRef = useRef<{ source: string; svg: string } | null>(null);
   const renderGen = useRef(0);
   const renderTimer = useRef<number | null>(null);
@@ -657,7 +660,7 @@ export function EditorPage() {
 
   const handleExport = async (format: ExportFormat) => {
     setExportError(null);
-    const svg = previewRef.current?.querySelector("svg");
+    const svg = previewStageRef.current?.querySelector("svg");
     if (!svg) {
       setExportError("Nothing to export yet. Fix the diagram first.");
       return;
@@ -739,11 +742,9 @@ export function EditorPage() {
   };
 
   const followPreviewClick = (event: { target: EventTarget | null; preventDefault: () => void }) => {
-    const dragged = previewPress.current?.moved ?? false;
-    previewPress.current = null;
+    if (previewGestures.dragged()) return;
     const raw = clickTargetOnElement(code, event.target);
     if (!raw) {
-      if (dragged) return;
       const hit = sourceLocationForElement(code, anchorsFromElement(event.target));
       if (!hit) return;
       revealEditorLine(hit.line, hit.column);
@@ -1132,6 +1133,18 @@ export function EditorPage() {
                 disabled={readOnly || info.malformed || !loaded}
                 onChange={(layout) => commitInfo({ layout })}
               />
+              <span className="preview-zoom" aria-live="polite" aria-label={preview.ready ? `Zoom ${preview.pct}%` : "Zoom"}>
+                {preview.ready ? `${preview.pct}%` : "—"}
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => preview.camera.reset()}
+                disabled={!svgHtml}
+                aria-label="Reset pan and zoom"
+              >
+                Fit
+              </button>
               <button
                 type="button"
                 className="btn btn-ghost preview-present"
@@ -1174,34 +1187,33 @@ export function EditorPage() {
             </div>
           ) : null}
           <div
-            className={`preview-stage${previewStale ? " is-stale" : ""}`}
-            ref={previewRef}
-            onPointerDown={(event) => {
-              if (event.button !== 0 && event.pointerType === "mouse") return;
-              previewPress.current = { x: event.clientX, y: event.clientY, moved: false };
-            }}
-            onPointerMove={(event) => {
-              const press = previewPress.current;
-              if (!press || press.moved) return;
-              if (pointerMovedPastClick(event.clientX - press.x, event.clientY - press.y)) press.moved = true;
-            }}
+            className={`preview-stage${previewStale ? " is-stale" : ""}${previewGestures.panning ? " is-panning" : ""}`}
+            ref={previewStageRef}
+            onPointerDown={previewGestures.onPointerDown}
+            onPointerMove={previewGestures.onPointerMove}
+            onPointerUp={previewGestures.onPointerUp}
+            onPointerCancel={previewGestures.onPointerCancel}
             onClick={followPreviewClick}
           >
+            {svgHtml ? (
+              <div
+                ref={previewCanvasRef}
+                className="preview-canvas"
+                style={preview.canvasStyle}
+                dangerouslySetInnerHTML={{ __html: svgHtml }}
+              />
+            ) : null}
             {previewStale && svgHtml ? (
-              <div className="preview-stale">
-                <div className="preview-stale-banner" role="status">
-                  <strong>Out of date.</strong> The last diagram that rendered is still shown.{" "}
-                  {shortRenderError(renderError)}
-                </div>
-                <div className="preview-stale-frame" dangerouslySetInnerHTML={{ __html: svgHtml }} />
+              <div className="preview-stale-banner" role="status">
+                <strong>Out of date.</strong> The last diagram that rendered is still shown.{" "}
+                {shortRenderError(renderError)}
               </div>
-            ) : renderError ? (
+            ) : null}
+            {!svgHtml && renderError ? (
               <div className="preview-error" role="alert">
                 {shortRenderError(renderError)}
               </div>
-            ) : (
-              <div dangerouslySetInnerHTML={{ __html: svgHtml }} />
-            )}
+            ) : null}
           </div>
         </section>
       </div>

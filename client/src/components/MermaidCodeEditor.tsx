@@ -1,6 +1,6 @@
 import { autocompletion } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { bracketMatching, foldGutter, foldKeymap, indentOnInput } from "@codemirror/language";
+import { bracketMatching, defaultHighlightStyle, foldGutter, foldKeymap, indentOnInput, syntaxHighlighting } from "@codemirror/language";
 import { forceLinting, linter, lintGutter } from "@codemirror/lint";
 import { highlightSelectionMatches } from "@codemirror/search";
 import { EditorState, Prec, type ChangeSpec } from "@codemirror/state";
@@ -14,8 +14,8 @@ import {
   lineNumbers,
   type EditorView as EditorViewType,
 } from "@codemirror/view";
-import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "@uiw/react-codemirror";
+import { useAppearance } from "../hooks/useAppearance";
 import { mermaid } from "codemirror-lang-mermaid";
 import { useEffect, useMemo } from "react";
 import { bindEditorView, editorSearchExtensions, getEditorView } from "../lib/editorCommands";
@@ -47,6 +47,31 @@ function toggleMermaidComment(view: EditorViewType): boolean {
 
 let diagnosticListener: ((diagnostics: ReportedDiagnostic[]) => void) | undefined;
 
+/** Keep the editor inside the pane and let `.cm-scroller` own both axes. */
+const editorChrome = EditorView.theme({
+  "&": {
+    height: "100%",
+    minHeight: "0",
+    maxHeight: "100%",
+    overflow: "hidden",
+    backgroundColor: "var(--bg)",
+    color: "var(--ink)",
+  },
+  ".cm-scroller": {
+    overflow: "auto",
+    minHeight: "0",
+    minWidth: "0",
+  },
+  ".cm-gutters": {
+    backgroundColor: "var(--bg-sidebar)",
+    color: "var(--ink-soft)",
+    borderRight: "1px solid var(--line)",
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "var(--bg-muted)",
+  },
+});
+
 type MermaidCodeEditorProps = {
   value: string;
   onChange: (value: string) => void;
@@ -67,6 +92,7 @@ export function MermaidCodeEditor({
   "aria-label": ariaLabel = "Mermaid source editor",
 }: MermaidCodeEditorProps) {
   const pathsKey = diagramPaths?.join("\n") ?? "";
+  const { resolved } = useAppearance();
 
   useEffect(() => {
     diagnosticListener = onDiagnostics;
@@ -105,7 +131,8 @@ export function MermaidCodeEditor({
       highlightSelectionMatches(),
       ...editorSearchExtensions(),
       mermaid(),
-      oneDark,
+      ...(resolved === "light" ? [syntaxHighlighting(defaultHighlightStyle)] : []),
+      editorChrome,
       lintGutter(),
       linter(
         async (view) => {
@@ -144,16 +171,28 @@ export function MermaidCodeEditor({
       EditorState.readOnly.of(readOnly),
       EditorView.contentAttributes.of({ "aria-label": ariaLabel }),
     ],
-    [ariaLabel, pathsKey, readOnly, sourcePath],
+    [ariaLabel, pathsKey, readOnly, resolved, sourcePath],
   );
 
   return (
     <div className="mermaid-code-editor">
       <CodeMirror
+        className="mermaid-cm"
         value={value}
         height="100%"
-        theme="dark"
+        minHeight="0"
+        maxHeight="100%"
+        theme={resolved}
         basicSetup={false}
+        style={{
+          flex: "1 1 0",
+          minHeight: 0,
+          minWidth: 0,
+          height: "100%",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
         editable={!readOnly}
         readOnly={readOnly}
         extensions={extensions}

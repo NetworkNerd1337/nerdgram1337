@@ -12,6 +12,7 @@ import {
   rotateView,
   rotatedContentSize,
   screenToContent,
+  viewAfterMeasure,
   zoomAt,
   type Size,
   type ViewTransform,
@@ -146,6 +147,17 @@ describe("view transform", () => {
     expect(cssTransform(next, tall)).toContain("rotate(0deg)");
     expect(cssTransform(next, tall)).toContain("scale(");
     expect(cssTransform(messy, tall)).toContain("translate(80px, -20px)");
+  });
+
+  it("keeps a zoomed view when the diagram is measured again", () => {
+    const fitted = fit(viewport, wide, 0);
+    const zoomed = zoomAt(fitted, { x: 40, y: -20 }, 1.5);
+    expect(viewAfterMeasure(zoomed, fitted, viewport, { width: wide.width + 30, height: wide.height })).toBeNull();
+    const stillFitted = viewAfterMeasure(fitted, fitted, viewport, tall);
+    expect(stillFitted).not.toBeNull();
+    expect(isFitted(stillFitted!.view, viewport, tall)).toBe(true);
+    const first = viewAfterMeasure(identityView(), null, viewport, wide);
+    expect(first?.view).toEqual(fit(viewport, wide, 0));
   });
 
   it("reports a pinch as a scale factor and a pan of the midpoint", () => {

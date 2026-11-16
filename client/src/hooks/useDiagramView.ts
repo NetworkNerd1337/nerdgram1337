@@ -8,6 +8,7 @@ import {
   panBy,
   resetView,
   rotateView,
+  viewAfterMeasure,
   viewsClose,
   zoomAt,
   type Point,
@@ -49,16 +50,15 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
     viewportRef.current = nextViewport;
     contentRef.current = nextContent;
     const current = viewRef.current;
-    const baseline = fittedBaseline.current;
-    if (baseline && !viewsClose(current, baseline)) return;
-    const next = fit(nextViewport, nextContent, baseline ? current.rotation : 0);
-    fittedBaseline.current = next;
-    if (viewsClose(current, next)) {
-      viewRef.current = next;
+    const decision = viewAfterMeasure(current, fittedBaseline.current, nextViewport, nextContent);
+    if (!decision) return;
+    fittedBaseline.current = decision.baseline;
+    if (viewsClose(current, decision.view)) {
+      viewRef.current = decision.view;
       return;
     }
-    viewRef.current = next;
-    setView(next);
+    viewRef.current = decision.view;
+    setView(decision.view);
   }, [ready, vw, vh, cw, ch]);
 
   const limitsFor = useCallback(() => {

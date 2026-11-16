@@ -6,10 +6,12 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 
 ## Contents
 
+- [Preview](#preview)
 - [Editing](#editing)
 - [Files](#files)
 - [Trash and history](#trash-and-history)
 - [Titles, themes, and notes](#titles-themes-and-notes)
+- [Appearance](#appearance)
 - [Diagram checks](#diagram-checks)
 - [Linked diagrams](#linked-diagrams)
 - [Thumbnails, find, and shortcuts](#thumbnails-find-and-shortcuts)
@@ -22,7 +24,13 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 
 Paths in this document use two placeholders, always in code formatting so GitHub does not treat the angle brackets as HTML tags. `<data>` is the data directory: `NERDGRAM_DATA_DIR` when that variable is set, and `diagrams/` inside the project when it is not. `<repo>` is the project folder, the git clone or the extracted ZIP.
 
-The editor is split code and live preview, with autosave about **500 ms** after you stop typing and an **Auto-Update** preview. The code pane has Mermaid syntax highlighting, autocomplete (diagram types, keywords, arrows, snippets, and existing node IDs), bracket matching, and inline parse errors. A parse error underlines the line and column Mermaid reported, and the last diagram that rendered stays on screen, marked out of date. Export from the editor is SVG, PNG, JPG, or PDF. JPG and PDF are built in the browser from the live SVG, so the current theme is kept. The API and the CLI render SVG or PNG only. [Diagram checks](#diagram-checks) lists the warnings and the quick fixes.
+The editor is split code and live preview, with autosave about **500 ms** after you stop typing and an **Auto-Update** preview. The code pane has Mermaid syntax highlighting, autocomplete (diagram types, keywords, arrows, snippets, and existing node IDs), bracket matching, and inline parse errors. A long file scrolls inside the code pane, and the view follows the caret. A parse error underlines the line and column Mermaid reported, and the last diagram that rendered stays on screen, marked out of date. Export from the editor is SVG, PNG, JPG, or PDF. JPG and PDF are built in the browser from the live SVG, so the current theme is kept. The API and the CLI render SVG or PNG only. [Diagram checks](#diagram-checks) lists the warnings and the quick fixes.
+
+## Preview
+
+The preview pane shows the diagram from the file. Drag anywhere on the picture to pan. The mouse wheel zooms toward the pointer. A trackpad pinch zooms, and a two-finger scroll pans. **Fit** on the preview toolbar puts the whole diagram back in the pane and clears the pan. The percent next to it is the zoom. Typing in the code pane does not reset that view.
+
+The toolbar still sets the diagram theme, look, and layout, and it still has **Present** and **Edit info**. Those controls are not part of the pan. Text outside the preview, including the code pane, still selects as usual.
 
 ## Editing
 
@@ -98,7 +106,7 @@ flowchart LR
   Internet --> Firewall
 ```
 
-**Diagram info** in the editor edits the title, description, notes, and tags, and sets the theme, look, and layout. The preview toolbar has the same theme, look, and layout controls. The preview, dashboard thumbnails, and the editor's SVG, PNG, JPG, and PDF export use the theme in the file. If the file does not set one, they use **dark**.
+**Diagram info** in the editor edits the title, description, notes, and tags, and sets the theme, look, and layout. The preview toolbar has the same theme, look, and layout controls. The preview, dashboard thumbnails, and the editor's SVG, PNG, JPG, and PDF export use the theme in the file. If the file does not set one, they use **dark**. [Appearance](#appearance) changes the app around the diagram. It does not change this theme.
 
 The built-in Mermaid themes are `default`, `neutral`, `dark`, `forest`, `base`, `neo`, `neo-dark`, `redux`, `redux-dark`, `redux-color`, and `redux-dark-color`. Looks are `classic`, `handDrawn`, and `neo`. Layouts are `dagre` and `elk`.
 
@@ -108,13 +116,21 @@ Description, notes, and tags live under `nerdgram:` because Mermaid has no field
 
 `%%` at the start of a line is a Mermaid comment. In the code pane, Ctrl+/ (Cmd+/ on a Mac) comments or uncomments the selected lines.
 
+## Appearance
+
+**Appearance** on the settings page (`/settings#appearance`) is **Light**, **Dark**, or **Match system**. Match system is the default. The choice is saved in this browser. It is not an account, and it is not stored on the server.
+
+The dashboard, sidebar, settings, dialogs, the reference, and the editor, including the code pane, follow that choice. The page is painted with the saved choice before the first frame, so a dark choice does not flash light. Match system follows the computer, including when the computer changes.
+
+A diagram's theme, look, and layout stay in the file. Presentation uses that diagram theme, the same as before.
+
 ## Diagram checks
 
 The code pane checks the diagram while you type. The check waits about **400 ms** after the last key so a large file does not lag. Mermaid's parser supplies the syntax error, including the line and column. The other checks are warnings. They do not block the preview or autosave. A warning is a gutter mark and a row in the problems list under the code. Click a row to jump to that line. `nerdgram lint` runs the same checks on a file, or on the workspace when you point it at a running server. A Mermaid syntax error is reported as an error, with the line and column, and the command exits non-zero. `POST /api/lint` and `POST /api/v1/lint` do the same for one diagram. `GET /api/diagram-lint` and `GET /api/v1/lint` run the checks on the workspace.
 
 The problems list can also offer a fix. **Rename** gives a duplicate id, or a class defined again with a different label, a new name. **Remove unused class** deletes a `classDef` nothing uses. **Create class** inserts a `classDef` for a name you already applied. **Declare class** and **Declare entity** insert the missing name. **Remove duplicate attribute** deletes the extra attribute line. **Remove duplicate** and **Remove empty node** delete a repeated or blank mindmap node, or a repeated or blank timeline event, when that line has no children. **Jump to definition** moves the cursor to the first definition of a duplicate id or class. Each of those can be undone with Ctrl+Z (Cmd+Z on a Mac). **Repair links** on a broken diagram link opens a preview of the rewrites. Confirming it saves the diagrams. Nothing is written before that confirmation.
 
-Turn a warning off under **Diagram checks** on the settings page (`/settings#diagram-checks`). The sidebar links there on its own, next to Host, Diagram folder, Instance name, GitHub sync, and automation tokens. The switches are saved in this browser. A diagram Mermaid cannot parse is always marked. **Repair links** stays disabled when no renamed diagram matches a broken link.
+Turn a warning off under **Diagram checks** on the settings page (`/settings#diagram-checks`). The sidebar links there on its own, next to Appearance, Host, Diagram folder, Instance name, GitHub sync, and automation tokens. The switches are saved in this browser. A diagram Mermaid cannot parse is always marked. **Repair links** stays disabled when no renamed diagram matches a broken link.
 
 | Rule | What it warns about |
 | --- | --- |
