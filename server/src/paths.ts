@@ -32,9 +32,15 @@ export function ensureDataRoot(): string {
   return root;
 }
 
+/** Characters Windows rejects in a file or folder name, including a drive-letter colon. */
+const INVALID_PATH_CHARS = /[<>:"|?*\u0000-\u001f]/;
+
+const INVALID_PATH_MESSAGE =
+  'Invalid path. A name cannot be only spaces, and it cannot include a drive letter or : \\ * ? " < > |.';
+
 /**
  * Resolve a user-supplied relative path under the data root.
- * Throws if the path escapes the root.
+ * Throws if the path escapes the root or a segment is not a valid file name.
  */
 export function resolveSafePath(relativePath: string): string {
   const root = ensureDataRoot();
@@ -51,8 +57,11 @@ export function resolveSafePath(relativePath: string): string {
   const hidden = cleaned
     .split("/")
     .filter((part) => part.length > 0 && part !== "." && part !== "..");
-  if (hidden.some((part) => part.startsWith("."))) {
-    throw new Error("Invalid path");
+  for (const part of hidden) {
+    if (part.startsWith(".")) throw new Error("Invalid path");
+    if (INVALID_PATH_CHARS.test(part) || !part.trim()) throw new Error(INVALID_PATH_MESSAGE);
+    const stem = part.toLowerCase().endsWith(".mmd") ? part.slice(0, -4) : part;
+    if (!stem.trim()) throw new Error(INVALID_PATH_MESSAGE);
   }
 
   const absolute = path.resolve(root, cleaned === "" ? "." : cleaned);

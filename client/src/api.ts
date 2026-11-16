@@ -26,6 +26,8 @@ export type ListenHostStatus = {
   persisted: boolean;
   invalid: boolean;
   effectiveHosts: string[];
+  /** Bind the saved Host will use on the next start. 127.0.0.1 means 127.0.0.1 and ::1. */
+  savedHosts: string[];
   source: "env" | "saved" | "default";
   envHost: string | null;
   envOverrides: boolean;
@@ -454,6 +456,31 @@ export const api = {
     }>("/api/lock", {
       method: "POST",
       body: JSON.stringify({ path, sessionId }),
+    }),
+  /**
+   * Ask for the lock without a 423 while another window still holds it.
+   * A held lock is `{ held: true }` so a retry does not log a failed request.
+   */
+  pollLock: (path: string, sessionId: string) =>
+    request<
+      | {
+          held: true;
+          error: string;
+          code: string;
+          lock?: LockConflict;
+        }
+      | {
+          path: string;
+          token: string;
+          sessionId: string;
+          heartbeatAt: string;
+          acquiredAt: string;
+          heartbeatEveryMs: number;
+          staleAfterMs: number;
+        }
+    >("/api/lock", {
+      method: "POST",
+      body: JSON.stringify({ path, sessionId, poll: true }),
     }),
   heartbeatLock: (path: string, token: string) =>
     request<{

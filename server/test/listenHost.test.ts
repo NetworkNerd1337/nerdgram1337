@@ -233,6 +233,8 @@ describe("listen host file and API", () => {
     expect(initial.body.persisted).toBe(false);
     expect(initial.body.restartNotice).toBe(false);
     expect(initial.body.effectiveHosts).toEqual(["127.0.0.1", "::1"]);
+    expect(initial.body.savedHosts).toEqual(["127.0.0.1", "::1"]);
+    expect(initial.body.source).toBe("default");
     expect(initial.body.readOnly).toBe(false);
 
     const rejected = await request(app)
@@ -252,6 +254,8 @@ describe("listen host file and API", () => {
     expect(saved.body.persisted).toBe(true);
     expect(saved.body.restartNotice).toBe(true);
     expect(saved.body.effectiveHosts).toEqual(["127.0.0.1", "::1"]);
+    expect(saved.body.savedHosts).toEqual(["192.168.1.10"]);
+    expect(saved.body.source).toBe("saved");
 
     const file = JSON.parse(await fs.readFile(instanceFilePath(), "utf8")) as { listenHost?: string };
     expect(file.listenHost).toBe("192.168.1.10");
@@ -277,6 +281,9 @@ describe("listen host file and API", () => {
     expect(cleared.body.restartNotice).toBe(false);
     expect(cleared.body.saved).toBe("127.0.0.1");
     expect(cleared.body.running).toBe("127.0.0.1");
+    expect(cleared.body.source).toBe("default");
+    expect(cleared.body.savedHosts).toEqual(["127.0.0.1", "::1"]);
+    expect(cleared.body.effectiveHosts).toEqual(["127.0.0.1", "::1"]);
   });
 
   it("hides the restart notice once the process is bound to the saved host", async () => {

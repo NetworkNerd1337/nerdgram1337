@@ -380,6 +380,14 @@ describe("trash, history, conflicts, and locks", () => {
     expect(second.status).toBe(423);
     expect(second.body.code).toBe("locked");
 
+    const polled = await request(app)
+      .post("/api/lock")
+      .set(json)
+      .send({ path: "Notes.mmd", sessionId: "tab-two", poll: true });
+    expect(polled.status).toBe(200);
+    expect(polled.body.held).toBe(true);
+    expect(polled.body.code).toBe("locked");
+
     const readable = await request(app).get("/api/file").query({ path: "Notes.mmd" }).set("Host", HOST);
     expect(readable.status).toBe(200);
 

@@ -136,6 +136,7 @@ describe("network subnet math", () => {
     expect(grouped).toContain('subgraph');
     expect(grouped).toContain('["default"]');
     expect(grouped).toContain('["GUEST"]');
+    expect(grouped).toContain('["default, GUEST"]');
 
     const alone = {
       schemaVersion: 1,
@@ -174,7 +175,7 @@ describe("network layer 2", () => {
     const block = extractGenerated(result.mermaid) ?? "";
     expect(block).toContain("Po1 ×2");
     expect(block).toContain("Gi1/0/49 – Gi1/0/1, Gi1/0/50 – Gi1/0/2");
-    expect(block).toContain("10,20,30-40 native 99");
+    expect(block).toContain("10,20,30-40 native 99 native");
     expect(block).toContain("access 20 servers");
     expect(block).toContain("access 10 users");
     expect(block).toContain("Gi1/0/47 – Gi1/0/47");
@@ -182,9 +183,9 @@ describe("network layer 2", () => {
     expect(block).toContain('["hq"]');
     expect(block).toContain('["branch"]');
     expect(block).toContain("Gi0/1/0 – Gi1/0/51");
-    expect(block).toContain("10,20,30-40 native 99");
+    expect(block).toContain("10,20,30-40 native 99 native");
     expect(block).toContain("Gi0/1/1 – Gi0/1/0");
-    expect(block).toContain("10,20,30 native 99");
+    expect(block).toContain("10,20,30 native 99 native");
     expect(lintDiagram(result.mermaid).filter((item) => item.ruleId === "unconnected-node")).toEqual([]);
 
     const filtered = importDiagramData({ text: sampleText, format: "network", view: "l2", vlan: 20 });
@@ -277,5 +278,25 @@ describe("network refresh", () => {
     expect(relocatedCompanionPath("Sites/Campus.mmd", "Regions/Core.mmd", "Sites/Campus.network.json")).toBe(
       "Regions/Core.network.json",
     );
+  });
+});
+
+describe("duplicate addresses", () => {
+  it("warns when two devices use the same address and does not draw that pair as a link", () => {
+    const text = JSON.stringify({
+      schemaVersion: 1,
+      devices: [{ name: "a" }, { name: "b" }],
+      interfaces: [
+        { device: "a", name: "Gi0/0", ipv4: [{ address: "10.0.0.1", prefix: 31 }] },
+        { device: "b", name: "Gi0/1", ipv4: [{ address: "10.0.0.1", prefix: 31 }] },
+      ],
+    });
+    const result = importDiagramData({ text, format: "network", view: "l3" });
+    expect(result.errors).toEqual([]);
+    expect(result.warnings.map((issue) => issue.message).join("\n")).toMatch(/10\.0\.0\.1\/31 is configured on more than one device \(a, b\)/);
+    const block = extractGenerated(result.mermaid) ?? "";
+    expect(block).not.toContain("Gi0/0 10.0.0.1 – Gi0/1 10.0.0.1");
+    expect(block).toContain("Gi0/0 10.0.0.1/31");
+    expect(block).toContain("Gi0/1 10.0.0.1/31");
   });
 });

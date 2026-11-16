@@ -16,7 +16,6 @@ import {
 const DIRECTIONS: { value: FlowDirection; label: string }[] = [
   { value: "LR", label: "Left to right" },
   { value: "TD", label: "Top to bottom" },
-  { value: "TB", label: "Top to bottom (TB)" },
   { value: "RL", label: "Right to left" },
   { value: "BT", label: "Bottom to top" },
 ];
@@ -210,7 +209,7 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, onInspect
           <label htmlFor="generate-direction">Direction</label>
           <select
             id="generate-direction"
-            value={state.direction}
+            value={state.direction === "TB" ? "TD" : state.direction}
             onChange={(event) => dispatch({ type: "direction", direction: event.target.value as FlowDirection })}
           >
             {DIRECTIONS.map((item) => (

@@ -1,7 +1,7 @@
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { sendError } from "./httpError.js";
+import { httpError, sendError } from "./httpError.js";
 import * as store from "./fsStore.js";
 import { importDiagrams } from "./import.js";
 import * as history from "./history.js";
@@ -943,9 +943,20 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     try {
       const relative = diagramPath(req.body?.path);
       const sessionId = String(req.body?.sessionId || "");
+      if (req.body?.poll != null && typeof req.body.poll !== "boolean") {
+        res.status(400).json({ error: "poll must be a boolean", code: "invalid" });
+        return;
+      }
       const lock = await locks.acquireLock(relative, sessionId);
       res.json(lock);
     } catch (err) {
+      if (req.body?.poll === true) {
+        const mapped = httpError(err);
+        if (mapped.status === 423 && mapped.body.code === "locked") {
+          res.json({ held: true, ...mapped.body });
+          return;
+        }
+      }
       sendError(res, err);
     }
   });

@@ -174,6 +174,14 @@ describe("diagram folder setting", () => {
     expect(missing.status).toBe(400);
     expect(missing.body.error).toMatch(/cannot be created/i);
 
+    const relative = await request(app())
+      .post("/api/data-dir")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ path: "relative/path" });
+    expect(relative.status).toBe(400);
+    expect(relative.body.error).toMatch(/absolute path is required/i);
+
     const created = path.join(temp.dir, "new-diagrams");
     const ok = await request(app())
       .post("/api/data-dir")

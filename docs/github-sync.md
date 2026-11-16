@@ -45,6 +45,8 @@ Open **GitHub sync** in the app (the page is `/settings`), or run **GitHub sync 
 
 You can set the client ID in the environment instead of the form. On macOS or Linux, `NERDGRAM_GITHUB_CLIENT_ID=Iv1.yourClientId` before the command. On a container, pass the same variable and keep the data directory on a volume. The token file is under that directory's `.meta` folder, so it survives a new container. See the [environment table](configuration.md#configuration) for the other shells.
 
+Leave the client ID box empty and choose **Save client ID** to clear a client ID stored on this computer. An empty value is accepted. A value that is not a client ID is still rejected. `POST /api/sync/connect` before any GitHub account is connected answers **401** with code `not_connected`. Nothing was authorized, so the code is not `auth_revoked`. `auth_revoked` is reserved for a token GitHub has rejected.
+
 **3. Where the token is stored**
 
 | What | Where |

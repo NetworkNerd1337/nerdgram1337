@@ -44,11 +44,15 @@ docker exec -e NERDGRAM_TOKEN=ng_your_token nerdgram1337 nerdgram list
 
 The install downloads Mermaid and Puppeteer's chrome-headless-shell. Offline `lint` and `render` use them. Commands that only call the API do not launch the shell. That shell is the large part of the install. The same kind of shell is what the server image uses for pictures.
 
+npm 11 can print `puppeteer (postinstall) not yet covered by allowScripts` during `npm install -g nerdgram1337`. That warning means npm has not yet classified Puppeteer's install script. The Chrome download still runs. Offline PNG render still works after that install, including when `PUPPETEER_CACHE_DIR` was empty before the install and Chrome was downloaded into it. You do not need to set `ignore-scripts` or approve the script by hand for the render command to work.
+
 The `cli/` directory is what gets published. Its `prepack` script bundles that program into `cli/dist` before `npm pack` or `npm publish`. The Docker image does not use the bundle. It puts `node /app/server/dist/cli.js` on `PATH` as `nerdgram`. The package readme that npm shows is [`cli/README.md`](../cli/README.md).
 
 ## Use
 
-`NERDGRAM_URL` defaults to `http://127.0.0.1:8787`. `NERDGRAM_TOKEN` is an automation token from Settings. `--url` and `--token` override those. `--json` prints one JSON object and nothing else. The process exits `1` when the command fails.
+`NERDGRAM_URL` defaults to `http://127.0.0.1:8787`. `NERDGRAM_TOKEN` is an automation token from Settings. `--url` and `--token` override those. `nerdgram --version` prints `nerdgram` and the version, then exits. `--json` prints one JSON object and nothing else. Success is `{"ok":true, ...}` with that command's fields, such as `path`, `hits`, `diagnostics`, `folders`, and `files`. Failure is `{"ok":false,"error","status"}` on stdout, and the process exits `1`.
+
+`generate --format network` needs `--view l3` (subnets) or `--view l2` (VLANs, trunks, and LAGs). `--include-down` draws shutdown and down interfaces. `--vlan` is an integer from 1 to 4094 and keeps Layer 2 links that carry that VLAN. `--group-by` is `platform` or `capability` for CDP and LLDP, `vrf` for a Layer 3 network view, and `site` or `role` for a Layer 2 network view. `refresh` rejects `--view`. The view is already in the diagram. `render <file> --server` renders a workspace path such as `Sites/Campus.mmd`. A file on this computer is rendered without `--server`. Passing that file with `--server` says so, instead of `Not found`.
 
 ```bash
 export NERDGRAM_URL=http://127.0.0.1:8787

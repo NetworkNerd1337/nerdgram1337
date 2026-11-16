@@ -268,8 +268,23 @@ export type ListenHostStatus = {
   saved: string;
   persisted: boolean;
   invalid: boolean;
-  /** Addresses this process was asked to bind. */
+  /**
+   * Addresses this process is bound to now. This is not the saved setting.
+   * The default loopback pair is 127.0.0.1 and ::1.
+   */
   effectiveHosts: string[];
+  /**
+   * Addresses the saved Host will bind on the next start, ignoring HOST.
+   * A saved 127.0.0.1, or a missing save, is 127.0.0.1 and ::1.
+   * Compare this with effectiveHosts when the two look different.
+   */
+  savedHosts: string[];
+  /**
+   * How the bind is chosen. `env` means HOST is set. `saved` means the saved
+   * address is not 127.0.0.1. `default` means HOST is unset and the saved Host
+   * is missing or 127.0.0.1. This follows the saved value immediately.
+   * effectiveHosts stays the addresses this process already bound until a restart.
+   */
   source: ListenHostSource;
   envHost: string | null;
   /** True when HOST is set, even if it matches the saved value. */
@@ -311,11 +326,16 @@ export function describeListenHost(input: {
     : [];
   const envHost = input.envHost?.trim() ? input.envHost.trim() : null;
   const running = runningListenHost({ envHost: input.envHost, boundHosts: effectiveHosts });
+  const savedHosts = resolveEffectiveBind({
+    envHost: undefined,
+    savedHost: input.saved.invalid ? null : input.saved.host,
+  }).hosts;
   return {
     saved: input.saved.host ?? DEFAULT_LISTEN_HOST,
     persisted: input.saved.persisted,
     invalid: input.saved.invalid,
     effectiveHosts,
+    savedHosts,
     source: decision.source,
     envHost,
     envOverrides: decision.envOverrides,

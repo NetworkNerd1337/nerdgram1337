@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,6 +45,7 @@ const BOOL_FLAGS = new Set([
   "with-data",
   "keep-data",
   "include-down",
+  "version",
 ]);
 
 const HELP = `nerdgram — automation client for NerdGram1337
@@ -73,8 +75,27 @@ Usage
 
 A local .mmd file is rendered and linted in this process. Anything else uses
 NERDGRAM_URL (default http://127.0.0.1:8787) and NERDGRAM_TOKEN.
---url and --token override those. --json prints one JSON object.
---server forces render to use the API. Exit status is 1 on errors.
+--url and --token override those. --server forces render to use a workspace
+path on the API, not a file on this computer. Exit status is 1 on errors.
+
+Flags
+  --help          Print this help and exit.
+  --version       Print the nerdgram version and exit.
+  --url <url>     Server URL. Overrides NERDGRAM_URL.
+  --token <token> Automation token. Overrides NERDGRAM_TOKEN.
+  --json          Print one JSON object and nothing else. Success is
+                  {"ok":true, ...} with that command's fields (path, hits,
+                  diagnostics, folders, files, and the rest of the payload).
+                  Failure is {"ok":false,"error","status"} on stdout.
+  --include-down  Network data. Draw shutdown and down interfaces. Off by default.
+  --vlan <1-4094> Layer 2 network view. Keep links that carry this VLAN id.
+  --group-by <value>
+                  cdp and lldp: platform or capability.
+                  network with --view l3: vrf.
+                  network with --view l2: site or role.
+  --view <l3|l2>  generate --format network only. l3 is subnets. l2 is VLANs,
+                  trunks, and LAGs. refresh rejects --view. The view is stored
+                  in the diagram.
 Rename and move also move a CSV, JSON, network JSON, CDP, or LLDP file that
 sits next to the diagram and update nerdgram.source. duplicate --copy-data
 gives the copy its own data file. duplicate --share-data keeps both diagrams
@@ -255,7 +276,13 @@ async function renderCommand(parsed: Parsed, io: Io): Promise<void> {
   if (!target) throw new CliError("render needs a file or a workspace path.");
   if (!output) throw new CliError("render needs -o out.svg or -o out.png.");
   const format = formatOf(output);
-  const local = !parsed.flags.get("server") && (await pathExists(target));
+  const server = parsed.flags.get("server") === true;
+  if (server && (await pathExists(target))) {
+    throw new CliError(
+      `${target} is a file on this computer. Drop --server to render it here. --server renders a workspace path such as Sites/Campus.mmd on the NerdGram server.`,
+    );
+  }
+  const local = !server && (await pathExists(target));
   let bytes: Buffer;
   if (local) {
     const source = await fs.readFile(target, "utf8");
@@ -264,7 +291,18 @@ async function renderCommand(parsed: Parsed, io: Io): Promise<void> {
     bytes = rendered.body;
   } else {
     const { base, token } = configOf(parsed.flags, io.env);
-    const result = await callApi(base, requireToken(token), "POST", "/api/v1/render", { path: target, format });
+    let result: Awaited<ReturnType<typeof callApi>>;
+    try {
+      result = await callApi(base, requireToken(token), "POST", "/api/v1/render", { path: target, format });
+    } catch (err) {
+      if (err instanceof CliError && err.status === 404) {
+        throw new CliError(
+          `No diagram named ${target} is in the workspace. --server uses a workspace path such as Sites/Campus.mmd. To render a file on this computer, drop --server.`,
+          404,
+        );
+      }
+      throw err;
+    }
     bytes = result.bytes;
   }
   await fs.mkdir(path.dirname(path.resolve(output)), { recursive: true });
@@ -606,6 +644,20 @@ async function baselineCommand(parsed: Parsed, io: Io): Promise<void> {
   );
 }
 
+function cliVersion(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [path.resolve(here, "../package.json"), path.resolve(here, "../../package.json")];
+  for (const file of candidates) {
+    try {
+      const parsed = JSON.parse(readFileSync(file, "utf8")) as { version?: unknown };
+      if (typeof parsed.version === "string" && /^\d+\.\d+\.\d+$/.test(parsed.version)) return parsed.version;
+    } catch {
+      // The next candidate is the repo root, or this is a packed install.
+    }
+  }
+  return "0.0.0";
+}
+
 function skipLabel(reason: string): string {
   switch (reason) {
     case "locked":
@@ -614,6 +666,8 @@ function skipLabel(reason: string): string {
       return "changed since the preview";
     case "edited":
       return "edited since the replace";
+    case "undone":
+      return "already undone";
     case "hidden":
     case "meta":
     case "not-diagram":
@@ -717,6 +771,9 @@ async function replaceCommand(parsed: Parsed, io: Io): Promise<void> {
 }
 
 async function refreshCommand(parsed: Parsed, io: Io): Promise<void> {
+  if (parsed.flags.has("view")) {
+    throw new CliError("refresh does not take --view. The view comes from the diagram.");
+  }
   const diagramPath = parsed.positionals[0] ?? flagString(parsed.flags, "path");
   if (!diagramPath) throw new CliError("refresh needs a diagram path.");
   const dataFile = flagString(parsed.flags, "data");
@@ -745,6 +802,10 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
     const message = err instanceof Error ? err.message : String(err);
     streams.stderr(`${message}\n`);
     return 1;
+  }
+  if (parsed.flags.get("version") === true) {
+    streams.stdout(`nerdgram ${cliVersion()}\n`);
+    return 0;
   }
   if (parsed.flags.get("help") === true || parsed.command === "help" || parsed.command === "") {
     streams.stdout(HELP);

@@ -42,6 +42,14 @@ describe("resolveSafePath", () => {
     expect(resolved).toBe(path.join(dir, "tmp", "pwn.mmd"));
   });
 
+  it("rejects a blank name, a drive letter, and other invalid path characters", () => {
+    expect(() => resolveSafePath("  .mmd")).toThrow(/Invalid path/);
+    expect(() => resolveSafePath("   ")).toThrow(/Invalid path/);
+    expect(() => resolveSafePath("C:/evil.mmd")).toThrow(/Invalid path/);
+    expect(() => resolveSafePath("C:\\evil.mmd")).toThrow(/Invalid path/);
+    expect(() => resolveSafePath("Lab/what?.mmd")).toThrow(/Invalid path/);
+  });
+
   it("rejects a null byte", () => {
     expect(() => resolveSafePath("safe\0.mmd")).toThrow(/Invalid path/);
   });

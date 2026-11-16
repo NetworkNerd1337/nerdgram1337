@@ -2,6 +2,7 @@ import { readDataSource } from "./diagramData.js";
 import { extractClickLinks } from "./diagramLinks.js";
 import { matchFrontMatter } from "./frontMatter.js";
 import * as store from "./fsStore.js";
+import { readRevision } from "./history.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
 import { assertWriteAllowed } from "./locks.js";
 import { getMetaPath } from "./paths.js";
@@ -9,6 +10,7 @@ import { bloomMayContain, freshIndexedBlooms, rememberSearchEntries } from "./se
 import {
   atomicWriteJson,
   createId,
+  hashContent,
   httpFail,
   normalizeRelative,
   readJsonFile,
@@ -109,6 +111,7 @@ export type ReplaceSkipReason =
   | "not-diagram"
   | "none"
   | "edited"
+  | "undone"
   | "missing";
 
 export type ReplaceApplyResult = {
@@ -880,7 +883,14 @@ export async function undoReplace(input: unknown): Promise<ReplaceUndoResult> {
         throw err;
       }
       if (disk.hash !== file.hashAfter) {
-        skipped.push({ path: disk.path, reason: "edited" });
+        let undone = false;
+        try {
+          const revision = await readRevision(disk.path, file.revisionId);
+          undone = hashContent(revision.content) === disk.hash;
+        } catch (err) {
+          if (statusOf(err) !== 404) throw err;
+        }
+        skipped.push({ path: disk.path, reason: undone ? "undone" : "edited" });
         continue;
       }
       try {

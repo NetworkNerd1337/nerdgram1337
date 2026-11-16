@@ -458,7 +458,8 @@ export function EditorPage() {
       if (latestCodeRef.current !== lastSavedRef.current) return;
       void (async () => {
         try {
-          const lock = await api.acquireLock(filePath, editorSessionId());
+          const lock = await api.pollLock(filePath, editorSessionId());
+          if (!("token" in lock)) return;
           if (pathRef.current !== filePath || latestCodeRef.current !== lastSavedRef.current) {
             void api.releaseLock(filePath, lock.token).catch(() => undefined);
             return;
@@ -482,7 +483,7 @@ export function EditorPage() {
           setLockNote(null);
           setSaveState("saved");
         } catch {
-          // The other window still holds the lock.
+          // A transport failure. A held lock is a 200 from pollLock, not an error.
         }
       })();
     }, heartbeatEveryRef.current);

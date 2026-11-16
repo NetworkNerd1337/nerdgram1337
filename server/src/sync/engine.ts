@@ -238,8 +238,14 @@ export async function getSyncStatus(): Promise<SyncStatus> {
 }
 
 export async function saveClientId(clientId: string): Promise<SyncStatus> {
-  const id = assertClientId(clientId);
+  const trimmed = clientId.trim();
   const config = await loadConfig();
+  if (!trimmed) {
+    config.clientId = null;
+    await saveConfig(config);
+    return publicStatus();
+  }
+  const id = assertClientId(trimmed);
   if (!process.env.NERDGRAM_GITHUB_CLIENT_ID?.trim()) config.clientId = id;
   await saveConfig(config);
   return publicStatus();
@@ -879,7 +885,7 @@ async function probeIfHttp(config: SyncConfig): Promise<void> {
 async function requireToken(): Promise<{ token: string; source: TokenSource }> {
   const auth = await readToken();
   if (!auth.token || !auth.source) {
-    throw httpFail(401, "Connect a GitHub account before creating a repository.", "auth_revoked");
+    throw httpFail(401, "Connect a GitHub account before creating a repository.", "not_connected");
   }
   return { token: auth.token, source: auth.source };
 }
