@@ -4,9 +4,13 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+## 1.4.3 "Atlas" - 2026-11-16
+
+Patch on the Atlas line. The code name stays Atlas. The code pane scrolls inside its frame, the preview pans and zooms with Fit, and Settings can set Appearance to Light, Dark, or Match system.
+
 ### Editor scrolling, preview pan and zoom, and appearance
 
-From #92.
+From #93 (#92).
 
 - The code pane scrolls inside its frame. The wheel, the scrollbars, a trackpad, and the keyboard move through a long diagram, and the caret stays in view. This holds with the info panel open or closed, and in a narrow window.
 - The preview pane drags to pan, and the wheel zooms toward the pointer. **Fit** on the preview toolbar resets pan and zoom. The zoom percent sits beside it. Typing does not snap the view back.

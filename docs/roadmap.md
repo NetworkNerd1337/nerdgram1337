@@ -1,6 +1,6 @@
 # Roadmap
 
-The planned work after v1.4.2 Atlas, still on the Atlas line.
+The planned work after v1.4.3 Atlas, still on the Atlas line.
 
 [Back to the documentation index](README.md)
 
@@ -21,15 +21,15 @@ The planned work after v1.4.2 Atlas, still on the Atlas line.
 
 Progress is tracked in [GitHub milestones](https://github.com/NetworkNerd1337/NerdGram1337/milestones).
 
-This roadmap is a plan, not a commitment. The work starts from the v1.4.2 Atlas tree. Later 1.x.y releases stay Atlas.
+This roadmap is a plan, not a commitment. The work starts from the v1.4.3 Atlas tree. Later 1.x.y releases stay Atlas.
 
 ## Where we are
 
-1.4.0 through 1.4.2 put NerdGram in a mature, stable place. The app is local and on-demand, it installs from npm, Docker, or source, and the docs are split into pages people can actually find. This is a good time to plan the next useful work without changing what the app is.
+1.4.0 through 1.4.3 put NerdGram in a mature, stable place. The app is local and on-demand, it installs from npm, Docker, or source, and the docs are split into pages people can actually find. This is a good time to plan the next useful work without changing what the app is.
 
 | Fact | Value |
 | --- | --- |
-| Current release | 1.4.2 Atlas |
+| Current release | 1.4.3 Atlas |
 | Canonical network schema | `schemaVersion` 1, in [docs/schema/network.schema.json](schema/network.schema.json) |
 | Automation API | `GET /api/v1/openapi.json` already exists (OpenAPI 3.0.3, no token) |
 | Generate behavior | `POST /api/v1/generate` returns **409** if the path exists; refresh updates an existing diagram |
@@ -38,7 +38,7 @@ This roadmap is a plan, not a commitment. The work starts from the v1.4.2 Atlas 
 
 **The line.** NerdGram is where data lands, not what goes out and fetches it. Discovery, monitoring, always-on polling, and stored SNMP, SSH, or API credentials are out. The app stays light, free, local (`127.0.0.1` by default, no user auth or roles), on-demand, and code-driven. No new heavy subsystems. Reuse the generate and refresh path that already exists.
 
-That line is already written into the 1.4.2 docs. [Generate from data](generate-from-data.md) says you produce the vendor-neutral JSON, and that NerdGram does not ship TextFSM, Genie, NAPALM, Batfish, Nautobot, or NetBox. The schema file itself says turning vendor output into this document is the caller's job. The work below is about making that job easier, not about turning NerdGram into a collector.
+That line is already written into the 1.4.3 docs. [Generate from data](generate-from-data.md) says you produce the vendor-neutral JSON, and that NerdGram does not ship TextFSM, Genie, NAPALM, Batfish, Nautobot, or NetBox. The schema file itself says turning vendor output into this document is the caller's job. The work below is about making that job easier, not about turning NerdGram into a collector.
 
 **Stays in scope.**
 
@@ -57,7 +57,7 @@ That line is already written into the 1.4.2 docs. [Generate from data](generate-
 
 ## How data lands today
 
-There are two JSON shapes, and that distinction matters. A generic CSV or JSON file is a table of nodes and edges for a flowchart. A network JSON file (`format: "network"`, `schemaVersion` 1) is the richer, vendor-neutral document for Layer 3 and Layer 2 views. CDP and LLDP are a third path: pasted CLI output that becomes a links table. All three go through the same generate and refresh routes. Facts below are from v1.4.2.
+There are two JSON shapes, and that distinction matters. A generic CSV or JSON file is a table of nodes and edges for a flowchart. A network JSON file (`format: "network"`, `schemaVersion` 1) is the richer, vendor-neutral document for Layer 3 and Layer 2 views. CDP and LLDP are a third path: pasted CLI output that becomes a links table. All three go through the same generate and refresh routes. Facts below are from v1.4.3.
 
 | Format | What it is | Code and docs |
 | --- | --- | --- |
