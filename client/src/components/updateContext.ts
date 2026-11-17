@@ -3,10 +3,18 @@ import type { UpdateJob, UpdateStatus } from "../types";
 
 export type UpdatePanel = "about" | "notes" | "docker" | "manual" | "progress" | null;
 
+export type CheckFeedback = {
+  id: number;
+  code: string | null;
+  message: string;
+};
+
 export type UpdateContextValue = {
   status: UpdateStatus | null;
   job: UpdateJob | null;
   busy: boolean;
+  checking: boolean;
+  checkFeedback: CheckFeedback | null;
   notice: string | null;
   panel: UpdatePanel;
   actionError: string | null;

@@ -17,9 +17,11 @@ import type { UpdateJob, UpdateRelease, UpdateStatus } from "../types";
 import { Brand } from "./Brand";
 import { ReleaseMarkdown } from "./ReleaseMarkdown";
 import { ExternalLink, SupportLink } from "./SupportLink";
-import { UpdateContext, useUpdate, type UpdatePanel } from "./updateContext";
+import { UpdateContext, useUpdate, type CheckFeedback, type UpdatePanel } from "./updateContext";
 
 const TARGET_KEY = "nerdgram-update-target";
+const TLS_INSPECTION_DOCS_URL =
+  "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/troubleshooting.md#corporate-tls-inspection";
 
 function messageOf(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -39,14 +41,46 @@ function shortCommit(commit: string | null): string | null {
   return commit.slice(0, 7);
 }
 
+function manualCheckMessage(next: UpdateStatus): string | null {
+  if (next.error) return next.error.message;
+  if (next.phase === "disabled") return "Update checks are turned off.";
+  if (next.updateAvailable && !next.dismissed) return null;
+  if (next.matchesLatest || next.phase === "current") {
+    return `NerdGram ${runningLabel(next)} is up to date.`;
+  }
+  if (next.phase === "ahead") {
+    return `This build (${next.currentVersion}) is newer than the latest stable release.`;
+  }
+  if (next.phase === "no_release") return "No stable release has been published yet.";
+  if (next.skipped) {
+    return `Version ${next.latest?.version ?? ""} is skipped. Reset skipped versions in About to see it again.`.trim();
+  }
+  return "The update check finished.";
+}
+
+function UpdateErrorMessage({ message }: { message: string }) {
+  const index = message.indexOf(TLS_INSPECTION_DOCS_URL);
+  if (index < 0) return message;
+  return (
+    <>
+      {message.slice(0, index)}
+      <ExternalLink href={TLS_INSPECTION_DOCS_URL}>corporate TLS inspection</ExternalLink>
+      {message.slice(index + TLS_INSPECTION_DOCS_URL.length)}
+    </>
+  );
+}
+
 export function UpdateHost({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [job, setJob] = useState<UpdateJob | null>(null);
   const [panel, setPanel] = useState<UpdatePanel>(null);
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [checkFeedback, setCheckFeedback] = useState<CheckFeedback | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const checkSerial = useRef(0);
   const [copied, setCopied] = useState<string | null>(null);
   const [presenting, setPresenting] = useState(() => document.body.dataset.presenting === "true");
   const [dockerGuide, setDockerGuide] = useState<UpdateStatus["docker"]>(null);
@@ -67,45 +101,37 @@ export function UpdateHost({ children }: { children: ReactNode }) {
   }, [applyStatus]);
 
   const checkNow = useCallback(async (options?: { keepPanel?: boolean }) => {
+    const id = checkSerial.current + 1;
+    checkSerial.current = id;
     setBusy(true);
+    setChecking(true);
     setActionError(null);
+    setCheckFeedback(null);
     try {
       const next = await api.checkUpdates();
       applyStatus(next);
+      const message = manualCheckMessage(next);
+      const feedback = message ? { id, code: next.error?.code ?? null, message } : null;
       if (options?.keepPanel) {
+        setCheckFeedback(feedback);
         if (next.error) setActionError(next.error.message);
         return;
       }
-      if (next.error) {
-        setActionError(next.error.message);
-        setPanel("about");
-        return;
-      }
-      if (next.phase === "disabled") {
-        setNotice("Update checks are turned off.");
-        setPanel("about");
-        return;
-      }
-      if (next.updateAvailable && !next.dismissed) {
+      if (next.updateAvailable && !next.dismissed && !next.error) {
+        setCheckFeedback(null);
         setPanel(null);
         return;
       }
-      if (next.matchesLatest || next.phase === "current") {
-        setNotice(`NerdGram ${runningLabel(next)} is up to date.`);
-      } else if (next.phase === "ahead") {
-        setNotice(`This build (${next.currentVersion}) is newer than the latest stable release.`);
-      } else if (next.phase === "no_release") {
-        setNotice("No stable release has been published yet.");
-      } else if (next.skipped) {
-        setNotice(
-          `Version ${next.latest?.version ?? ""} is skipped. Reset skipped versions in About to see it again.`.trim(),
-        );
-      }
+      setCheckFeedback(feedback);
+      if (message && !next.error) setNotice(message);
       setPanel("about");
     } catch (err) {
-      setActionError(messageOf(err));
+      const message = messageOf(err);
+      setCheckFeedback({ id, code: "update", message });
+      setActionError(message);
       if (!options?.keepPanel) setPanel("about");
     } finally {
+      setChecking(false);
       setBusy(false);
     }
   }, [applyStatus]);
@@ -179,6 +205,7 @@ export function UpdateHost({ children }: { children: ReactNode }) {
     try {
       applyStatus(await api.updateSettings(body));
     } catch (err) {
+      setCheckFeedback(null);
       setActionError(messageOf(err));
     } finally {
       setBusy(false);
@@ -259,6 +286,8 @@ export function UpdateHost({ children }: { children: ReactNode }) {
     status,
     job,
     busy,
+    checking,
+    checkFeedback,
     notice,
     panel,
     actionError,
@@ -368,10 +397,15 @@ export function UpdateHost({ children }: { children: ReactNode }) {
           ))}
           <p className="update-persist">{dockerGuide.persistNote}</p>
           <div className="update-banner-actions">
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void checkNow({ keepPanel: true })}>
-              Check again
+            <button type="button" className="btn btn-primary" disabled={busy} aria-busy={checking} onClick={() => void checkNow({ keepPanel: true })}>
+              {checking ? "Checking…" : "Check again"}
             </button>
           </div>
+          {checking ? (
+            <p className="update-check-status" role="status">
+              Checking for updates…
+            </p>
+          ) : null}
           {actionError ? <p className="update-error">{actionError}</p> : null}
           {status.currentVersion === dockerGuide.tag.replace(/^v/, "") ? (
             <p role="status">This install is running {runningLabel(status)}, which matches {dockerGuide.tag}.</p>
@@ -475,7 +509,7 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
 }
 
 export function UpdateSettingsFields() {
-  const { status, busy, setAutomatic, setPrerelease, clearSkipped, checkNow } = useUpdate();
+  const { status, busy, checking, setAutomatic, setPrerelease, clearSkipped, checkNow } = useUpdate();
   if (!status) return <p>Loading update settings…</p>;
   const lockedOff = !status.enabled;
   return (
@@ -512,8 +546,14 @@ export function UpdateSettingsFields() {
         </p>
       ) : null}
       <div className="update-banner-actions">
-        <button type="button" className="btn" disabled={busy} onClick={() => void checkNow()}>
-          Check for updates
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy || lockedOff}
+          aria-busy={checking}
+          onClick={() => void checkNow()}
+        >
+          {checking ? "Checking…" : "Check for updates"}
         </button>
       </div>
     </div>
@@ -521,13 +561,15 @@ export function UpdateSettingsFields() {
 }
 
 function AboutBody() {
-  const { status, actionError, busy, openUpgrade } = useUpdate();
+  const { status, actionError, busy, checking, checkFeedback, openUpgrade } = useUpdate();
   if (!status) return <p>{busy ? "Loading…" : "Version information is not available yet."}</p>;
   return (
     <>
       <AboutSummary
         status={status}
         actionError={actionError}
+        checking={checking}
+        checkFeedback={checkFeedback}
         onShowUpgrade={openUpgrade}
         upgradeDisabled={busy}
       />
@@ -550,11 +592,15 @@ function updateSummary(status: UpdateStatus): string | null {
 export function AboutSummary({
   status,
   actionError,
+  checking = false,
+  checkFeedback = null,
   onShowUpgrade,
   upgradeDisabled = false,
 }: {
   status: UpdateStatus;
   actionError: string | null;
+  checking?: boolean;
+  checkFeedback?: CheckFeedback | null;
   onShowUpgrade?: () => void;
   upgradeDisabled?: boolean;
 }) {
@@ -623,15 +669,36 @@ export function AboutSummary({
           </p>
           {status.docker && onShowUpgrade ? (
             <p>
-              <button type="button" className="btn" disabled={upgradeDisabled} onClick={onShowUpgrade}>
+              <button type="button" className="btn btn-secondary" disabled={upgradeDisabled} onClick={onShowUpgrade}>
                 Show upgrade steps
               </button>
             </p>
           ) : null}
         </>
       ) : null}
-      {actionError ? <p className="update-error">{actionError}</p> : null}
-      {status.error && !actionError ? <p className="update-error">{status.error.message}</p> : null}
+      <div className="update-check-feedback" aria-live="polite">
+        {checking ? (
+          <p className="update-check-status" role="status">
+            Checking for updates…
+          </p>
+        ) : checkFeedback ? (
+          <p
+            className={checkFeedback.code ? "update-error" : "about-status"}
+            role={checkFeedback.code ? "alert" : "status"}
+            data-check-id={checkFeedback.id}
+          >
+            <UpdateErrorMessage message={checkFeedback.message} />
+          </p>
+        ) : actionError ? (
+          <p className="update-error" role="alert">
+            <UpdateErrorMessage message={actionError} />
+          </p>
+        ) : status.error ? (
+          <p className="update-error" role="alert">
+            <UpdateErrorMessage message={status.error.message} />
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

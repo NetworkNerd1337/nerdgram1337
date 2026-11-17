@@ -20,6 +20,17 @@ const LATEST_URL = "https://api.github.com/repos/NetworkNerd1337/NerdGram1337/re
 const LIST_URL = "https://api.github.com/repos/NetworkNerd1337/NerdGram1337/releases?per_page=20";
 const USER_AGENT = "NerdGram1337 (update check; +https://github.com/NetworkNerd1337/NerdGram1337)";
 const DEFAULT_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** Node's OpenSSL codes when a proxy re-signs HTTPS with a CA this process does not trust. */
+const TLS_CERT_CODES = new Set([
+  "SELF_SIGNED_CERT_IN_CHAIN",
+  "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+  "CERT_HAS_EXPIRED",
+  "DEPTH_ZERO_SELF_SIGNED_CERT",
+]);
+const TLS_INSPECTION_DOCS_URL =
+  "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/troubleshooting.md#corporate-tls-inspection";
+const TLS_INSPECTION_MESSAGE = `A proxy or TLS inspection on this network is likely intercepting HTTPS. See ${TLS_INSPECTION_DOCS_URL}.`;
 
 export type UpdatePhase = "disabled" | "current" | "available" | "ahead" | "unknown" | "no_release";
 
@@ -356,8 +367,8 @@ async function githubGet(url: string, etag: string | null, hops: number): Promis
       redirect: "manual",
       signal: AbortSignal.timeout(15_000),
     });
-  } catch {
-    throw httpFail(502, "Could not reach GitHub.", "offline");
+  } catch (err) {
+    throw classifyFetchFailure(err);
   }
   if (response.status === 301 || response.status === 302 || response.status === 303 || response.status === 307 || response.status === 308) {
     const location = response.headers.get("location");
@@ -368,6 +379,33 @@ async function githubGet(url: string, etag: string | null, hops: number): Promis
     return githubGet(next.toString(), etag, hops + 1);
   }
   return response;
+}
+
+function classifyFetchFailure(err: unknown): Error {
+  if (tlsCertificateFailure(err)) {
+    return httpFail(502, TLS_INSPECTION_MESSAGE, "tls");
+  }
+  return httpFail(502, "Could not reach GitHub.", "offline");
+}
+
+/** Walk `error.cause` (and an AggregateError's `errors`) for a TLS certificate code. */
+function tlsCertificateFailure(err: unknown): boolean {
+  const seen = new Set<unknown>();
+  const queue: unknown[] = [err];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+    const code = (current as { code?: unknown }).code;
+    if (typeof code === "string" && TLS_CERT_CODES.has(code)) return true;
+    const cause = (current as { cause?: unknown }).cause;
+    if (cause) queue.push(cause);
+    const errors = (current as { errors?: unknown }).errors;
+    if (Array.isArray(errors)) {
+      for (const item of errors) queue.push(item);
+    }
+  }
+  return false;
 }
 
 function allowedRedirect(location: string): boolean {

@@ -337,6 +337,12 @@ a {
   border-color: var(--line);
 }
 
+.btn-secondary {
+  background: var(--bg);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
 .btn-danger {
   background: var(--bg-elevated);
   border-color: var(--banner-error-line);
@@ -1554,6 +1560,28 @@ a {
   border-radius: 10px;
   padding: 0.6rem 0.75rem;
   margin-bottom: 0.9rem;
+}
+
+.modal label.sync-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+  margin-bottom: 0.8rem;
+  color: var(--ink);
+}
+
+.modal label.sync-check input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+  height: auto;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  accent-color: var(--accent);
 }
 
 .modal-actions {
@@ -3128,6 +3156,26 @@ body[data-presenting="true"] .support-link {
 
 .update-error {
   color: var(--danger);
+}
+
+.update-error a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.update-check-status {
+  color: var(--ink);
+  margin: 0.35rem 0 0.8rem;
+}
+
+.update-check-feedback {
+  margin: 0.2rem 0 0.4rem;
+}
+
+.update-check-feedback .update-error,
+.update-check-feedback .about-status {
+  margin: 0.35rem 0 0.8rem;
 }
 
 .update-persist,

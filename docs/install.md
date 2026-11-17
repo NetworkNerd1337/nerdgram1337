@@ -105,6 +105,8 @@ Optional variables go on `docker run -e`, or in a `.env` file next to `compose.y
 - `NERDGRAM_GITHUB_CLIENT_ID` for GitHub sync. `NERDGRAM_GITHUB_TOKEN` is optional. The token file is `/data/.meta/github-token` with mode `0600`. The git working copy is `/data/.nerdgram-git`.
 - `NERDGRAM_ALLOWED_HOSTS` and `NERDGRAM_CORS_ORIGINS` when callers use a DNS name, or when the published host address is not an address the container can see. Saving from `diagrams.home` needs `NERDGRAM_ALLOWED_HOSTS=diagrams.home` and `NERDGRAM_CORS_ORIGINS=http://diagrams.home:8787`. A LAN IP published as `<lan-ip>:8787:8787` needs that IP in `NERDGRAM_ALLOWED_HOSTS` because interface discovery inside the container is the container's own addresses, not the host's. That is still a single-user tool port, not a shared server. See [Security model](security.md#security-model).
 
+**Corporate TLS inspection.** Update checks and GitHub sync run inside the container. A proxy that re-signs HTTPS, such as Zscaler, uses a corporate root CA the container does not trust. Export that root as a PEM, mount it read-only, and set `NODE_EXTRA_CA_CERTS` to the path inside the container. The `docker run` and Compose steps are [Corporate TLS inspection](troubleshooting.md#corporate-tls-inspection).
+
 ### Node.js
 
 **1. Check Node.js, npm, and Git.** On the host, use **Node.js 20 or newer** and **npm 10 or newer**. The CI verify job installs Node 20. The image and the Docker CI job use Node 22. The root `package.json` has no `engines` field, so npm will not refuse an older Node for you. Check:

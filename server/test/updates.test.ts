@@ -355,6 +355,106 @@ describe("update check API", () => {
     expect(auto.updateAvailable).toBe(false);
     const manual = await manualCheck();
     expect(manual.error?.code).toBe("rate_limit");
+    expect(manual.error?.message).toMatch(/rate limit/i);
+  });
+
+  it("classifies offline, TLS inspection, and rate limit, and still refuses other hosts", async () => {
+    const tlsCodes = [
+      "SELF_SIGNED_CERT_IN_CHAIN",
+      "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+      "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+      "CERT_HAS_EXPIRED",
+      "DEPTH_ZERO_SELF_SIGNED_CERT",
+    ];
+    setUpdateFetch(async () => {
+      throw Object.assign(new TypeError("fetch failed"), {
+        cause: Object.assign(new Error("certificate verify failed"), { code: "SELF_SIGNED_CERT_IN_CHAIN" }),
+      });
+    });
+    const quiet = await runAutomaticCheck();
+    expect(quiet.error).toBeNull();
+
+    for (const code of tlsCodes) {
+      resetUpdatesForTests();
+      setUpdateFetch(async () => {
+        throw Object.assign(new TypeError("fetch failed"), {
+          cause: Object.assign(new Error("certificate verify failed"), { code }),
+        });
+      });
+      const manual = await manualCheck();
+      expect(manual.error?.code).toBe("tls");
+      expect(manual.error?.message).toMatch(/proxy or TLS inspection/i);
+      expect(manual.error?.message).toContain(
+        "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/troubleshooting.md#corporate-tls-inspection",
+      );
+      expect(manual.error?.message).not.toMatch(/NODE_TLS_REJECT_UNAUTHORIZED|rejectUnauthorized/i);
+    }
+
+    resetUpdatesForTests();
+    setUpdateFetch(async () => {
+      const cause = Object.assign(new Error("self signed"), { code: "SELF_SIGNED_CERT_IN_CHAIN" });
+      throw Object.assign(new TypeError("fetch failed"), { cause: new AggregateError([cause], "fetch failed") });
+    });
+    const nested = await manualCheck();
+    expect(nested.error?.code).toBe("tls");
+
+    resetUpdatesForTests();
+    setUpdateFetch(async () => {
+      throw Object.assign(new TypeError("fetch failed"), {
+        cause: Object.assign(new Error("getaddrinfo ENOTFOUND api.github.com"), { code: "ENOTFOUND" }),
+      });
+    });
+    const offline = await manualCheck();
+    expect(offline.error?.code).toBe("offline");
+    expect(offline.error?.message).toBe("Could not reach GitHub.");
+
+    resetUpdatesForTests();
+    const blocked = mockFetch((url) => {
+      if (url === LATEST) {
+        return new Response(null, { status: 302, headers: { location: "https://evil.example/releases/latest" } });
+      }
+      return jsonResponse(200, releaseBody("v1.5.0"));
+    });
+    const refused = await manualCheck();
+    expect(refused.error?.code).toBe("offline");
+    expect(blocked.map((call) => call.url)).toEqual([LATEST]);
+
+    resetUpdatesForTests();
+    const plain = mockFetch((url) => {
+      if (url === LATEST) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: "http://api.github.com/repos/NetworkNerd1337/NerdGram1337/releases/latest" },
+        });
+      }
+      return jsonResponse(200, releaseBody("v1.5.0"));
+    });
+    const httpOnly = await manualCheck();
+    expect(httpOnly.error?.code).toBe("offline");
+    expect(plain.map((call) => call.url)).toEqual([LATEST]);
+
+    resetUpdatesForTests();
+    const followed = mockFetch((url) => {
+      if (url === LATEST) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://api.github.com/repos/NetworkNerd1337/NerdGram1337/releases/latest?redirect=1" },
+        });
+      }
+      return jsonResponse(200, releaseBody("v1.5.0"));
+    });
+    const allowed = await manualCheck();
+    expect(allowed.error).toBeNull();
+    expect(allowed.latest?.version).toBe("1.5.0");
+    expect(followed.map((call) => call.url)).toEqual([
+      LATEST,
+      "https://api.github.com/repos/NetworkNerd1337/NerdGram1337/releases/latest?redirect=1",
+    ]);
+
+    resetUpdatesForTests();
+    mockFetch(() => jsonResponse(429, { message: "rate limit" }));
+    const limited = await manualCheck();
+    expect(limited.error?.code).toBe("rate_limit");
   });
 
   it("rejects a bad host, origin, and content type on the update routes", async () => {
