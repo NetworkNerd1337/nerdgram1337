@@ -129,9 +129,9 @@ These stay off the roadmap. They would split the product into a second, always-o
 - NerdGram calling out to NetBox, LibreNMS, or a device to pull data.
 - User accounts, logins, or role-based access. Automation tokens for the local API stay; they are not user auth.
 - A visual drag-and-drop editor as the focus. NerdGram stays code-first.
-- Bundling TextFSM, Genie, NAPALM, Batfish, or a NetBox or LibreNMS client as a supported collector.
+- Bundling TextFSM, Genie, NAPALM, Batfish, or a NetBox or LibreNMS client as a supported collector. NerdGram still does not ship or run Batfish. Reading Batfish's exported question JSON through the 1.7.5 translator is in scope.
 - A built-in simulator or emulator. That would be a product fork, not a diagramming tool.
-- Parsing vendor device configs inside NerdGram. That is high-maintenance churn. Point instead to Batfish, pyATS/Genie, and ntc-templates/TextFSM, with an optional docs recipe for converting their output to NerdGram JSON.
+- Parsing vendor device configs inside NerdGram. That is high-maintenance churn. Point instead to Batfish, pyATS/Genie, and ntc-templates/TextFSM, with an optional docs recipe for converting their output to NerdGram JSON. NerdGram still never parses those configs. The 1.7.5 Batfish translator reads structured output Batfish has already written.
 - Storing credentials for test tools such as pyATS or lab platforms. Exported files may include placeholders only, and NerdGram never connects to devices.
 
 ## Why this order
@@ -228,9 +228,9 @@ One PR that adds a second mapping module, CLI source, and `/api/v1/convert/libre
 
 **Gated on 1.7.0.** This milestone exists only if 1.7.0 proves the modular translator system works. If 1.7.0 shows that system will not work, 1.7.5 is simply dropped from the roadmap. Nothing in 1.5.0 or 1.6.0 depends on it.
 
-Each item is one mapping module, added the same way LibreNMS was: one file, discovered automatically, no core edits. Every translator stays stateless, stores no credentials or tokens, and is fed only by exported payloads or files. NerdGram still does not log in, poll, or call out to these tools.
+Each translator is one mapping module, added the same way LibreNMS was: one file, discovered automatically, no core edits. Every translator stays stateless, stores no credentials or tokens, and is fed only by exported payloads or files. NerdGram still does not log in, poll, or call out to these tools. 1.7.5-l is the paste-screen picker for those modules. It is not a new source.
 
-The source notes below are a starting point. When each issue is written, verify them against that tool's current API documentation.
+The source notes below are a starting point. When each source issue is written, verify them against that tool's current documentation.
 
 ### 1.7.5-a Nautobot
 
@@ -292,13 +292,41 @@ Read Terraform state or plan JSON, the output of `terraform show -json`, and wri
 
 **Success.** One module file converts a saved `terraform show -json` document to canonical JSON that validates and upserts, with no core edits and no call to Terraform or a provider.
 
+### 1.7.5-k Batfish
+
+Batfish parses the device configs. NerdGram never does. This translator reads exported Batfish or pybatfish question output as JSON and maps it to canonical network JSON. Examples are interface properties, IP ownership, VLAN and switched-VLAN properties, and layer-3 edges. One mapping module in its own file. It is stateless, stores no credentials, and makes no outbound calls. NerdGram does not run Batfish and does not bundle it.
+
+Config-only output draws the routed (Layer 3) view well. Layer 1 and Layer 2 links are inferred or missing unless the user adds a `layer1_topology.json` to the Batfish snapshot, for example one generated from CDP or LLDP neighbor output upstream. The translator never invents a link. An inferred link is marked as inferred, for example drawn dashed. An unresolved neighbor is a placeholder node.
+
+The translator docs include a recipe for building `layer1_topology.json` upstream and adding it to the snapshot before the questions are exported. NerdGram does not build that snapshot. When the issue is written, verify the question JSON shapes, and the `layer1_topology.json` name and location, against current Batfish and pybatfish docs.
+
+**Success.** One module file converts a saved Batfish question export to canonical JSON that validates and upserts, with no core edits and no call out to Batfish. Tests cover a config-only export that draws the Layer 3 view, an export that includes layer-1 edges from `layer1_topology.json`, an inferred link that stays marked inferred, an unresolved neighbor drawn as a placeholder node, and a fixture that gains no link the file does not contain.
+
+### 1.7.5-l Translator picker
+
+`nerdgram convert` and `POST /api/v1/convert/<source>` stay the API and CLI path. This item puts that same path on the existing paste screen: `/generate`, opened from **From data** on the dashboard and from **Generate diagram from data** in the command palette. That screen already pastes or uploads a file. Reuse it. Do not add a top-level page, and do not add a nav entry. The current CSV, JSON, network JSON, CDP, and LLDP choices stay.
+
+A translator picker lists the installed translator modules. The list is auto-discovered from the registry, so adding or removing a module updates the list with no UI edits. Picking a translator sets the input box's format hint and placeholder for that tool's data. Paste and file upload both call `POST /api/v1/convert/<source>`. The client has no translator logic. The preview shows mapper warnings before the diagram is saved. The screen stays stateless: no stored credentials, no outbound calls, still bound to `127.0.0.1` and `::1` unless Host is opened, and no auth.
+
+#### Data-completeness notice
+
+When a translator is selected on that paste screen, a soft info callout sits above the input. It has an info icon and a short title, and the body substitutes the translator's display name. It follows the Light and Dark Appearance themes, including when Appearance is **Match system**. **Don't show again** dismisses it for that translator and remembers the choice in `localStorage`. That dismissal is the only value the callout stores. **Translator tips** links to that translator's docs. The copy is fixed. `{Source}` is the translator's display name.
+
+**Title.** Your diagram reflects your data
+
+**Body.** NerdGram draws exactly what this {Source} export describes. Devices or links the source doesn't know about won't appear. For a fuller topology, enrich the data in {Source} first, for example by adding LLDP or CDP links to a Batfish snapshot.
+
+**Actions.** Translator tips (links to the translator docs) · Don't show again
+
+**Success.** The picker on `/generate` lists registry modules, and adding or deleting a module file changes that list with no client edit; paste and upload both call `POST /api/v1/convert/<source>`, and the preview shows mapper warnings before save; the callout uses the copy above, substitutes the display name, and stays dismissed for that translator after **Don't show again**, in both Light and Dark. Tests cover an added module, a removed module, paste, upload, a warning before save, the callout copy with the display name filled in, a per-translator `localStorage` dismissal, and both Appearance themes. The client stores no credentials and makes no outbound call.
+
 ## [1.8.0 Design exports](https://github.com/NetworkNerd1337/NerdGram1337/milestone/5)
 
 Export a diagram, Mermaid plus its network JSON, to text files that outside test and lab tools can open. NerdGram never connects to devices, and it never stores credentials. Any password or token field in an exported file is a placeholder for the tool, or the operator, to fill in. The workflow assumption, especially for pyATS, is that the user makes sure the node names and IPs in the diagram match the real environment they test with.
 
 Exporters should use the same one-file-per-target modular pattern that 1.7.0 proves for translators: one module, registered and discovered automatically, added or removed without core edits. A later 1.8.5 milestone expands the set only if this export architecture holds. Tool format notes below are a starting point; when each issue is written, verify them against that tool's current documentation.
 
-**Batfish is a weak fit.** Batfish wants device configs, which NerdGram does not store and will not parse. It is not a 1.8.0 target. If someone wants a Batfish snapshot, they should collect configs with the tools that already do that, not from a diagram.
+**Batfish is a weak fit.** Batfish wants device configs, which NerdGram does not store and will not parse. It is not a 1.8.0 target. If someone wants a Batfish snapshot, they should collect configs with the tools that already do that, not from a diagram. This is the export direction only. The 1.7.5 Batfish translator still reads question JSON the operator already exported.
 
 ### 1.8.0-a Export framework plus pyATS testbed YAML
 
