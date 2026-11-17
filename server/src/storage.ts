@@ -28,7 +28,9 @@ import { getMetaPath } from "./paths.js";
  * diagram. It does not copy `.meta` (favorites, syntax overrides, trash,
  * revisions, locks, thumbnails, the search index, or tokens). Bundled
  * templates live outside this directory, in the repo `templates/` folder,
- * and are not part of the mirror.
+ * and are not part of the mirror. User templates live in `.templates/`
+ * under the data directory. That name starts with a dot, so the tree,
+ * trash, and search skip it, and GitHub sync does not copy it.
  */
 
 /** How many previous revisions to keep for each diagram. Newest are kept. */

@@ -1,0 +1,34 @@
+---
+title: Internet edge
+config:
+  theme: neutral
+nerdgram:
+  description: Two providers, two edge routers, a firewall pair, and a DMZ host.
+  tags:
+    - edge
+    - bgp
+    - dmz
+  category: Internet & Cloud
+---
+flowchart LR
+    subgraph providers [Providers]
+        isp1[ISP one]
+        isp2[ISP two]
+    end
+    subgraph edge [Edge]
+        r1[Edge router one]
+        r2[Edge router two]
+    end
+    subgraph fw [Firewalls]
+        fw1[Firewall one]
+        fw2[Firewall two]
+    end
+    subgraph dmz [DMZ]
+        web[DMZ host]
+    end
+    isp1 --> r1
+    isp2 --> r2
+    r1 --> fw1
+    r2 --> fw2
+    fw1 --> web
+    fw2 --> web

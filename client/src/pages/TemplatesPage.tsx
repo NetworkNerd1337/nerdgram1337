@@ -9,7 +9,16 @@ import { Modal } from "../components/Modal";
 import { SourceThumbnail } from "../components/MermaidThumbnail";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { useWorkspace } from "../hooks/useWorkspace";
-import { filterTemplates, folderInTree, templatePresentHref, uniqueSorted } from "../lib/templateGallery";
+import { FileNameField } from "../components/FileNameField";
+import { fileNameIssue } from "../lib/fileName";
+import {
+  TEMPLATE_CATEGORIES,
+  folderInTree,
+  groupTemplateSections,
+  templateEditHref,
+  templatePresentHref,
+  uniqueSorted,
+} from "../lib/templateGallery";
 import type { TemplateSummary } from "../types";
 
 export function TemplatesPage() {
@@ -29,6 +38,11 @@ export function TemplatesPage() {
   const [folderChoice, setFolderChoice] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>({});
+  const [renameTarget, setRenameTarget] = useState<TemplateSummary | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<TemplateSummary | null>(null);
   const savingRef = useRef(false);
   const requestedFolder = searchParams.get("folder") ?? "";
   const folder =
@@ -67,15 +81,15 @@ export function TemplatesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
 
-  const categories = useMemo(() => uniqueSorted(templates.map((item) => item.category)), [templates]);
   const types = useMemo(() => uniqueSorted(templates.map((item) => item.diagramType)), [templates]);
   const tags = useMemo(() => uniqueSorted(templates.flatMap((item) => item.tags)), [templates]);
-  const shown = useMemo(
-    () => filterTemplates(templates, { query, category, diagramType, tag }),
+  const sections = useMemo(
+    () => groupTemplateSections(templates, { query, category, diagramType, tag }),
     [templates, query, category, diagramType, tag],
   );
+  const filtering = Boolean(query.trim() || diagramType || tag);
   const requestedUse = searchParams.get("use") ?? "";
   const linked = templates.find((item) => item.id === requestedUse) ?? null;
   const picked = templates.find((item) => item.id === pickedId) ?? null;
@@ -103,6 +117,10 @@ export function TemplatesPage() {
 
   const create = async () => {
     if (!selected || savingRef.current) return;
+    if (fileNameIssue(name, []).empty) {
+      setDialogError("Enter a file name.");
+      return;
+    }
     savingRef.current = true;
     setSaving(true);
     setDialogError(null);
@@ -160,7 +178,7 @@ export function TemplatesPage() {
             Category
             <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Filter by category">
               <option value="">All</option>
-              {categories.map((item) => (
+              {TEMPLATE_CATEGORIES.map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>
@@ -195,48 +213,133 @@ export function TemplatesPage() {
           </label>
         </div>
 
+        {!loading && !filtering ? (
+          <nav className="template-jumps" aria-label="Template categories">
+            {TEMPLATE_CATEGORIES.map((item) => (
+              <a key={item} href={`#template-${item.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
+                {item}
+              </a>
+            ))}
+          </nav>
+        ) : null}
         {loading ? <p>Loading templates…</p> : null}
-        {!loading && shown.length === 0 ? (
+        {!loading && sections.length === 0 ? (
           <div className="empty-state">No templates match that search.</div>
-        ) : (
-          <div className="card-grid">
-            {shown.map((template) => (
-              <article className="card template-card" key={template.id}>
-                <SourceThumbnail id={template.id} source={template.source} cacheKey={template.cacheKey} />
-                <div className="card-body">
-                  <h3>{template.title}</h3>
-                  <p className="card-description">
-                    {template.malformed
-                      ? template.error || "This template could not be read."
-                      : template.description}
-                  </p>
-                  <p className="template-meta">
-                    <span>{template.category || "General"}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{template.diagramType}</span>
-                  </p>
-                  {template.tags.length > 0 ? (
-                    <div className="tag-row">
-                      {template.tags.map((item) => (
-                        <span className="tag-chip" key={item}>
-                          {item}
-                        </span>
-                      ))}
+        ) : null}
+        {!loading
+          ? sections.map((section) => {
+              const storedOpen = (() => {
+                try {
+                  const raw = localStorage.getItem(`nerdgram.templateSection.${section.category}`);
+                  if (raw == null) return true;
+                  return raw === "1";
+                } catch {
+                  return true;
+                }
+              })();
+              const open = filtering || (section.category in sectionOpen ? sectionOpen[section.category] !== false : storedOpen);
+              const sectionId = `template-${section.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+              return (
+                <section key={section.category} className="template-section" id={sectionId} aria-labelledby={`${sectionId}-title`}>
+                  <div className="template-section-head">
+                    <button
+                      type="button"
+                      className="tree-chevron"
+                      aria-expanded={open}
+                      aria-controls={`${sectionId}-cards`}
+                      onClick={() => {
+                        const next = !open;
+                        setSectionOpen((current) => ({ ...current, [section.category]: next }));
+                        try {
+                          localStorage.setItem(`nerdgram.templateSection.${section.category}`, next ? "1" : "0");
+                        } catch {
+                          // The section still toggles for this visit.
+                        }
+                      }}
+                    >
+                      <span className="visually-hidden">{open ? "Collapse" : "Expand"} {section.category}</span>
+                    </button>
+                    <h2 id={`${sectionId}-title`}>
+                      {section.category} <span className="template-count">{section.templates.length}</span>
+                    </h2>
+                  </div>
+                  {open ? (
+                    <div id={`${sectionId}-cards`}>
+                      {section.templates.length === 0 ? (
+                        <div className="template-empty">
+                          <span className="template-empty-icon" aria-hidden="true">
+                            □
+                          </span>
+                          <p>No templates here yet</p>
+                          {section.category === "User created" ? (
+                            <p>Open a diagram and choose Create as template to add one here.</p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="card-grid">
+                          {section.templates.map((template) => (
+                            <article className="card template-card" key={template.id}>
+                              <SourceThumbnail id={template.id} source={template.source} cacheKey={template.cacheKey} />
+                              <div className="card-body">
+                                <h3>{template.title}</h3>
+                                <p className="card-description">
+                                  {template.malformed
+                                    ? template.error || "This template could not be read."
+                                    : template.description}
+                                </p>
+                                <p className="template-meta">
+                                  <span>{template.category || "General"}</span>
+                                  <span aria-hidden="true">·</span>
+                                  <span>{template.diagramType}</span>
+                                </p>
+                                {template.tags.length > 0 ? (
+                                  <div className="tag-row">
+                                    {template.tags.map((item) => (
+                                      <span className="tag-chip" key={item}>
+                                        {item}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                <div className="card-actions">
+                                  <button type="button" className="btn btn-primary" onClick={() => openUse(template)}>
+                                    Use template
+                                  </button>
+                                  <Link className="btn btn-ghost" to={templatePresentHref(template.id)}>
+                                    Present
+                                  </Link>
+                                  {template.origin === "user" ? (
+                                    <>
+                                      <Link className="btn btn-ghost" to={templateEditHref(template.id)}>
+                                        Edit
+                                      </Link>
+                                      <button
+                                        type="button"
+                                        className="btn btn-ghost"
+                                        onClick={() => {
+                                          setRenameTarget(template);
+                                          setRenameValue(template.title);
+                                        }}
+                                      >
+                                        Rename
+                                      </button>
+                                      <button type="button" className="btn btn-ghost" onClick={() => setDeleteTarget(template)}>
+                                        Delete
+                                      </button>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : null}
-                  <div className="card-actions">
-                    <button type="button" className="btn btn-primary" onClick={() => openUse(template)}>
-                      Use template
-                    </button>
-                    <Link className="btn btn-ghost" to={templatePresentHref(template.id)}>
-                      Present
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+                </section>
+              );
+            })
+          : null}
       </main>
 
       {selected ? (
@@ -252,15 +355,40 @@ export function TemplatesPage() {
             kept.
           </p>
           {dialogError ? <div className="error-banner">{dialogError}</div> : null}
-          <label htmlFor="template-name">Diagram name</label>
-          <input
-            id="template-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            autoFocus
-          />
+          <FileNameField id="template-name" value={name} autoFocus onChange={setName} />
           <div className="template-folder-label">Folder</div>
           <FolderPicker tree={tree} value={folder} onChange={setFolderChoice} />
+        </Modal>
+      ) : null}
+      {renameTarget ? (
+        <Modal
+          title={`Rename ${renameTarget.title}`}
+          confirmLabel="Rename"
+          onClose={() => setRenameTarget(null)}
+          onConfirm={() => {
+            void api.renameTemplate(renameTarget.id, renameValue).then(() => {
+              setRenameTarget(null);
+              setReloadKey((value) => value + 1);
+            });
+          }}
+        >
+          <label htmlFor="rename-template">Name</label>
+          <input id="rename-template" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} />
+        </Modal>
+      ) : null}
+      {deleteTarget ? (
+        <Modal
+          title={`Delete ${deleteTarget.title}`}
+          confirmLabel="Delete"
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            void api.deleteTemplate(deleteTarget.id).then(() => {
+              setDeleteTarget(null);
+              setReloadKey((value) => value + 1);
+            });
+          }}
+        >
+          <p>Delete this template? Diagrams already created from it stay where they are.</p>
         </Modal>
       ) : null}
     </div>

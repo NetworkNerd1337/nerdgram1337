@@ -101,7 +101,7 @@ export function initialWizardState(folder = ""): WizardState {
     includeDown: false,
     vlan: "",
     localDevice: "",
-    diagramName: "Untitled",
+    diagramName: "",
     folder,
     title: "",
     headers: [],
@@ -120,7 +120,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
   switch (action.type) {
     case "text": {
       const stem = stemFromFile(action.fileName);
-      const untouched = state.diagramName === "Untitled" || state.diagramName === stemFromFile(state.fileName);
+      const untouched = state.diagramName.trim() === "" || state.diagramName === stemFromFile(state.fileName);
       const guessed = state.format === "auto" ? formatFromName(action.fileName) : null;
       const format = guessed ?? state.format;
       return {

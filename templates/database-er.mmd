@@ -1,0 +1,31 @@
+---
+title: Database ER model
+config:
+  theme: neutral
+nerdgram:
+  description: Customers place orders, and each order has line items that point at a product.
+  tags:
+    - software
+    - database
+    - er
+  category: Software
+---
+erDiagram
+    CUSTOMER ||--o{ ORDER : places
+    ORDER ||--|{ LINE : contains
+    PRODUCT ||--o{ LINE : "is on"
+    CUSTOMER {
+        string name
+        string email
+    }
+    ORDER {
+        string id
+        string status
+    }
+    LINE {
+        int qty
+    }
+    PRODUCT {
+        string sku
+        string name
+    }

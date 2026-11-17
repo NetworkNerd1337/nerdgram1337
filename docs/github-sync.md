@@ -14,8 +14,8 @@ NerdGram does not ship a client ID or a client secret. You register an OAuth app
 
 These stay on this computer and are not pushed:
 
-- `.meta` (favorites, syntax overrides, trash, version history, editor locks, thumbnails, the search index, the update cache, and the GitHub token)
-- any other hidden path
+- `.meta` (bookmarks, syntax overrides, trash, version history, editor locks, thumbnails, the search index, the update cache, and the GitHub token)
+- any other hidden path, including `<data>/.templates/` (templates you saved with **Create as template**)
 - `templates/` and `reference/`, which live outside the data directory
 
 Empty folders are not stored, because git does not keep empty directories. A folder appears once it contains a diagram.

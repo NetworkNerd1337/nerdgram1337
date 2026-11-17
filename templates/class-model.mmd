@@ -1,0 +1,26 @@
+---
+title: Class model
+config:
+  theme: default
+nerdgram:
+  description: An order, its lines, and the customer that placed it.
+  tags:
+    - software
+    - class
+  category: Software
+---
+classDiagram
+    class Customer {
+        name
+        email
+    }
+    class Order {
+        id
+        placedAt
+    }
+    class Line {
+        sku
+        qty
+    }
+    Customer "1" --> "*" Order : places
+    Order "1" --> "*" Line : contains

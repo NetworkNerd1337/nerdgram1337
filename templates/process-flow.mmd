@@ -1,0 +1,26 @@
+---
+title: Process flow
+config:
+  theme: default
+nerdgram:
+  description: A request moves through intake, a decision, and two swimlanes before it is closed.
+  tags:
+    - software
+    - process
+    - flowchart
+  category: Software
+---
+flowchart TD
+    subgraph intake [Intake]
+        start[Request received] --> review[Review the request]
+    end
+    subgraph decide [Decision]
+        review --> gate{Approved}
+    end
+    subgraph fulfill [Fulfillment]
+        gate -->|Yes| build[Do the work]
+        build --> close[Close the request]
+    end
+    subgraph stop [Stop]
+        gate -->|No| reject[Send it back]
+    end

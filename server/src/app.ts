@@ -732,6 +732,23 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     }
   });
 
+  app.get("/api/bookmarks", async (_req, res) => {
+    try {
+      res.json(await store.getBookmarks());
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.put("/api/bookmarks", async (req, res) => {
+    try {
+      const saved = await store.setBookmarks(req.body);
+      res.json(saved);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
   app.get("/api/reference", async (_req, res) => {
     try {
       await syntaxReference.ensureReferenceDirs();
@@ -980,8 +997,17 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
 
   app.get("/api/templates", async (_req, res) => {
     try {
-      const listed = await templates.listTemplates();
+      const listed = await templates.listAllTemplates();
       res.json({ templates: listed });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/templates", async (req, res) => {
+    try {
+      const created = await templates.createUserTemplate(req.body ?? {});
+      res.status(201).json(created);
     } catch (err) {
       sendError(res, err);
     }
@@ -991,6 +1017,33 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     try {
       const template = await templates.readTemplate(String(req.params.id || ""));
       res.json(template);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.put("/api/templates/:id", async (req, res) => {
+    try {
+      const saved = await templates.saveUserTemplate(String(req.params.id || ""), req.body ?? {});
+      res.json(saved);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/templates/:id/rename", async (req, res) => {
+    try {
+      const renamed = await templates.renameUserTemplate(String(req.params.id || ""), req.body ?? {});
+      res.json(renamed);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.delete("/api/templates/:id", async (req, res) => {
+    try {
+      await templates.deleteUserTemplate(String(req.params.id || ""));
+      res.status(204).send();
     } catch (err) {
       sendError(res, err);
     }

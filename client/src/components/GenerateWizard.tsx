@@ -242,12 +242,20 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, onInspect
         <div className="generate-panel">
           <div className="paste-fields">
             <div>
-              <label htmlFor="generate-name">Diagram name</label>
-              <input
-                id="generate-name"
-                value={state.diagramName}
-                onChange={(event) => dispatch({ type: "meta", diagramName: event.target.value })}
-              />
+              <label htmlFor="generate-name">File name</label>
+              <div className="file-name-row">
+                <input
+                  id="generate-name"
+                  value={state.diagramName}
+                  placeholder="Campus core"
+                  aria-required="true"
+                  onChange={(event) => dispatch({ type: "meta", diagramName: event.target.value })}
+                />
+                <span className="file-name-suffix" aria-hidden="true">.mmd</span>
+              </div>
+              {state.diagramName.trim() ? null : (
+                <p className="file-name-hint">Enter a file name. A diagram is not created until this is filled in.</p>
+              )}
             </div>
             <div>
               <label htmlFor="generate-title">Title</label>

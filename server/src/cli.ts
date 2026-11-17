@@ -34,6 +34,7 @@ const BOOL_FLAGS = new Set([
   "no-update-links",
   "dry-run",
   "yes",
+  "replace",
   "match-case",
   "whole-word",
   "regex",
@@ -115,6 +116,11 @@ file is not modified.
 baseline saves the current diagram as a named baseline. --id names an
 existing revision instead. Names are kept when the 20-revision limit drops
 older saves.
+template save <diagram> copies that diagram into <data>/.templates as a
+User created template. It does not change the diagram. --name sets the
+template name. --replace overwrites a user template with the same id.
+template rm <id> deletes a user template. Built-in templates are refused.
+These two write the data directory on this computer. They do not call the API.
 replace prints a preview. --yes applies it and saves each diagram, so the
 previous text is a revision. --dry-run is the default. --folder limits the
 scope. --no-recursive stays in that folder. The diagram body is searched
@@ -135,7 +141,44 @@ async function loadLint(): Promise<typeof import("./mermaidSyntax.js")> {
   return import("./mermaidSyntax.js");
 }
 
-export async function shutdownCli(): Promise<void> {
+export async function templateCommand(parsed: Parsed, io: Io): Promise<void> {
+  const sub = parsed.positionals[0] ?? "";
+  const target = parsed.positionals[1] ?? "";
+  const templates = await import("./templates.js");
+  try {
+    if (sub === "save") {
+      if (!target) throw new CliError("Usage: nerdgram template save <diagram> [--name name] [--replace]");
+      const created = await templates.createUserTemplate({
+        path: target,
+        name: flagString(parsed.flags, "name"),
+        replace: parsed.flags.get("replace") === true,
+      });
+      writeOut(
+        io,
+        isJson(parsed.flags),
+        { id: created.id, origin: created.origin, title: created.title, category: created.category },
+        `Saved template ${created.id}`,
+      );
+      return;
+    }
+    if (sub === "rm" || sub === "delete") {
+      if (!target) throw new CliError("Usage: nerdgram template rm <id>");
+      await templates.deleteUserTemplate(target);
+      writeOut(io, isJson(parsed.flags), { id: target }, `Deleted template ${target}`);
+      return;
+    }
+    throw new CliError("Usage: nerdgram template save <diagram> | nerdgram template rm <id>");
+  } catch (err) {
+    if (err instanceof CliError) throw err;
+    const status = err && typeof err === "object" && "status" in err && typeof (err as { status?: unknown }).status === "number"
+      ? (err as { status: number }).status
+      : undefined;
+    const message = err instanceof Error ? err.message : String(err);
+    throw new CliError(message, status);
+  }
+}
+
+async function shutdownCli(): Promise<void> {
   if (!renderModule) return;
   const { closeRenderer } = await renderModule;
   await closeRenderer();
@@ -901,6 +944,9 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
         return 0;
       case "replace":
         await replaceCommand(parsed, streams);
+        return 0;
+      case "template":
+        await templateCommand(parsed, streams);
         return 0;
       default:
         throw new CliError(`Unknown command ${parsed.command}. Run nerdgram --help.`);

@@ -1,0 +1,30 @@
+---
+title: SCADA communications
+config:
+  theme: neutral
+nerdgram:
+  description: A control center talks to field controllers over a primary path and a backup path.
+  tags:
+    - ot
+    - scada
+    - industrial
+  category: OT & Industrial
+---
+flowchart LR
+    subgraph center [Control center]
+        scada[SCADA server]
+    end
+    subgraph field [Field]
+        rtu[RTU]
+        plc[PLC]
+    end
+    subgraph paths [Paths]
+        primary[Primary path]
+        backup[Backup path]
+    end
+    scada --> primary
+    scada --> backup
+    primary --> rtu
+    primary --> plc
+    backup --> rtu
+    backup --> plc

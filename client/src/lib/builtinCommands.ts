@@ -120,7 +120,9 @@ const builtin: PaletteCommand[] = [
     section: "Navigate",
     keywords: ["docs", "mermaid", "help"],
     order: 80,
-    run: (ctx) => ctx.navigate("/reference"),
+    run: () => {
+      window.open("/reference", "_blank", "noopener");
+    },
   },
   {
     id: "nav.dashboard",
@@ -171,6 +173,24 @@ const builtin: PaletteCommand[] = [
     order: 125,
     when: (ctx) => ctx.route === "editor" && !ctx.readOnly && !ctx.conflictOpen && !!ctx.actions.linkNode,
     run: (ctx) => ctx.actions.linkNode?.(),
+  },
+  {
+    id: "editor.renameFile",
+    title: "Rename file",
+    section: "Editor",
+    keywords: ["filename", "path", "breadcrumb"],
+    order: 128,
+    when: (ctx) => editorReady(ctx) && !ctx.readOnly && !!ctx.actions.renameFile,
+    run: (ctx) => ctx.actions.renameFile?.(),
+  },
+  {
+    id: "editor.createTemplate",
+    title: "Create as template",
+    section: "Editor",
+    keywords: ["template", "gallery", "starter"],
+    order: 129,
+    when: (ctx) => editorReady(ctx) && !!ctx.actions.createTemplate,
+    run: (ctx) => ctx.actions.createTemplate?.(),
   },
   {
     id: "editor.info",

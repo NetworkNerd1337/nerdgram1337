@@ -23,6 +23,7 @@ export default function App() {
           <Route path="/new" element={<NewDiagramPage />} />
           <Route path="/generate" element={<GeneratePage />} />
           <Route path="/templates" element={<TemplatesPage />} />
+          <Route path="/templates/edit/:id" element={<EditorPage />} />
           <Route path="/templates/present/:id" element={<TemplatePresentPage />} />
         <Route path="/edit/*" element={<EditorPage />} />
         <Route path="/present/*" element={<PresentPage />} />

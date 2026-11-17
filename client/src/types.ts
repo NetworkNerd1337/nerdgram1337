@@ -124,6 +124,8 @@ export type TemplateSummary = {
   malformed: boolean;
   error: string | null;
   source: string;
+  /** Shipped templates are builtin. Create as template writes user. */
+  origin?: "builtin" | "user";
 };
 
 export type ThumbnailPayload = {

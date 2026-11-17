@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
+import { bookmarkPaths, EMPTY_BOOKMARKS, type BookmarkState } from "../lib/bookmarks";
 import type { TreeNode } from "../types";
 
 export function useWorkspace() {
   const [tree, setTree] = useState<TreeNode[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [bookmarks, setBookmarks] = useState<BookmarkState>(EMPTY_BOOKMARKS);
+  const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,9 +14,10 @@ export function useWorkspace() {
     setLoading(true);
     setError(null);
     try {
-      const [treeRes, favRes] = await Promise.all([api.tree(), api.favorites()]);
+      const [treeRes, bookRes] = await Promise.all([api.tree(), api.bookmarks()]);
       setTree(treeRes.tree);
-      setFavorites(favRes.favorites);
+      setBookmarks(bookRes);
+      setRevision((value) => value + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load workspace");
     } finally {
@@ -28,16 +31,25 @@ export function useWorkspace() {
 
   const toggleFavorite = useCallback(async (path: string) => {
     const result = await api.toggleFavorite(path);
-    setFavorites(result.favorites);
+    if (result.bookmarks) setBookmarks(result.bookmarks);
     return result.favorited;
+  }, []);
+
+  const saveBookmarks = useCallback(async (next: BookmarkState) => {
+    const saved = await api.setBookmarks(next);
+    setBookmarks(saved);
+    return saved;
   }, []);
 
   return {
     tree,
-    favorites,
+    bookmarks,
+    favorites: bookmarkPaths(bookmarks),
+    revision,
     loading,
     error,
     refresh,
     toggleFavorite,
+    saveBookmarks,
   };
 }

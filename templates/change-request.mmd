@@ -1,0 +1,20 @@
+---
+title: Change request lifecycle
+config:
+  theme: base
+nerdgram:
+  description: A change request is drafted, reviewed, approved or sent back, then implemented and closed.
+  tags:
+    - operations
+    - change
+    - state
+  category: Operations & Planning
+---
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> Review : submit
+    Review --> Approved : approve
+    Review --> Draft : revise
+    Approved --> Implemented : start
+    Implemented --> Closed : finish
+    Closed --> [*]

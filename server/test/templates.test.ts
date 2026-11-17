@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { MERMAID_THEMES, parseDiagram } from "../src/frontMatter.js";
 import { getDataRoot } from "../src/paths.js";
+import { lintDiagram } from "../src/diagramLint.js";
 import { getTemplatesRoot, listTemplates, readTemplate } from "../src/templates.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -13,11 +14,11 @@ const HOST = "127.0.0.1:8787";
 
 const SHIPPED = [
   { id: "network-topology", title: "Network topology", category: "Network", diagramType: "Flowchart", theme: "forest" },
-  { id: "home-lab", title: "Home lab", category: "Lab", diagramType: "Flowchart", theme: "neo" },
+  { id: "home-lab", title: "Home lab", category: "Network", diagramType: "Flowchart", theme: "neo" },
   { id: "firewall-policy", title: "Firewall rule policy", category: "Security", diagramType: "Flowchart", theme: "neutral" },
-  { id: "rack-elevation", title: "Rack elevation", category: "Rack", diagramType: "Block", theme: "redux" },
-  { id: "flowchart-starter", title: "Flowchart starter", category: "Starter", diagramType: "Flowchart", theme: "dark" },
-  { id: "sequence-starter", title: "Sequence starter", category: "Starter", diagramType: "Sequence", theme: "default" },
+  { id: "rack-elevation", title: "Rack elevation", category: "Data Center", diagramType: "Block", theme: "redux" },
+  { id: "flowchart-starter", title: "Flowchart starter", category: "Software", diagramType: "Flowchart", theme: "dark" },
+  { id: "sequence-starter", title: "Sequence starter", category: "Software", diagramType: "Sequence", theme: "default" },
 ] as const;
 
 function app() {
@@ -72,10 +73,16 @@ describe("bundled templates", () => {
       malformed: boolean;
       source: string;
     }[];
-    expect(templates.map((item) => item.id)).toEqual(SHIPPED.map((item) => item.id));
+    expect(templates.length).toBeGreaterThanOrEqual(SHIPPED.length);
+    expect(templates.every((item) => item.origin === "builtin")).toBe(true);
+    const categories = templates.map((item) => item.category);
+    const order = ["Network", "Software", "Internet & Cloud", "Security", "OT & Industrial", "Data Center", "Operations & Planning"];
+    const ranks = categories.map((name) => order.indexOf(name));
+    expect(ranks.every((rank) => rank >= 0)).toBe(true);
+    expect([...ranks].sort((a, b) => a - b)).toEqual(ranks);
 
-    for (const [index, expected] of SHIPPED.entries()) {
-      const item = templates[index];
+    for (const expected of SHIPPED) {
+      const item = templates.find((entry) => entry.id === expected.id);
       expect(item?.title).toBe(expected.title);
       expect(item?.category).toBe(expected.category);
       expect(item?.diagramType).toBe(expected.diagramType);
@@ -308,5 +315,113 @@ describe("create a diagram from a template", () => {
       .set("Content-Type", "application/json")
       .send({ name: "Ok", folder: 4 });
     expect(badFolder.status).toBe(400);
+  });
+});
+
+describe("user templates", () => {
+  let cleanup = async () => {};
+
+  beforeEach(async () => {
+    cleanup = (await makeTempDataDir()).cleanup;
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  const source = `---
+title: Site sketch
+nerdgram:
+  description: A sketch
+  tags:
+    - lab
+  category: Network
+---
+flowchart LR
+  A[One] --> B[Two]
+`;
+
+  it("creates, updates, renames, and deletes only user templates", async () => {
+    const api = app();
+    const created = await request(api)
+      .post("/api/templates")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ content: source, name: "Site sketch" });
+    expect(created.status).toBe(201);
+    expect(created.body.origin).toBe("user");
+    expect(created.body.category).toBe("User created");
+    expect(created.body.source).toContain("category: User created");
+    expect(created.body.source).toContain("A[One] --> B[Two]");
+
+    const clash = await request(api)
+      .post("/api/templates")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ content: source, name: "Site sketch" });
+    expect(clash.status).toBe(409);
+
+    const replaced = await request(api)
+      .post("/api/templates")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ content: source, name: "Site sketch", replace: true });
+    expect(replaced.status).toBe(201);
+
+    const saved = await request(api)
+      .put(`/api/templates/${created.body.id}`)
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ content: source.replace("Two", "Three"), category: "Security" });
+    expect(saved.status).toBe(200);
+    expect(saved.body.category).toBe("User created");
+    expect(saved.body.source).toContain("Three");
+
+    const renamed = await request(api)
+      .post(`/api/templates/${created.body.id}/rename`)
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ name: "Site plan" });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.title).toBe("Site plan");
+    expect(renamed.body.origin).toBe("user");
+
+    const listed = await request(api).get("/api/templates").set("Host", HOST);
+    expect(listed.body.templates.some((item: { id: string; origin: string }) => item.id === renamed.body.id && item.origin === "user")).toBe(true);
+
+    const builtin = await request(api)
+      .put("/api/templates/network-topology")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ content: source });
+    expect(builtin.status).toBe(403);
+    const builtinDelete = await request(api)
+      .delete("/api/templates/firewall-policy")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json");
+    expect(builtinDelete.status).toBe(403);
+    const builtinRename = await request(api)
+      .post("/api/templates/home-lab/rename")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ name: "Nope" });
+    expect(builtinRename.status).toBe(403);
+
+    const removed = await request(api)
+      .delete(`/api/templates/${renamed.body.id}`)
+      .set("Host", HOST)
+      .set("Content-Type", "application/json");
+    expect(removed.status).toBe(204);
+    const gone = await request(api).get(`/api/templates/${renamed.body.id}`).set("Host", HOST);
+    expect(gone.status).toBe(404);
+  });
+
+  it("keeps every shipped template free of diagram-check warnings", async () => {
+    const listed = await listTemplates();
+    expect(listed.length).toBeGreaterThan(6);
+    for (const template of listed) {
+      const hits = lintDiagram(template.source);
+      expect(hits, template.id).toEqual([]);
+    }
   });
 });

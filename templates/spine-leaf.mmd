@@ -1,0 +1,28 @@
+---
+title: Spine-leaf fabric
+config:
+  theme: neo
+nerdgram:
+  description: Two spine switches and three leaf switches, with every leaf connected to both spines.
+  tags:
+    - datacenter
+    - fabric
+    - spine
+  category: Data Center
+---
+flowchart TB
+    subgraph spines [Spines]
+        s1[Spine one]
+        s2[Spine two]
+    end
+    subgraph leaves [Leaves]
+        l1[Leaf one]
+        l2[Leaf two]
+        l3[Leaf three]
+    end
+    s1 --> l1
+    s1 --> l2
+    s1 --> l3
+    s2 --> l1
+    s2 --> l2
+    s2 --> l3

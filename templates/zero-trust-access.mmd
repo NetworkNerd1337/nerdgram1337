@@ -1,0 +1,17 @@
+---
+title: Zero-trust access flow
+config:
+  theme: dark
+nerdgram:
+  description: A user is checked by an identity provider and a policy engine before the app is opened.
+  tags:
+    - security
+    - zero-trust
+    - access
+  category: Security
+---
+flowchart LR
+    user[User] --> idp[Identity provider]
+    idp --> policy[Policy engine]
+    policy -->|allow| app[Application]
+    policy -->|deny| block[Blocked]

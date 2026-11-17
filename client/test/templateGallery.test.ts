@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterTemplates, folderInTree, uniqueSorted } from "../src/lib/templateGallery";
+import { filterTemplates, folderInTree, groupTemplateSections, uniqueSorted } from "../src/lib/templateGallery";
 import type { TreeNode } from "../src/types";
 
 const cards = [
@@ -77,5 +77,27 @@ describe("template gallery filters", () => {
     expect(folderInTree(tree, "Lab/Nested")).toBe(true);
     expect(folderInTree(tree, "Lab/Notes.mmd")).toBe(false);
     expect(folderInTree(tree, "Missing")).toBe(false);
+  });
+
+  it("keeps every category, including empty ones, until a search is active", () => {
+    const sections = groupTemplateSections(cards, {});
+    expect(sections.map((section) => section.category)).toEqual([
+      "Network",
+      "Software",
+      "Internet & Cloud",
+      "Security",
+      "OT & Industrial",
+      "Data Center",
+      "Operations & Planning",
+      "User created",
+      "Lab",
+      "Starter",
+    ]);
+    expect(sections.find((section) => section.category === "User created")?.templates).toEqual([]);
+    expect(sections.find((section) => section.category === "Network")?.templates.map((item) => item.id)).toEqual([
+      "network-topology",
+    ]);
+    const filtered = groupTemplateSections(cards, { query: "campus" });
+    expect(filtered.map((section) => section.category)).toEqual(["Network"]);
   });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSharedDiagramLint } from "./DiagramLintProvider";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import {
@@ -21,34 +22,40 @@ import { RepairLinksDialog } from "./RepairLinksDialog";
  * Dashboard fold-out for workspace diagram checks.
  * The check runs once when this mounts. Open or closed is remembered in this browser.
  */
-export function DiagramChecks() {
+export function DiagramChecks({ onViewAll }: { onViewAll?: () => void } = {}) {
+  const shared = useSharedDiagramLint();
   const [open, setOpen] = useState(() => readDiagramChecksOpen());
-  const [findings, setFindings] = useState<DiagramCheckFinding[] | null>(null);
-  const [unreadable, setUnreadable] = useState<UnreadableDiagram[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [ownFindings, setOwnFindings] = useState<DiagramCheckFinding[] | null>(null);
+  const [ownUnreadable, setOwnUnreadable] = useState<UnreadableDiagram[]>([]);
+  const [ownError, setOwnError] = useState<string | null>(null);
   const [repairOpen, setRepairOpen] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
+    if (shared) return;
     let cancelled = false;
     void api.diagramLint().then(
       (result) => {
         if (cancelled) return;
-        setFindings(findingsFromLint(result));
-        setUnreadable(result.unreadable ?? []);
-        setError(null);
+        setOwnFindings(findingsFromLint(result));
+        setOwnUnreadable(result.unreadable ?? []);
+        setOwnError(null);
       },
       (err: unknown) => {
         if (cancelled) return;
-        setFindings(null);
-        setUnreadable([]);
-        setError(err instanceof Error ? err.message : "Could not check the diagrams");
+        setOwnFindings(null);
+        setOwnUnreadable([]);
+        setOwnError(err instanceof Error ? err.message : "Could not check the diagrams");
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+  }, [reloadToken, shared]);
+
+  const findings = shared ? shared.findings : ownFindings;
+  const unreadable = shared ? shared.unreadable : ownUnreadable;
+  const error = shared ? shared.error : ownError;
 
   const status = diagramCheckStatus(findings, error != null, unreadable.length);
   const summary = diagramCheckSummary(status, findings, unreadable.length);
@@ -89,6 +96,11 @@ export function DiagramChecks() {
             Repair links
           </button>
         ) : null}
+        {onViewAll ? (
+          <button type="button" className="btn btn-ghost diagram-checks-repair" onClick={onViewAll}>
+            View all
+          </button>
+        ) : null}
         {groups.length > 0 ? (
           <div className="diagram-checks-groups">
             {groups.map((group, groupIndex) => {
@@ -123,10 +135,11 @@ export function DiagramChecks() {
           onClose={() => setRepairOpen(false)}
           onApplied={() => {
             setRepairOpen(false);
-            setFindings(null);
-            setUnreadable([]);
-            setError(null);
-            setReloadToken((value) => value + 1);
+            setOwnFindings(null);
+            setOwnUnreadable([]);
+            setOwnError(null);
+            if (shared) shared.reload();
+            else setReloadToken((value) => value + 1);
           }}
         />
       ) : null}

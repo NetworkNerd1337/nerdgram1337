@@ -116,6 +116,51 @@ describe("edges to a node with no label", () => {
     const plain = "stateDiagram-v2\n  [*] --> Still\n  Still --> Moving\n";
     expect(byRule(plain, "unlabeled-endpoint")).toEqual([]);
   });
+
+  it("does not flag a link to a subgraph id, including nested and titled forms", () => {
+    const source = `flowchart LR
+  subgraph DCCores
+    A[Core] --> B[Agg]
+  end
+  subgraph Transport["Transport cloud"]
+    subgraph Inner [Edge]
+      C[Edge] --> D[Peer]
+    end
+  end
+  subgraph "Title only"
+    E[One] --> F[Two]
+  end
+  DCCores <-->|VPC| Transport
+  A -.-> Inner
+`;
+    expect(byRule(source, "unlabeled-endpoint")).toEqual([]);
+    const unconnected = byRule(source, "unconnected-node").map((hit) => hit.subject);
+    expect(unconnected).not.toContain("DCCores");
+    expect(unconnected).not.toContain("Transport");
+    expect(unconnected).not.toContain("Inner");
+    expect(unconnected).not.toContain("Title only");
+  });
+
+  it("still warns on a misspelled subgraph id, including a case-only mismatch", () => {
+    const source = `flowchart LR
+  subgraph Southbound
+    A[South] --> B[Bound]
+  end
+  A --> SouthBound
+  B --> Trnasport
+`;
+    const hits = byRule(source, "unlabeled-endpoint");
+    const subjects = hits.map((hit) => hit.subject).sort();
+    expect(subjects).toEqual(["SouthBound", "Trnasport"]);
+    expect(hits.find((hit) => hit.subject === "SouthBound")?.message).toMatch(/Did you mean "Southbound"/);
+    expect(hits.find((hit) => hit.subject === "Trnasport")?.message).toMatch(/typo/i);
+  });
+
+  it("treats a dotted link as a normal connector", () => {
+    const source = "flowchart LR\n  A[Start] -.-> B[End]\n";
+    expect(byRule(source, "unlabeled-endpoint")).toEqual([]);
+    expect(byRule(source, "unconnected-node")).toEqual([]);
+  });
 });
 
 describe("classDef and class", () => {
