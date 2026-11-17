@@ -4,10 +4,33 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- **Automation tokens.** A new token is shown in a highlighted panel with **Copy** and **Done**. Revoked tokens can be deleted one at a time, or cleared together. Deleting a revoked token does not make it work again. The server still stores only a hash.
-- **Folders.** A folder card counts the diagrams and subfolders directly inside it. The sidebar tree collapses. **Collapse all** closes the branches, and the open folder stays visible. The choice is saved in this browser.
-- **Editor.** The header is the folder path and the file name. Each folder links to that folder. Leaving the editor returns to the diagram's folder. **Diagram info** in the header opens and closes the panel. The preview toolbar no longer has **Edit info**.
-- **Diagram info.** Font family is a preset list, plus Custom, which keeps spaces and saves when you leave the field or press Enter. Cards show the file name. A different front matter title is a second line. The diagram and Present still use the title.
+## 1.4.6 "Atlas" - 2026-11-17
+
+Patch on the Atlas line. The code name stays Atlas. A new token is shown with Copy, and revoked tokens can be deleted. The editor breadcrumb ends in the file name and returns to that diagram's folder. Cards and the header lead with the file name, and Diagram info is one button.
+
+### Automation tokens and folder cards
+
+From #105 (#102).
+
+- A new token is shown once, in a highlighted panel with **Copy** and **Done**. The server still stores only a hash, and it does not write the token to the log.
+- **Delete** removes one revoked token. **Clear revoked** removes all of them after you confirm. An active token has to be revoked before it can be deleted. Deleting a revoked token does not make it work again.
+- A folder card counts the diagrams and subfolders directly inside it, for example **0 diagrams · 2 folders**. A folder with no subfolders shows only the diagram count. The count is not a total of everything nested further down.
+
+### Editor breadcrumb and folder tree
+
+From #105 (#103).
+
+- The editor header is the folder path and the file name, without `.mmd`. Each folder is a link to that folder on the dashboard. The file name is not a link. A long path collapses the middle folders to an ellipsis.
+- The logo leaves the editor for the folder that contains the diagram. A diagram at the root returns to the dashboard root. If that folder is gone, the link opens the nearest folder that is still there.
+- In the sidebar, a folder that contains another folder has a chevron. **Collapse all** closes every branch except the folders you need to see the one you have open. The choice is saved in this browser. Opening a folder expands the folders above it so the current one stays visible.
+
+### File names, fonts, and diagram info
+
+From #105 (#104).
+
+- Font family is a preset list: **Default**, **System UI**, **Sans-serif**, **Serif**, **Monospace**, and **Custom…**. Custom keeps the spaces you type and saves when you leave the field or press Enter.
+- Cards and the editor header lead with the file name, without `.mmd`. A different front matter title is a muted second line. A title that matches the file name does not repeat. The rendered diagram and **Present** still use the title.
+- **Diagram info** in the editor header opens and closes the panel, and it stays marked while the panel is open. The preview toolbar no longer has **Edit info**.
 
 ## 1.4.5 "Atlas" - 2026-11-17
 
