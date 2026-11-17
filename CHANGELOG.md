@@ -6,6 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- Network diagrams draw `device.platform` under the device name, and `interface.description` on the Layer 2 link when that text is set (from #126). Layer 2 group-by can be platform, along with site and role. A file that omits those fields draws the same diagram as before.
 - Network JSON has a compatibility policy (from #125). An additive optional field stays on `schemaVersion` 1. A change to a field's meaning bumps `schemaVersion` to 2. The schema stays closed, so an unexpected property is still an error. A file that uses a key added in NerdGram 1.5 needs that release or a later one. A file that omits the new key keeps working. The policy is in `docs/schema`, in Generate from data, and in the description of `docs/schema/network.schema.json`.
 
 ## 1.4.8 "Atlas" - 2026-11-17

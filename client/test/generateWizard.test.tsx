@@ -253,6 +253,12 @@ describe("generate wizard flow", () => {
     render();
     expect(state.view).toBe("l2");
     expect(document.querySelector("#generate-vlan")).toBeTruthy();
+    const group = document.querySelector<HTMLSelectElement>("#generate-network-group");
+    expect([...group!.options].map((option) => option.value)).toEqual(["", "site", "role", "platform"]);
+    setValue(group!, "platform");
+    render();
+    expect(previewRequest(state).groupBy).toBe("platform");
+    expect(previewRequest(state).view).toBe("l2");
   });
 
   it("keeps create disabled when a row is invalid", () => {

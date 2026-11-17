@@ -156,7 +156,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
             ? state.groupBy === "vrf"
               ? "vrf"
               : ""
-            : state.groupBy === "site" || state.groupBy === "role"
+            : state.groupBy === "site" || state.groupBy === "role" || state.groupBy === "platform"
               ? state.groupBy
               : "",
         fatal: null,
@@ -347,6 +347,7 @@ function formatFromName(fileName: string | undefined): WizardFormat | null {
 
 function groupForFormat(state: WizardState, format: WizardFormat): WizardGroupBy {
   const networkGroups = new Set<WizardGroupBy>(["", "vrf", "site", "role"]);
+  if (state.view === "l2") networkGroups.add("platform");
   const neighborGroups = new Set<WizardGroupBy>(["platform", "capability"]);
   if (format === "network") return networkGroups.has(state.groupBy) ? state.groupBy : "";
   if (format === "cdp" || format === "lldp") return neighborGroups.has(state.groupBy) ? state.groupBy : "platform";

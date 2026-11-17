@@ -93,7 +93,7 @@ Flags
   --group-by <value>
                   cdp and lldp: platform or capability.
                   network with --view l3: vrf.
-                  network with --view l2: site or role.
+                  network with --view l2: site, role, or platform.
   --view <l3|l2>  generate --format network only. l3 is subnets. l2 is VLANs,
                   trunks, and LAGs. refresh rejects --view. The view is stored
                   in the diagram.
