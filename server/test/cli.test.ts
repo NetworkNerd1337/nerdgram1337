@@ -79,6 +79,7 @@ describe("nerdgram CLI", () => {
     expect(help.stdout).toContain("--url");
     expect(help.stdout).toContain("--token");
     expect(help.stdout).toContain("--include-down");
+    expect(help.stdout).toContain("--create-only");
     expect(help.stdout).toContain("--vlan");
     expect(help.stdout).toContain("platform or capability");
     expect(help.stdout).toContain("vrf");
@@ -270,7 +271,20 @@ describe("nerdgram CLI", () => {
       await fs.writeFile(csv, "Local Device,Remote Device\nCore,Atlanta\n");
       stdout.length = 0;
       expect(await main(["generate", "--path", "Campus.mmd", "--data", csv, ...flags], io)).toBe(0);
-      expect(JSON.parse(stdout.join("")).path).toBe("Campus.mmd");
+      expect(JSON.parse(stdout.join(""))).toMatchObject({ path: "Campus.mmd", created: true });
+      const createdDiagram = await fs.readFile(path.join(dir, "Campus.mmd"), "utf8");
+      await fs.writeFile(path.join(dir, "Campus.mmd"), `${createdDiagram}%% keep this note\n`);
+      await fs.writeFile(csv, "Local Device,Remote Device\nCore,Boston\n");
+      stdout.length = 0;
+      expect(await main(["generate", "--path", "Campus.mmd", "--data", csv, ...flags], io)).toBe(0);
+      expect(JSON.parse(stdout.join(""))).toMatchObject({ path: "Campus.mmd", created: false });
+      const updatedDiagram = await fs.readFile(path.join(dir, "Campus.mmd"), "utf8");
+      expect(updatedDiagram).toContain("Boston");
+      expect(updatedDiagram).toContain("%% keep this note");
+      expect(await fs.readFile(path.join(dir, "Campus.csv"), "utf8")).toContain("Boston");
+      stdout.length = 0;
+      expect(await main(["generate", "--path", "Campus.mmd", "--data", csv, "--create-only", ...flags], io)).toBe(1);
+      expect(stdout.join("")).toContain("already exists");
 
       const lldp = path.join(dir, "neighbors.lldp");
       await fs.writeFile(

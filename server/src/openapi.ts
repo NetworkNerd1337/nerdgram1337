@@ -178,7 +178,16 @@ export const V1_ROUTES: readonly V1Route[] = [
     path: "/generate",
     scope: "write",
     operationId: "generateDiagram",
-    summary: "Create a diagram from CSV, JSON, Cisco CDP, LLDP, or network JSON and store the data file beside it.",
+    summary: "Create a diagram from CSV, JSON, Cisco CDP, LLDP, or network JSON and store the data file beside it. 409 when the path already exists.",
+    tag: "Generate",
+  },
+  {
+    method: "post",
+    path: "/generate/upsert",
+    scope: "write",
+    operationId: "upsertDiagram",
+    summary:
+      "Create a generated diagram, or update its generated block and sibling data file when that path already exists. Text outside the generated markers stays. 409 when the file was not generated from data.",
     tag: "Generate",
   },
   {
@@ -359,6 +368,7 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
       }, ["format"]);
     case "previewGenerate":
     case "generateDiagram":
+    case "upsertDiagram":
       return jsonBody("CSV, JSON, Cisco CDP, LLDP, or network JSON. Network data also sends view.", {
         text: { type: "string" },
         path: { type: "string", description: "Required for generate. Diagram path ending in .mmd." },

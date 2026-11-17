@@ -1,7 +1,7 @@
 import type { Express, NextFunction, Request, RequestHandler, Response } from "express";
 import { Router } from "express";
 import { importDiagramData } from "./diagramData.js";
-import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram } from "./diagramDataFiles.js";
+import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram, upsertGeneratedDiagram } from "./diagramDataFiles.js";
 import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
 import { lintWorkspaceFiles } from "./workspaceLint.js";
@@ -348,6 +348,25 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
         dataName: req.body.dataName,
       });
       res.status(201).json(created);
+    }),
+    upsertDiagram: asyncHandler(async (req, res) => {
+      if (!jsonObject(req, res)) return;
+      if (typeof req.body.path !== "string" || !req.body.path.trim()) {
+        throw httpFail(400, "path is required", "invalid");
+      }
+      if (req.body.storeData != null && typeof req.body.storeData !== "boolean") {
+        throw httpFail(400, "storeData must be a boolean", "invalid");
+      }
+      if (req.body.dataName != null && typeof req.body.dataName !== "string") {
+        throw httpFail(400, "dataName must be a string", "invalid");
+      }
+      const saved = await upsertGeneratedDiagram({
+        ...importInputFromBody(req.body),
+        path: req.body.path,
+        storeData: req.body.storeData,
+        dataName: req.body.dataName,
+      });
+      res.status(saved.created ? 201 : 200).json(saved);
     }),
     refreshDiagram: asyncHandler(async (req, res) => {
       if (!jsonObject(req, res)) return;
