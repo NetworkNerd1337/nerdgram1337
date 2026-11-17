@@ -36,7 +36,8 @@ export const LINT_RULES = [
   {
     id: "unlabeled-endpoint",
     label: "Unlabeled endpoints",
-    description: "A connection names a node that was never given a label, which is usually a typo.",
+    description:
+      "A connection names a node that was never given a label, which is usually a typo. A subgraph id is a known endpoint.",
   },
   {
     id: "unused-class",
@@ -198,6 +199,12 @@ type ClassUseHit = Span & {
 
 type DiagramKind = "flowchart" | "sequence" | "state" | "class" | "er" | "gantt" | "mindmap" | "timeline" | "other";
 
+type SubgraphHit = Span & {
+  id: string;
+  /** Title text, or the id when the declaration has no separate title. */
+  label: string;
+};
+
 type Model = {
   kind: DiagramKind;
   nodes: NodeHit[];
@@ -205,6 +212,7 @@ type Model = {
   classDefs: ClassDefHit[];
   classUses: ClassUseHit[];
   clicks: (Span & { target: string })[];
+  subgraphs: SubgraphHit[];
 };
 
 export function normalizeLintRules(value: unknown): Record<LintRuleId, boolean> {
@@ -288,9 +296,14 @@ export function mergeAstFacts(
   }
   const labels = new Map<string, string | null>();
   for (const node of facts.nodes) labels.set(node.id, node.label);
+  const graphs = new Set(scanDiagram(source).subgraphs.map((item) => item.id));
 
   const kept = diagnostics.filter((diagnostic) => {
-    if (diagnostic.ruleId === "unconnected-node" && diagnostic.subject && connected.has(diagnostic.subject)) {
+    if (
+      diagnostic.ruleId === "unconnected-node" &&
+      diagnostic.subject &&
+      (connected.has(diagnostic.subject) || graphs.has(diagnostic.subject))
+    ) {
       return false;
     }
     if (diagnostic.ruleId === "unlabeled-endpoint" && diagnostic.subject) {
@@ -307,7 +320,7 @@ export function mergeAstFacts(
   const already = new Set(kept.filter((item) => item.ruleId === "unconnected-node").map((item) => item.subject));
   const added: LintDiagnostic[] = [];
   for (const id of ids) {
-    if (connected.has(id) || already.has(id)) continue;
+    if (connected.has(id) || already.has(id) || graphs.has(id)) continue;
     const at = locateId(source, id);
     if (!at) continue;
     added.push(unconnectedDiagnostic(id, at));
@@ -327,7 +340,7 @@ function scanDiagram(source: string): Model {
   const parsed = parseDiagram(source);
   const start = bodyStart(source);
   const kind = diagramKind(parsed.body);
-  const model: Model = { kind, nodes: [], edges: [], classDefs: [], classUses: [], clicks: [] };
+  const model: Model = { kind, nodes: [], edges: [], classDefs: [], classUses: [], clicks: [], subgraphs: [] };
   eachLine(source, start, start + parsed.body.length, (line, lineStart, lineNo) => {
     if (!line.trim() || line.trimStart().startsWith("%%")) return;
     if (readClassDef(line, lineStart, lineNo, source, model)) return;
@@ -401,15 +414,20 @@ function duplicateIds(model: Model): LintDiagnostic[] {
   return diagnostics;
 }
 
+function subgraphIds(model: Model): Set<string> {
+  return new Set(model.subgraphs.map((item) => item.id));
+}
+
 function unconnectedNodes(model: Model): LintDiagnostic[] {
   const linked = new Set<string>();
   for (const edge of model.edges) {
     linked.add(edge.fromId);
     linked.add(edge.toId);
   }
+  const graphs = subgraphIds(model);
   const defined = new Map<string, NodeHit>();
   for (const node of model.nodes) {
-    if (node.defined && !defined.has(node.id)) defined.set(node.id, node);
+    if (node.defined && !defined.has(node.id) && !graphs.has(node.id)) defined.set(node.id, node);
   }
   if (model.edges.length === 0 && defined.size < 2) return [];
   const diagnostics: LintDiagnostic[] = [];
@@ -442,6 +460,10 @@ function unlabeledEndpoints(model: Model): LintDiagnostic[] {
     if (!text) continue;
     if (!labels.has(node.id)) labels.set(node.id, text);
   }
+  for (const subgraph of model.subgraphs) {
+    const text = subgraph.label.trim() || subgraph.id;
+    if (!labels.has(subgraph.id)) labels.set(subgraph.id, text);
+  }
   if (labels.size === 0 && model.kind === "flowchart") return [];
   if (model.kind === "sequence" || model.kind === "state") {
     const declared = model.nodes.some((node) => node.defined);
@@ -467,17 +489,53 @@ function unlabeledEndpoints(model: Model): LintDiagnostic[] {
     }
     if (candidates.length > labeledEndpoints.size) return [];
   }
-  return candidates.map((endpoint) => ({
-    ruleId: "unlabeled-endpoint" as const,
-    severity: "warning" as const,
-    subject: endpoint.id,
-    message: `This connection uses "${endpoint.id}", which has no label. That is often a typo.`,
-    from: endpoint.from,
-    to: endpoint.to,
-    line: endpoint.line,
-    column: endpoint.column,
-    fixes: [],
-  }));
+  const known = [...labels.keys()];
+  return candidates.map((endpoint) => {
+    const suggestion = closestId(endpoint.id, known);
+    const hint = suggestion ? ` Did you mean "${suggestion}"?` : "";
+    return {
+      ruleId: "unlabeled-endpoint" as const,
+      severity: "warning" as const,
+      subject: endpoint.id,
+      message: `This connection uses "${endpoint.id}", which has no label. That is often a typo.${hint}`,
+      from: endpoint.from,
+      to: endpoint.to,
+      line: endpoint.line,
+      column: endpoint.column,
+      fixes: [],
+    };
+  });
+}
+
+/** Case-only match first, then a one- or two-character edit. */
+function closestId(id: string, known: readonly string[]): string | null {
+  const lower = id.toLowerCase();
+  const caseHit = known.find((name) => name !== id && name.toLowerCase() === lower);
+  if (caseHit) return caseHit;
+  let best: { name: string; distance: number } | null = null;
+  for (const name of known) {
+    if (name === id || Math.abs(name.length - id.length) > 2) continue;
+    const distance = editDistance(lower, name.toLowerCase());
+    if (distance < 1 || distance > 2) continue;
+    if (!best || distance < best.distance || (distance === best.distance && name.localeCompare(best.name) < 0)) {
+      best = { name, distance };
+    }
+  }
+  return best?.name ?? null;
+}
+
+function editDistance(left: string, right: string): number {
+  const prev = Array.from({ length: right.length + 1 }, (_, index) => index);
+  const next = Array.from({ length: right.length + 1 }, () => 0);
+  for (let row = 1; row <= left.length; row += 1) {
+    next[0] = row;
+    for (let col = 1; col <= right.length; col += 1) {
+      const cost = left[row - 1] === right[col - 1] ? 0 : 1;
+      next[col] = Math.min(next[col - 1] + 1, prev[col] + 1, prev[col - 1] + cost);
+    }
+    for (let col = 0; col <= right.length; col += 1) prev[col] = next[col] ?? 0;
+  }
+  return prev[right.length] ?? left.length;
 }
 
 function unusedClasses(model: Model): LintDiagnostic[] {
@@ -758,7 +816,12 @@ function collectInlineClasses(line: string, lineStart: number, lineNo: number, m
 
 function scanFlowchartLine(line: string, lineStart: number, lineNo: number, model: Model): void {
   const trimmed = line.trim();
-  if (/^(?:flowchart(?:-elk)?|graph|direction|style|linkStyle|subgraph|end)\b/i.test(trimmed)) return;
+  if (/^subgraph\b/i.test(trimmed)) {
+    const subgraph = readSubgraph(line, lineStart, lineNo);
+    if (subgraph) model.subgraphs.push(subgraph);
+    return;
+  }
+  if (/^(?:flowchart(?:-elk)?|graph|direction|style|linkStyle|end)\b/i.test(trimmed)) return;
   for (const statement of splitStatements(line)) {
     const absolute = lineStart + statement.offset;
     const pieces = splitArrows(statement.text);
@@ -778,6 +841,43 @@ function scanFlowchartLine(line: string, lineStart: number, lineNo: number, mode
       }
     }
   }
+}
+
+/**
+ * `subgraph ID`, `subgraph ID[Label]`, `subgraph ID["Label"]`, `subgraph ID [Label]`,
+ * and `subgraph "Title only"`. A trailing `@{ ... }` metadata block is ignored.
+ * The quoted title is the id Mermaid uses when no separate id is written.
+ */
+function readSubgraph(line: string, lineStart: number, lineNo: number): SubgraphHit | null {
+  const header = /^\s*subgraph\b(.*)$/i.exec(line);
+  if (!header) return null;
+  let rest = (header[1] ?? "").trim().replace(/@\{[\s\S]*\}\s*$/, "").trim();
+  if (!rest) return null;
+  const quoted = /^(?:"([^"]+)"|'([^']+)'|`([^`]+)`)\s*$/.exec(rest);
+  if (quoted) {
+    const id = (quoted[1] ?? quoted[2] ?? quoted[3] ?? "").trim();
+    if (!id) return null;
+    return subgraphHit(line, lineStart, lineNo, id, id);
+  }
+  const titled = /^([A-Za-z_][\w-]*)\s*(?:\[\s*(?:"([^"]*)"|'([^']*)'|([^\]\n]*?))\s*\])?\s*$/.exec(rest);
+  if (!titled?.[1]) return null;
+  const id = titled[1];
+  const raw = titled[2] ?? titled[3] ?? titled[4];
+  const label = raw == null ? id : raw.trim() || id;
+  return subgraphHit(line, lineStart, lineNo, id, label);
+}
+
+function subgraphHit(line: string, lineStart: number, lineNo: number, id: string, label: string): SubgraphHit {
+  const at = line.indexOf(id);
+  const from = lineStart + Math.max(0, at);
+  return {
+    id,
+    label,
+    from,
+    to: from + id.length,
+    line: lineNo,
+    column: Math.max(1, at + 1),
+  };
 }
 
 function scanSequenceLine(line: string, lineStart: number, lineNo: number, model: Model): void {

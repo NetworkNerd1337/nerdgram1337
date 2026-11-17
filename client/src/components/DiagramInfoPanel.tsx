@@ -14,6 +14,9 @@ import {
   type Scalar,
 } from "../lib/frontMatter";
 import { FONT_PRESETS, fontSelection } from "../lib/fontFamily";
+import { api } from "../api";
+import { TagCombobox } from "./TagCombobox";
+import type { TagCount } from "../lib/tagSuggestions";
 
 const THEME_FIELDS: [string, string][] = [
   ["primaryColor", "Primary"],
@@ -55,8 +58,8 @@ export function DiagramInfoPanel({
 }: DiagramInfoPanelProps) {
   const info = useMemo(() => parseDiagram(source), [source]);
   const diagramKey = useMemo(() => diagramConfigKey(info.body), [info.body]);
-  const [tagDraft, setTagDraft] = useState("");
   const [patchError, setPatchError] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<TagCount[]>([]);
   const locked = readOnly || info.malformed;
 
   function commit(patch: DiagramPatch) {
@@ -81,18 +84,25 @@ export function DiagramInfoPanel({
     if (next.migrated) onChange(next.source);
   }
 
-  function addTags() {
-    const incoming = tagDraft
-      .split(/[,\n]/)
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-    if (incoming.length === 0) return;
-    const tags = [...info.tags];
-    for (const tag of incoming) {
-      if (!tags.includes(tag)) tags.push(tag);
-    }
-    setTagDraft("");
-    commit({ tags });
+  useEffect(() => {
+    let cancelled = false;
+    void api.tags().then(
+      (result) => {
+        if (!cancelled) setCatalog(result.tags);
+      },
+      () => {
+        if (!cancelled) setCatalog([]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function addTag(tag: string) {
+    const text = tag.trim();
+    if (!text || info.tags.some((item) => item.toLowerCase() === text.toLowerCase())) return;
+    commit({ tags: [...info.tags, text] });
   }
 
   const variableKeys = [
@@ -218,24 +228,7 @@ export function DiagramInfoPanel({
             </button>
           ))}
         </div>
-        <div className="tag-add">
-          <input
-            value={tagDraft}
-            disabled={locked}
-            aria-label="Add a tag"
-            placeholder="Add a tag"
-            onChange={(event) => setTagDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addTags();
-              }
-            }}
-          />
-          <button type="button" className="btn btn-ghost" disabled={locked} onClick={addTags}>
-            Add
-          </button>
-        </div>
+        <TagCombobox catalog={catalog} exclude={info.tags} disabled={locked} onAdd={addTag} />
       </div>
 
       <SelectField

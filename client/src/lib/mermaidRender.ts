@@ -1,4 +1,5 @@
 import mermaid from "mermaid";
+import { withSvgTextLabels } from "./exportSvg";
 import { diagramInitConfig, FALLBACK_THEME } from "./frontMatter";
 
 let renderSeq = 0;
@@ -66,6 +67,29 @@ export async function inspectMermaid(code: string): Promise<MermaidInspection> {
  * are applied by initializing with that config before `mermaid.render`, so a
  * file theme wins over the app fallback.
  */
+/**
+ * Render a copy for export with SVG text labels. Flowchart HTML labels live
+ * in `foreignObject`, which svg2pdf and drawing programs drop.
+ */
+export async function renderForExport(
+  code: string,
+  fallbackTheme: string = FALLBACK_THEME,
+): Promise<string> {
+  return enqueue(async () => {
+    const trimmed = code.trim();
+    if (!trimmed) throw new Error("Nothing to export yet.");
+    const config = withSvgTextLabels(diagramInitConfig(trimmed, fallbackTheme));
+    mermaid.initialize(config as Parameters<typeof mermaid.initialize>[0]);
+    const id = `nerdgram-export-${++renderSeq}`;
+    try {
+      const { svg } = await mermaid.render(id, trimmed);
+      return svg;
+    } finally {
+      removeMermaidTemp(id);
+    }
+  });
+}
+
 export async function renderMermaid(
   code: string,
   fallbackTheme: string = FALLBACK_THEME,

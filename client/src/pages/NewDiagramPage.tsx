@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Brand } from "../components/Brand";
@@ -7,7 +7,9 @@ import { SupportLink } from "../components/SupportLink";
 import { FolderPicker } from "../components/FolderPicker";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { useWorkspace } from "../hooks/useWorkspace";
-import { ensureMmd, joinPath } from "../lib/paths";
+import { FileNameField } from "../components/FileNameField";
+import { fileNameIssue, suggestFileStem } from "../lib/fileName";
+import { ensureMmd, flattenFiles, joinPath } from "../lib/paths";
 
 const PLACEHOLDER = `%% Paste your Mermaid code
 %% We'll render it with mermaid.js
@@ -20,8 +22,10 @@ export function NewDiagramPage() {
   const navigate = useNavigate();
   const { tree } = useWorkspace();
   const [code, setCode] = useState("");
-  const [name, setName] = useState("Untitled");
+  const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
   const [folder, setFolder] = useState("");
+  const [nameHint, setNameHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -36,6 +40,21 @@ export function NewDiagramPage() {
     conflictOpen: false,
   });
 
+  const suggestion = useMemo(() => suggestFileStem(code), [code]);
+  useEffect(() => {
+    if (!nameTouched) setName(suggestion);
+  }, [suggestion, nameTouched]);
+
+  const taken = useMemo(
+    () =>
+      flattenFiles(tree)
+        .filter((file) => {
+          const parent = file.path.includes("/") ? file.path.slice(0, file.path.lastIndexOf("/")) : "";
+          return parent === folder;
+        })
+        .map((file) => file.name),
+    [tree, folder],
+  );
   const lineCount = useMemo(
     () => Math.max(1, (code || PLACEHOLDER).split("\n").length),
     [code],
@@ -43,12 +62,18 @@ export function NewDiagramPage() {
 
   const handleCreate = async () => {
     setError(null);
+    const issue = fileNameIssue(name, taken);
+    if (issue.empty) {
+      setNameHint("Enter a file name before creating the diagram.");
+      return;
+    }
+    setNameHint(null);
     setSaving(true);
     try {
       const content = code.trim()
         ? code
         : "flowchart TD\n  A[Start] --> B[Edit me]\n";
-      const filename = ensureMmd(name || "Untitled");
+      const filename = ensureMmd(issue.suggestion);
       const path = joinPath(folder.trim(), filename);
       await api.writeFile(path, content);
       navigate(`/edit/${path}`);
@@ -81,8 +106,17 @@ export function NewDiagramPage() {
 
         <div className="paste-fields">
           <div>
-            <label htmlFor="diagram-name">Diagram name</label>
-            <input id="diagram-name" value={name} onChange={(e) => setName(e.target.value)} />
+            <FileNameField
+              id="diagram-name"
+              value={name}
+              taken={taken}
+              onChange={(value) => {
+                setNameTouched(true);
+                setName(value);
+                setNameHint(null);
+              }}
+            />
+            {nameHint ? <p className="file-name-hint">{nameHint}</p> : null}
           </div>
           <div>
             <span className="paste-label" id="diagram-folder-label">

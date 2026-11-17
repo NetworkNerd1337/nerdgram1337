@@ -1,0 +1,27 @@
+---
+title: Remote site with cellular backup
+config:
+  theme: forest
+nerdgram:
+  description: A remote site uses a wired path first and a cellular path when the wired path is down.
+  tags:
+    - ot
+    - cellular
+    - remote
+  category: OT & Industrial
+---
+flowchart LR
+    subgraph remote [Remote site]
+        site[Site router]
+    end
+    subgraph links [Links]
+        wired[Wired path]
+        cell[Cellular backup]
+    end
+    subgraph core [Core]
+        hub[Control center]
+    end
+    site --> wired
+    site --> cell
+    wired --> hub
+    cell --> hub

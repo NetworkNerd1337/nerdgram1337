@@ -1,0 +1,22 @@
+---
+title: Brainstorm
+config:
+  theme: default
+nerdgram:
+  description: A planning map for a network refresh, with access, edge, and operations branches.
+  tags:
+    - operations
+    - planning
+    - mindmap
+  category: Operations & Planning
+---
+flowchart TD
+    root[Network refresh] --> access[Access]
+    root --> edge[Edge]
+    root --> ops[Operations]
+    access --> switches[Switches]
+    access --> wireless[Wireless]
+    edge --> firewalls[Firewalls]
+    edge --> providers[Providers]
+    ops --> monitoring[Monitoring]
+    ops --> backups[Backups]

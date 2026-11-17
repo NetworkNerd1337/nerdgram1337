@@ -1,0 +1,21 @@
+---
+title: Order state machine
+config:
+  theme: forest
+nerdgram:
+  description: An order moves from draft to paid, shipped, and closed, or back when it is cancelled.
+  tags:
+    - software
+    - state
+    - order
+  category: Software
+---
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> Paid : pay
+    Draft --> Cancelled : cancel
+    Paid --> Shipped : ship
+    Paid --> Cancelled : cancel
+    Shipped --> Closed : deliver
+    Cancelled --> [*]
+    Closed --> [*]

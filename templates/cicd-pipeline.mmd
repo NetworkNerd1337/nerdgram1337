@@ -1,0 +1,28 @@
+---
+title: CI/CD pipeline
+config:
+  theme: dark
+nerdgram:
+  description: A commit is built and tested, then deployed, with a rollback path when the check fails.
+  tags:
+    - software
+    - cicd
+    - pipeline
+  category: Software
+---
+flowchart LR
+    subgraph source [Source]
+        commit[Commit]
+    end
+    subgraph buildlane [Build]
+        commit --> build[Build]
+        build --> test[Test]
+    end
+    subgraph deploylane [Deploy]
+        test -->|pass| deploy[Deploy]
+        deploy --> live[Live]
+    end
+    subgraph recover [Recover]
+        test -->|fail| rollback[Rollback]
+        live -->|unhealthy| rollback
+    end

@@ -64,6 +64,28 @@ describe("lint API", () => {
 
     const workspace = await request(app).get("/api/diagram-lint").set("Host", HOST);
     expect(workspace.status).toBe(200);
+    expect(workspace.body.diagrams.some((item: { path: string }) => item.path === "Broken.mmd")).toBe(true);
+
+    const trashed = await request(app)
+      .delete("/api/item")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ path: "Broken.mmd" });
+    expect(trashed.status).toBe(204);
+    const afterTrash = await request(app).get("/api/diagram-lint").set("Host", HOST);
+    expect(afterTrash.body.diagrams.some((item: { path: string }) => item.path === "Broken.mmd")).toBe(false);
+
+    const trashList = await request(app).get("/api/trash").set("Host", HOST);
+    const trashId = trashList.body.items.find((item: { originalPath: string }) => item.originalPath === "Broken.mmd")?.id;
+    expect(trashId).toBeTruthy();
+    const restored = await request(app)
+      .post("/api/trash/restore")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ id: trashId });
+    expect(restored.status).toBe(200);
+    const afterRestore = await request(app).get("/api/diagram-lint").set("Host", HOST);
+    expect(afterRestore.body.diagrams.some((item: { path: string }) => item.path === "Broken.mmd")).toBe(true);
     expect(workspace.body.checked).toBeGreaterThan(0);
     const broken = workspace.body.diagrams.find((item: { path: string }) => item.path === "Broken.mmd");
     expect(broken.diagnostics.some((item: { ruleId: string }) => item.ruleId === "unused-class")).toBe(true);

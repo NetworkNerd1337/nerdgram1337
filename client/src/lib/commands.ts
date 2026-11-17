@@ -61,6 +61,10 @@ export type CommandActions = {
   setTheme?: (theme: string | null) => void;
   toggleAutoUpdate?: () => void;
   exportAs?: (format: ExportFormatName) => void;
+  /** Rename the open diagram file. The front matter title stays as it is. */
+  renameFile?: () => void;
+  /** Save the open diagram as a user template. */
+  createTemplate?: () => void;
   /** Open the current editor diagram in presentation mode. */
   present?: () => void;
   /** Leave the editor for the folder that holds the open diagram. */

@@ -1,0 +1,18 @@
+---
+title: Power and cooling
+config:
+  theme: default
+nerdgram:
+  description: Utility power feeds a UPS, then the rack, and the cooling loop serves the same room.
+  tags:
+    - datacenter
+    - power
+    - cooling
+  category: Data Center
+---
+flowchart LR
+    utility[Utility power] --> ups[UPS]
+    ups --> pdu[Rack power]
+    pdu --> racks[Racks]
+    plant[Cooling plant] --> crahs[Room cooling]
+    crahs --> racks

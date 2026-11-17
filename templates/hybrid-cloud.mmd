@@ -1,0 +1,25 @@
+---
+title: Hybrid cloud connectivity
+config:
+  theme: default
+nerdgram:
+  description: One on-premises data center connected to two cloud providers.
+  tags:
+    - hybrid
+    - cloud
+    - connectivity
+  category: Internet & Cloud
+---
+flowchart LR
+    subgraph premises [On premises]
+        dc[Data center]
+    end
+    subgraph one [Cloud one]
+        cloud1[Cloud one router]
+    end
+    subgraph two [Cloud two]
+        cloud2[Cloud two router]
+    end
+    dc -->|private| cloud1
+    dc -->|private| cloud2
+    cloud1 --- cloud2

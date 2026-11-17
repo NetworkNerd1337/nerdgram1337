@@ -1,16 +1,28 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { DragPayload } from "../lib/drag";
 import type { TreeNode } from "../types";
 import { Brand } from "./Brand";
+import { BookmarksSection } from "./BookmarksSection";
 import { CommandsButton } from "./CommandPalette";
 import { FolderTree } from "./FolderTree";
 import { useUpdate } from "./updateContext";
 import { displayName } from "../lib/paths";
+import { RECENT_OPEN_KEY } from "../lib/recent";
+import { readFlag, writeFlag, type BookmarkState } from "../lib/bookmarks";
 import { formatVersionLabel } from "../lib/versionLabel";
+import type { RecentEntry } from "../lib/recent";
 
 type SidebarProps = {
   tree: TreeNode[];
-  favorites: string[];
+  bookmarks: BookmarkState;
+  onBookmarks: (next: BookmarkState) => void;
+  knownPaths: ReadonlySet<string>;
+  recent: RecentEntry[];
+  onClearRecent: () => void;
+  attentionCount: number;
+  attentionActive?: boolean;
+  onOpenAttention?: () => void;
   currentFolder: string;
   search: string;
   onSearch: (value: string) => void;
@@ -27,9 +39,24 @@ type SidebarProps = {
   onTrashDrop?: (event: DragPayload) => void;
 };
 
+function browserStorage(): Storage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function Sidebar({
   tree,
-  favorites,
+  bookmarks,
+  onBookmarks,
+  knownPaths,
+  recent,
+  onClearRecent,
+  attentionCount,
+  attentionActive = false,
+  onOpenAttention,
   currentFolder,
   search,
   onSearch,
@@ -49,12 +76,18 @@ export function Sidebar({
   const version = updates.status
     ? formatVersionLabel(updates.status.currentVersion, updates.status.codename)
     : null;
+  const [recentOpen, setRecentOpen] = useState(() => readFlag(browserStorage(), RECENT_OPEN_KEY, true));
   const rootDrop =
     dropHighlight?.path === ""
       ? dropHighlight.valid
         ? " drop-valid"
         : " drop-invalid"
       : "";
+  const toggleRecent = () => {
+    const next = !recentOpen;
+    setRecentOpen(next);
+    writeFlag(browserStorage(), RECENT_OPEN_KEY, next);
+  };
   return (
     <aside className="sidebar">
       <Link to="/" onClick={() => onSelectFolder("")}>
@@ -85,12 +118,57 @@ export function Sidebar({
         <div className="nav-label">Your space</div>
         <button
           type="button"
-          className={`nav-link${currentFolder === "" && !trashActive ? " active" : ""}${rootDrop}`}
+          className={`nav-link${currentFolder === "" && !trashActive && !attentionActive ? " active" : ""}${rootDrop}`}
           onClick={() => onSelectFolder("")}
           onDragOver={onFolderDragOver ? (event) => onFolderDragOver("", event) : undefined}
           onDrop={onFolderDrop ? (event) => onFolderDrop("", event) : undefined}
         >
           Dashboard
+        </button>
+        <section className="sidebar-block" aria-label="Recent">
+          <div className="sidebar-block-head">
+            <button
+              type="button"
+              className="tree-chevron"
+              aria-expanded={recentOpen}
+              aria-controls="recent-list"
+              onClick={toggleRecent}
+            >
+              <span className="visually-hidden">{recentOpen ? "Collapse recent" : "Expand recent"}</span>
+            </button>
+            <span className="sidebar-block-title">Recent</span>
+            {recent.length > 0 ? (
+              <button type="button" className="tree-collapse-all" onClick={onClearRecent}>
+                Clear
+              </button>
+            ) : null}
+          </div>
+          {recentOpen ? (
+            <div id="recent-list" className="sidebar-block-body">
+              {recent.length === 0 ? (
+                <p className="sidebar-hint">Diagrams you open show up here.</p>
+              ) : (
+                <ul className="sidebar-rows">
+                  {recent.map((item) => (
+                    <li key={item.path}>
+                      <Link className="sidebar-row-label" to={`/edit/${item.path}`} title={item.path}>
+                        {displayName(item.path)}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+        </section>
+        <BookmarksSection state={bookmarks} knownPaths={knownPaths} onChange={onBookmarks} />
+        <button
+          type="button"
+          className={`nav-link${attentionActive ? " active" : ""}`}
+          onClick={() => onOpenAttention?.()}
+        >
+          Needs attention
+          {attentionCount > 0 ? <span className="attention-badge"> ({attentionCount})</span> : null}
         </button>
         <button
           type="button"
@@ -141,31 +219,18 @@ export function Sidebar({
         <Link className="nav-link" to="/settings#diagram-checks">
           Diagram checks
         </Link>
+        <Link className="nav-link" to="/settings#bookmarks">
+          Bookmarks
+        </Link>
       </div>
 
       <div className="nav-section">
         <div className="nav-label">Reference</div>
-        <Link className="nav-link" to="/reference">
+        <Link className="nav-link" to="/reference" target="_blank" rel="noopener">
           Open Syntax Reference Library
         </Link>
       </div>
 
-      <div className="favorites-box">
-        <strong>Favorites</strong>
-        {favorites.length === 0 ? (
-          <p>Favorited diagrams appear here for quick access.</p>
-        ) : (
-          <ul>
-            {favorites.map((path) => (
-              <li key={path}>
-                <Link to={`/edit/${path}`}>
-                  {displayName(path)}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
       <button type="button" className="sidebar-about" onClick={updates.openAbout}>
         <span>About</span>
         <span>{version ?? "version"}</span>

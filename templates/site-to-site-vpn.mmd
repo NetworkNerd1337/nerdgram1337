@@ -1,0 +1,22 @@
+---
+title: Site-to-site VPN sequence
+config:
+  theme: dark
+nerdgram:
+  description: Two gateways negotiate IKE, set up IPsec, and then pass traffic.
+  tags:
+    - vpn
+    - ipsec
+    - sequence
+  category: Internet & Cloud
+---
+sequenceDiagram
+    participant SiteA as Site A gateway
+    participant SiteB as Site B gateway
+    SiteA->>SiteB: IKE init
+    SiteB-->>SiteA: IKE reply
+    SiteA->>SiteB: IKE auth
+    SiteB-->>SiteA: Auth ok
+    SiteA->>SiteB: IPsec setup
+    SiteB-->>SiteA: Tunnel up
+    SiteA->>SiteB: Traffic

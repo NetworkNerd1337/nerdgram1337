@@ -34,15 +34,74 @@ function installTextBox(): void {
       value: box,
     });
   }
+  // Mindmap layout uses cytoscape, which asks for a 2d canvas. happy-dom has no canvas.
+  if (typeof HTMLCanvasElement !== "undefined") {
+    HTMLCanvasElement.prototype.getContext = function getContext() {
+      const noop = () => undefined;
+      return {
+        canvas: this,
+        fillRect: noop,
+        clearRect: noop,
+        getImageData: () => ({ data: [] }),
+        putImageData: noop,
+        createImageData: () => [],
+        setTransform: noop,
+        drawImage: noop,
+        save: noop,
+        fillText: noop,
+        restore: noop,
+        beginPath: noop,
+        moveTo: noop,
+        lineTo: noop,
+        closePath: noop,
+        stroke: noop,
+        translate: noop,
+        scale: noop,
+        rotate: noop,
+        arc: noop,
+        fill: noop,
+        measureText: () => ({ width: 0 }),
+        transform: noop,
+        rect: noop,
+        clip: noop,
+      } as unknown as CanvasRenderingContext2D;
+    };
+  }
 }
 
 const EXPECTED = [
+  "api-request-sequence.mmd",
+  "brainstorm.mmd",
+  "change-request.mmd",
+  "change-window.mmd",
+  "cicd-pipeline.mmd",
+  "class-model.mmd",
+  "cloud-vpc.mmd",
+  "database-er.mmd",
   "firewall-policy.mmd",
   "flowchart-starter.mmd",
+  "git-branching.mmd",
   "home-lab.mmd",
+  "hybrid-cloud.mmd",
+  "incident-response.mmd",
+  "internet-edge.mmd",
+  "migration-plan.mmd",
+  "network-segmentation.mmd",
   "network-topology.mmd",
+  "order-state.mmd",
+  "power-cooling.mmd",
+  "process-flow.mmd",
+  "purdue-model.mmd",
   "rack-elevation.mmd",
+  "remote-site-cellular.mmd",
+  "scada-communications.mmd",
   "sequence-starter.mmd",
+  "server-storage-rack.mmd",
+  "site-to-site-vpn.mmd",
+  "spine-leaf.mmd",
+  "team-task-board.mmd",
+  "wan-topology.mmd",
+  "zero-trust-access.mmd",
 ];
 
 describe("bundled templates render", () => {
@@ -59,7 +118,13 @@ describe("bundled templates render", () => {
         expect(parsed.theme, name).toBeTruthy();
         expect(MERMAID_THEMES, name).toContain(parsed.theme);
         expect(diagramInitConfig(source).theme, name).toBe(parsed.theme);
-        const rendered = await renderMermaid(source);
+        let rendered: { svg: string };
+        try {
+          rendered = await renderMermaid(source);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(`${name}: ${message}`);
+        }
         expect(rendered.svg, name).toContain("<svg");
         expect(rendered.svg.toLowerCase(), name).not.toContain("syntax error");
       }

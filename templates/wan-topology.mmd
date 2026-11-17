@@ -1,0 +1,29 @@
+---
+title: WAN topology
+config:
+  theme: forest
+nerdgram:
+  description: A hub and two spoke sites over the primary WAN, with a backup path from one spoke.
+  tags:
+    - wan
+    - mpls
+    - cloud
+  category: Internet & Cloud
+---
+flowchart LR
+    subgraph hub [Hub]
+        core[Hub router]
+    end
+    subgraph spokea [Spoke A]
+        sitea[Site A router]
+    end
+    subgraph spokeb [Spoke B]
+        siteb[Site B router]
+    end
+    subgraph backup [Backup]
+        lte[Backup path]
+    end
+    core -->|primary| sitea
+    core -->|primary| siteb
+    siteb -->|backup| lte
+    lte -->|backup| core

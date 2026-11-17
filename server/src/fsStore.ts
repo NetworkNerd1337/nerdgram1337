@@ -60,7 +60,7 @@ import {
 } from "./storage.js";
 
 export type { TrashItem } from "./trash.js";
-export { getFavorites, setFavorites, toggleFavorite } from "./favorites.js";
+export { getBookmarks, getFavorites, setBookmarks, setFavorites, toggleFavorite } from "./favorites.js";
 
 export type TreeNode = {
   name: string;

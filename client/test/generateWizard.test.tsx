@@ -107,11 +107,12 @@ describe("generate wizard flow", () => {
     expect(state.mermaid).toContain("flowchart TD");
     expect(state.mermaid).toContain("subgraph");
     expect(state.mermaid).toContain('click Atlanta "nerdgram:Sites/Atlanta.mmd"');
-    expect(canCreate(state)).toBe(true);
+    expect(canCreate(state)).toBe(false);
 
     const name = document.querySelector<HTMLInputElement>("#generate-name");
     setValue(name!, "Campus");
     render();
+    expect(canCreate(state)).toBe(true);
     expect(diagramFilePath(state)).toBe("Sites/Campus.mmd");
     (document.querySelector("button.btn-primary") as HTMLButtonElement).click();
     expect(seen.at(-1)).toBe("create:Sites/Campus.mmd");
@@ -169,10 +170,13 @@ describe("generate wizard flow", () => {
     expect(state.mermaid).toContain("flowchart LR");
     expect(state.mermaid).toContain('["dist-sw"]');
     expect(state.mermaid).toContain('["Switch"]');
+    expect(canCreate(state)).toBe(false);
+    setValue(document.querySelector<HTMLInputElement>("#generate-name")!, "Campus");
+    render();
     expect(canCreate(state)).toBe(true);
     expect(previewRequest(state).format).toBe(format);
     expect(previewRequest(state).groupBy).toBe("capability");
-    expect(previewRequest(state).sourceFile).toBe(format === "cdp" ? "Sites/Untitled.cdp" : "Sites/Untitled.lldp");
+    expect(previewRequest(state).sourceFile).toBe(format === "cdp" ? "Sites/Campus.cdp" : "Sites/Campus.lldp");
   });
 
   it("previews a Layer 3 diagram from network JSON", () => {
@@ -232,11 +236,14 @@ describe("generate wizard flow", () => {
     expect(state.mermaid).toContain("flowchart LR");
     expect(state.mermaid).toContain("10.1.0.0/30");
     expect(state.mermaid).toContain("10.255.0.1/32");
+    expect(canCreate(state)).toBe(false);
+    setValue(document.querySelector<HTMLInputElement>("#generate-name")!, "Campus");
+    render();
     expect(canCreate(state)).toBe(true);
     expect(previewRequest(state).format).toBe("network");
     expect(previewRequest(state).view).toBe("l3");
     expect(previewRequest(state).groupBy).toBe("vrf");
-    expect(previewRequest(state).sourceFile).toBe("Sites/Untitled.network.json");
+    expect(previewRequest(state).sourceFile).toBe("Sites/Campus.network.json");
 
     const back = [...document.querySelectorAll("button")].find((button) => button.textContent === "Back");
     back?.click();

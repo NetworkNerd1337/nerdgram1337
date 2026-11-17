@@ -175,6 +175,7 @@ export const api = {
       body: JSON.stringify({ path, cacheKey, svg }),
     }),
   diagramMeta: () => request<{ diagrams: DiagramMeta[] }>("/api/diagram-meta"),
+  tags: () => request<{ tags: { tag: string; count: number }[] }>("/api/tags"),
   lintSource: (source: string, diagramPaths?: string[], sourcePath?: string) =>
     request<{ diagnostics: LintDiagnostic[] }>("/api/lint", {
       method: "POST",
@@ -363,7 +364,7 @@ export const api = {
     ),
   favorites: () => request<{ favorites: string[] }>("/api/favorites"),
   toggleFavorite: (path: string) =>
-    request<{ favorites: string[]; favorited: boolean }>(
+    request<{ favorites: string[]; favorited: boolean; bookmarks?: { folders: { id: string; name: string }[]; items: { path: string; folderId: string | null }[] } }>(
       "/api/favorites/toggle",
       {
         method: "POST",
@@ -523,7 +524,27 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ path, sessionId }),
     }),
+  bookmarks: () => request<{ folders: { id: string; name: string }[]; items: { path: string; folderId: string | null }[] }>("/api/bookmarks"),
+  setBookmarks: (body: { folders: { id: string; name: string }[]; items: { path: string; folderId: string | null }[] }) =>
+    request<{ folders: { id: string; name: string }[]; items: { path: string; folderId: string | null }[] }>("/api/bookmarks", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   templates: () => request<{ templates: TemplateSummary[] }>("/api/templates"),
+  createTemplate: (body: { content?: string; path?: string; name?: string; description?: string; tags?: string[]; replace?: boolean }) =>
+    request<TemplateSummary>("/api/templates", { method: "POST", body: JSON.stringify(body) }),
+  saveTemplate: (id: string, content: string) =>
+    request<TemplateSummary>(`/api/templates/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    }),
+  renameTemplate: (id: string, name: string) =>
+    request<TemplateSummary>(`/api/templates/${encodeURIComponent(id)}/rename`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  deleteTemplate: (id: string) =>
+    request<void>(`/api/templates/${encodeURIComponent(id)}`, { method: "DELETE" }),
   template: (id: string) =>
     request<TemplateSummary>(`/api/templates/${encodeURIComponent(id)}`),
   createFromTemplate: (id: string, body: { name?: string; folder?: string }) =>

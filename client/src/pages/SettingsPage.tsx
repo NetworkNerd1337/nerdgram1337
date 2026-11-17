@@ -10,6 +10,7 @@ import { AppearanceSettings } from "../components/AppearanceSettings";
 import { DiagramFolderSettings } from "../components/DiagramFolderSettings";
 import { HostSettings } from "../components/HostSettings";
 import { InstanceSettings } from "../components/InstanceSettings";
+import { BookmarkManager } from "../components/BookmarkManager";
 import { LintSettings } from "../components/LintSettings";
 import { TokenSettings } from "../components/TokenSettings";
 import { UpdateSettingsFields } from "../components/UpdateHost";
@@ -116,6 +117,7 @@ export function SettingsPage() {
               <a href="#instance">Instance name</a>
               <a href="#tokens">Automation tokens</a>
               <a href="#diagram-checks">Diagram checks</a>
+              <a href="#bookmarks">Bookmarks</a>
               <a href="#app-updates">App updates</a>
             </nav>
           </div>
@@ -416,6 +418,7 @@ export function SettingsPage() {
         <InstanceSettings />
         <TokenSettings />
         <LintSettings />
+        <BookmarkManager />
         <section className="sync-card" id="app-updates">
           <h2>App updates</h2>
           <p>

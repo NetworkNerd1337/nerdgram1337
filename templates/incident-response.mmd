@@ -1,0 +1,18 @@
+---
+title: Incident response flow
+config:
+  theme: neutral
+nerdgram:
+  description: Detect, triage, contain, eradicate, recover, and review.
+  tags:
+    - security
+    - incident
+    - response
+  category: Security
+---
+flowchart TD
+    detect[Detect] --> triage[Triage]
+    triage --> contain[Contain]
+    contain --> eradicate[Eradicate]
+    eradicate --> recover[Recover]
+    recover --> review[Review]

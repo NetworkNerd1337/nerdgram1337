@@ -1,0 +1,23 @@
+---
+title: API request sequence
+config:
+  theme: neutral
+nerdgram:
+  description: A client calls an API gateway, the service reads a database, and the response goes back.
+  tags:
+    - software
+    - api
+    - sequence
+  category: Software
+---
+sequenceDiagram
+    participant Client
+    participant Gateway
+    participant Service
+    participant Database
+    Client->>Gateway: GET /records
+    Gateway->>Service: Forward
+    Service->>Database: Query
+    Database-->>Service: Rows
+    Service-->>Gateway: JSON
+    Gateway-->>Client: 200 OK

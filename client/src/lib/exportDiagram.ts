@@ -1,5 +1,8 @@
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
+import { renderForExport } from "./mermaidRender";
+import { backgroundFromSvg, themeBackground } from "./svgBackground";
+import { exportBackgroundColor, svgHasForeignObject } from "./exportSvg";
 
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -45,6 +48,22 @@ function measureSvg(svg: SVGSVGElement): { width: number; height: number } {
   return { width, height };
 }
 
+function paintBackground(svg: SVGSVGElement, color: string | null): SVGSVGElement {
+  const clone = cloneSvg(svg);
+  if (!color) return clone;
+  const { width, height } = measureSvg(clone);
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", "0");
+  rect.setAttribute("y", "0");
+  rect.setAttribute("width", String(width));
+  rect.setAttribute("height", String(height));
+  rect.setAttribute("fill", color);
+  rect.setAttribute("class", "nerdgram-export-background");
+  clone.insertBefore(rect, clone.firstChild);
+  clone.style.backgroundColor = color;
+  return clone;
+}
+
 async function svgToCanvas(
   svg: SVGSVGElement,
   background: string | null,
@@ -56,7 +75,6 @@ async function svgToCanvas(
   clone.setAttribute("height", String(height));
 
   const svgText = new XMLSerializer().serializeToString(clone);
-  // data: URLs are more reliable than blob: URLs for SVG→canvas in headless Chrome
   const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
 
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -90,7 +108,6 @@ async function svgToPdfBlob(svg: SVGSVGElement): Promise<Blob> {
   clone.setAttribute("width", String(width));
   clone.setAttribute("height", String(height));
 
-  // Host the clone off-DOM so svg2pdf can measure it reliably.
   const host = document.createElement("div");
   host.style.cssText =
     "position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;";
@@ -121,31 +138,92 @@ async function svgToPdfBlob(svg: SVGSVGElement): Promise<Blob> {
   }
 }
 
+async function canvasToPdfBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  const width = Math.max(1, canvas.width / 2);
+  const height = Math.max(1, canvas.height / 2);
+  const pageWidth = width + PDF_MARGIN_PT * 2;
+  const pageHeight = height + PDF_MARGIN_PT * 2;
+  const pdf = new jsPDF({
+    orientation: pageWidth >= pageHeight ? "landscape" : "portrait",
+    unit: "pt",
+    format: [pageWidth, pageHeight],
+    compress: true,
+  });
+  const image = canvas.toDataURL("image/png");
+  pdf.addImage(image, "PNG", PDF_MARGIN_PT, PDF_MARGIN_PT, width, height);
+  return pdf.output("blob");
+}
+
+function elementFromSvg(text: string): SVGSVGElement | null {
+  const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+  const root = doc.documentElement;
+  return root instanceof SVGSVGElement ? root : null;
+}
+
 export type ExportFormat = "svg" | "png" | "jpg" | "pdf";
+
+export type ExportOptions = {
+  /** Diagram source. Used to re-render SVG and PDF with SVG text labels. */
+  source?: string;
+  fallbackTheme?: string;
+  theme?: string | null;
+  themeVariables?: Record<string, unknown> | null;
+  /** PNG only. Every other format paints the theme background. */
+  transparent?: boolean;
+};
 
 export async function exportDiagram(
   svg: SVGSVGElement,
   baseName: string,
   format: ExportFormat,
+  options: ExportOptions = {},
 ): Promise<void> {
   const safe = (baseName || "diagram").replace(/[^\w.-]+/g, "_");
+  const liveText = svgToString(svg);
+  const fill = exportBackgroundColor({
+    transparent: format === "png" && options.transparent === true,
+    fromSvg: backgroundFromSvg(liveText),
+    fromTheme: themeBackground(options.theme, options.themeVariables),
+  });
+
+  let vector: SVGSVGElement | null = null;
+  if ((format === "svg" || format === "pdf") && options.source?.trim()) {
+    try {
+      const rendered = await renderForExport(options.source, options.fallbackTheme);
+      if (!svgHasForeignObject(rendered)) vector = elementFromSvg(rendered);
+    } catch {
+      vector = null;
+    }
+  }
 
   if (format === "svg") {
-    const text = svgToString(svg);
+    const painted = paintBackground(vector ?? svg, fill);
     triggerDownload(
-      new Blob([text], { type: "image/svg+xml;charset=utf-8" }),
+      new Blob([svgToString(painted)], { type: "image/svg+xml;charset=utf-8" }),
       `${safe}.svg`,
     );
     return;
   }
 
   if (format === "pdf") {
-    const blob = await svgToPdfBlob(svg);
+    const painted = paintBackground(vector ?? svg, fill);
+    let blob: Blob;
+    if (vector) {
+      try {
+        blob = await svgToPdfBlob(painted);
+      } catch {
+        const canvas = await svgToCanvas(paintBackground(svg, fill), fill);
+        blob = await canvasToPdfBlob(canvas);
+      }
+    } else {
+      const canvas = await svgToCanvas(paintBackground(svg, fill), fill);
+      blob = await canvasToPdfBlob(canvas);
+    }
     triggerDownload(blob, `${safe}.pdf`);
     return;
   }
 
-  const canvas = await svgToCanvas(svg, format === "jpg" ? "#ffffff" : null);
+  const canvas = await svgToCanvas(paintBackground(svg, fill), fill);
   const mime = format === "jpg" ? "image/jpeg" : "image/png";
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(

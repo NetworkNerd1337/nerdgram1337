@@ -9,6 +9,9 @@ import { MermaidThumbnail } from "../components/MermaidThumbnail";
 import { AffectedLinksDialog } from "../components/AffectedLinksDialog";
 import { DataFileDialog } from "../components/DataFileDialog";
 import { DiagramChecks } from "../components/DiagramChecks";
+import { DiagramLintProvider, useSharedDiagramLint } from "../components/DiagramLintProvider";
+import { FileNameField } from "../components/FileNameField";
+import { TagCombobox } from "../components/TagCombobox";
 import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
 import { Sidebar } from "../components/Sidebar";
@@ -36,14 +39,19 @@ import { editorHref, searchDiagrams } from "../lib/diagramSearch";
 import { openWorkspaceReplace, setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
 import { diagramCardLabel, folderCountLabel } from "../lib/diagramLabel";
 import { nearestExistingFolder } from "../lib/editorBreadcrumb";
+import { attentionRows } from "../lib/attention";
+import type { TagCount } from "../lib/tagSuggestions";
+import { fileNameIssue, sanitizeFileStem } from "../lib/fileName";
 import {
   basename,
   displayName,
   ensureMmd,
+  flattenFiles,
   formatRelativeTime,
   joinPath,
   presentHref,
 } from "../lib/paths";
+import { pruneRecent, readRecent, rewriteRecent, writeRecent, type RecentEntry } from "../lib/recent";
 import { startPresentation } from "../lib/presentationFullscreen";
 import type { DiagramMeta, DiagramSearchHit, TrashItem, TreeNode } from "../types";
 
@@ -70,12 +78,25 @@ function organizeStatus(
   return fallback ? `${fallback} ${parts.join(" ")}` : parts.join(" ");
 }
 
+function browserStore(): Storage | null {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function noteMoved(from: string, to: string, isDir: boolean) {
+  const store = browserStore();
+  writeRecent(store, rewriteRecent(readRecent(store), from, to, isDir));
+}
+
 export function DashboardPage() {
   const navigate = useNavigate();
   const presentFile = (path: string) => {
     startPresentation(() => navigate(presentHref(path)));
   };
-  const { tree, favorites, loading, error, refresh, toggleFavorite } = useWorkspace();
+  const { tree, favorites, bookmarks, saveBookmarks, revision, loading, error, refresh, toggleFavorite } = useWorkspace();
   const [search, setSearch] = useState("");
   const [namesOnly, setNamesOnly] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -115,6 +136,9 @@ export function DashboardPage() {
   const [dataBusy, setDataBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [showTrash, setShowTrash] = useState(false);
+  const [showAttention, setShowAttention] = useState(false);
+  const [attentionCount, setAttentionCount] = useState(0);
+  const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent(browserStore()));
   const [trash, setTrash] = useState<TrashItem[]>([]);
   const [collision, setCollision] = useState<{
     id: string;
@@ -123,6 +147,7 @@ export function DashboardPage() {
   } | null>(null);
   const [diagramMeta, setDiagramMeta] = useState<DiagramMeta[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [tagCatalog, setTagCatalog] = useState<TagCount[]>([]);
   const [moveTarget, setMoveTarget] = useState<{ path: string; isFolder: boolean } | null>(null);
   const [importDrafts, setImportDrafts] = useState<ImportDraft[] | null>(null);
   const [importFolder, setImportFolder] = useState("");
@@ -215,6 +240,21 @@ export function DashboardPage() {
     return items;
   }, [tree, metaByPath]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void api.tags().then(
+      (result) => {
+        if (!cancelled) setTagCatalog(result.tags);
+      },
+      () => {
+        if (!cancelled) setTagCatalog([]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [revision]);
+
   const allTags = useMemo(() => {
     const tags = new Set<string>();
     for (const item of diagramMeta) {
@@ -303,7 +343,7 @@ export function DashboardPage() {
   };
 
   const openCreateDiagram = () => {
-    setNameValue("Untitled");
+    setNameValue("");
     setModal({ type: "diagram" });
   };
 
@@ -336,7 +376,9 @@ export function DashboardPage() {
         await refresh();
         setFolder(path);
       } else if (modal.type === "diagram") {
-        const filename = ensureMmd(nameValue || "Untitled");
+        const stem = sanitizeFileStem(nameValue);
+        if (!stem) throw new Error("File name is required");
+        const filename = ensureMmd(stem);
         const path = joinPath(folder, filename);
         await api.writeFile(path, "flowchart TD\n  A[Start] --> B[Edit me]\n");
         await refresh();
@@ -352,6 +394,7 @@ export function DashboardPage() {
         const from = modal.path;
         try {
           const result = await api.rename(from, to);
+          noteMoved(from, result.path, modal.isFolder);
           await refresh();
           setStatus(organizeStatus("Renamed.", result));
         } catch (err) {
@@ -364,6 +407,7 @@ export function DashboardPage() {
               confirmLabel: "Rename and update links",
               run: async () => {
                 const result = await api.rename(from, to, true);
+                noteMoved(from, result.path, modal.isFolder);
                 await refresh();
                 setStatus(organizeStatus("Renamed.", result));
               },
@@ -477,6 +521,7 @@ export function DashboardPage() {
     isFolder: boolean,
     detail?: string,
   ) => {
+    noteMoved(from, to, isFolder);
     setFolder((current) => relocatedFolder(current, from, to, isFolder));
     setMoveTarget(null);
     setActionError(null);
@@ -748,32 +793,64 @@ export function DashboardPage() {
     conflictOpen: false,
   });
 
+  const knownPaths = useMemo(() => new Set(flattenFiles(tree).map((file) => file.path)), [tree]);
+  useEffect(() => {
+    if (loading) return;
+    const pruned = pruneRecent(readRecent(browserStore()), knownPaths);
+    writeRecent(browserStore(), pruned);
+    setRecent(pruned);
+  }, [knownPaths, loading]);
+
   const folderHighlight =
     over?.kind === "folder" ? { path: over.path, valid: over.valid } : null;
   const title = folder ? displayName(folder) : "Dashboard";
   const paneClass = over?.kind === "pane" ? (over.valid ? " drop-valid" : " drop-invalid") : "";
 
+  const folderNames = files.map((file) => file.name);
+  const diagramNameIssue = modal?.type === "diagram" ? fileNameIssue(nameValue, folderNames) : null;
+
   return (
+    <DiagramLintProvider revision={revision}>
+    <AttentionBridge onCount={setAttentionCount} />
     <div className="app-shell">
       <Sidebar
         tree={tree}
-        favorites={favorites}
-        currentFolder={showTrash ? "__trash__" : folder}
+        bookmarks={bookmarks}
+        onBookmarks={(next) => void saveBookmarks(next)}
+        knownPaths={knownPaths}
+        recent={recent}
+        onClearRecent={() => {
+          writeRecent(browserStore(), []);
+          setRecent([]);
+        }}
+        attentionCount={attentionCount}
+        attentionActive={showAttention}
+        onOpenAttention={() => {
+          setShowAttention(true);
+          setShowTrash(false);
+          setSearch("");
+        }}
+        currentFolder={showTrash || showAttention ? "__other__" : folder}
         search={search}
         namesOnly={namesOnly}
         onNamesOnly={setNamesOnly}
         onSearch={(value) => {
           setSearch(value);
-          if (value.trim()) setShowTrash(false);
+          if (value.trim()) {
+            setShowTrash(false);
+            setShowAttention(false);
+          }
         }}
         onSelectFolder={(path) => {
           setShowTrash(false);
+          setShowAttention(false);
           setFolder(path);
         }}
         trashCount={trash.length}
         trashActive={showTrash}
         onOpenTrash={() => {
           setShowTrash(true);
+          setShowAttention(false);
           setSearch("");
         }}
         dropHighlight={folderHighlight}
@@ -798,7 +875,7 @@ export function DashboardPage() {
       />
       <main className={`main${paneClass}`} onDragOver={markPane} onDrop={dropOnPane}>
         <header className="page-header">
-          <h1>{showTrash ? "Trash" : search.trim() ? "Search" : title}</h1>
+          <h1>{showAttention ? "Needs attention" : showTrash ? "Trash" : search.trim() ? "Search" : title}</h1>
           <div className="page-header-actions">
             <SupportLink />
             <Link className="btn btn-ghost" to="/new">
@@ -862,7 +939,7 @@ export function DashboardPage() {
               />
             </>
           )}
-          {!showTrash && (
+          {!showTrash && !showAttention && (
             <div className="view-toggle" role="group" aria-label="View mode">
               <button
                 type="button"
@@ -883,8 +960,16 @@ export function DashboardPage() {
         </div>
 
         {loading ? <p>Loading workspace…</p> : null}
-        {!showTrash && allTags.length > 0 && (
+        {!showTrash && !showAttention && (allTags.length > 0 || tagCatalog.length > 0) && (
           <div className="tag-filter" role="group" aria-label="Filter by tag">
+            <TagCombobox
+              catalog={tagCatalog}
+              exclude={tagFilter}
+              allowCreate={false}
+              label="Filter by tag"
+              placeholder="Filter by tag"
+              onAdd={toggleTag}
+            />
             <button
               type="button"
               className={tagFilter.length === 0 ? "active" : ""}
@@ -908,9 +993,18 @@ export function DashboardPage() {
         {dragPath ? (
           <p className="drop-hint">Drop on a folder to move. A highlighted folder can take the item.</p>
         ) : null}
-        {!showTrash ? <DiagramChecks /> : null}
+        {!showTrash && !showAttention ? (
+          <DiagramChecks
+            onViewAll={() => {
+              setShowAttention(true);
+              setShowTrash(false);
+            }}
+          />
+        ) : null}
 
-        {showTrash ? (
+        {showAttention ? (
+          <AttentionView />
+        ) : showTrash ? (
           <TrashList
             items={trash}
             onRestore={(id) => void restoreItem(id)}
@@ -1139,14 +1233,23 @@ export function DashboardPage() {
               </p>
             </>
           ) : null}
-          <label htmlFor="name-input">{modal.type === "folder" ? "Folder name" : "Diagram name"}</label>
-          <input
-            id="name-input"
-            autoFocus
-            value={nameValue}
-            onChange={(e) => setNameValue(e.target.value)}
-            placeholder={modal.type === "folder" ? "Projects" : "Untitled"}
-          />
+          {modal.type === "diagram" ? (
+            <FileNameField id="name-input" value={nameValue} taken={folderNames} autoFocus onChange={setNameValue} />
+          ) : (
+            <>
+              <label htmlFor="name-input">{modal.type === "folder" ? "Folder name" : "File name"}</label>
+              <input
+                id="name-input"
+                autoFocus
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                placeholder={modal.type === "folder" ? "Projects" : "Campus core"}
+              />
+            </>
+          )}
+          {diagramNameIssue?.empty ? null : diagramNameIssue?.taken ? (
+            <p className="file-name-hint">Pick the suggested name, or choose another file name.</p>
+          ) : null}
         </Modal>
       )}
 
@@ -1234,6 +1337,48 @@ export function DashboardPage() {
         />
       ) : null}
     </div>
+    </DiagramLintProvider>
+  );
+}
+
+function AttentionBridge({ onCount }: { onCount: (count: number) => void }) {
+  const lint = useSharedDiagramLint();
+  const count = attentionRows(lint?.findings ?? null, lint?.unreadable ?? []).length;
+  useEffect(() => {
+    onCount(count);
+  }, [count, onCount]);
+  return null;
+}
+
+function AttentionView() {
+  const lint = useSharedDiagramLint();
+  const rows = attentionRows(lint?.findings ?? null, lint?.unreadable ?? []);
+  if (lint?.error) return <div className="error-banner">{lint.error}</div>;
+  if (lint?.findings == null) return <p>Checking diagrams…</p>;
+  if (rows.length === 0) {
+    return (
+      <div className="empty-state attention-clear">
+        <span className="attention-check" aria-hidden="true">
+          ✓
+        </span>
+        <p>All diagrams look good.</p>
+      </div>
+    );
+  }
+  return (
+    <ul className="attention-list">
+      {rows.map((row) => (
+        <li key={row.path}>
+          <Link className="attention-row" to={editorHref(row.path, row.line, "")}>
+            <strong>{displayName(row.path)}</strong>
+            <span>
+              {row.count} {row.count === 1 ? "problem" : "problems"}
+            </span>
+            <span>{row.message}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

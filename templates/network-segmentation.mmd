@@ -1,0 +1,24 @@
+---
+title: Network segmentation zones
+config:
+  theme: forest
+nerdgram:
+  description: Users, a shared services zone, and a restricted zone, with a conduit between each pair.
+  tags:
+    - security
+    - zones
+    - segmentation
+  category: Security
+---
+flowchart LR
+    subgraph users [Users]
+        lan[User zone]
+    end
+    subgraph shared [Shared]
+        svc[Shared services]
+    end
+    subgraph restricted [Restricted]
+        sec[Restricted zone]
+    end
+    lan -->|conduit| svc
+    svc -->|conduit| sec

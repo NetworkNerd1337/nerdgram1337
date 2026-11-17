@@ -1,0 +1,19 @@
+---
+title: Purdue model
+config:
+  theme: base
+nerdgram:
+  description: Levels 0 through 5, with an IT and OT demilitarized zone between them.
+  tags:
+    - ot
+    - purdue
+    - industrial
+  category: OT & Industrial
+---
+flowchart TB
+    l5[Level 5 Enterprise] --> l4[Level 4 Site business]
+    l4 --> dmz[IT OT DMZ]
+    dmz --> l3[Level 3 Operations]
+    l3 --> l2[Level 2 Supervisory]
+    l2 --> l1[Level 1 Control]
+    l1 --> l0[Level 0 Process]

@@ -23,7 +23,7 @@ export function ItemActions({
     <div className="card-actions">
       {onFavorite ? (
         <button type="button" className="btn btn-ghost" onClick={onFavorite}>
-          {favorited ? "Unfavorite" : "Favorite"}
+          {favorited ? "Remove bookmark" : "Bookmark"}
         </button>
       ) : null}
       {onPresent ? (

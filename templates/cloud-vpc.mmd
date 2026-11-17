@@ -1,0 +1,26 @@
+---
+title: Cloud VPC
+config:
+  theme: neo
+nerdgram:
+  description: A cloud network with public and private subnets, a NAT gateway, and a link back on premises.
+  tags:
+    - cloud
+    - vpc
+    - subnet
+  category: Internet & Cloud
+---
+flowchart TB
+    subgraph cloud [Cloud network]
+        inet[Internet gateway]
+        public[Public subnet]
+        nat[NAT gateway]
+        private[Private subnet]
+    end
+    subgraph onprem [On premises]
+        dc[Data center router]
+    end
+    inet --> public
+    public --> nat
+    nat --> private
+    private -->|private link| dc

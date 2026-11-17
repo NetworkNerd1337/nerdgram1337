@@ -14,6 +14,7 @@ import { LinkNodeDialog } from "../components/LinkNodeDialog";
 import { RefreshDiffDialog, type RefreshDiff } from "../components/RefreshDiffDialog";
 import { EditorLockBanner, TakeoverDialog } from "../components/EditorLockBanner";
 import { HistoryDialog } from "../components/HistoryDialog";
+import { Modal } from "../components/Modal";
 import { MermaidCodeEditor } from "../components/MermaidCodeEditor";
 import { ProblemsPanel } from "../components/ProblemsPanel";
 import { RepairLinksDialog } from "../components/RepairLinksDialog";
@@ -35,6 +36,8 @@ import {
   type RemoteLockAlert,
 } from "../lib/editorLock";
 import { exportDiagram, type ExportFormat } from "../lib/exportDiagram";
+import { readRecent, touchRecent, rewriteRecent, writeRecent } from "../lib/recent";
+import { sanitizeFileStem } from "../lib/fileName";
 import {
   cancelScheduledLockRelease,
   clearStoredLock,
@@ -108,12 +111,19 @@ async function writeCopy(originalPath: string, content: string): Promise<string>
 
 export function EditorPage() {
   const params = useParams();
-  const filePath = params["*"] || "";
-  useEffect(() => {
-    setWorkspaceReplaceFolder(parentPath(filePath));
-  }, [filePath]);
-  const navigate = useNavigate();
   const location = useLocation();
+  const templateId = location.pathname.startsWith("/templates/edit/")
+    ? decodeURIComponent(params.id || "")
+    : "";
+  const filePath = templateId ? "" : params["*"] || "";
+  const templateIdRef = useRef(templateId);
+  useEffect(() => {
+    templateIdRef.current = templateId;
+  }, [templateId]);
+  useEffect(() => {
+    if (!templateId) setWorkspaceReplaceFolder(parentPath(filePath));
+  }, [filePath, templateId]);
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const infoOpen = searchParams.get("info") === "1";
 
@@ -133,6 +143,15 @@ export function EditorPage() {
     "idle" | "saving" | "saved" | "error" | "paused"
   >("idle");
   const [exportError, setExportError] = useState<string | null>(null);
+  const [templateTitle, setTemplateTitle] = useState("");
+  const [renamingFile, setRenamingFile] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [templateDialog, setTemplateDialog] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateDescription, setTemplateDescription] = useState("");
+  const [templateTags, setTemplateTags] = useState("");
+  const [templateNotice, setTemplateNotice] = useState<string | null>(null);
+  const [templateClash, setTemplateClash] = useState<string | null>(null);
   const [lockNote, setLockNote] = useState<string | null>(null);
   const [lockRemote, setLockRemote] = useState<RemoteLockAlert | null>(null);
   const [takeoverOpen, setTakeoverOpen] = useState(false);
@@ -224,6 +243,29 @@ export function EditorPage() {
   };
 
   const flushSave = useCallback(async (scheduledPath: string) => {
+    const editingTemplate = templateIdRef.current;
+    if (editingTemplate) {
+      if (savingRef.current) return;
+      const content = latestCodeRef.current;
+      if (content === lastSavedRef.current) return;
+      savingRef.current = true;
+      if (mountedRef.current) setSaveState("saving");
+      try {
+        const saved = await api.saveTemplate(editingTemplate, content);
+        if (!mountedRef.current) return;
+        lastSavedRef.current = content;
+        baselineRef.current = { mtimeMs: Date.now(), hash: saved.cacheKey };
+        setSavedCode(content);
+        setSaveState("saved");
+      } catch (err) {
+        if (!mountedRef.current) return;
+        setSaveState("error");
+        setLoadError(err instanceof Error ? err.message : "Could not save the template");
+      } finally {
+        savingRef.current = false;
+      }
+      return;
+    }
     while (mountedRef.current && pathRef.current === scheduledPath) {
       if (savingRef.current) return;
       if (accessRef.current !== "edit" || conflictRef.current) return;
@@ -324,6 +366,29 @@ export function EditorPage() {
     cancelScheduledLockRelease(filePath);
 
     (async () => {
+      if (templateId) {
+        try {
+          const template = await api.template(templateId);
+          if (!editorEpochIsCurrent(filePath, epoch)) return;
+          const editable = template.origin === "user";
+          skipNextSave.current = true;
+          lastSavedRef.current = template.source;
+          latestCodeRef.current = template.source;
+          baselineRef.current = { mtimeMs: Date.now(), hash: template.cacheKey };
+          setTemplateTitle(template.title);
+          setCode(template.source);
+          setSavedCode(template.source);
+          setAccess(editable ? "edit" : "readonly");
+          setLoaded(true);
+          setSaveState("saved");
+          if (!editable) setReadError("Built-in templates are read-only. Create as template makes a copy you can edit.");
+        } catch (err) {
+          if (!editorEpochIsCurrent(filePath, epoch)) return;
+          setLoadError(err instanceof Error ? err.message : "Could not open the template");
+          setAccess("readonly");
+        }
+        return;
+      }
       if (!filePath) {
         setLoadError("Missing diagram path");
         return;
@@ -397,7 +462,7 @@ export function EditorPage() {
         releaseEditorLock(filePath, token);
       });
     };
-  }, [filePath, loadAttempt]);
+  }, [filePath, loadAttempt, templateId]);
 
   const revealedKey = useRef("");
   useEffect(() => {
@@ -569,6 +634,15 @@ export function EditorPage() {
   }, [filePath]);
 
   useEffect(() => {
+    if (!loaded || !filePath || templateId) return;
+    try {
+      writeRecent(localStorage, touchRecent(readRecent(localStorage), filePath));
+    } catch {
+      // Recent is a local convenience. A blocked store still leaves the editor usable.
+    }
+  }, [loaded, filePath, templateId]);
+
+  useEffect(() => {
     if (!loaded || access !== "edit" || conflict) return;
     if (skipNextSave.current) {
       skipNextSave.current = false;
@@ -689,17 +763,97 @@ export function EditorPage() {
     }
   };
 
-  const handleExport = async (format: ExportFormat) => {
+  const handleExport = async (format: ExportFormat, transparent = false) => {
     setExportError(null);
     const svg = previewStageRef.current?.querySelector("svg");
     if (!svg) {
       setExportError("Nothing to export yet. Fix the diagram first.");
       return;
     }
+    const parsed = parseDiagram(code);
     try {
-      await exportDiagram(svg, diagramHeading(parseDiagram(code).title, filePath), format);
+      await exportDiagram(svg, diagramHeading(parsed.title, templateId ? templateTitle : filePath), format, {
+        source: code,
+        fallbackTheme: FALLBACK_THEME,
+        theme: parsed.theme,
+        themeVariables: parsed.themeVariables,
+        transparent,
+      });
     } catch (err) {
       setExportError(err instanceof Error ? err.message : "Export failed");
+    }
+  };
+
+  const renamingRef = useRef(false);
+  const startRename = () => {
+    if (access !== "edit") return;
+    setRenameValue(templateId ? templateTitle : displayName(filePath));
+    renamingRef.current = true;
+    setRenamingFile(true);
+  };
+
+  const commitRename = async () => {
+    if (!renamingRef.current) return;
+    renamingRef.current = false;
+    setRenamingFile(false);
+    const stem = sanitizeFileStem(renameValue);
+    if (!stem) return;
+    if (templateId) {
+      if (stem === templateTitle) return;
+      try {
+        if (code !== savedCode) await flushSave("");
+        const renamed = await api.renameTemplate(templateId, stem);
+        setTemplateTitle(renamed.title);
+        navigate(`/templates/edit/${encodeURIComponent(renamed.id)}`, { replace: true });
+      } catch (err) {
+        setLoadError(err instanceof Error ? err.message : "Could not rename the template");
+      }
+      return;
+    }
+    const nextName = `${stem}.mmd`;
+    if (nextName.toLowerCase() === displayName(filePath).toLowerCase() + ".mmd".toLowerCase() && displayName(filePath) === stem) return;
+    if (stem === displayName(filePath)) return;
+    const parent = parentPath(filePath);
+    const to = parent ? `${parent}/${nextName}` : nextName;
+    try {
+      if (code !== savedCode) await flushSave(filePath);
+      const result = await api.rename(filePath, to);
+      const store = localStorage;
+      writeRecent(store, rewriteRecent(readRecent(store), filePath, result.path, false));
+      navigate(`/edit/${result.path}`, { replace: true });
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Could not rename the file");
+    }
+  };
+
+  const openCreateTemplate = () => {
+    const parsed = parseDiagram(code);
+    setTemplateName(parsed.title?.trim() || displayName(filePath) || templateTitle);
+    setTemplateDescription(parsed.description);
+    setTemplateTags(parsed.tags.join(", "));
+    setTemplateClash(null);
+    setTemplateDialog(true);
+  };
+
+  const saveAsTemplate = async (replace = false) => {
+    setTemplateClash(null);
+    try {
+      const tags = templateTags.split(",").map((tag) => tag.trim()).filter(Boolean);
+      await api.createTemplate({
+        content: code,
+        name: templateName.trim() || templateTitle || displayName(filePath),
+        description: templateDescription,
+        tags,
+        replace,
+      });
+      setTemplateDialog(false);
+      setTemplateNotice("Saved as a template.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setTemplateClash(err.message);
+        return;
+      }
+      setExportError(err instanceof Error ? err.message : "Could not save the template");
     }
   };
 
@@ -869,6 +1023,8 @@ export function EditorPage() {
     route: "editor",
     actions: {
       editDiagramInfo: () => setInfoOpen(true),
+      renameFile: access === "edit" ? startRename : undefined,
+      createTemplate: loaded && !templateId ? openCreateTemplate : undefined,
       goHome: () => navigate(exitHref),
       linkNode: readOnly ? undefined : () => setLinkNodeOpen(true),
       refreshFromData: readOnly || !dataSource ? undefined : refreshFromData,
@@ -931,7 +1087,20 @@ export function EditorPage() {
           <Link to={exitHref} aria-label={parentPath(filePath) ? "Back to folder" : "Back to dashboard"}>
             <Brand compact />
           </Link>
-          <EditorBreadcrumb filePath={filePath} />
+          {templateId ? <span className="template-editing-badge">Editing template</span> : null}
+          <EditorBreadcrumb
+            filePath={filePath}
+            templateName={templateId ? templateTitle || templateId : null}
+            renaming={renamingFile}
+            renameValue={renameValue}
+            onRenameValue={setRenameValue}
+            onStartRename={startRename}
+            onCommitRename={() => void commitRename()}
+            onCancelRename={() => {
+              renamingRef.current = false;
+              setRenamingFile(false);
+            }}
+          />
         </div>
         <div className="editor-top-actions">
           {presenting ? null : <SupportLink />}
@@ -968,7 +1137,12 @@ export function EditorPage() {
           >
             History
           </button>
-          <Link className="btn btn-ghost" to="/reference">
+          {templateId ? null : (
+            <button type="button" className="btn btn-ghost" onClick={openCreateTemplate} disabled={!loaded}>
+              Create as template
+            </button>
+          )}
+          <Link className="btn btn-ghost" to="/reference" target="_blank" rel="noopener">
             Open Syntax Reference Library
           </Link>
           <label className="export-label">
@@ -977,14 +1151,11 @@ export function EditorPage() {
               aria-label="Export format"
               defaultValue=""
               onChange={(e) => {
-                const value = e.target.value as ExportFormat | "";
+                const value = e.target.value;
                 e.target.value = "";
-                if (
-                  value === "svg" ||
-                  value === "png" ||
-                  value === "jpg" ||
-                  value === "pdf"
-                ) {
+                if (value === "png-transparent") {
+                  void handleExport("png", true);
+                } else if (value === "svg" || value === "png" || value === "jpg" || value === "pdf") {
                   void handleExport(value);
                 }
               }}
@@ -994,6 +1165,7 @@ export function EditorPage() {
               </option>
               <option value="svg">SVG</option>
               <option value="png">PNG</option>
+              <option value="png-transparent">PNG (transparent)</option>
               <option value="jpg">JPG</option>
               <option value="pdf">PDF</option>
             </select>
@@ -1022,6 +1194,56 @@ export function EditorPage() {
           {exportError}
         </div>
       )}
+      {templateNotice ? (
+        <div className="editor-banner" role="status">
+          <div>{templateNotice}</div>
+          <div className="editor-banner-actions">
+            <Link className="btn btn-primary" to="/templates">
+              Open gallery
+            </Link>
+            <button type="button" className="btn btn-ghost" onClick={() => setTemplateNotice(null)}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {templateDialog ? (
+        <Modal
+          title="Create as template"
+          confirmLabel="Save template"
+          onClose={() => setTemplateDialog(false)}
+          onConfirm={() => void saveAsTemplate(false)}
+        >
+          <p className="dialog-note">
+            This saves a copy of the diagram as it is now. The original file is not changed. The
+            category is User created.
+          </p>
+          {templateClash ? (
+            <div className="error-banner">
+              {templateClash}{" "}
+              <button type="button" className="btn btn-ghost" onClick={() => void saveAsTemplate(true)}>
+                Replace
+              </button>
+            </div>
+          ) : null}
+          <label htmlFor="template-save-name">Name</label>
+          <input id="template-save-name" value={templateName} onChange={(event) => setTemplateName(event.target.value)} />
+          <label htmlFor="template-save-description">Description</label>
+          <input
+            id="template-save-description"
+            value={templateDescription}
+            onChange={(event) => setTemplateDescription(event.target.value)}
+          />
+          <label htmlFor="template-save-tags">Tags</label>
+          <input
+            id="template-save-tags"
+            value={templateTags}
+            onChange={(event) => setTemplateTags(event.target.value)}
+            placeholder="network, lab"
+          />
+          <p className="file-name-hint">Category: User created</p>
+        </Modal>
+      ) : null}
       {info.malformed && (
         <div className="editor-banner" role="alert">
           The YAML header could not be parsed{info.error ? `: ${info.error}` : ""}. Autosave keeps

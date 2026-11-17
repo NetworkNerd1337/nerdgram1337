@@ -4,7 +4,7 @@
 
 [![Ko-fi: Support the developer](https://img.shields.io/badge/Ko--fi-Support%20the%20developer-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/networknerd1337)
 
-NerdGram1337 is a local, single-user app for writing [Mermaid](https://mermaid.js.org/) diagrams as Markdown. It is [MIT](LICENSE) licensed, © Ryan Thomas Huff. You edit a diagram, preview it live, keep it as a real `.mmd` file on disk, and export **SVG**, **PNG**, **JPG**, or **PDF**. JPG and PDF are exports from the browser. The API and the CLI render SVG or PNG. There is no account, no hosted service, no AI generation, and no paywall. Optional GitHub sync can copy those diagrams to a private repository you own.
+NerdGram1337 is a local, single-user app for writing [Mermaid](https://mermaid.js.org/) diagrams as Markdown. It is [MIT](LICENSE) licensed, © Ryan Thomas Huff. You edit a diagram, preview it live, keep it as a real `.mmd` file on disk, and export **SVG**, **PNG**, **JPG**, or **PDF**. Exports use the diagram theme and background. JPG and PDF are exports from the browser. The API and the CLI render SVG or PNG. There is no account, no hosted service, no AI generation, and no paywall. Optional GitHub sync can copy those diagrams to a private repository you own.
 
 The **client** is a React app: the dashboard, the paste page, and the split editor. The **server** is an Express API that reads and writes the files. In development they run side by side. A production build, including the Docker image, serves the built client and the API from one process.
 
@@ -92,20 +92,20 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 
 - **[Preview](docs/features.md#preview).** Drag the preview to pan, and use the wheel to zoom toward the pointer. **Fit** resets that view.
 - **[Editing](docs/features.md#editing).** Opening a diagram takes a lock for that browser tab.
-- **[Files](docs/features.md#files).** **Move to…** is on every diagram and folder, next to Rename and Delete. Folder cards count the diagrams and subfolders inside them, and the sidebar tree collapses.
+- **[Files](docs/features.md#files).** **Your space** lists Recent, Bookmarks, and Needs attention above the folder tree. **Move to…** is on every diagram and folder, next to Rename and Delete.
 - **[Trash and history](docs/features.md#trash-and-history).** Delete moves a diagram or a folder into the trash.
 - **[Titles, themes, and notes](docs/features.md#titles-themes-and-notes).** A diagram can start with [Mermaid's YAML front matter](https://mermaid.js.org/config/configuration.html). Cards show the file name, and a different title on a second line.
 - **[Appearance](docs/features.md#appearance).** Light, Dark, or Match system. The choice stays in this browser. It does not change a diagram's theme.
-- **[Diagram checks](docs/features.md#diagram-checks).** The code pane checks the diagram while you type.
+- **[Diagram checks](docs/features.md#diagram-checks).** The code pane checks the diagram while you type. A link to a subgraph id is not reported as a typo.
 - **[Linked diagrams](docs/features.md#linked-diagrams).** A node can open another diagram.
 - **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, or network JSON file can build the diagram.
 - **[Thumbnails, find, and shortcuts](docs/features.md#thumbnails-find-and-shortcuts).** Dashboard cards keep a thumbnail of each diagram.
 - **[Search](docs/features.md#search).** The sidebar search box matches file names and paths, titles, tags, descriptions, notes, and the visible text in a diagram: node and edge labels, subgraph titles, sequence messages, and similar labels.
 - **[Presentation](docs/features.md#presentation).** **Present** shows the diagram on its own, using the theme, look, and layout stored in the file.
-- **[Template gallery](docs/features.md#template-gallery).** **New diagram** on the dashboard, **Browse templates** on the Paste Mermaid page, **Templates** in the sidebar, and the command palette all open the gallery at `/templates`.
+- **[Template gallery](docs/features.md#template-gallery).** Templates are grouped by category. **Create as template** saves the open diagram under User created.
 - **[GitHub sync](docs/github-sync.md).** GitHub sync is optional.
 - **[In-app updates](docs/upgrading.md#in-app-updates).** The running version is the **About** line at the bottom of the sidebar and **About NerdGram1337** in the command palette.
-- **[Syntax reference](docs/features.md#syntax-reference).** NerdGram1337 ships a local mirror of the Mermaid diagram syntax docs so you can look up syntax with no internet connection.
+- **[Syntax reference](docs/features.md#syntax-reference).** NerdGram1337 ships a local mirror of the Mermaid diagram syntax docs. **Open Syntax Reference Library** opens it in a new tab.
 
 ## Documentation
 
