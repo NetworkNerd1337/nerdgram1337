@@ -9,6 +9,7 @@ Guides for installing NerdGram1337, using it, and working on it.
 - [Install](install.md). Run NerdGram with Docker, or with Node.js on the machine.
 - [Features](features.md). The dashboard lists folders and diagrams in a tree, with search and grid or list view.
 - [Generate from data](generate-from-data.md). A CSV, JSON, or network JSON file can build the diagram.
+- [Schema compatibility](schema/README.md). Network JSON stays on schemaVersion 1 when a change only adds optional fields, and moves to 2 when a field's meaning changes.
 - [GitHub sync](github-sync.md). GitHub sync is optional.
 - [Configuration](configuration.md). Set a variable in the same terminal before `npm run dev` or `npm start`, so the process inherits it.
 - [Team use](team-use.md). NerdGram has no accounts and no roles.

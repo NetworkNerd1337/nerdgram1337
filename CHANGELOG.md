@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- Network JSON has a compatibility policy (from #125). An additive optional field stays on `schemaVersion` 1. A change to a field's meaning bumps `schemaVersion` to 2. The schema stays closed, so an unexpected property is still an error. A file that uses a key added in NerdGram 1.5 needs that release or a later one. A file that omits the new key keeps working. The policy is in `docs/schema`, in Generate from data, and in the description of `docs/schema/network.schema.json`.
 
 ## 1.4.8 "Atlas" - 2026-11-17
 
