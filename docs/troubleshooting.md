@@ -15,6 +15,7 @@ If the API port is taken, the server exits and prints the listen error.
 - [A save returns 403 or 415](#a-save-returns-403-or-415)
 - [The container exits immediately, or the volume looks empty](#the-container-exits-immediately-or-the-volume-looks-empty)
 - [localhost opens the dev UI, and 127.0.0.1 does not](#localhost-opens-the-dev-ui-and-127001-does-not)
+- [Corporate TLS inspection](#corporate-tls-inspection)
 
 ## Port already in use
 
@@ -73,9 +74,57 @@ A bind mount owned by root is not writable by uid 1001. `chown` it as in [Docker
 
 Vite is bound to `localhost`, which can be `::1` only. Use [http://localhost:5173](http://localhost:5173). The API is on both `127.0.0.1` and `::1` unless the log says `::1` failed.
 
+## Corporate TLS inspection
+
+Update checks and GitHub sync run inside the container. Both call GitHub over HTTPS from Node. A proxy that inspects TLS, such as Zscaler, re-signs that traffic with a corporate root CA. The host and Docker Desktop trust that CA. The container's Node does not, so the call fails before GitHub answers. **Check for updates** then says a proxy or TLS inspection on this network is likely intercepting HTTPS. GitHub sync fails for the same reason. On a network that does not inspect TLS, **Check for updates** reaches GitHub with no extra certificate.
+
+Do not set `NODE_TLS_REJECT_UNAUTHORIZED=0`. That turns certificate verification off. Add the corporate root instead.
+
+### Export the corporate root as a PEM
+
+Export the root that signed the proxy, not the certificate that carries GitHub's name. The file is text and starts with `-----BEGIN CERTIFICATE-----`. On Windows, open `certmgr.msc`, go to Trusted Root Certification Authorities, and export that root as Base-64 encoded X.509 (`.CER`). On macOS, export it from Keychain Access as a `.pem`. Several certificates can sit in the same file, one after another.
+
+### Mount the file and point Node at it
+
+The path inside the container in these examples is `/certs/corp-root.pem`. The mount is read-only. `NODE_EXTRA_CA_CERTS` is that path. Node adds those certificates to the public CAs it already trusts. It does not replace them. [`compose.yaml`](../compose.yaml) sets a read-only root filesystem. That does not block this mount.
+
+`docker run`. The image tag is the one from [Install](install.md#docker).
+
+```bash
+docker run -d \
+  --name nerdgram1337 \
+  --restart unless-stopped \
+  -p 127.0.0.1:8787:8787 \
+  -e NERDGRAM_DATA_DIR=/data \
+  -e NERDGRAM_INSTALL=docker \
+  -e NODE_EXTRA_CA_CERTS=/certs/corp-root.pem \
+  -v nerdgram-data:/data \
+  -v /path/to/corp-root.pem:/certs/corp-root.pem:ro \
+  ghcr.io/networknerd1337/nerdgram1337:v1.4.4
+```
+
+On Docker Desktop for Windows the host path is a Windows path, for example `-v C:\certs\corp-root.pem:/certs/corp-root.pem:ro`.
+
+Compose. Add the variable and the mount to the `nerdgram` service in [`compose.yaml`](../compose.yaml). Leave the image tag that file already pins.
+
+```yaml
+services:
+  nerdgram:
+    environment:
+      NODE_EXTRA_CA_CERTS: /certs/corp-root.pem
+    volumes:
+      - nerdgram-data:/data
+      - /path/to/corp-root.pem:/certs/corp-root.pem:ro
+```
+
+Recreate the container after the change (`docker compose up -d`, or the `docker run` above if that is how you started it). **Check for updates** should then reach GitHub.
+
+A Node install on the host needs the same variable. Node does not read the Windows certificate store. Set it in that shell before `npm start`. macOS or Linux: `NODE_EXTRA_CA_CERTS=/path/to/corp-root.pem npm start`. Command Prompt: `set NODE_EXTRA_CA_CERTS=C:\certs\corp-root.pem`. PowerShell: `$env:NODE_EXTRA_CA_CERTS = "C:\certs\corp-root.pem"`.
+
 ## See also
 
 - [Install](install.md)
 - [Configuration](configuration.md)
+- [GitHub sync](github-sync.md)
 - [Team use](team-use.md)
 - [Security model](security.md)

@@ -55,7 +55,7 @@ Leave the client ID box empty and choose **Save client ID** to clear a client ID
 | Sync settings (account, repository URL, no token) | `<data>/.meta/github-sync.json`, mode `0600` |
 | Git working copy | `<data>/.nerdgram-git` (hidden; the app cannot open it as a diagram) |
 
-The token is not returned to the browser, not written into the git remote URL or `.git/config`, not put in a commit, and not written to the log. Git pushes send it only as an `Authorization` header for that request. Update checks do not use this token.
+The token is not returned to the browser, not written into the git remote URL or `.git/config`, not put in a commit, and not written to the log. Git pushes send it only as an `Authorization` header for that request. Update checks do not use this token. GitHub sync and update checks both call GitHub from the NerdGram process. In Docker that process is inside the container. A proxy that re-signs HTTPS is [Corporate TLS inspection](troubleshooting.md#corporate-tls-inspection).
 
 `NERDGRAM_GITHUB_CLIENT_SECRET` is read from the environment only, never stored, and is used solely to revoke the OAuth grant on disconnect. Without it, disconnect still deletes the local token. Revoke the grant yourself at [GitHub → Settings → Applications](https://github.com/settings/apps/authorizations). Delete the OAuth app from Developer settings when you want the app registration gone too. Disconnect does not delete the repository.
 
@@ -68,3 +68,4 @@ The token is not returned to the browser, not written into the git remote URL or
 - [Configuration](configuration.md)
 - [Team use](team-use.md)
 - [Security model](security.md)
+- [Troubleshooting](troubleshooting.md)

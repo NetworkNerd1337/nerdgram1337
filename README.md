@@ -49,7 +49,7 @@ docker run -d \
 
 Open [http://127.0.0.1:8787](http://127.0.0.1:8787) or [http://localhost:8787](http://localhost:8787).
 
-Compose, a local image build, and the rest of the Docker install are in [Install](docs/install.md#docker).
+Compose, a local image build, and the rest of the Docker install are in [Install](docs/install.md#docker). A proxy that re-signs HTTPS is [Corporate TLS inspection](docs/troubleshooting.md#corporate-tls-inspection).
 
 ### Install the CLI from npm
 
