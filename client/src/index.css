@@ -3012,6 +3012,65 @@ a {
   color: var(--ink-soft);
 }
 
+.sync-card a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.sync-card code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--ink);
+}
+
+.sync-steps {
+  margin: 0 0 0.9rem;
+  padding-left: 1.3rem;
+  color: var(--ink);
+}
+
+.sync-steps li {
+  margin: 0.35rem 0;
+}
+
+.sync-steps li::marker {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.sync-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+  align-items: baseline;
+  margin: 0 0 0.9rem;
+  color: var(--ink);
+}
+
+.sync-status-label {
+  font-weight: 650;
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+  background: var(--bg-muted);
+  color: var(--ink);
+}
+
+.sync-status[data-state="connected"] .sync-status-label {
+  background: var(--banner-ok-bg);
+  color: var(--banner-ok-ink);
+}
+
+.sync-status[data-state="attention"] .sync-status-label {
+  background: var(--banner-error-bg);
+  color: var(--danger);
+}
+
+.sync-status[data-state="signed-in"] .sync-status-label {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
 .sync-card label {
   display: block;
   font-size: 0.85rem;

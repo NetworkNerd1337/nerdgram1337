@@ -12,7 +12,11 @@ import { createApp } from "../src/app.js";
 import { thumbnailCacheKey } from "../src/frontMatter.js";
 import { encodeStorageKey } from "../src/storage.js";
 import { discardSearchCache } from "../src/search.js";
+import { emptyConfig, saveConfig } from "../src/sync/configStore.js";
 import { resetSyncForTests, setGithubFetch, setSyncTestHook, syncConcurrency } from "../src/sync/engine.js";
+import { assertCleanRemoteUrl, classifyNetworkError } from "../src/sync/github.js";
+import { gitBasicAuthorization } from "../src/sync/mirror.js";
+import { readToken, writeToken } from "../src/sync/secrets.js";
 import { captureConsole, makeTempDataDir } from "./helpers.js";
 
 const HOST = "127.0.0.1:8787";
@@ -175,7 +179,7 @@ type LocalGit = {
   close: () => Promise<void>;
 };
 
-async function startGitHttp(): Promise<LocalGit> {
+async function startGitHttp(options?: { rejectStatus?: number }): Promise<LocalGit> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "nerdgram-git-"));
   const bare = path.join(root, "remote.git");
   await runGit(["init", "--bare", "-b", "main", bare]);
@@ -188,6 +192,12 @@ async function startGitHttp(): Promise<LocalGit> {
       url: `${url.pathname}${url.search}`,
       authorization: String(req.headers.authorization || ""),
     });
+    if (options?.rejectStatus) {
+      res.statusCode = options.rejectStatus;
+      res.setHeader("Content-Type", "text/plain");
+      res.end(options.rejectStatus === 401 ? "Authentication failed" : "Forbidden");
+      return;
+    }
     const child = spawn("git", ["http-backend"], {
       env: {
         ...process.env,
@@ -434,9 +444,13 @@ describe("GitHub sync", () => {
     expect(gitConfig).not.toContain(TOKEN);
     expect(gitConfig.toLowerCase()).not.toContain("extraheader");
     expect(gitConfig).not.toContain("AUTHORIZATION");
+    const basic = gitBasicAuthorization(TOKEN);
+    expect(basic).toBe(`Basic ${Buffer.from(`x-access-token:${TOKEN}`, "utf8").toString("base64")}`);
+    expect(basic.startsWith("Bearer")).toBe(false);
     expect(remote?.requests.length).toBeGreaterThan(0);
-    expect(remote?.requests.every((hit) => !hit.url.includes(TOKEN) && !hit.url.includes("access_token"))).toBe(true);
-    expect(remote?.requests.some((hit) => hit.authorization === `Bearer ${TOKEN}`)).toBe(true);
+    expect(remote?.requests.every((hit) => hit.authorization === basic)).toBe(true);
+    expect(remote?.requests.every((hit) => !hit.url.includes(TOKEN) && !hit.url.toLowerCase().includes("x-access-token"))).toBe(true);
+    expect(remote?.requests.every((hit) => !hit.url.includes("access_token"))).toBe(true);
     await expect(fs.access(path.join(dir, ".git"))).rejects.toThrow();
 
     const health = await request(app).get("/api/health").set("Host", HOST);
@@ -525,6 +539,9 @@ describe("GitHub sync", () => {
     expect(JSON.stringify(connected.body)).not.toContain(TOKEN);
     const status = await request(app).get("/api/sync/status").set("Host", HOST);
     expect(status.body.enabled).toBe(false);
+    expect(status.body.error).not.toBeNull();
+    expect(status.body.error.code).toBe(connected.body.code);
+    expect(status.body.error.message).toBe(connected.body.error);
     await expect(fs.access(path.join(dir, ".nerdgram-git"))).rejects.toThrow();
     await expect(fs.access(path.join(dir, ".git"))).rejects.toThrow();
     expect(await fs.readFile(path.join(dir, "Notes.mmd"), "utf8")).toBe(before);
@@ -793,7 +810,305 @@ describe("GitHub sync", () => {
     await fs.writeFile(path.join(dir, "Notes.mmd"), "flowchart LR\n  Watched-->Edit\n");
     await waitFor(async () => (await blobAt(bare, "Notes.mmd"))?.includes("Watched-->Edit") === true, 3000);
   });
+
+  it("stores a device-flow refresh token only in the token file", async () => {
+    setGithubFetch(async (input) => {
+      const url = String(input);
+      expect(url).not.toContain(REFRESH);
+      if (url.includes("/login/device/code")) {
+        return jsonResponse(200, {
+          device_code: DEVICE_CODE,
+          user_code: "ABCD-1234",
+          verification_uri: "https://github.com/login/device",
+          expires_in: 900,
+          interval: 0,
+        });
+      }
+      if (url.includes("/login/oauth/access_token")) {
+        return jsonResponse(200, {
+          access_token: TOKEN,
+          refresh_token: REFRESH,
+          expires_in: 28800,
+          refresh_token_expires_in: 15897600,
+          token_type: "bearer",
+          scope: "repo",
+        });
+      }
+      if (url.endsWith("/user")) return jsonResponse(200, { login: "octocat" });
+      return jsonResponse(404, { message: "not found" });
+    });
+    const saved = await request(app).post("/api/sync/client-id").set(json).send({ clientId: CLIENT_ID });
+    expect(saved.status).toBe(200);
+    const started = await request(app).post("/api/sync/device/start").set(json).send({});
+    expect(started.status).toBe(200);
+    await waitFor(async () => {
+      const status = await request(app).get("/api/sync/status").set("Host", HOST);
+      return status.body.tokenSource === "file";
+    });
+    const tokenFile = await fs.readFile(path.join(dir, ".meta", "github-token"), "utf8");
+    const configFile = await fs.readFile(path.join(dir, ".meta", "github-sync.json"), "utf8");
+    expect(tokenFile).toContain(REFRESH);
+    expect(tokenFile).toContain(TOKEN);
+    expect((await fs.stat(path.join(dir, ".meta", "github-token"))).mode & 0o777).toBe(0o600);
+    expect(configFile).not.toContain(REFRESH);
+    expect(configFile).not.toContain(TOKEN);
+    const status = await request(app).get("/api/sync/status").set("Host", HOST);
+    expect(JSON.stringify(status.body)).not.toContain(REFRESH);
+    expect(JSON.stringify(status.body)).not.toContain(TOKEN);
+  });
+
+  it("classifies git HTTP 401 and 403 like REST authorization failures", () => {
+    const denied = classifyNetworkError(
+      Object.assign(new Error("HTTP Error: 401 Unauthorized"), {
+        code: "HttpError",
+        data: { statusCode: 401, statusMessage: "Unauthorized", response: "invalid credentials" },
+      }),
+    );
+    expect(denied).toMatchObject({ code: "auth_revoked", status: 401 });
+    expect(denied.message).toMatch(/Connect again/);
+    const forbidden = classifyNetworkError(
+      Object.assign(new Error("HTTP Error: 403 Forbidden"), {
+        code: "HttpError",
+        data: { statusCode: 403, statusMessage: "Forbidden", response: "" },
+      }),
+    );
+    expect(forbidden).toMatchObject({ code: "auth_revoked", status: 403 });
+    expect(forbidden.message).toMatch(/repository access/);
+    expect(() => assertCleanRemoteUrl(`https://x-access-token:${TOKEN}@github.com/octocat/repo.git`)).toThrow(/token|password/i);
+  });
+
+  it("keeps a git HTTP 401 on connect in the status and the log, without secrets", async () => {
+    await fs.writeFile(path.join(dir, "Notes.mmd"), "flowchart LR\n  A-->B\n");
+    remote = await startGitHttp({ rejectStatus: 401 });
+    installGithub(remote.url);
+    await signIn();
+    const connected = await request(app).post("/api/sync/connect").set(json).send({});
+    expect(connected.status).toBe(401);
+    expect(connected.body.code).toBe("auth_revoked");
+    expect(connected.body.error).toMatch(/Connect again/);
+    expect(connected.body.error).toMatch(/not on/i);
+    expect(JSON.stringify(connected.body)).not.toContain(TOKEN);
+    const status = await request(app).get("/api/sync/status").set("Host", HOST);
+    expect(status.body.enabled).toBe(false);
+    expect(status.body.error.code).toBe("auth_revoked");
+    expect(status.body.error.message).toMatch(/Connect again/);
+    expect(JSON.stringify(status.body)).not.toContain(TOKEN);
+    const logged = logs.errors.join("\n");
+    expect(logged).toMatch(/GitHub sync: auth_revoked /);
+    expect(logged).toMatch(/Connect again/);
+    expect(logged).not.toContain(TOKEN);
+    expect(logged).not.toMatch(/Bearer |Basic |x-access-token:/);
+  });
+
+  it("reads a legacy token file and refuses to store a refresh token in sync settings", async () => {
+    await writeToken(TOKEN);
+    expect(await readToken()).toEqual({ token: TOKEN, source: "file" });
+    const plain = await fs.readFile(path.join(dir, ".meta", "github-token"), "utf8");
+    expect(plain.trim()).toBe(TOKEN);
+    const stat = await fs.stat(path.join(dir, ".meta", "github-token"));
+    expect(stat.mode & 0o777).toBe(0o600);
+    const config = emptyConfig();
+    config.login = REFRESH;
+    await expect(saveConfig(config)).rejects.toThrow(/token/i);
+  });
+
+  it("refreshes a device-flow token before it expires without a client secret", async () => {
+    await fs.writeFile(path.join(dir, "Notes.mmd"), "flowchart LR\n  A-->B\n");
+    expect((await connect()).status).toBe(200);
+    await writeToken(TOKEN, {
+      refreshToken: REFRESH,
+      expiresIn: 30,
+      refreshExpiresIn: 15897600,
+      deviceFlow: true,
+    });
+    remote?.requests.splice(0, remote.requests.length);
+    let refreshes = 0;
+    setGithubFetch(async (input, init) => {
+      const url = String(input);
+      expect(url).not.toContain(TOKEN);
+      expect(url).not.toContain(REFRESH);
+      expect(url).not.toContain(NEXT);
+      if (url.includes("/login/oauth/access_token")) {
+        refreshes += 1;
+        const body = JSON.parse(String(init?.body)) as Record<string, string>;
+        expect(body.grant_type).toBe("refresh_token");
+        expect(body.client_id).toBe(CLIENT_ID);
+        expect(body.refresh_token).toBe(REFRESH);
+        expect(body.client_secret).toBeUndefined();
+        return jsonResponse(200, {
+          access_token: NEXT,
+          refresh_token: REFRESH_NEXT,
+          expires_in: 28800,
+          refresh_token_expires_in: 15897600,
+          token_type: "bearer",
+        });
+      }
+      const authorization = new Headers(init?.headers).get("authorization");
+      expect(authorization).toBe(`Bearer ${NEXT}`);
+      return jsonResponse(200, repoPayload(remote?.url ?? ""));
+    });
+    const synced = await request(app).post("/api/sync/now").set(json).send({});
+    expect(synced.status).toBe(200);
+    expect(synced.body.error).toBeNull();
+    expect(refreshes).toBe(1);
+    const basic = `Basic ${Buffer.from(`x-access-token:${NEXT}`, "utf8").toString("base64")}`;
+    expect(remote?.requests.some((hit) => hit.authorization === basic)).toBe(true);
+    expect(remote?.requests.every((hit) => !hit.authorization.includes(TOKEN) && !hit.url.includes(NEXT))).toBe(true);
+    const tokenFile = await fs.readFile(path.join(dir, ".meta", "github-token"), "utf8");
+    expect(tokenFile).toContain(NEXT);
+    expect(tokenFile).toContain(REFRESH_NEXT);
+    expect(tokenFile).not.toContain(REFRESH);
+    expect((await fs.stat(path.join(dir, ".meta", "github-token"))).mode & 0o777).toBe(0o600);
+    const storedConfig = await fs.readFile(path.join(dir, ".meta", "github-sync.json"), "utf8");
+    expect(storedConfig).not.toContain(NEXT);
+    expect(storedConfig).not.toContain(REFRESH_NEXT);
+    expect(storedConfig).not.toContain(TOKEN);
+    const logged = logs.errors.join("\n") + logs.logs.join("\n");
+    expect(logged).not.toContain(NEXT);
+    expect(logged).not.toContain(REFRESH);
+    expect(logged).not.toContain(REFRESH_NEXT);
+  });
+
+  it("sends the client secret only when a non-device refresh token needs one", async () => {
+    await fs.writeFile(path.join(dir, "Notes.mmd"), "flowchart LR\n  A-->B\n");
+    expect((await connect()).status).toBe(200);
+    process.env.NERDGRAM_GITHUB_CLIENT_SECRET = CLIENT_SECRET;
+    await writeToken(TOKEN, {
+      refreshToken: REFRESH,
+      expiresIn: -10,
+      refreshExpiresIn: 15897600,
+      deviceFlow: false,
+    });
+    setGithubFetch(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/login/oauth/access_token")) {
+        const body = JSON.parse(String(init?.body)) as Record<string, string>;
+        expect(body.client_secret).toBe(CLIENT_SECRET);
+        expect(body.grant_type).toBe("refresh_token");
+        return jsonResponse(200, {
+          access_token: NEXT,
+          refresh_token: REFRESH_NEXT,
+          expires_in: 28800,
+          refresh_token_expires_in: 15897600,
+          token_type: "bearer",
+        });
+      }
+      expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${NEXT}`);
+      return jsonResponse(200, repoPayload(remote?.url ?? ""));
+    });
+    const synced = await request(app).post("/api/sync/now").set(json).send({});
+    expect(synced.status).toBe(200);
+    expect(synced.body.error).toBeNull();
+    const logged = logs.errors.join("\n") + logs.logs.join("\n");
+    expect(logged).not.toContain(CLIENT_SECRET);
+    expect(logged).not.toContain(REFRESH);
+    expect(logged).not.toContain(NEXT);
+  });
+
+  it("asks to connect again when a refresh fails", async () => {
+    await fs.writeFile(path.join(dir, "Notes.mmd"), "flowchart LR\n  A-->B\n");
+    expect((await connect()).status).toBe(200);
+    await writeToken(TOKEN, {
+      refreshToken: REFRESH,
+      expiresIn: -10,
+      refreshExpiresIn: 15897600,
+      deviceFlow: true,
+    });
+    let refreshes = 0;
+    setGithubFetch(async (input) => {
+      const url = String(input);
+      expect(url).not.toContain(REFRESH);
+      if (url.includes("/login/oauth/access_token")) {
+        refreshes += 1;
+        return jsonResponse(200, { error: "bad_refresh_token", error_description: "expired" });
+      }
+      return jsonResponse(401, { message: "Bad credentials" });
+    });
+    const synced = await request(app).post("/api/sync/now").set(json).send({});
+    expect(synced.status).toBe(200);
+    expect(synced.body.error.code).toBe("auth_expired");
+    expect(synced.body.error.message).toMatch(/authorization expired/i);
+    expect(synced.body.error.message).toMatch(/Connect again/);
+    expect(refreshes).toBe(1);
+    const status = await request(app).get("/api/sync/status").set("Host", HOST);
+    expect(status.body.error.code).toBe("auth_expired");
+    const logged = logs.errors.join("\n");
+    expect(logged).toMatch(/GitHub sync: auth_expired /);
+    expect(logged).not.toContain(TOKEN);
+    expect(logged).not.toContain(REFRESH);
+    expect(JSON.stringify(synced.body)).not.toContain(REFRESH);
+  });
+
+  it("asks to connect again when a non-device token has no client secret", async () => {
+    await fs.writeFile(path.join(dir, "Notes.mmd"), "flowchart LR\n  A-->B\n");
+    expect((await connect()).status).toBe(200);
+    delete process.env.NERDGRAM_GITHUB_CLIENT_SECRET;
+    await writeToken(TOKEN, {
+      refreshToken: REFRESH,
+      expiresIn: -10,
+      refreshExpiresIn: 15897600,
+      deviceFlow: false,
+    });
+    let calls = 0;
+    setGithubFetch(async () => {
+      calls += 1;
+      return jsonResponse(500, { message: "should not be called" });
+    });
+    const status = await request(app).get("/api/sync/status").set("Host", HOST);
+    expect(status.body.error.code).toBe("auth_expired");
+    expect(status.body.error.message).toMatch(/authorization expired/i);
+    expect(status.body.error.message).toMatch(/Connect again/);
+    const synced = await request(app).post("/api/sync/now").set(json).send({});
+    expect(synced.body.error.code).toBe("auth_expired");
+    expect(calls).toBe(0);
+    const logged = logs.errors.join("\n") + JSON.stringify(synced.body);
+    expect(logged).not.toContain(REFRESH);
+    expect(logged).not.toContain(TOKEN);
+  });
+
+  it("retries one GitHub 401 after a refresh and does not refresh again", async () => {
+    await fs.writeFile(path.join(dir, "Notes.mmd"), "flowchart LR\n  A-->B\n");
+    expect((await connect()).status).toBe(200);
+    await writeToken(TOKEN, {
+      refreshToken: REFRESH,
+      expiresIn: 28800,
+      refreshExpiresIn: 15897600,
+      deviceFlow: true,
+    });
+    let refreshes = 0;
+    let repoGets = 0;
+    setGithubFetch(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/login/oauth/access_token")) {
+        refreshes += 1;
+        const body = JSON.parse(String(init?.body)) as Record<string, string>;
+        expect(body.client_secret).toBeUndefined();
+        return jsonResponse(200, {
+          access_token: NEXT,
+          refresh_token: REFRESH_NEXT,
+          expires_in: 28800,
+          refresh_token_expires_in: 15897600,
+          token_type: "bearer",
+        });
+      }
+      repoGets += 1;
+      return jsonResponse(401, { message: "Bad credentials" });
+    });
+    const synced = await request(app).post("/api/sync/now").set(json).send({});
+    expect(refreshes).toBe(1);
+    expect(repoGets).toBe(2);
+    expect(synced.body.error.code).toBe("auth_revoked");
+    expect(synced.body.error.message).toMatch(/Connect again/);
+    const logged = logs.errors.join("\n");
+    expect(logged).not.toContain(NEXT);
+    expect(logged).not.toContain(REFRESH_NEXT);
+  });
 });
+
+const REFRESH = "ghr_OLDREFRESHTOKENVALUE123456789";
+const REFRESH_NEXT = "ghr_NEWREFRESHTOKENVALUE123456789";
+const NEXT = "gho_NEWACCESSTOKENVALUE123456789";
+const CLIENT_SECRET = "oauth-client-secret-value-123456";
 
 async function save(app: ReturnType<typeof makeApp>, filePath: string, content: string) {
   const current = await request(app).get("/api/file").query({ path: filePath }).set("Host", HOST);

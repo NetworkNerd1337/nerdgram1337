@@ -6,9 +6,15 @@ import http from "isomorphic-git/http/node";
 import type { GitHttpRequest } from "isomorphic-git/http/node";
 import { httpFail } from "../storage.js";
 import { BRANCH, githubTimeoutMs } from "./constants.js";
-import { assertCleanRemoteUrl, classifyNetworkError } from "./github.js";
+import {
+  AUTH_FORBIDDEN_MESSAGE,
+  AUTH_REVOKED_MESSAGE,
+  assertCleanRemoteUrl,
+  classifyNetworkError,
+  ensureAccessToken,
+  refreshAfterUnauthorized,
+} from "./github.js";
 import { isBoilerplate, isSyncedFile, listUserFiles } from "./layout.js";
-import { readToken } from "./secrets.js";
 import { rememberSecret, scrubError } from "./redact.js";
 
 const nodeFs = fs;
@@ -16,22 +22,59 @@ const PERSON = { name: "NerdGram1337", email: "nerdgram@localhost" };
 
 const gitHttp = {
   async request(request: GitHttpRequest) {
-    assertCleanRemoteUrl(request.url);
-    const { token } = await readToken();
-    const headers = { ...(request.headers ?? {}) };
-    if (token) {
-      rememberSecret(token);
-      headers.Authorization = `Bearer ${token}`;
-    }
-    const timeout = AbortSignal.timeout(githubTimeoutMs());
-    const signal = request.signal ? AbortSignal.any([request.signal, timeout]) : timeout;
     try {
-      return await http.request({ ...request, headers, signal });
+      return await gitRequest(request, true);
     } catch (err) {
-      throw scrubError(err);
+      throw classifyNetworkError(scrubError(err));
     }
   },
 };
+
+/**
+ * Git smart HTTP on GitHub rejects a Device Flow token sent as Bearer.
+ * Basic `x-access-token:<token>` is the form that git-receive-pack accepts.
+ * The token stays out of the remote URL.
+ */
+export function gitBasicAuthorization(token: string): string {
+  rememberSecret(token);
+  return `Basic ${Buffer.from(`x-access-token:${token}`, "utf8").toString("base64")}`;
+}
+
+async function gitRequest(
+  request: GitHttpRequest,
+  allowRefresh: boolean,
+): Promise<Awaited<ReturnType<typeof http.request>>> {
+  assertCleanRemoteUrl(request.url);
+  const token = await ensureAccessToken();
+  const headers = { ...(request.headers ?? {}) };
+  if (token) headers.Authorization = gitBasicAuthorization(token);
+  const timeout = AbortSignal.timeout(githubTimeoutMs());
+  const signal = request.signal ? AbortSignal.any([request.signal, timeout]) : timeout;
+  const response = await http.request({ ...request, headers, signal });
+  if (response.statusCode === 401 && allowRefresh) {
+    await drainBody(response.body);
+    const next = await refreshAfterUnauthorized();
+    if (next) return gitRequest(request, false);
+  }
+  if (response.statusCode === 401 || response.statusCode === 403) {
+    await drainBody(response.body);
+    throw response.statusCode === 401
+      ? httpFail(401, AUTH_REVOKED_MESSAGE, "auth_revoked")
+      : httpFail(403, AUTH_FORBIDDEN_MESSAGE, "auth_revoked");
+  }
+  return response;
+}
+
+async function drainBody(body: AsyncIterable<Uint8Array> | undefined): Promise<void> {
+  if (!body) return;
+  try {
+    for await (const _chunk of body) {
+      /* discard */
+    }
+  } catch {
+    /* The status is what the caller needs. */
+  }
+}
 
 export async function initMirror(dir: string, remoteUrl: string): Promise<void> {
   assertCleanRemoteUrl(remoteUrl);
@@ -265,10 +308,9 @@ export async function listHeadFiles(dir: string): Promise<string[]> {
 }
 
 async function authHeaders(): Promise<Record<string, string>> {
-  const { token } = await readToken();
+  const token = await ensureAccessToken();
   if (!token) return {};
-  rememberSecret(token);
-  return { Authorization: `Bearer ${token}` };
+  return { Authorization: gitBasicAuthorization(token) };
 }
 
 function mirrorFile(dir: string, relativePath: string): string {

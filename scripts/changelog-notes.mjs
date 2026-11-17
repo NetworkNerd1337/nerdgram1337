@@ -19,6 +19,20 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HEADING =
   /^## (?:\[((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))\]|((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)))(?:\s+"([A-Z][A-Za-z0-9]{1,31})")?(?:\s+-\s+(\d{4}-\d{2}-\d{2}))?\s*$/;
 
+/** Shown under `## Unreleased` when nothing is waiting for the next release. */
+export const UNRELEASED_PLACEHOLDER = "_No unreleased items._";
+
+/**
+ * Drop the empty-state line. It is a placeholder, not release notes.
+ * @param {string} body
+ */
+export function meaningfulChangelogBody(body) {
+  const kept = String(body)
+    .split(/\r?\n/)
+    .filter((line) => line.trim() !== UNRELEASED_PLACEHOLDER);
+  return kept.join("\n").trim();
+}
+
 /**
  * @param {string} markdown
  * @param {string} version
@@ -32,7 +46,7 @@ export function findChangelogSection(markdown, version) {
     if (!match) continue;
     const found = match[1] || match[2];
     if (found !== version) continue;
-    const body = part.split(/\r?\n/).slice(1).join("\n").trim();
+    const body = meaningfulChangelogBody(part.split(/\r?\n/).slice(1).join("\n"));
     return {
       heading: first,
       version: found,
@@ -42,6 +56,72 @@ export function findChangelogSection(markdown, version) {
     };
   }
   return null;
+}
+
+/**
+ * @param {string} markdown
+ * @returns {{ raw: string } | null}
+ */
+export function findUnreleased(markdown) {
+  const parts = String(markdown).replace(/\r\n/g, "\n").split(/\n(?=## )/);
+  for (const part of parts) {
+    const heading = (part.split("\n", 1)[0] ?? "").trim();
+    if (heading !== "## Unreleased") continue;
+    return { raw: part.split("\n").slice(1).join("\n").trim() };
+  }
+  return null;
+}
+
+/**
+ * @param {string} markdown
+ * @returns {string | null} A problem sentence, or null when Unreleased is usable.
+ */
+export function unreleasedProblem(markdown) {
+  const section = findUnreleased(markdown);
+  if (!section) return "CHANGELOG.md needs an ## Unreleased section before the numbered releases.";
+  const raw = section.raw.trim();
+  if (!meaningfulChangelogBody(raw) && raw !== UNRELEASED_PLACEHOLDER) {
+    return `CHANGELOG.md Unreleased is empty. When nothing is pending, that section is ${UNRELEASED_PLACEHOLDER}.`;
+  }
+  return null;
+}
+
+/**
+ * Move pending Unreleased notes into this version when that heading is not
+ * there yet, then leave Unreleased as the empty-state line. Notes that do
+ * not belong to an existing version section stay where they are.
+ *
+ * @param {string} markdown
+ * @param {{ version: string, codename: string, date: string }} release
+ */
+export function cutChangelogRelease(markdown, release) {
+  const original = String(markdown).replace(/\r\n/g, "\n");
+  const parts = original.split(/\n(?=## )/);
+  let index = parts.findIndex((part) => (part.split("\n", 1)[0] ?? "").trim() === "## Unreleased");
+  if (index < 0) {
+    const block = `## Unreleased\n\n${UNRELEASED_PLACEHOLDER}\n`;
+    if (parts.length === 1 && !original.includes("\n## ")) {
+      const preamble = original.replace(/\s*$/, "");
+      return `${preamble}\n\n${block}`;
+    }
+    parts.splice(1, 0, block);
+    return `${parts.join("\n").replace(/\s*$/, "")}\n`;
+  }
+  const raw = parts[index].split("\n").slice(1).join("\n").trim();
+  const notes = meaningfulChangelogBody(raw);
+  const existing = findChangelogSection(original, release.version);
+  const sameAsRelease = Boolean(existing && notes && notes === meaningfulChangelogBody(existing.body));
+  if (!existing && notes) {
+    parts[index] = `## Unreleased\n\n${UNRELEASED_PLACEHOLDER}\n`;
+    parts.splice(index + 1, 0, `## ${release.version} "${release.codename}" - ${release.date}\n\n${notes}\n`);
+    return `${parts.join("\n").replace(/\s*$/, "")}\n`;
+  }
+  if (!notes || sameAsRelease) {
+    if (raw === UNRELEASED_PLACEHOLDER) return original.endsWith("\n") ? original : `${original}\n`;
+    parts[index] = `## Unreleased\n\n${UNRELEASED_PLACEHOLDER}\n`;
+    return `${parts.join("\n").replace(/\s*$/, "")}\n`;
+  }
+  return original.endsWith("\n") ? original : `${original}\n`;
 }
 
 /**

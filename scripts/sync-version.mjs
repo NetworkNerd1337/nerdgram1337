@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { currentCodename } from "./codenames.mjs";
+import { cutChangelogRelease } from "./changelog-notes.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const current = currentCodename(root);
@@ -77,6 +78,15 @@ for (const file of ["package-lock.json", "client/package-lock.json", "server/pac
     process.exit(1);
   }
   writeFileSync(full, next);
+}
+
+const changelogPath = join(root, "CHANGELOG.md");
+const changelog = readFileSync(changelogPath, "utf8");
+const date = new Date().toISOString().slice(0, 10);
+const nextChangelog = cutChangelogRelease(changelog, { version: rootVersion, codename, date });
+if (nextChangelog !== changelog.replace(/\r\n/g, "\n") && nextChangelog !== changelog) {
+  writeFileSync(changelogPath, nextChangelog);
+  console.log(`CHANGELOG.md Unreleased set for ${rootVersion}`);
 }
 
 console.log(`Dockerfile, compose.yaml, compose.build.yaml, and lockfiles -> ${rootVersion} "${codename}"`);

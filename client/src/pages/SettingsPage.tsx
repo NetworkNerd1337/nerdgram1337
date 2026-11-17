@@ -15,6 +15,7 @@ import { LintSettings } from "../components/LintSettings";
 import { TokenSettings } from "../components/TokenSettings";
 import { UpdateSettingsFields } from "../components/UpdateHost";
 import type { SyncStatus } from "../types";
+import { githubSyncStatusCopy } from "../lib/githubSyncStatus";
 
 const DOCS = "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/github-sync.md";
 
@@ -57,7 +58,7 @@ export function SettingsPage() {
       const next = await api.syncStatus();
       setStatus(next);
       setClientId((current) => current || next.clientId || "");
-      if (next.error && next.enabled) setError(next.error.message);
+      if (next.error) setError(next.error.message);
     } catch (err) {
       setError(messageOf(err));
     }
@@ -96,6 +97,7 @@ export function SettingsPage() {
   const docs = status?.docsUrl || status?.error?.docsUrl || DOCS;
   const idleSeconds = Math.round((status?.idleMs ?? 20_000) / 1000);
   const needsConfirm = error?.includes("already has commits") || confirmNonEmpty;
+  const syncCopy = status ? githubSyncStatusCopy(status) : null;
 
   return (
     <div className="reference-layout settings-screen">
@@ -134,20 +136,99 @@ export function SettingsPage() {
       <main className="sync-page">
         <AppearanceSettings />
         <section className="sync-card" id="github-sync">
+          <h2>GitHub sync</h2>
           <p>
-            NerdGram does not ship a GitHub app or a client secret. You register an OAuth app
-            in your own GitHub account, enable Device flow, and paste its client ID here.
-            The app asks for the <code>repo</code> scope so it can create one private
-            repository and read and write that repository's contents. Favorites, trash,
-            history, thumbnails, and the token stay on this computer.
+            GitHub sync keeps a private repository you own as a backup of the diagrams on this
+            computer. You keep editing the local copies.
           </p>
+          {syncCopy ? (
+            <p className="sync-status" data-state={syncCopy.state} data-testid="github-sync-status">
+              <span className="sync-status-label">{syncCopy.label}</span>
+              {syncCopy.detail ? <span>{syncCopy.detail}</span> : null}
+            </p>
+          ) : null}
+          {status?.clientId ? (
+            <p>
+              Saved client ID: <code>{status.clientId}</code>. This is not a secret.
+              {status.clientIdSource === "env"
+                ? " It comes from NERDGRAM_GITHUB_CLIENT_ID."
+                : " No client secret is needed."}
+            </p>
+          ) : (
+            <p>No client secret is needed. NerdGram does not ship one, and this page does not ask for one.</p>
+          )}
+          {!status?.tokenSource && !status?.device ? (
+            <>
+              <ol className="sync-steps">
+                <li>
+                  Create an OAuth app. Use{" "}
+                  <a href="https://github.com/settings/applications/new">GitHub's new OAuth app page</a>.
+                  Homepage URL and callback URL can both be <code>http://127.0.0.1:8787</code>.
+                </li>
+                <li>Turn on Device Flow.</li>
+                <li>
+                  Uncheck <strong>Expire user access tokens</strong>. GitHub turns this on for a new app.
+                  Leave it unchecked so the sign-in does not expire after about 8 hours. If you leave it
+                  on, NerdGram refreshes a Device Flow sign-in. If it cannot refresh, connect again.
+                </li>
+                <li>Paste the Client ID below.</li>
+              </ol>
+              <p>
+                <a href={docs}>Full setup steps</a>
+              </p>
+              <label htmlFor="github-client-id">Client ID</label>
+              <input
+                id="github-client-id"
+                value={clientId}
+                onChange={(event) => setClientId(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Paste the Client ID from your OAuth app"
+              />
+              <p>Leave the box empty and save to clear a client ID stored on this computer.</p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy || (clientId.trim().length > 0 && clientId.trim().length < 8)}
+                  onClick={() =>
+                    void run(async () => {
+                      const trimmed = clientId.trim();
+                      const next = await api.saveGithubClientId(trimmed);
+                      setClientId(trimmed);
+                      setNotice(
+                        trimmed
+                          ? "Client ID saved on this computer."
+                          : next.clientIdSource === "env"
+                            ? "The saved client ID was cleared. NERDGRAM_GITHUB_CLIENT_ID is still set."
+                            : "Client ID cleared.",
+                      );
+                    })
+                  }
+                >
+                  Save client ID
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={busy || clientId.trim().length < 8}
+                  onClick={() =>
+                    void run(async () => {
+                      await api.saveGithubClientId(clientId.trim());
+                      await api.startGithubDevice();
+                    })
+                  }
+                >
+                  Connect to GitHub
+                </button>
+              </div>
+            </>
+          ) : null}
           <p>
-            Typing is saved locally right away. GitHub commits wait until the workspace has
-            been idle for {idleSeconds} seconds, so autosave does not create a commit per
-            keystroke. Renames, moves, deletes, and imports commit after about a second.
-          </p>
-          <p>
-            <a href={docs}>Setup steps</a>
+            Typing is saved locally right away. GitHub commits wait until the workspace has been idle
+            for {idleSeconds} seconds, so autosave does not create a commit per keystroke. Renames,
+            moves, deletes, and imports commit after about a second. Favorites, trash, history,
+            thumbnails, and the token stay on this computer.
           </p>
         </section>
 
@@ -162,58 +243,6 @@ export function SettingsPage() {
               enter this code. NerdGram never sends the code to the page as a token.
             </p>
             <p className="sync-code">{status.device.userCode}</p>
-          </section>
-        ) : null}
-
-        {!status?.tokenSource && !status?.device ? (
-          <section className="sync-card">
-            <h2>Your OAuth app</h2>
-            <label htmlFor="github-client-id">Client ID</label>
-            <input
-              id="github-client-id"
-              value={clientId}
-              onChange={(event) => setClientId(event.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="Iv1.…"
-            />
-            <p>Leave the box empty and save to clear a client ID stored on this computer.</p>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={busy || (clientId.trim().length > 0 && clientId.trim().length < 8)}
-                onClick={() =>
-                  void run(async () => {
-                    const trimmed = clientId.trim();
-                    const next = await api.saveGithubClientId(trimmed);
-                    setClientId(trimmed);
-                    setNotice(
-                      trimmed
-                        ? "Client ID saved on this computer."
-                        : next.clientIdSource === "env"
-                          ? "The saved client ID was cleared. NERDGRAM_GITHUB_CLIENT_ID is still set."
-                          : "Client ID cleared.",
-                    );
-                  })
-                }
-              >
-                Save client ID
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={busy || clientId.trim().length < 8}
-                onClick={() =>
-                  void run(async () => {
-                    await api.saveGithubClientId(clientId.trim());
-                    await api.startGithubDevice();
-                  })
-                }
-              >
-                Connect to GitHub
-              </button>
-            </div>
           </section>
         ) : null}
 

@@ -23,6 +23,7 @@ import {
   watchEnabled,
 } from "./constants.js";
 import {
+  authorizationBlock,
   classifyNetworkError,
   createUserRepo,
   getAuthenticatedUser,
@@ -30,12 +31,13 @@ import {
   pollDeviceToken,
   repoIsEmpty,
   requestDeviceCode,
+  resetTokenRefreshForTests,
   revokeGrant,
   setDefaultBranch,
   setGithubFetch,
   type GithubRepo,
 } from "./github.js";
-import { clearRememberedSecrets } from "./redact.js";
+import { clearRememberedSecrets, redactText } from "./redact.js";
 import {
   configPath,
   conflictsPath,
@@ -202,6 +204,7 @@ export async function resetSyncForTests(): Promise<void> {
   stopLoops();
   clearRememberedSecrets();
   setGithubFetch(null);
+  resetTokenRefreshForTests();
   chain = Promise.resolve();
 }
 
@@ -288,7 +291,25 @@ export async function connectRepo(input: {
   confirmNonEmpty?: boolean;
 }): Promise<SyncStatus> {
   return exclusive(async () => {
-    const config = await loadConfig();
+    try {
+      return await connectRepoBody(input);
+    } catch (err) {
+      const failure = asFailure(err);
+      if (failure.code !== "repo_not_empty") {
+        memoryError = failure;
+        logSyncFailure(failure);
+      }
+      throw err;
+    }
+  });
+}
+
+async function connectRepoBody(input: {
+  name?: string;
+  private?: boolean;
+  confirmNonEmpty?: boolean;
+}): Promise<SyncStatus> {
+  const config = await loadConfig();
     const name = assertRepoName(input.name?.trim() || DEFAULT_REPO_NAME);
     const isPrivate = input.private !== false;
     const auth = await requireToken();
@@ -368,7 +389,6 @@ export async function connectRepo(input: {
     memoryError = null;
     ensureLoops();
     return publicStatus();
-  });
 }
 
 export async function syncNow(): Promise<SyncStatus> {
@@ -527,7 +547,7 @@ async function pushLocal(config: SyncConfig, push: boolean): Promise<void> {
     const head = await headOid(mirror);
     config.ahead = head && head !== config.lastPushedOid ? 1 : 0;
     await saveConfig(config);
-    console.error(`GitHub sync: ${failure.code}`);
+    logSyncFailure(failure);
     return;
   }
   const compared = await compare(mirror);
@@ -542,7 +562,7 @@ async function pushLocal(config: SyncConfig, push: boolean): Promise<void> {
         "not_fast_forward",
       ),
     );
-    console.error("GitHub sync: not_fast_forward");
+    logSyncFailure(memoryError);
     return;
   }
   await pushIfForward(config);
@@ -555,7 +575,7 @@ async function pullLocked(config: SyncConfig): Promise<void> {
     await fetchRemote(mirror);
   } catch (err) {
     memoryError = asFailure(err);
-    console.error(`GitHub sync: ${memoryError.code}`);
+    logSyncFailure(memoryError);
     return;
   }
   const compared = await compare(mirror);
@@ -615,7 +635,7 @@ async function pushIfForward(config: SyncConfig): Promise<void> {
     compared = await compare(mirror);
   } catch (err) {
     memoryError = asFailure(err);
-    console.error(`GitHub sync: ${memoryError.code}`);
+    logSyncFailure(memoryError);
     await saveConfig(config);
     return;
   }
@@ -630,7 +650,7 @@ async function pushIfForward(config: SyncConfig): Promise<void> {
       ),
     );
     await saveConfig(config);
-    console.error("GitHub sync: not_fast_forward");
+    logSyncFailure(memoryError);
     return;
   }
   const head = await headOid(mirror);
@@ -648,7 +668,7 @@ async function pushIfForward(config: SyncConfig): Promise<void> {
   } catch (err) {
     memoryError = asFailure(err);
     await saveConfig(config);
-    console.error(`GitHub sync: ${memoryError.code}`);
+    logSyncFailure(memoryError);
     return;
   }
   const pushed = await headOid(mirror);
@@ -793,6 +813,7 @@ async function publicStatus(): Promise<SyncStatus> {
           expiresAt: new Date(device.expiresAt).toISOString(),
         }
       : null;
+  const blocked = memoryError || (device?.phase === "error" && device.error) ? null : await authorizationBlock();
   const error = device?.phase === "error" && device.error
     ? {
         code: device.error.code,
@@ -801,7 +822,9 @@ async function publicStatus(): Promise<SyncStatus> {
       }
     : memoryError
       ? { code: memoryError.code, message: memoryError.message, docsUrl: memoryError.docsUrl }
-      : null;
+      : blocked
+        ? { code: blocked.code, message: blocked.message, docsUrl: SYNC_DOCS_URL }
+        : null;
   return {
     enabled: config.enabled,
     login: config.login,
@@ -905,11 +928,18 @@ function assertRepoName(value: string): string {
   return value;
 }
 
+function logSyncFailure(failure: Failure): void {
+  const message = redactText(failure.message).replace(/\s+/g, " ").trim();
+  console.error(`GitHub sync: ${failure.code} ${message}`);
+}
+
 function asFailure(err: unknown): Failure {
   if (err && typeof err === "object" && "status" in err && "code" in err && err instanceof Error) {
     const code = String((err as { code: string }).code);
     const docs =
-      code === "invalid_client" || code === "device_flow_disabled" || code === "repo_not_empty" ? SYNC_DOCS_URL : undefined;
+      code === "invalid_client" || code === "device_flow_disabled" || code === "repo_not_empty" || code === "auth_expired"
+        ? SYNC_DOCS_URL
+        : undefined;
     return {
       code,
       message: err.message,
@@ -993,7 +1023,7 @@ function schedule(ms: number): void {
     timer = null;
     void syncNow().catch((err) => {
       memoryError = asFailure(err);
-      console.error(`GitHub sync: ${memoryError.code}`);
+      logSyncFailure(memoryError);
     });
   }, ms);
   timer.unref?.();
@@ -1028,6 +1058,7 @@ function ensureLoops(): void {
     reconcileTimer = setInterval(() => {
       void syncNow().catch((err) => {
         memoryError = asFailure(err);
+        logSyncFailure(memoryError);
       });
     }, reconcileEvery);
     reconcileTimer.unref?.();
@@ -1038,6 +1069,7 @@ function ensureLoops(): void {
       if (memoryError?.code !== "offline") return;
       void syncNow().catch((err) => {
         memoryError = asFailure(err);
+        logSyncFailure(memoryError);
       });
     }, retryEvery);
     retryTimer.unref?.();
@@ -1094,7 +1126,12 @@ async function pollDevice(generation: number): Promise<void> {
         continue;
       }
       if (result.status === "success") {
-        await writeToken(result.token);
+        await writeToken(result.token, {
+          refreshToken: result.refreshToken,
+          expiresIn: result.expiresIn,
+          refreshExpiresIn: result.refreshExpiresIn,
+          deviceFlow: true,
+        });
         const user = await getAuthenticatedUser(result.token);
         const config = await loadConfig();
         config.login = user.login;

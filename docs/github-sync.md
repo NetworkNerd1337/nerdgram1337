@@ -33,7 +33,10 @@ Connected sync resumes when the server starts again.
 3. **Homepage URL:** `http://127.0.0.1:8787`
 4. **Authorization callback URL:** `http://127.0.0.1:8787` (Device flow does not open this URL. GitHub's form still requires one.)
 5. Register the app, then open it and enable **Device flow**.
-6. Copy the **Client ID**. Leave the client secret unused. Do not commit it or put it in the NerdGram image.
+6. Uncheck **Expire user access tokens**. GitHub turns this on for a new OAuth app. Leave it unchecked so the sign-in does not expire.
+7. Copy the **Client ID**. You do not need the client secret for Device flow. Do not commit a client secret or put one in the NerdGram image.
+
+If **Expire user access tokens** stays checked, GitHub issues an access token that lasts about 8 hours and a refresh token. NerdGram stores the access token, the refresh token, and both expiry times in `<data>/.meta/github-token` with mode `0600`. They are not written to `github-sync.json`. [GitHub's OAuth app documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#refreshing-an-access-token-with-a-refresh-token) says the refresh grant needs `client_secret` unless the token was created with the device flow. NerdGram signs in with the device flow, so it refreshes that token without a client secret. It refreshes before the access token expires, and one more time after a GitHub 401. A refresh token that did not come from the device flow is refreshed only when `NERDGRAM_GITHUB_CLIENT_SECRET` is set. Otherwise NerdGram stops and the status says the authorization expired and to connect again. A failed refresh does the same. Unchecking the box avoids that.
 
 The Device flow requests the `repo` scope. That is the smallest classic OAuth scope that can create a private repository and read and write its contents. It is broader than a single-file permission because GitHub does not offer a contents-only OAuth scope that can also create the repository.
 
@@ -51,13 +54,14 @@ Leave the client ID box empty and choose **Save client ID** to clear a client ID
 
 | What | Where |
 | --- | --- |
-| Access token | `<data>/.meta/github-token`, mode `0600`, or `NERDGRAM_GITHUB_TOKEN` if that variable is set. The variable is not copied into the file. |
+| Access token | `<data>/.meta/github-token`, mode `0600`, or `NERDGRAM_GITHUB_TOKEN` if that variable is set. The variable is not copied into the file. An older file is the token on one line. A newer file is JSON in the same path when GitHub also returned a refresh token. |
+| Refresh token and expiry times | The same `github-token` file, mode `0600`. Never `github-sync.json`. |
 | Sync settings (account, repository URL, no token) | `<data>/.meta/github-sync.json`, mode `0600` |
 | Git working copy | `<data>/.nerdgram-git` (hidden; the app cannot open it as a diagram) |
 
-The token is not returned to the browser, not written into the git remote URL or `.git/config`, not put in a commit, and not written to the log. Git pushes send it only as an `Authorization` header for that request. Update checks do not use this token. GitHub sync and update checks both call GitHub from the NerdGram process. In Docker that process is inside the container. A proxy that re-signs HTTPS is [Corporate TLS inspection](troubleshooting.md#corporate-tls-inspection).
+The token is not returned to the browser, not written into the git remote URL or `.git/config`, not put in a commit, and not written to the log. Git pushes send it as HTTP Basic, username `x-access-token` and password the access token. The REST API sends it as `Authorization: Bearer`. Neither request puts the token in the URL. Update checks do not use this token. GitHub sync and update checks both call GitHub from the NerdGram process. In Docker that process is inside the container. A proxy that re-signs HTTPS is [Corporate TLS inspection](troubleshooting.md#corporate-tls-inspection).
 
-`NERDGRAM_GITHUB_CLIENT_SECRET` is read from the environment only, never stored, and is used solely to revoke the OAuth grant on disconnect. Without it, disconnect still deletes the local token. Revoke the grant yourself at [GitHub → Settings → Applications](https://github.com/settings/apps/authorizations). Delete the OAuth app from Developer settings when you want the app registration gone too. Disconnect does not delete the repository.
+`NERDGRAM_GITHUB_CLIENT_SECRET` is read from the environment only and is never stored. When it is set, NerdGram uses it to revoke the OAuth grant on disconnect, and sends it with a refresh for a token that did not come from the device flow. Device flow refresh does not need it. Without the secret, disconnect still deletes the local token. Revoke the grant yourself at [GitHub → Settings → Applications](https://github.com/settings/apps/authorizations). Delete the OAuth app from Developer settings when you want the app registration gone too. Disconnect does not delete the repository.
 
 **4. Disconnect**
 
