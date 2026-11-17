@@ -18,6 +18,7 @@ The planned work after v1.4.7 Atlas, still on the Atlas line.
 - [1.8.0 Design exports](#180-design-exports)
 - [1.8.5 Additional exports](#185-additional-exports)
 - [Later ideas](#later-ideas)
+- [Future ideas (not committed)](#future-ideas-not-committed)
 
 Progress is tracked in [GitHub milestones](https://github.com/NetworkNerd1337/NerdGram1337/milestones).
 
@@ -382,6 +383,18 @@ These are not scheduled and are not part of 1.5.0 through 1.8.5. They are sugges
 
 - Once convert exists, a docs page of "produce this file" examples can also show NAPALM or Genie snippets as caller-side scripts, still not bundled, the same way [Generate from data](generate-from-data.md) already describes those tools today.
 - A `convert --source auto` that detects NetBox vs LibreNMS vs canonical JSON would be useful, but it is not required for 1.7.0. Detection can wait until two mappers are solid.
+
+## Future ideas (not committed)
+
+These are possibilities being floated for after the planned milestones. They are not scheduled or promised, and they may never happen.
+
+### Mobile companion app with GitHub sync
+
+A separate mobile app, for a phone or a tablet, connects directly to a user's GitHub repository of Mermaid diagrams. It lets them view and lightly edit those diagrams there: code-first editing with a live preview, pinch zoom, and present. It works with diagrams made by NerdGram or by any other Mermaid editor.
+
+GitHub is the sync layer. There is no NerdGram cloud service, no on-prem-to-mobile sync, and no change to NerdGram's local, `127.0.0.1`, no-auth model. The desktop app stays exactly as it is. A standalone mobile app without file sync would create drift between copies. GitHub already provides the shared copy.
+
+This is only after the current roadmap is done and the product is mature.
 
 ## See also
 
