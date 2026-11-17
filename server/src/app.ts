@@ -32,6 +32,7 @@ import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram } 
 import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
 import { lintWorkspaceFiles } from "./workspaceLint.js";
+import { listWorkspaceTags } from "./tags.js";
 import { registerTokenRoutes } from "./tokens.js";
 import { mountAutomationApi } from "./v1.js";
 import type { RateLimit } from "./renderDiagram.js";
@@ -343,6 +344,15 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     try {
       const diagrams = await store.listDiagramMeta();
       res.json({ diagrams });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.get("/api/tags", async (_req, res) => {
+    try {
+      const tags = await listWorkspaceTags();
+      res.json({ tags });
     } catch (err) {
       sendError(res, err);
     }

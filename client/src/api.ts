@@ -175,6 +175,7 @@ export const api = {
       body: JSON.stringify({ path, cacheKey, svg }),
     }),
   diagramMeta: () => request<{ diagrams: DiagramMeta[] }>("/api/diagram-meta"),
+  tags: () => request<{ tags: { tag: string; count: number }[] }>("/api/tags"),
   lintSource: (source: string, diagramPaths?: string[], sourcePath?: string) =>
     request<{ diagnostics: LintDiagnostic[] }>("/api/lint", {
       method: "POST",

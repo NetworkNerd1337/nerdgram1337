@@ -11,6 +11,7 @@ import { DataFileDialog } from "../components/DataFileDialog";
 import { DiagramChecks } from "../components/DiagramChecks";
 import { DiagramLintProvider, useSharedDiagramLint } from "../components/DiagramLintProvider";
 import { FileNameField } from "../components/FileNameField";
+import { TagCombobox } from "../components/TagCombobox";
 import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
 import { Sidebar } from "../components/Sidebar";
@@ -39,6 +40,7 @@ import { openWorkspaceReplace, setWorkspaceReplaceFolder } from "../lib/workspac
 import { diagramCardLabel, folderCountLabel } from "../lib/diagramLabel";
 import { nearestExistingFolder } from "../lib/editorBreadcrumb";
 import { attentionRows } from "../lib/attention";
+import type { TagCount } from "../lib/tagSuggestions";
 import { fileNameIssue, sanitizeFileStem } from "../lib/fileName";
 import {
   basename,
@@ -145,6 +147,7 @@ export function DashboardPage() {
   } | null>(null);
   const [diagramMeta, setDiagramMeta] = useState<DiagramMeta[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [tagCatalog, setTagCatalog] = useState<TagCount[]>([]);
   const [moveTarget, setMoveTarget] = useState<{ path: string; isFolder: boolean } | null>(null);
   const [importDrafts, setImportDrafts] = useState<ImportDraft[] | null>(null);
   const [importFolder, setImportFolder] = useState("");
@@ -236,6 +239,21 @@ export function DashboardPage() {
     walk(tree);
     return items;
   }, [tree, metaByPath]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.tags().then(
+      (result) => {
+        if (!cancelled) setTagCatalog(result.tags);
+      },
+      () => {
+        if (!cancelled) setTagCatalog([]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [revision]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -942,8 +960,16 @@ export function DashboardPage() {
         </div>
 
         {loading ? <p>Loading workspace…</p> : null}
-        {!showTrash && !showAttention && allTags.length > 0 && (
+        {!showTrash && !showAttention && (allTags.length > 0 || tagCatalog.length > 0) && (
           <div className="tag-filter" role="group" aria-label="Filter by tag">
+            <TagCombobox
+              catalog={tagCatalog}
+              exclude={tagFilter}
+              allowCreate={false}
+              label="Filter by tag"
+              placeholder="Filter by tag"
+              onAdd={toggleTag}
+            />
             <button
               type="button"
               className={tagFilter.length === 0 ? "active" : ""}
