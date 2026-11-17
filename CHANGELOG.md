@@ -4,6 +4,57 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+## 1.4.7 "Atlas" - 2026-11-17
+
+Patch on the Atlas line. The code name stays Atlas. Exports use the diagram theme and background. Favorites are Bookmarks, and the sidebar opens with Your space. The template gallery is grouped by category. Create flows ask for a file name, and Diagram info suggests tags already used in the workspace.
+
+### Themed exports, the syntax reference, and bookmarks
+
+From #112 (#107).
+
+- SVG, PNG, JPG, and PDF exports use the diagram's theme and background, the same colors as the editor. PNG can still be saved transparent from the export menu.
+- SVG and PDF are drawn again with SVG text labels, so flowchart words are in the file and not only in an HTML label. If that PDF cannot be built, the PDF is the same picture as the PNG.
+- **Open Syntax Reference Library** opens the syntax reference in a new tab. The dashboard or editor stays where it was.
+- Favorites are Bookmarks. An older list in `.meta/favorites.json` is kept. Bookmarks can sit in folders. **Move up** and **Move down** reorder a bookmark among the others in the same folder, and the same buttons reorder folders. **Manage** opens the bookmarks settings. A bookmark whose file is gone is marked **Missing** and can be removed. Deleting a bookmark folder keeps the bookmarks and moves them to the top level.
+
+### Template gallery
+
+From #112 (#108).
+
+- The gallery is one section per category, in this order: Network, Software, Internet & Cloud, Security, OT & Industrial, Data Center, Operations & Planning, then User created. Every category is shown, including one with no templates. An empty section says **No templates here yet.** User created also says to open a diagram and choose **Create as template**.
+- Shipped templates stay read-only. They have no Edit, Rename, or Delete. A request to change a shipped template answers **403**.
+- **Create as template** saves a copy of the open diagram under User created, in the data directory's `.templates` folder. The original diagram is not changed. The category is always User created.
+
+### File names and refreshing diagram checks
+
+From #112 (#109).
+
+- **New diagram**, **Paste Mermaid**, **From data**, and **Use template** ask for a **File name** before the `.mmd` file is written. An empty name is not saved as `Untitled.mmd`.
+- Click the file name in the editor header, or run **Rename file** from the command palette, to rename the file in place. That does not change the front matter title, and renaming the title does not rename the file.
+- Diagram checks and **Needs attention** share one workspace check. Moving a diagram to Trash, restoring it, deleting it, renaming it, or creating one runs that check again. It does not poll.
+
+### Your space
+
+From #112 (#110).
+
+- **Your space** in the sidebar is, from top to bottom, Dashboard, Recent, Bookmarks, Needs attention, Trash, then the folder tree.
+- Recent is the last 10 diagrams opened in this browser. It is stored in the browser, not on the server. A rename or move keeps the row. A deleted or trashed diagram drops off. **Clear** empties the list.
+- Needs attention opens a dashboard list of diagrams with check problems, broken links, or files that could not be read. The count is hidden when nothing needs attention.
+
+### Subgraph ids in diagram checks
+
+From #112 (#111).
+
+- A link to a subgraph id is not flagged as an unlabeled endpoint. That includes `subgraph ID`, `subgraph ID["Label"]`, `subgraph "Title only"`, and a subgraph inside another.
+- A real typo still warns. A case-only mismatch, such as `SouthBound` against `Southbound`, still warns, and the message names the closest id when there is one.
+
+### Tag autocomplete
+
+From #112 (#113).
+
+- The tag field in **Diagram info** suggests tags already used in the workspace, from `GET /api/tags`. Each row is a stored spelling and how many diagrams use it. Trash is left out. The dashboard tag filter uses the same list.
+- A prefix match comes before a match later in the word, and a more-used tag comes before a rarer one. If you type a different case of a tag that already exists, that existing spelling is offered first.
+
 ## 1.4.6 "Atlas" - 2026-11-17
 
 Patch on the Atlas line. The code name stays Atlas. A new token is shown with Copy, and revoked tokens can be deleted. The editor breadcrumb ends in the file name and returns to that diagram's folder. Cards and the header lead with the file name, and Diagram info is one button.

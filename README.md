@@ -30,10 +30,10 @@ The full install is in [Install](docs/install.md).
 
 ### Docker
 
-The command uses `v1.4.6`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)).
+The command uses `v1.4.7`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)).
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v1.4.6
+docker pull ghcr.io/networknerd1337/nerdgram1337:v1.4.7
 ```
 
 ```bash
@@ -44,7 +44,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v1.4.6
+  ghcr.io/networknerd1337/nerdgram1337:v1.4.7
 ```
 
 Open [http://127.0.0.1:8787](http://127.0.0.1:8787) or [http://localhost:8787](http://localhost:8787).
@@ -122,7 +122,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Data and backups](docs/data-and-backups.md).** By default, diagrams live in `diagrams/` inside the project.
 - **[Upgrading](docs/upgrading.md).** Stop the app before you replace it.
 - **[Versioning and releases](docs/releases.md).** Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix.
-- **[Roadmap](docs/roadmap.md).** Planned work after v1.4.6, still on the Atlas line.
+- **[Roadmap](docs/roadmap.md).** Planned work after v1.4.7, still on the Atlas line.
 - **[Troubleshooting](docs/troubleshooting.md).** If the API port is taken, the server exits and prints the listen error.
 - **[Developing](docs/developing.md).** The project folders, the npm scripts, and what CI runs.
 
