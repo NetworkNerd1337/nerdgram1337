@@ -77,7 +77,15 @@ export async function saveConfig(config: SyncConfig): Promise<void> {
 }
 
 function configContainsSecret(body: string): boolean {
-  return /"(token|access_token|device_code|client_secret)"\s*:/i.test(body) || /ghp_[A-Za-z0-9]/.test(body);
+  return (
+    /"(token|access_token|refresh_token|accessToken|refreshToken|device_code|client_secret)"\s*:/i.test(body) ||
+    /ghp_[A-Za-z0-9]/.test(body) ||
+    /gho_[A-Za-z0-9]/.test(body) ||
+    /ghu_[A-Za-z0-9]/.test(body) ||
+    /ghs_[A-Za-z0-9]/.test(body) ||
+    /ghr_[A-Za-z0-9]/.test(body) ||
+    /github_pat_[A-Za-z0-9_]/.test(body)
+  );
 }
 
 export function clientIdOf(config: SyncConfig): { id: string | null; source: "env" | "config" | null } {

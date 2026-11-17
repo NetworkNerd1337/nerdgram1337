@@ -35,7 +35,7 @@ NerdGram1337/                  (or NerdGram1337-main/ from the ZIP)
 | `npm test` | Server Vitest, then client Vitest. |
 | `npm run lint` | Oxlint in `client/`. |
 | `npm run version:check` | Versions, the `nerdgram1337` package name, Dockerfile, compose.yaml, the README, and the docs. |
-| `npm run version:sync` | Copy the root version into the client, server, cli, Dockerfile, compose.yaml, and compose.build.yaml. |
+| `npm run version:sync` | Copy the root version into the client, server, cli, Dockerfile, compose.yaml, and compose.build.yaml. When Unreleased has notes and this version has no changelog section yet, move those notes into the new section and set Unreleased to `_No unreleased items._`. |
 | `npm run sync:reference` | Refresh the offline syntax mirror. |
 
 Server tests set `fileParallelism: false` in `server/vitest.config.ts` because they share `NERDGRAM_DATA_DIR`. Client tests set the same flag in `client/vite.config.ts`. Client lint is oxlint. `react/rules-of-hooks` is an error. The current tree also reports known warnings: `react(set-state-in-effect)` in the workspace, editor, settings, and reference pages, and `eslint(no-useless-escape)` in the Mermaid completion pattern. `react/only-export-components` is set to warn in `client/.oxlintrc.json`.

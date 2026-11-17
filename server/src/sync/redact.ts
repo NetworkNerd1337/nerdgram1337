@@ -27,7 +27,9 @@ export function redactText(input: string): string {
   for (const pattern of TOKEN_SHAPES) out = out.replace(pattern, "[redacted]");
   out = out.replace(/Bearer\s+\S+/gi, "Bearer [redacted]");
   out = out.replace(/Basic\s+[A-Za-z0-9+/=]+/gi, "Basic [redacted]");
+  out = out.replace(/x-access-token:[^\s"']+/gi, "x-access-token:[redacted]");
   out = out.replace(/access_token["']?\s*[:=]\s*["']?[^"'\s&]+/gi, "access_token=[redacted]");
+  out = out.replace(/refresh_token["']?\s*[:=]\s*["']?[^"'\s&]+/gi, "refresh_token=[redacted]");
   out = out.replace(/device_code["']?\s*[:=]\s*["']?[^"'\s&]+/gi, "device_code=[redacted]");
   out = out.replace(/client_secret["']?\s*[:=]\s*["']?[^"'\s&]+/gi, "client_secret=[redacted]");
   return out;
@@ -49,5 +51,23 @@ export function scrubError(err: unknown): Error {
   if (code && code !== message) {
     Object.assign(next, { code });
   }
+  const status = readErrorStatus(err);
+  if (status != null) Object.assign(next, { status, statusCode: status });
   return next;
+}
+
+/** HTTP status carried on an error, including isomorphic-git's `HttpError` data. */
+export function readErrorStatus(err: unknown): number | null {
+  if (!err || typeof err !== "object") return null;
+  const record = err as {
+    status?: unknown;
+    statusCode?: unknown;
+    data?: { statusCode?: unknown };
+  };
+  if (typeof record.status === "number" && Number.isFinite(record.status)) return record.status;
+  if (typeof record.statusCode === "number" && Number.isFinite(record.statusCode)) return record.statusCode;
+  if (record.data && typeof record.data.statusCode === "number" && Number.isFinite(record.data.statusCode)) {
+    return record.data.statusCode;
+  }
+  return null;
 }

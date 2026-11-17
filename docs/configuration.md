@@ -27,7 +27,7 @@ Set a variable in the same terminal before `npm run dev` or `npm start`, so the 
 | `NERDGRAM_COMMIT` | git `HEAD` on a git install, otherwise unset | Hex SHA of 7 to 40 characters baked into an image. Docker does not run git to find one. |
 | `NERDGRAM_GITHUB_CLIENT_ID` | unset | OAuth client ID. Not a secret. |
 | `NERDGRAM_GITHUB_TOKEN` | unset | Access token. When set, it is used instead of `.meta/github-token` and is not copied to disk. |
-| `NERDGRAM_GITHUB_CLIENT_SECRET` | unset | Used only to revoke the OAuth grant on disconnect. Never stored. |
+| `NERDGRAM_GITHUB_CLIENT_SECRET` | unset | Revokes the OAuth grant on disconnect when set. Also sent when refreshing a token that did not come from the device flow. Device flow refresh does not need it. Never stored. |
 | `NERDGRAM_GITHUB_WEB` | `https://github.com` | GitHub website. Leave unset for github.com. |
 | `NERDGRAM_GITHUB_API` | `https://api.github.com` | GitHub API. Leave unset for github.com. |
 | `NERDGRAM_GITHUB_TIMEOUT_MS` | `20000` | GitHub HTTP timeout, clamped from 100 to 120000. |

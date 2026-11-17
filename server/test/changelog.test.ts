@@ -4,6 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { REPO_ROOT } from "../src/paths.js";
+import {
+  cutChangelogRelease,
+  UNRELEASED_PLACEHOLDER,
+  unreleasedProblem,
+} from "../../scripts/changelog-notes.mjs";
 
 function notes(args: string[], changelog?: string): { code: number; stdout: string; stderr: string } {
   const dir = changelog == null ? "" : fs.mkdtempSync(path.join(os.tmpdir(), "nerdgram-notes-"));
@@ -69,5 +74,56 @@ describe("changelog notes", () => {
     expect(empty.stderr).toMatch(/empty/);
     const badTag = notes(["v1.0.5-beta.1"]);
     expect(badTag.code).toBe(2);
+  });
+
+  it("does not publish the empty Unreleased line as release notes", () => {
+    const mixed = notes(
+      ["v1.2.3"],
+      `## Unreleased\n\n${UNRELEASED_PLACEHOLDER}\n\n## 1.2.3 "Atlas" - 2026-11-13\n\nQuoted body.\n\n${UNRELEASED_PLACEHOLDER}\n`,
+    );
+    expect(mixed.code).toBe(0);
+    expect(mixed.stdout).toBe("Quoted body.\n");
+    expect(mixed.stdout).not.toContain("No unreleased items");
+    const only = notes(
+      ["v1.0.5"],
+      `## Unreleased\n\n${UNRELEASED_PLACEHOLDER}\n\n## 1.0.5 "Atlas" - 2026-11-13\n\n${UNRELEASED_PLACEHOLDER}\n`,
+    );
+    expect(only.code).toBe(2);
+    expect(only.stderr).toMatch(/empty/);
+  });
+
+  it("cuts Unreleased into the version section and restores the empty line", () => {
+    const before = `# Changelog\n\nIntro.\n\n## Unreleased\n\n- First note.\n- Second note.\n\n## 1.4.7 "Atlas" - 2026-11-17\n\nOld release.\n`;
+    const cut = cutChangelogRelease(before, { version: "1.4.8", codename: "Atlas", date: "2026-11-18" });
+    expect(cut).toContain(`## Unreleased\n\n${UNRELEASED_PLACEHOLDER}\n`);
+    expect(cut).toContain('## 1.4.8 "Atlas" - 2026-11-18\n\n- First note.\n- Second note.\n');
+    expect(cut.indexOf("## Unreleased")).toBeLessThan(cut.indexOf("## 1.4.8"));
+    expect(cut.indexOf("## 1.4.8")).toBeLessThan(cut.indexOf("## 1.4.7"));
+    expect(unreleasedProblem(cut)).toBeNull();
+    const again = cutChangelogRelease(cut, { version: "1.4.8", codename: "Atlas", date: "2026-11-18" });
+    expect(again.match(/## 1\.4\.8/g)).toHaveLength(1);
+    const kept = cutChangelogRelease(
+      cut.replace(UNRELEASED_PLACEHOLDER, "- Next thing."),
+      { version: "1.4.8", codename: "Atlas", date: "2026-11-18" },
+    );
+    expect(kept).toContain("- Next thing.");
+    expect(kept).not.toContain(UNRELEASED_PLACEHOLDER);
+    const blank = cutChangelogRelease(
+      `# Changelog\n\nIntro.\n\n## Unreleased\n\n## 1.4.7 "Atlas" - 2026-11-17\n\nOld release.\n`,
+      { version: "1.4.7", codename: "Atlas", date: "2026-11-17" },
+    );
+    expect(blank).toContain(`## Unreleased\n\n${UNRELEASED_PLACEHOLDER}\n`);
+    expect(unreleasedProblem(`# Changelog\n\n## Unreleased\n\n## 1.0.0 "Atlas" - 2026-01-01\n\nBody.\n`)).toMatch(/empty/i);
+    expect(unreleasedProblem(`# Changelog\n\n## 1.0.0 "Atlas" - 2026-01-01\n\nBody.\n`)).toMatch(/## Unreleased/);
+    const inserted = cutChangelogRelease(`# Changelog\n\nIntro.\n\n## 1.4.7 "Atlas" - 2026-11-17\n\nOld release.\n`, {
+      version: "1.4.7",
+      codename: "Atlas",
+      date: "2026-11-17",
+    });
+    expect(inserted).toContain(`## Unreleased\n\n${UNRELEASED_PLACEHOLDER}\n`);
+    expect(unreleasedProblem(inserted)).toBeNull();
+    const published = notes(["v1.4.8"], cut);
+    expect(published.stdout).toBe("- First note.\n- Second note.\n");
+    expect(published.stdout).not.toContain("No unreleased items");
   });
 });

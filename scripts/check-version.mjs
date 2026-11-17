@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { findChangelogSection } from "./changelog-notes.mjs";
+import { findChangelogSection, unreleasedProblem } from "./changelog-notes.mjs";
 import { currentCodename } from "./codenames.mjs";
 
 /** Releases named in README prose that are not the package.json pin. */
@@ -148,7 +148,13 @@ if (!existsSync(changelogPath)) {
   console.error("CHANGELOG.md is missing. The release notes section has to match package.json.");
   process.exit(1);
 }
-const section = findChangelogSection(readFileSync(changelogPath, "utf8"), expected);
+const changelog = readFileSync(changelogPath, "utf8");
+const pending = unreleasedProblem(changelog);
+if (pending) {
+  console.error(pending);
+  process.exit(1);
+}
+const section = findChangelogSection(changelog, expected);
 if (!section) {
   console.error(`CHANGELOG.md needs a section for ${expected}, for example ## ${expected} "${codename}" - YYYY-MM-DD.`);
   process.exit(1);
