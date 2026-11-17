@@ -13,8 +13,10 @@ import fs from "node:fs/promises";
  * The browser UI does not use these. Settings creates them on the loopback
  * API, the same way it saves other local preferences. The file stores a
  * SHA-256 hash, never the token. The plaintext is returned once, from the
- * create call. A revoked token stays in the file so a later presentation of
- * the same secret still fails.
+ * create call. Revoking is permanent. A revoked token stays in the file until
+ * it is deleted from the list, so a later presentation of the same secret
+ * still fails. Deleting the record does not reactivate it: the hash is
+ * removed, and the secret is not stored anywhere else.
  */
 
 export const TOKEN_SCOPES = ["read", "read-write"] as const;
@@ -123,7 +125,11 @@ export async function createToken(input: { name: unknown; scope: unknown }): Pro
   const scope = normalizeScope(input.scope);
   const file = await readFile();
   if (file.tokens.length >= MAX_TOKENS) {
-    throw httpFail(400, `This workspace already has ${MAX_TOKENS} tokens. Revoked tokens still count.`, "invalid");
+    throw httpFail(
+      400,
+      `This workspace already has ${MAX_TOKENS} tokens. Revoked tokens still count until you delete them.`,
+      "invalid",
+    );
   }
   const secret = randomBytes(TOKEN_BYTES).toString("base64url");
   const token = `ng_${secret}`;
@@ -153,6 +159,35 @@ export async function revokeToken(id: string): Promise<PublicToken> {
     await writeFile(file);
   }
   return toPublic(token);
+}
+
+/**
+ * Remove a revoked token from the list. An active token must be revoked
+ * first. The stored hash is dropped, so the secret cannot authenticate again.
+ */
+export async function deleteRevokedToken(id: string): Promise<{ deleted: true; id: string }> {
+  if (!/^[a-f0-9]{18}$/.test(id)) throw httpFail(400, "Invalid id", "invalid");
+  const file = await readFile();
+  const token = file.tokens.find((item) => item.id === id);
+  if (!token) throw httpFail(404, "Token not found", "not_found");
+  if (!token.revokedAt) {
+    throw httpFail(409, "Revoke the token before deleting it.", "not_revoked");
+  }
+  file.tokens = file.tokens.filter((item) => item.id !== id);
+  await writeFile(file);
+  return { deleted: true, id };
+}
+
+/** Remove every revoked token. Active tokens stay, and none are reactivated. */
+export async function clearRevokedTokens(): Promise<{ deleted: number }> {
+  const file = await readFile();
+  const kept = file.tokens.filter((item) => !item.revokedAt);
+  const deleted = file.tokens.length - kept.length;
+  if (deleted > 0) {
+    file.tokens = kept;
+    await writeFile(file);
+  }
+  return { deleted };
 }
 
 export type AuthenticatedToken = PublicToken;
@@ -211,6 +246,24 @@ export function registerTokenRoutes(app: Express): void {
       if (!jsonObject(req, res)) return;
       const created = await createToken({ name: req.body?.name, scope: req.body?.scope });
       res.status(201).json(created);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/tokens/clear-revoked", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      res.json(await clearRevokedTokens());
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/tokens/:id/delete", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      res.json(await deleteRevokedToken(String(req.params.id || "")));
     } catch (err) {
       sendError(res, err);
     }

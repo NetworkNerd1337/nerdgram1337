@@ -129,7 +129,10 @@ const builtin: PaletteCommand[] = [
     keywords: ["home", "diagrams"],
     order: 90,
     when: (ctx) => ctx.route !== "dashboard",
-    run: (ctx) => ctx.navigate("/"),
+    run: (ctx) => {
+      if (ctx.actions.goHome) ctx.actions.goHome();
+      else ctx.navigate("/");
+    },
   },
   {
     id: "editor.find",

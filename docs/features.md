@@ -30,9 +30,11 @@ The editor is split code and live preview, with autosave about **500 ms** after 
 
 The preview pane shows the diagram from the file. Drag anywhere on the picture to pan. The mouse wheel zooms toward the pointer. A trackpad pinch zooms, and a two-finger scroll pans. **Fit** on the preview toolbar puts the whole diagram back in the pane and clears the pan. The percent next to it is the zoom. Typing in the code pane does not reset that view.
 
-The toolbar still sets the diagram theme, look, and layout, and it still has **Present** and **Edit info**. Those controls are not part of the pan. Text outside the preview, including the code pane, still selects as usual.
+The toolbar still sets the diagram theme, look, and layout, and it still has **Present**. **Diagram info** in the editor header opens and closes the info panel. Those controls are not part of the pan. Text outside the preview, including the code pane, still selects as usual.
 
 ## Editing
+
+The editor header is the folder path: **Local files**, then each folder, then the file name without `.mmd`. Each folder is a link to that folder on the dashboard, and **Local files** returns to the dashboard root. The file name is not a link. A long path collapses the middle folders to an ellipsis, and the tooltip is the full path. The logo leaves the editor for the folder that contains the diagram. A diagram at the root returns to the dashboard root. If that folder is gone, the link opens the nearest folder that is still there. The browser Back button is unchanged. **Diagram info** in that same header toggles the info panel. It stays marked while the panel is open. The command palette command **Edit diagram info** still opens the panel.
 
 Opening a diagram takes a lock for that browser tab. Another tab, or a second NerdGram process pointed at the same data directory with a different `PORT`, can open it read-only and is told that it is already open. The editor sends a heartbeat every **15 seconds**. If the heartbeat is missing for **90 seconds**, or the server process that held the lock has exited, the lock is stale. The read-only banner then offers **Take over editing**. After you confirm, that window takes the lock. A window that is still sending heartbeats keeps the lock, so two editors do not write the same file. Closing the tab, or leaving the editor, releases the lock with a beacon the browser can deliver while the page is going away. If that release does not arrive, the lock still expires on the heartbeat timer. These locks are not accounts, and they do not stop you from editing the `.mmd` file in another program.
 
@@ -43,6 +45,10 @@ You cannot rename, move, or trash a diagram, or a folder that contains it, while
 ## Files
 
 **Move to…** is on every diagram and folder, next to Rename and Delete. It opens a folder list, including the workspace root. Arrow keys move through that list. You can also drag the item onto a folder in the dashboard or the sidebar tree. The Dashboard item at the top of the sidebar is the workspace root. Trash is not a drop target.
+
+A folder card counts the diagrams and folders directly inside it, for example **0 diagrams · 2 folders**. A folder with no subfolders shows only the diagram count. The count is not a total of everything nested further down. The same line is used in every folder you open.
+
+In the sidebar, a folder that contains another folder has a chevron. The chevron expands or collapses that branch. The folder name still opens the folder. Folders with no subfolders have no chevron, and the names stay lined up. **Collapse all** closes every branch except the folders you need to see the one you have open. The choice is saved in this browser. Opening a folder expands the folders above it so the current one stays visible.
 
 A move that would land in the item's current folder, or put a folder inside itself or one of its subfolders, is refused. Dragging onto a diagram does nothing. If the destination already has that name, the drag is refused and nothing is overwritten. Move to… offers **Move as Name (copy)** (then **Name (copy 2)**, and so on). Favorites and revision history follow the file or folder.
 
@@ -106,11 +112,13 @@ flowchart LR
   Internet --> Firewall
 ```
 
-**Diagram info** in the editor edits the title, description, notes, and tags, and sets the theme, look, and layout. The preview toolbar has the same theme, look, and layout controls. The preview, dashboard thumbnails, and the editor's SVG, PNG, JPG, and PDF export use the theme in the file. If the file does not set one, they use **dark**. [Appearance](#appearance) changes the app around the diagram. It does not change this theme.
+**Diagram info** in the editor edits the title, description, notes, and tags, and sets the theme, look, layout, and font. The editor header has the same theme, look, and layout controls on the preview toolbar. **Diagram info** itself is the header button, not a second button on that toolbar. The preview, dashboard thumbnails, and the editor's SVG, PNG, JPG, and PDF export use the theme in the file. If the file does not set one, they use **dark**. [Appearance](#appearance) changes the app around the diagram. It does not change this theme.
+
+Font family is a list: **Default**, **System UI**, **Sans-serif**, **Serif**, **Monospace**, and **Custom…**. Default clears `config.fontFamily` and the diagram uses the engine font. Custom is a CSS font list. It is saved when you leave the box or press Enter, and spaces between words stay. The fonts have to be installed on the computer that views or renders the diagram. Separate fallbacks with commas. A file that already names one of the presets opens on that preset. Any other value opens as Custom.
 
 The built-in Mermaid themes are `default`, `neutral`, `dark`, `forest`, `base`, `neo`, `neo-dark`, `redux`, `redux-dark`, `redux-color`, and `redux-dark-color`. Looks are `classic`, `handDrawn`, and `neo`. Layouts are `dagre` and `elk`.
 
-The dashboard shows the title when the file has one, and the file name otherwise. A description is shown under the title. Tags are chips. Click a chip, or use the tag row, to filter the dashboard. Search also matches this text. A file name match is listed before a title, tag, description, note, or label match.
+The editor header and the dashboard show the file name, without `.mmd`. A front matter title does not replace that name. When a title is set and it is not the same as the file name, the card shows it on a smaller second line. A title that matches the file name does not repeat. The rendered diagram and **Present** still use the title, as Mermaid does. A description is shown under the name. Tags are chips. Click a chip, or use the tag row, to filter the dashboard. Search matches the file name and the title, and also the description, notes, and tags. A file name match is listed before a title, tag, description, note, or label match.
 
 Description, notes, and tags live under `nerdgram:` because Mermaid has no field for them. Mermaid still reads `title` and `config` from the same header. A diagram with no front matter previews the same way as before. An older `%%{init: ...}%%` line still renders. The editor can move that config into the front matter. If the header is not valid YAML, the editor shows the error and leaves the file text alone.
 

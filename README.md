@@ -92,9 +92,9 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 
 - **[Preview](docs/features.md#preview).** Drag the preview to pan, and use the wheel to zoom toward the pointer. **Fit** resets that view.
 - **[Editing](docs/features.md#editing).** Opening a diagram takes a lock for that browser tab.
-- **[Files](docs/features.md#files).** **Move to…** is on every diagram and folder, next to Rename and Delete.
+- **[Files](docs/features.md#files).** **Move to…** is on every diagram and folder, next to Rename and Delete. Folder cards count the diagrams and subfolders inside them, and the sidebar tree collapses.
 - **[Trash and history](docs/features.md#trash-and-history).** Delete moves a diagram or a folder into the trash.
-- **[Titles, themes, and notes](docs/features.md#titles-themes-and-notes).** A diagram can start with [Mermaid's YAML front matter](https://mermaid.js.org/config/configuration.html).
+- **[Titles, themes, and notes](docs/features.md#titles-themes-and-notes).** A diagram can start with [Mermaid's YAML front matter](https://mermaid.js.org/config/configuration.html). Cards show the file name, and a different title on a second line.
 - **[Appearance](docs/features.md#appearance).** Light, Dark, or Match system. The choice stays in this browser. It does not change a diagram's theme.
 - **[Diagram checks](docs/features.md#diagram-checks).** The code pane checks the diagram while you type.
 - **[Linked diagrams](docs/features.md#linked-diagrams).** A node can open another diagram.

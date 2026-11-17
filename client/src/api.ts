@@ -662,6 +662,16 @@ export const api = {
         revokedAt: string | null;
       };
     }>(`/api/tokens/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
+  deleteRevokedToken: (id: string) =>
+    request<{ deleted: true; id: string }>(`/api/tokens/${encodeURIComponent(id)}/delete`, {
+      method: "POST",
+      body: "{}",
+    }),
+  clearRevokedTokens: () =>
+    request<{ deleted: number }>("/api/tokens/clear-revoked", {
+      method: "POST",
+      body: "{}",
+    }),
   replacePreview: (body: {
     find: string;
     replace: string;
