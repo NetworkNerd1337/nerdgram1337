@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "format": "network",
+  "devices": [
+    {
+      "name": "core-rtr",
+      "platform": "Cisco IOS-XE",
+      "model": "C8300-1N1S-4T2X",
+      "role": "core",
+      "diagram": "Sites/Core.mmd"
+    },
+    {
+      "name": "dist-sw",
+      "platform": "Cisco IOS-XE",
+      "model": "C9300-48P",
+      "role": "distribution"
+    }
+  ],
+  "interfaces": [
+    {
+      "device": "core-rtr",
+      "name": "GigabitEthernet0/0/0",
+      "description": "to dist-sw",
+      "speed": "10G",
+      "ipv4": [{ "address": "10.1.0.1", "prefix": 30 }]
+    },
+    {
+      "device": "dist-sw",
+      "name": "GigabitEthernet1/0/49",
+      "description": "to core-rtr",
+      "speed": "10G",
+      "ipv4": [{ "address": "10.1.0.2", "prefix": 30 }]
+    },
+    {
+      "device": "core-rtr",
+      "name": "GigabitEthernet0/1/0",
+      "speed": "10G",
+      "switchportMode": "trunk",
+      "trunkVlans": [10, 20]
+    },
+    {
+      "device": "dist-sw",
+      "name": "GigabitEthernet1/0/51",
+      "speed": "1G",
+      "switchportMode": "trunk",
+      "trunkVlans": [10, 20]
+    }
+  ],
+  "links": [
+    {
+      "label": "uplink",
+      "a": { "device": "core-rtr", "interface": "Gi0/1/0" },
+      "b": { "device": "dist-sw", "interface": "Gi1/0/51" }
+    }
+  ]
+}

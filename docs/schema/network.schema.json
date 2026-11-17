@@ -35,9 +35,17 @@
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "platform": { "type": "string" },
+        "model": {
+          "type": "string",
+          "description": "Hardware model, distinct from platform and role. Written under the device name when set."
+        },
         "role": { "type": "string" },
         "site": { "type": "string" },
-        "managementIp": { "type": "string" }
+        "managementIp": { "type": "string" },
+        "diagram": {
+          "type": "string",
+          "description": "Workspace path of a child .mmd diagram. Becomes a click line, the same as a child diagram path on generic CSV or JSON."
+        }
       }
     },
     "address": {
@@ -57,6 +65,10 @@
         "device": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
         "description": { "type": "string" },
+        "speed": {
+          "type": "string",
+          "description": "Interface speed as text, such as 10G. Written on the link when set."
+        },
         "adminStatus": { "enum": ["up", "down"] },
         "operStatus": { "enum": ["up", "down"] },
         "ipv4": { "type": "array", "items": { "$ref": "#/$defs/address" } },
@@ -87,7 +99,11 @@
       "required": ["a", "b"],
       "properties": {
         "a": { "$ref": "#/$defs/endpoint" },
-        "b": { "$ref": "#/$defs/endpoint" }
+        "b": { "$ref": "#/$defs/endpoint" },
+        "label": {
+          "type": "string",
+          "description": "Optional name written on the Layer 2 edge."
+        }
       }
     },
     "vlan": {

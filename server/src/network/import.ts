@@ -94,7 +94,7 @@ function toModel(nodes: BuiltNode[], edges: BuiltEdge[]): GraphModel {
       label: node.label,
       group: node.group,
       className: node.className,
-      diagram: "",
+      diagram: node.diagram,
     })),
     edges: edges.map((edge) => ({
       source: ids.get(edge.source) ?? edge.source,

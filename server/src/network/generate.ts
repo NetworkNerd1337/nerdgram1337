@@ -29,6 +29,7 @@ export type BuiltNode = {
   label: string;
   group: string;
   className: string;
+  diagram: string;
 };
 
 export type BuiltEdge = {
@@ -176,6 +177,7 @@ function buildLayer3(
     address: string;
     prefix: number;
     vrf: string;
+    speed: string;
   };
   const groups = new Map<string, Member[]>();
   const annotations = new Map<string, string[]>();
@@ -211,6 +213,7 @@ function buildLayer3(
           address: host,
           prefix: address.prefix,
           vrf: item.vrf,
+          speed: item.raw.speed.trim(),
         };
         const loopback = (family === "ipv4" && address.prefix === 32) || (family === "ipv6" && address.prefix === 128);
         addMember(member, loopback);
@@ -264,12 +267,13 @@ function buildLayer3(
         label: vrf ? `${vrf} · ${network}` : network,
         group: options.grouping && options.groupBy === "vrf" ? vrfLabel(vrf) : "",
         className: "segment",
+        diagram: "",
       });
       for (const member of sorted) {
         edges.push({
           source: member.deviceKey,
           target: key,
-          label: `${member.ifaceDisplay} ${member.address}`,
+          label: endpointText(member.ifaceDisplay, member.address, member.speed),
         });
         touchVrf(vrfsByDevice, member.deviceKey, member.vrf);
       }
@@ -326,7 +330,7 @@ function buildLayer2(
   return { nodes, edges: sortEdges(edges), warnings };
 }
 
-type LinkEnd = { a: Endpoint; b: Endpoint; path: string };
+type LinkEnd = { a: Endpoint; b: Endpoint; path: string; label: string };
 
 function collectLinks(
   document: NetworkDocument,
@@ -365,7 +369,7 @@ function collectLinks(
       continue;
     }
     seen.add(id);
-    links.push({ a: left, b: right, path: item.path });
+    links.push({ a: left, b: right, path: item.path, label: item.link.label.trim() });
   }
   if (duplicates > 0) {
     warnings.push({
@@ -418,6 +422,7 @@ function appendNeighborLinks(
         link: {
           a: { device: link.localDevice, interface: link.localPort },
           b: { device: link.remoteDevice, interface: link.remotePort },
+          label: "",
         },
         path: `/neighbors/${kind}`,
       });
@@ -487,6 +492,8 @@ function bundleLabel(members: LinkEnd[], interfaces: Map<string, IfaceRecord>, v
   const first = members[0];
   if (!first) return "";
   const lines: string[] = [];
+  const names = [...new Set(members.map((member) => member.label).filter(Boolean))];
+  if (names.length > 0) lines.push(names.join(", "));
   const lagNames = [first.a.lagDisplay, first.b.lagDisplay].filter(Boolean);
   const uniqueLags = [...new Set(lagNames)];
   if (uniqueLags.length > 0) {
@@ -497,6 +504,8 @@ function bundleLabel(members: LinkEnd[], interfaces: Map<string, IfaceRecord>, v
   lines.push(pairs.join(", "));
   const described = descriptionLine(members, interfaces);
   if (described) lines.push(described);
+  const speeds = speedLine(members, interfaces);
+  if (speeds) lines.push(speeds);
   const left = switchportFor(first.a, interfaces);
   const right = switchportFor(first.b, interfaces);
   const vlanLine = vlanLabel(left, right, vlanNames);
@@ -613,10 +622,29 @@ function descriptionLine(members: LinkEnd[], interfaces: Map<string, IfaceRecord
 }
 
 function descriptionOf(end: Endpoint, interfaces: Map<string, IfaceRecord>): string {
-  const member = interfaces.get(`${end.deviceKey}\0${end.ifaceKey}`)?.raw.description.trim() ?? "";
+  return textOf(end, interfaces, "description");
+}
+
+function speedLine(members: LinkEnd[], interfaces: Map<string, IfaceRecord>): string {
+  const parts: string[] = [];
+  for (const member of members) {
+    const left = speedOf(member.a, interfaces);
+    const right = speedOf(member.b, interfaces);
+    const text = left && right ? (left === right ? left : `${left} – ${right}`) : left || right;
+    if (text && !parts.includes(text)) parts.push(text);
+  }
+  return parts.join(", ");
+}
+
+function speedOf(end: Endpoint, interfaces: Map<string, IfaceRecord>): string {
+  return textOf(end, interfaces, "speed");
+}
+
+function textOf(end: Endpoint, interfaces: Map<string, IfaceRecord>, field: "description" | "speed"): string {
+  const member = interfaces.get(`${end.deviceKey}\0${end.ifaceKey}`)?.raw[field].trim() ?? "";
   if (member) return member;
   if (!end.lagKey) return "";
-  return interfaces.get(`${end.deviceKey}\0${end.lagKey}`)?.raw.description.trim() ?? "";
+  return interfaces.get(`${end.deviceKey}\0${end.lagKey}`)?.raw[field].trim() ?? "";
 }
 
 function deviceNodes(
@@ -630,12 +658,14 @@ function deviceNodes(
       const notes = [...new Set(annotations.get(device.key) ?? [])].sort((a, b) => a.localeCompare(b));
       const management = managementLine(device, notes);
       const platform = device.platform.trim();
-      const lines = [device.name, ...(platform ? [platform] : []), ...(management ? [management] : []), ...notes];
+      const model = device.model.trim();
+      const lines = [device.name, ...(platform ? [platform] : []), ...(model ? [model] : []), ...(management ? [management] : []), ...notes];
       return {
         key: device.key,
         label: lines.join("\n"),
         group: groupOf(device),
         className: className(device.role),
+        diagram: device.diagram,
       };
     });
 }
@@ -648,9 +678,14 @@ function managementLine(device: DeviceRecord, notes: string[]): string {
   return `mgmt ${ip}`;
 }
 
-function annotation(member: { ifaceDisplay: string; address: string; prefix: number; vrf: string }): string {
+function annotation(member: { ifaceDisplay: string; address: string; prefix: number; vrf: string; speed: string }): string {
+  const speed = member.speed ? ` ${member.speed}` : "";
   const vrf = member.vrf ? ` ${member.vrf}` : "";
-  return `${member.ifaceDisplay} ${member.address}/${member.prefix}${vrf}`;
+  return `${member.ifaceDisplay} ${member.address}/${member.prefix}${speed}${vrf}`;
+}
+
+function endpointText(iface: string, address: string, speed: string): string {
+  return speed ? `${iface} ${address} ${speed}` : `${iface} ${address}`;
 }
 
 function networkOf(member: { address: string; prefix: number }): string {
@@ -658,12 +693,12 @@ function networkOf(member: { address: string; prefix: number }): string {
 }
 
 function p2pLabel(
-  left: { ifaceDisplay: string; address: string; vrf: string },
-  right: { ifaceDisplay: string; address: string },
+  left: { ifaceDisplay: string; address: string; vrf: string; speed: string },
+  right: { ifaceDisplay: string; address: string; speed: string },
   network: string,
 ): string {
   const title = left.vrf ? `${left.vrf} · ${network}` : network;
-  return `${title}\n${left.ifaceDisplay} ${left.address} – ${right.ifaceDisplay} ${right.address}`;
+  return `${title}\n${endpointText(left.ifaceDisplay, left.address, left.speed)} – ${endpointText(right.ifaceDisplay, right.address, right.speed)}`;
 }
 
 function orderPair<T extends { deviceKey: string; ifaceKey: string }>(left: T, right: T): [T, T] {

@@ -369,3 +369,99 @@ describe("duplicate addresses", () => {
     expect(block).toContain("Gi0/1 10.0.0.1/31");
   });
 });
+
+describe("optional network fields", () => {
+  const detailsPath = path.join(root, "docs/samples/network/details.network.json");
+  const detailsText = fs.readFileSync(detailsPath, "utf8");
+
+  it("stays on schemaVersion 1, draws the new fields, and still rejects an unknown property", () => {
+    const schema = JSON.parse(fs.readFileSync(path.join(root, "docs/schema/network.schema.json"), "utf8")) as {
+      additionalProperties: boolean;
+      properties: { schemaVersion: { const: number } };
+      $defs: {
+        device: { additionalProperties: boolean; properties: Record<string, unknown> };
+        interface: { additionalProperties: boolean; properties: Record<string, unknown> };
+        link: { additionalProperties: boolean; properties: Record<string, unknown> };
+      };
+    };
+    expect(schema.properties.schemaVersion).toEqual({ const: 1 });
+    expect(schema.additionalProperties).toBe(false);
+    expect(schema.$defs.device.additionalProperties).toBe(false);
+    expect(schema.$defs.interface.additionalProperties).toBe(false);
+    expect(schema.$defs.link.additionalProperties).toBe(false);
+    expect(Object.keys(schema.$defs.device.properties).sort()).toEqual(
+      ["diagram", "managementIp", "model", "name", "platform", "role", "site"].sort(),
+    );
+    expect(Object.keys(schema.$defs.interface.properties)).toEqual(
+      expect.arrayContaining(["speed", "description"]),
+    );
+    expect(Object.keys(schema.$defs.link.properties).sort()).toEqual(["a", "b", "label"]);
+
+    const campus = extractGenerated(importDiagramData({ text: sampleText, format: "network", view: "l2" }).mermaid) ?? "";
+    expect(campus).not.toContain("click ");
+    expect(campus).not.toContain("C8300");
+    expect(campus).toContain("Gi0/1/0 – Gi1/0/51<br/>L2 uplink to dist-sw – L2 uplink to core-rtr");
+
+    const layer3 = importDiagramData({ text: detailsText, format: "network", view: "l3" });
+    expect(layer3.errors).toEqual([]);
+    const routed = extractGenerated(layer3.mermaid) ?? "";
+    expect(routed).toContain("core-rtr<br/>Cisco IOS-XE<br/>C8300-1N1S-4T2X");
+    expect(routed).toContain("dist-sw<br/>Cisco IOS-XE<br/>C9300-48P");
+    expect(routed).toContain("Gi0/0/0 10.1.0.1 10G – Gi1/0/49 10.1.0.2 10G");
+    expect(routed).toContain('click core-rtr "nerdgram:Sites/Core.mmd"');
+    expect(lintDiagram(layer3.mermaid).filter((item) => item.severity === "error")).toEqual([]);
+
+    const layer2 = importDiagramData({ text: detailsText, format: "network", view: "l2" });
+    expect(layer2.errors).toEqual([]);
+    const switched = extractGenerated(layer2.mermaid) ?? "";
+    expect(switched).toContain("uplink<br/>Gi0/1/0 – Gi1/0/51<br/>10G – 1G<br/>10,20");
+    expect(switched).toContain('click core-rtr "nerdgram:Sites/Core.mmd"');
+    expect(switched).not.toContain("click dist-sw");
+    expect(lintDiagram(layer2.mermaid).filter((item) => item.severity === "error")).toEqual([]);
+
+    const sameSpeed = JSON.stringify({
+      schemaVersion: 1,
+      devices: [
+        { name: "a", model: "ASR1001" },
+        { name: "b" },
+      ],
+      interfaces: [
+        { device: "a", name: "Gi0/1", speed: "10G", switchportMode: "trunk", trunkVlans: [10] },
+        { device: "b", name: "Gi0/1", speed: "10G", switchportMode: "trunk", trunkVlans: [10] },
+      ],
+      links: [{ a: { device: "a", interface: "Gi0/1" }, b: { device: "b", interface: "Gi0/1" }, label: "  " }],
+    });
+    const paired = extractGenerated(importDiagramData({ text: sameSpeed, format: "network", view: "l2" }).mermaid) ?? "";
+    expect(paired).toContain("a<br/>ASR1001");
+    expect(paired).toContain("Gi0/1 – Gi0/1<br/>10G<br/>10");
+    expect(paired).not.toContain("10G – 10G");
+    expect(paired).not.toContain("uplink");
+
+    const extra = clone(JSON.parse(detailsText) as { devices: Record<string, unknown>[] });
+    extra.devices[0]!.rack = "A1";
+    expect(validateNetwork(extra).issues).toContainEqual({
+      path: "/devices/0/rack",
+      message: 'unexpected property "rack".',
+    });
+
+    const script = clone(JSON.parse(detailsText) as { devices: { diagram: string }[] });
+    script.devices[0]!.diagram = "javascript:alert(1)";
+    expect(validateNetwork(script).issues).toContainEqual({
+      path: "/devices/0/diagram",
+      message: "diagram must be a workspace .mmd path.",
+    });
+
+    const outside = clone(JSON.parse(detailsText) as { devices: { diagram: string }[] });
+    outside.devices[0]!.diagram = "../Secret.mmd";
+    expect(validateNetwork(outside).issues).toContainEqual({
+      path: "/devices/0/diagram",
+      message: "diagram must be a workspace .mmd path.",
+    });
+
+    const prefixed = clone(JSON.parse(detailsText) as { devices: { diagram: string }[] });
+    prefixed.devices[0]!.diagram = "nerdgram:Sites/Core.mmd";
+    const fromScheme = importDiagramData({ text: JSON.stringify(prefixed), format: "network", view: "l2" });
+    expect(fromScheme.errors).toEqual([]);
+    expect(extractGenerated(fromScheme.mermaid)).toContain('click core-rtr "nerdgram:Sites/Core.mmd"');
+  });
+});
