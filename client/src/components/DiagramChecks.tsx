@@ -14,6 +14,7 @@ import {
   type DiagramCheckStatus,
 } from "../lib/diagramChecks";
 import { editorHref } from "../lib/diagramSearch";
+import type { UnreadableDiagram } from "../../../server/src/readError.ts";
 import { RepairLinksDialog } from "./RepairLinksDialog";
 
 /**
@@ -23,6 +24,7 @@ import { RepairLinksDialog } from "./RepairLinksDialog";
 export function DiagramChecks() {
   const [open, setOpen] = useState(() => readDiagramChecksOpen());
   const [findings, setFindings] = useState<DiagramCheckFinding[] | null>(null);
+  const [unreadable, setUnreadable] = useState<UnreadableDiagram[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [repairOpen, setRepairOpen] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
@@ -33,10 +35,13 @@ export function DiagramChecks() {
       (result) => {
         if (cancelled) return;
         setFindings(findingsFromLint(result));
+        setUnreadable(result.unreadable ?? []);
+        setError(null);
       },
       (err: unknown) => {
         if (cancelled) return;
         setFindings(null);
+        setUnreadable([]);
         setError(err instanceof Error ? err.message : "Could not check the diagrams");
       },
     );
@@ -45,8 +50,8 @@ export function DiagramChecks() {
     };
   }, [reloadToken]);
 
-  const status = diagramCheckStatus(findings, error != null);
-  const summary = diagramCheckSummary(status, findings);
+  const status = diagramCheckStatus(findings, error != null, unreadable.length);
+  const summary = diagramCheckSummary(status, findings, unreadable.length);
   const groups = findings ? groupDiagramChecks(findings) : [];
   const canRepair = findings?.some((item) => item.ruleId === "broken-click") ?? false;
 
@@ -70,6 +75,15 @@ export function DiagramChecks() {
       <div className="diagram-checks-body">
         <p className="diagram-checks-explainer">{DIAGRAM_CHECKS_EXPLAINER}</p>
         {error ? <p className="diagram-checks-error">{error}</p> : null}
+        {unreadable.length > 0 ? (
+          <ul className="diagram-checks-unreadable">
+            {unreadable.map((item) => (
+              <li key={item.path}>
+                <PlainMessage text={item.message} />
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {canRepair ? (
           <button type="button" className="btn btn-ghost diagram-checks-repair" onClick={() => setRepairOpen(true)}>
             Repair links
@@ -110,12 +124,21 @@ export function DiagramChecks() {
           onApplied={() => {
             setRepairOpen(false);
             setFindings(null);
+            setUnreadable([]);
             setError(null);
             setReloadToken((value) => value + 1);
           }}
         />
       ) : null}
     </details>
+  );
+}
+
+/** The server message wraps the file name in backticks. Those become code, not a line link. */
+function PlainMessage({ text }: { text: string }) {
+  const parts = text.split(/`([^`]+)`/);
+  return parts.map((part, index) =>
+    index % 2 === 1 ? <code key={index}>{part}</code> : <span key={index}>{part}</span>,
   );
 }
 

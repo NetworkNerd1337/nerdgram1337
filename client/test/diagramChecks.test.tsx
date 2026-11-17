@@ -165,6 +165,10 @@ describe("diagram check summary", () => {
     expect(diagramCheckSummary("error", mixed.filter((item) => item.severity === "error"))).toBe(
       "Diagram checks: 1 error",
     );
+    expect(diagramCheckSummary("error", [], 1)).toBe("Diagram checks: 1 file couldn't be read");
+    expect(diagramCheckSummary("error", many, 2)).toBe(
+      "Diagram checks: 2 files couldn't be read, 3 warnings",
+    );
   });
 
   it("treats a missing saved state as closed", () => {
@@ -301,6 +305,35 @@ describe("diagram checks panel", () => {
     renderPanel();
     await settle();
     expect(details().open).toBe(false);
+  });
+
+  it("lists an unreadable file in plain words and still links the other findings", async () => {
+    diagramLint.mockResolvedValue({
+      checked: 2,
+      diagrams: warnings.diagrams,
+      unreadable: [
+        {
+          path: "Network topology.mmd",
+          code: "EIO",
+          message:
+            "Couldn't read `Network topology.mmd`. The file may still be syncing or the folder may be unavailable on this computer (EIO).",
+        },
+      ],
+    });
+    renderPanel();
+    await settle();
+    expect(details().dataset.status).toBe("error");
+    expect(summaryText()).toBe("Diagram checks: 1 file couldn't be read, 3 warnings");
+    await toggleOpen();
+    const note = details().querySelector(".diagram-checks-unreadable");
+    expect(note?.textContent).toContain("Couldn't read");
+    expect(note?.textContent).toContain("Network topology.mmd");
+    expect(note?.textContent).toContain("still be syncing");
+    expect(note?.textContent).toContain("(EIO)");
+    expect(note?.querySelector("a")).toBeNull();
+    expect(note?.textContent).not.toMatch(/i\/o error/i);
+    expect(details().querySelector('a[href="/edit/WAN.mmd?line=4"]')).toBeTruthy();
+    expect(details().querySelector('a[href*="Network topology"]')).toBeNull();
   });
 
   it("says when the check cannot finish, without calling it again", async () => {

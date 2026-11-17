@@ -1,7 +1,9 @@
-import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { ApiError, api } from "../api";
 import { FALLBACK_THEME, thumbnailCacheKey } from "../lib/frontMatter";
 import { renderMermaid } from "../lib/mermaidRender";
+import { readFailureMessage } from "../lib/readError";
+import { unreadableMessage } from "../../../server/src/readError.ts";
 import { lookupThumbnailRecord, rememberThumbnail, scheduleThumbnail } from "../lib/thumbnailCache";
 import { svgForImage } from "../../../server/src/svgImage.ts";
 
@@ -13,7 +15,14 @@ type MermaidThumbnailProps = {
   frontMatter?: boolean;
 };
 
-type Status = "pending" | "ready" | "empty" | "failed";
+type Status = "pending" | "ready" | "empty" | "failed" | "unreadable";
+
+type LoadedThumb = {
+  token: string;
+  svg: string | null;
+  status: Status;
+  message?: string;
+};
 
 class ThumbnailBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -37,11 +46,8 @@ class ThumbnailBoundary extends Component<{ children: ReactNode }, { failed: boo
 function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false }: MermaidThumbnailProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(() => typeof IntersectionObserver === "undefined");
-  const [loaded, setLoaded] = useState<{
-    token: string;
-    svg: string | null;
-    status: Status;
-  } | null>(null);
+  const [loaded, setLoaded] = useState<LoadedThumb | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const token = `${path}\0${mtimeMs}\0${cacheKey ?? ""}`;
   const memory = lookupThumbnailRecord(path, mtimeMs, cacheKey);
   const shown =
@@ -93,15 +99,33 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false }: Mermaid
         }
       } catch (err) {
         if (cancelled) return;
+        const failure = readFailureMessage(path, err);
+        if (failure) {
+          setLoaded({ token: requestToken, svg: null, status: "unreadable", message: failure });
+          return;
+        }
         if (!(err instanceof ApiError)) {
           setLoaded({ token: requestToken, svg: null, status: "failed" });
           return;
         }
       }
 
+      let file;
       try {
-        const file = await api.readFile(path);
+        file = await api.readFile(path);
+      } catch (err) {
         if (cancelled) return;
+        setLoaded({
+          token: requestToken,
+          svg: null,
+          status: "unreadable",
+          message: readFailureMessage(path, err) ?? unreadableMessage(path, ""),
+        });
+        return;
+      }
+      if (cancelled) return;
+
+      try {
         const key = thumbnailCacheKey(file.content);
         if (!file.content.trim()) {
           rememberThumbnail({
@@ -135,19 +159,18 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false }: Mermaid
         setLoaded({ token: requestToken, svg: rendered.svg, status: "ready" });
         void api.saveThumbnail(path, key, rendered.svg).catch(() => undefined);
       } catch {
-        if (!cancelled) {
-          const key = cacheKey ?? "";
-          if (key) {
-            rememberThumbnail({
-              path,
-              cacheKey: key,
-              mtimeMs,
-              svg: null,
-              status: "failed",
-            });
-          }
-          setLoaded({ token: requestToken, svg: null, status: "failed" });
+        if (cancelled) return;
+        const key = cacheKey ?? "";
+        if (key) {
+          rememberThumbnail({
+            path,
+            cacheKey: key,
+            mtimeMs,
+            svg: null,
+            status: "failed",
+          });
         }
+        setLoaded({ token: requestToken, svg: null, status: "failed" });
       }
     }, controller.signal).catch(() => undefined);
 
@@ -155,17 +178,50 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false }: Mermaid
       cancelled = true;
       controller.abort();
     };
-  }, [visible, path, mtimeMs, cacheKey]);
+  }, [visible, path, mtimeMs, cacheKey, attempt]);
+
+  const retry = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setLoaded({ token, svg: null, status: "pending" });
+    setAttempt((value) => value + 1);
+  };
 
   const message =
-    shown.status === "failed" ? "Preview unavailable" : shown.status === "empty" ? "Empty diagram" : "";
-  const badge = shown.status === "failed" ? "Parse error" : frontMatter ? "Front matter" : null;
+    shown.status === "unreadable"
+      ? shown.message || "The file could not be read."
+      : shown.status === "failed"
+        ? "Preview unavailable"
+        : shown.status === "empty"
+          ? "Empty diagram"
+          : "";
+  const badge =
+    shown.status === "unreadable" ? "Can't read file" : shown.status === "failed" ? "Parse error" : frontMatter ? "Front matter" : null;
 
   return (
-    <div className="card-thumb" ref={rootRef} aria-busy={shown.status === "pending"}>
-      {badge ? <span className="thumb-badge">{badge}</span> : null}
-      {shown.svg ? <SanitizedSvg svg={shown.svg} /> : <span className="empty">{message}</span>}
+    <div
+      className={`card-thumb${shown.status === "unreadable" ? " is-unreadable" : ""}`}
+      ref={rootRef}
+      aria-busy={shown.status === "pending"}
+      data-status={shown.status}
+    >
+      {badge ? <span className={`thumb-badge${shown.status === "unreadable" ? " is-read" : ""}`}>{badge}</span> : null}
+      {shown.svg ? <SanitizedSvg svg={shown.svg} /> : <span className="empty">{inlineCode(message)}</span>}
+      {shown.status === "unreadable" ? (
+        <button type="button" className="btn btn-ghost thumb-retry" onClick={retry}>
+          Retry
+        </button>
+      ) : null}
     </div>
+  );
+}
+
+/** File names in the server sentence are wrapped in backticks. */
+function inlineCode(text: string): ReactNode {
+  const parts = text.split(/`([^`]+)`/);
+  if (parts.length === 1) return text;
+  return parts.map((part, index) =>
+    index % 2 === 1 ? <code key={index}>{part}</code> : <span key={index}>{part}</span>,
   );
 }
 
