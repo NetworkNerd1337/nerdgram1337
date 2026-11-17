@@ -15,7 +15,7 @@ function status(): UpdateStatus {
     automatic: true,
     includePrerelease: false,
     installKind: "docker",
-    currentVersion: "1.4.3",
+    currentVersion: "1.4.4",
     codename: "Atlas",
     commit: "abc1234def5678901234567890abcdef12345678",
     phase: "current",
@@ -30,7 +30,7 @@ function status(): UpdateStatus {
     matchesLatest: true,
     docker: {
       image: "ghcr.io/networknerd1337/nerdgram1337",
-      tag: "v1.4.3",
+      tag: "v1.4.4",
       steps: [],
       compose: [],
       composeNote: "Compose keeps the volume.",
