@@ -4,6 +4,26 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+## 1.4.5 "Atlas" - 2026-11-17
+
+Patch on the Atlas line. The code name stays Atlas. Check for updates reports on every click, including when GitHub is offline, rate-limits the check, or a TLS certificate fails, and a TLS failure links to Corporate TLS inspection. The roadmap adds a 1.7.5 Batfish translator and a translator picker with a data-completeness notice.
+
+### Update checks
+
+From #100 (#99).
+
+- **Check for updates** shows a busy state, then the result or the error, on every click, including when that error is the same as the last one.
+- The failure is one of three classes. GitHub could not be reached. GitHub rate-limited the check. A TLS certificate failed. Certificate errors (`SELF_SIGNED_CERT_IN_CHAIN`, `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`, `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, `CERT_HAS_EXPIRED`, and `DEPTH_ZERO_SELF_SIGNED_CERT`, including when the code is on `error.cause`) say a proxy or TLS inspection on this network is likely intercepting HTTPS, and link to Corporate TLS inspection.
+- Corporate TLS inspection explains that update checks and GitHub sync run inside the container, why a proxy such as Zscaler fails there, and how to mount the corporate root PEM read-only with `NODE_EXTRA_CA_CERTS` (`docker run` and Compose). It does not turn TLS verification off.
+- **Check for updates** is a secondary button, with a muted fill, a border, and ink text, so it reads as a button on the dialog in Light and Dark. The automatic-check and prerelease checkboxes sit on one row with their labels.
+
+### Roadmap
+
+From #98.
+
+- **1.7.5-k Batfish.** The translator reads exported Batfish or pybatfish question JSON (interface properties, IP ownership, VLAN and switched-VLAN properties, and layer-3 edges) into canonical network JSON. NerdGram does not run Batfish and does not parse device configs. Config-only output draws the routed view. Layer 1 and Layer 2 links are inferred or missing unless a `layer1_topology.json` is added to the snapshot upstream. Inferred links stay marked inferred. An unresolved neighbor is a placeholder node. The translator never invents a link.
+- **1.7.5-l Translator picker.** On the generate-from-data paste screen, a picker lists installed translator modules from the registry. Choosing one sets that tool's format hint and placeholder. Paste and file upload both call `POST /api/v1/convert/<source>`. When a translator is selected, a data-completeness notice titled **Your diagram reflects your data** sits above the input. **Translator tips** links to that translator's docs. **Don't show again** is remembered per translator.
+
 ## 1.4.4 "Atlas" - 2026-11-16
 
 Patch on the Atlas line. The code name stays Atlas. Diagram checks handle a file that cannot be read, the dashboard card and the editor say Can't read file with Retry, and the team use docs say synced folders are not supported for team locks.
