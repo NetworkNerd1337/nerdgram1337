@@ -30,17 +30,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Atlas title and the 1.4.4 section without the heading", () => {
-    const title = notes(["--title", "v1.4.4"]);
+  it("prints the Atlas title and the 1.4.5 section without the heading", () => {
+    const title = notes(["--title", "v1.4.5"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.4.4 "Atlas"\n');
-    const body = notes(["v1.4.4"]);
+    expect(title.stdout).toBe('v1.4.5 "Atlas"\n');
+    const body = notes(["v1.4.5"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Atlas line.")).toBe(true);
-    expect(body.stdout).toContain("Can't read file");
-    expect(body.stdout).toContain("Retry");
-    expect(body.stdout).not.toContain('## 1.4.4 "Atlas"');
-    expect(body.stdout).not.toContain("Appearance");
+    expect(body.stdout).toContain("NODE_EXTRA_CA_CERTS");
+    expect(body.stdout).toContain("Batfish");
+    expect(body.stdout).not.toContain('## 1.4.5 "Atlas"');
+    expect(body.stdout).not.toContain("Can't read file");
   });
 
   it("matches a quoted heading and a bracket heading, and not a longer patch", () => {
