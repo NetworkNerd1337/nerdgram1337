@@ -174,15 +174,62 @@ export async function commitMirror(dir: string, message: string, parents?: strin
     else await git.add({ fs: nodeFs, dir, filepath });
   }
   if (!dirty && !parents) return null;
+
+  const head = await headOid(dir);
+  const parentOids = parents && parents.length > 0 ? parents : head ? [head] : [];
+  const text = message.trim() || "Update diagrams";
+  // A one-parent commit whose tree matches that parent is an empty commit.
+  // A merge still records both parents when the tree matches one side.
+  const onlyParentIsHead = parentOids.length === 1 && parentOids[0] === head;
+  if (!parents || onlyParentIsHead) {
+    try {
+      return await git.commit({
+        fs: nodeFs,
+        dir,
+        message: text,
+        author: PERSON,
+        committer: PERSON,
+        parent: parents,
+        disallowEmpty: parentOids.length === 1,
+      });
+    } catch (err) {
+      if (isEmptyCommit(err)) return null;
+      throw err;
+    }
+  }
+
   const oid = await git.commit({
     fs: nodeFs,
     dir,
-    message: message.trim() || "Update diagrams",
+    message: text,
     author: PERSON,
     committer: PERSON,
     parent: parents,
+    noUpdateBranch: true,
+  });
+  if (parentOids.length === 1) {
+    const [created, parentCommit] = await Promise.all([
+      git.readCommit({ fs: nodeFs, dir, oid }),
+      git.readCommit({ fs: nodeFs, dir, oid: parentOids[0] }),
+    ]);
+    if (created.commit.tree === parentCommit.commit.tree) return null;
+  }
+  const branch = await git.currentBranch({ fs: nodeFs, dir, fullname: true });
+  await git.writeRef({
+    fs: nodeFs,
+    dir,
+    ref: typeof branch === "string" ? branch : "HEAD",
+    value: oid,
+    force: true,
   });
   return oid;
+}
+
+function isEmptyCommit(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const code = "code" in err ? String(err.code) : "";
+  const name = "name" in err ? String(err.name) : "";
+  return code === "EmptyCommitError" || name === "EmptyCommitError";
 }
 
 export async function fetchRemote(dir: string): Promise<void> {

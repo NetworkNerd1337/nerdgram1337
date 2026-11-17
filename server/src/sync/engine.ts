@@ -122,6 +122,7 @@ const DEVICE_HELP =
   "Create an OAuth app in your own GitHub account, enable Device flow, and paste that app's client ID. NerdGram does not ship a client ID or client secret. The GitHub sync page has the steps.";
 
 let suppress = 0;
+let noteGeneration = 0;
 let timer: NodeJS.Timeout | null = null;
 let reconcileTimer: NodeJS.Timeout | null = null;
 let retryTimer: NodeJS.Timeout | null = null;
@@ -200,6 +201,7 @@ export async function resetSyncForTests(): Promise<void> {
   active = 0;
   maxActive = 0;
   suppress = 0;
+  noteGeneration = 0;
   cancelDevicePoll();
   stopLoops();
   clearRememberedSecrets();
@@ -215,8 +217,12 @@ export function noteLocalChange(change: LocalChange): void {
 
 async function recordChange(change: LocalChange): Promise<void> {
   if (suppress > 0) return;
+  const generation = noteGeneration;
   const config = await loadConfig();
   if (!config.enabled || suppress > 0) return;
+  if (!(await workspaceDiffersFromHead())) return;
+  if (suppress > 0) return;
+  if (generation !== noteGeneration && !(await workspaceDiffersFromHead())) return;
   if (change.summary && !summaries.includes(change.summary)) summaries.push(change.summary);
   if (change.kind === "structural") {
     structuralPending = true;
@@ -224,6 +230,29 @@ async function recordChange(change: LocalChange): Promise<void> {
     return;
   }
   if (!structuralPending) schedule(idleMs());
+}
+
+/** Drop a queued autosave once a pull or resolve has left the workspace matching HEAD. */
+async function discardCleanNotes(): Promise<void> {
+  noteGeneration += 1;
+  if (await workspaceDiffersFromHead()) {
+    if (!timer) schedule(structuralPending ? STRUCTURAL_IDLE_MS : idleMs());
+    return;
+  }
+  summaries = [];
+  structuralPending = false;
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+}
+
+async function workspaceDiffersFromHead(): Promise<boolean> {
+  try {
+    return await copyWouldChange();
+  } catch {
+    return true;
+  }
 }
 
 export async function withoutSyncNotes<T>(fn: () => Promise<T>): Promise<T> {
@@ -471,6 +500,7 @@ export async function resolveConflicts(choices: { path: string; choice: SyncChoi
     await commitMirror(mirror, "Merge GitHub changes", parents);
     memoryError = null;
     await pushIfForward(config);
+    await discardCleanNotes();
     return publicStatus();
   });
 }
@@ -606,24 +636,29 @@ async function pullLocked(config: SyncConfig): Promise<void> {
     return;
   }
   await captureDiagramSightings();
-  await withoutSightingNotes(async () => {
-    await applyPlan(plan.actions);
+  const localCommit = compared.local;
+  const remoteCommit = compared.remote;
+  if (!remoteCommit) return;
+  await withoutSyncNotes(async () => {
+    await withoutSightingNotes(async () => {
+      await applyPlan(plan.actions);
+    });
+    await captureDiagramSightings();
+    const after = await listUserFiles(ensureDataRoot());
+    const same = mapsEqual(after, remoteFiles);
+    const canFastForward = localCommit != null && (await isAncestor(mirror, localCommit, remoteCommit));
+    if (same && canFastForward) {
+      await fastForwardBranch(mirror);
+    } else {
+      await copyDataToMirror(ensureDataRoot(), mirror);
+      const parents = localCommit ? [localCommit, remoteCommit] : [remoteCommit];
+      await commitMirror(mirror, "Merge GitHub changes", parents);
+    }
   });
-  await captureDiagramSightings();
-  const after = await listUserFiles(ensureDataRoot());
-  const same = mapsEqual(after, remoteFiles);
-  const canFastForward =
-    compared.local != null && (await isAncestor(mirror, compared.local, compared.remote));
-  if (same && canFastForward) {
-    await fastForwardBranch(mirror);
-  } else {
-    await copyDataToMirror(ensureDataRoot(), mirror);
-    const parents = compared.local ? [compared.local, compared.remote] : [compared.remote];
-    await commitMirror(mirror, "Merge GitHub changes", parents);
-  }
   await clearConflicts();
   memoryError = null;
   await pushIfForward(await loadConfig());
+  await discardCleanNotes();
 }
 
 async function pushIfForward(config: SyncConfig): Promise<void> {

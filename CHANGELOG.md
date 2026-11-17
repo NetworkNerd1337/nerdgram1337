@@ -6,6 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- A clean GitHub pull no longer pushes an empty commit. A pull or conflict resolution that leaves the files matching the latest commit is not treated as a local edit, and NerdGram does not create a commit whose tree matches its only parent. An edit made after a pull still becomes a commit.
 - Network JSON stays on `schemaVersion` 1 and adds optional `device.model`, `device.diagram`, `interface.speed`, and a link `label` (from #127). The model is written under the device name. A child diagram path becomes a click line. Speed and the link label are written on the edge when they are set. `docs/samples/network/campus.network.json` omits them and draws the same views. Unexpected properties are still errors.
 - Network diagrams draw `device.platform` under the device name, and `interface.description` on the Layer 2 link when that text is set (from #126). Layer 2 group-by can be platform, along with site and role. A file that omits those fields draws the same diagram as before.
 - Network JSON has a compatibility policy (from #125). An additive optional field stays on `schemaVersion` 1. A change to a field's meaning bumps `schemaVersion` to 2. The schema stays closed, so an unexpected property is still an error. A file that uses a key added in NerdGram 1.5 needs that release or a later one. A file that omits the new key keeps working. The policy is in `docs/schema`, in Generate from data, and in the description of `docs/schema/network.schema.json`.
