@@ -35,17 +35,18 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Atlas title and the 1.4.7 section without the heading", () => {
-    const title = notes(["--title", "v1.4.7"]);
+  it("prints the Atlas title and the 1.4.8 section without the heading", () => {
+    const title = notes(["--title", "v1.4.8"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.4.7 "Atlas"\n');
-    const body = notes(["v1.4.7"]);
+    expect(title.stdout).toBe('v1.4.8 "Atlas"\n');
+    const body = notes(["v1.4.8"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Atlas line.")).toBe(true);
-    expect(body.stdout).toContain("Your space");
-    expect(body.stdout).toContain("No templates here yet");
-    expect(body.stdout).not.toContain('## 1.4.7 "Atlas"');
-    expect(body.stdout).not.toContain("Clear revoked");
+    expect(body.stdout).toContain("Device Flow");
+    expect(body.stdout).toContain("x-access-token");
+    expect(body.stdout).not.toContain('## 1.4.8 "Atlas"');
+    expect(body.stdout).not.toContain("Your space");
+    expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
 
   it("matches a quoted heading and a bracket heading, and not a longer patch", () => {

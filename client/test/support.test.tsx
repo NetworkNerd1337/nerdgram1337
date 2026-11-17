@@ -44,7 +44,7 @@ function status(overrides: Partial<UpdateStatus> = {}): UpdateStatus {
     automatic: true,
     includePrerelease: false,
     installKind: "git",
-    currentVersion: "1.4.7",
+    currentVersion: "1.4.8",
     codename: "Atlas",
     commit: "abc1234def5678901234567890abcdef12345678",
     phase: "current",
@@ -118,7 +118,7 @@ describe("About dialog content", () => {
     const text = visibleText(html);
     expect(text).toContain("NerdGram1337");
     expect(text).toContain("A local app for writing Mermaid diagrams as Markdown.");
-    expect(text).toContain('v1.4.7 "Atlas"');
+    expect(text).toContain('v1.4.8 "Atlas"');
     expect(text).toContain("Code name");
     expect(text).toContain("Atlas");
     expect(text).toContain("git clone");
@@ -152,7 +152,7 @@ describe("About dialog content", () => {
 
   it("omits the commit and code name when they are unknown", () => {
     const text = visibleText(renderAbout({ commit: null, codename: null, matchesLatest: false, phase: "unknown" }));
-    expect(text).toContain("v1.4.7");
+    expect(text).toContain("v1.4.8");
     expect(text).not.toContain("Code name");
     expect(text).not.toContain("Atlas");
     expect(text).not.toContain("Commit");

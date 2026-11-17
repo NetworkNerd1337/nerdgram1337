@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 1.4.8 "Atlas" - 2026-11-17
+
+Patch on the Atlas line. The code name stays Atlas. GitHub sync can push the first commit, report a failed connect, and refresh a Device Flow token. Settings walks through the OAuth app. An empty Unreleased list says there is nothing pending.
+
 - GitHub sync sends the git HTTP token as Basic `x-access-token` and keeps Bearer for the REST API. A git HTTP 401 or 403 is an authorization failure. Connect and sync failures stay on the sync status, and the log line is the error code plus a message with no token.
 - An OAuth app that expires user tokens can keep syncing. The refresh token and the expiry times stay in the mode `0600` token file. Device flow refresh does not need a client secret. A token that does is refreshed only when `NERDGRAM_GITHUB_CLIENT_SECRET` is set. Otherwise the status asks you to connect again.
 - Settings explains GitHub sync with a short setup list and a status line: not set up, signed in, connected, or needs attention.
