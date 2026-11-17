@@ -4,6 +4,11 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- **Automation tokens.** A new token is shown in a highlighted panel with **Copy** and **Done**. Revoked tokens can be deleted one at a time, or cleared together. Deleting a revoked token does not make it work again. The server still stores only a hash.
+- **Folders.** A folder card counts the diagrams and subfolders directly inside it. The sidebar tree collapses. **Collapse all** closes the branches, and the open folder stays visible. The choice is saved in this browser.
+- **Editor.** The header is the folder path and the file name. Each folder links to that folder. Leaving the editor returns to the diagram's folder. **Diagram info** in the header opens and closes the panel. The preview toolbar no longer has **Edit info**.
+- **Diagram info.** Font family is a preset list, plus Custom, which keeps spaces and saves when you leave the field or press Enter. Cards show the file name. A different front matter title is a second line. The diagram and Present still use the title.
+
 ## 1.4.5 "Atlas" - 2026-11-17
 
 Patch on the Atlas line. The code name stays Atlas. Check for updates reports on every click, including when GitHub is offline, rate-limits the check, or a TLS certificate fails, and a TLS failure links to Corporate TLS inspection. The roadmap adds a 1.7.5 Batfish translator and a translator picker with a data-completeness notice.

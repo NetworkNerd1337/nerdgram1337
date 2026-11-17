@@ -91,6 +91,82 @@ describe("automation API", () => {
     expect(again.status).toBe(401);
   });
 
+  it("deletes a revoked token without reactivating it and clears only revoked tokens", async () => {
+    const server = app();
+    const active = await issueToken(server, "read", "keep");
+    const doomed = await issueToken(server, "read-write", "old");
+
+    const blocked = await request(server)
+      .post(`/api/tokens/${active.tokenMeta.id}/delete`)
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({});
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.code).toBe("not_revoked");
+    expect(JSON.stringify(blocked.body)).not.toContain(active.token);
+
+    const stillWorks = await request(server)
+      .get("/api/v1/diagrams")
+      .set("Host", HOST)
+      .set("Authorization", `Bearer ${active.token}`);
+    expect(stillWorks.status).toBe(200);
+
+    const revoked = await request(server)
+      .delete(`/api/tokens/${doomed.tokenMeta.id}`)
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({});
+    expect(revoked.status).toBe(200);
+
+    const removed = await request(server)
+      .post(`/api/tokens/${doomed.tokenMeta.id}/delete`)
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({});
+    expect(removed.status).toBe(200);
+    expect(removed.body).toEqual({ deleted: true, id: doomed.tokenMeta.id });
+    expect(JSON.stringify(removed.body)).not.toContain(doomed.token);
+
+    const stored = await fs.readFile(path.join(dir, ".meta", "api-tokens.json"), "utf8");
+    expect(stored).not.toContain(doomed.token);
+    expect(stored).not.toContain(doomed.tokenMeta.id);
+    expect(stored).toContain(active.tokenMeta.id);
+
+    const dead = await request(server)
+      .get("/api/v1/diagrams")
+      .set("Host", HOST)
+      .set("Authorization", `Bearer ${doomed.token}`);
+    expect(dead.status).toBe(401);
+
+    const again = await request(server)
+      .post(`/api/tokens/${doomed.tokenMeta.id}/delete`)
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({});
+    expect(again.status).toBe(404);
+
+    const second = await issueToken(server, "read", "gone");
+    await request(server)
+      .delete(`/api/tokens/${second.tokenMeta.id}`)
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({});
+    const cleared = await request(server)
+      .post("/api/tokens/clear-revoked")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({});
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.deleted).toBe(1);
+    const listed = await request(server).get("/api/tokens").set("Host", HOST);
+    expect(listed.body.tokens.map((token: { id: string }) => token.id)).toEqual([active.tokenMeta.id]);
+    const activeStill = await request(server)
+      .get("/api/v1/diagrams")
+      .set("Host", HOST)
+      .set("Authorization", `Bearer ${active.token}`);
+    expect(activeStill.status).toBe(200);
+  });
+
   it("rejects missing tokens, read tokens on writes, and keeps the UI guards", async () => {
     const server = app();
     for (const route of V1_ROUTES) {

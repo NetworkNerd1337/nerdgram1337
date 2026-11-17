@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   applyDiagramPatch,
   diagramConfigKey,
@@ -13,6 +13,7 @@ import {
   type DiagramPatch,
   type Scalar,
 } from "../lib/frontMatter";
+import { FONT_PRESETS, fontSelection } from "../lib/fontFamily";
 
 const THEME_FIELDS: [string, string][] = [
   ["primaryColor", "Primary"],
@@ -276,16 +277,11 @@ export function DiagramInfoPanel({
         disabled={locked}
         onChange={(layout) => commit({ layout })}
       />
-      <label>
-        Font family
-        <input
-          value={info.fontFamily ?? ""}
-          disabled={locked}
-          aria-label="Font family"
-          placeholder="IBM Plex Sans, system-ui, sans-serif"
-          onChange={(event) => commit({ fontFamily: event.target.value })}
-        />
-      </label>
+      <FontFamilyField
+        value={info.fontFamily}
+        disabled={locked}
+        onCommit={(fontFamily) => commit({ fontFamily })}
+      />
       <SelectField
         label="Gantt display"
         value={info.displayMode ?? ""}
@@ -358,6 +354,100 @@ export function DiagramInfoPanel({
         </fieldset>
       )}
     </aside>
+  );
+}
+
+function FontFamilyField({
+  value,
+  disabled,
+  onCommit,
+}: {
+  value: string | null;
+  disabled: boolean;
+  onCommit: (fontFamily: string | null) => void;
+}) {
+  const selection = fontSelection(value);
+  const valueKey = value?.trim() ?? "";
+  const [customMode, setCustomMode] = useState(selection.preset === "custom");
+  const [draft, setDraft] = useState(selection.custom);
+  const focused = useRef(false);
+  const seen = useRef(valueKey);
+  const mode = customMode ? "custom" : selection.preset;
+
+  useEffect(() => {
+    if (focused.current || seen.current === valueKey) return;
+    seen.current = valueKey;
+    const next = fontSelection(value);
+    setCustomMode(next.preset === "custom");
+    setDraft(next.custom);
+  }, [value, valueKey]);
+
+  const choose = (next: string) => {
+    if (next === "custom") {
+      setCustomMode(true);
+      const starting = selection.preset === "custom" ? selection.custom : selection.preset;
+      setDraft(starting);
+      return;
+    }
+    setCustomMode(false);
+    onCommit(next || null);
+  };
+
+  const saveDraft = () => {
+    focused.current = false;
+    const trimmed = draft.trim();
+    const next = fontSelection(trimmed);
+    setCustomMode(next.preset === "custom");
+    setDraft(next.custom);
+    seen.current = trimmed;
+    onCommit(trimmed || null);
+  };
+
+  return (
+    <div className="font-family-field">
+      <label>
+        Font family
+        <select
+          aria-label="Font family"
+          value={mode}
+          disabled={disabled}
+          onChange={(event) => choose(event.target.value)}
+        >
+          <option value="">Default</option>
+          {FONT_PRESETS.map((preset) => (
+            <option key={preset.id} value={preset.value}>
+              {preset.label}
+            </option>
+          ))}
+          <option value="custom">Custom…</option>
+        </select>
+      </label>
+      {mode === "custom" ? (
+        <label>
+          Custom font family
+          <input
+            aria-label="Custom font family"
+            value={draft}
+            disabled={disabled}
+            spellCheck={false}
+            placeholder="IBM Plex Sans, system-ui, sans-serif"
+            onFocus={() => {
+              focused.current = true;
+            }}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={saveDraft}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              event.currentTarget.blur();
+            }}
+          />
+        </label>
+      ) : null}
+      <p className="font-family-help">
+        Fonts must be installed on the computer that views or renders the diagram. Separate fallbacks with commas.
+      </p>
+    </div>
   );
 }
 

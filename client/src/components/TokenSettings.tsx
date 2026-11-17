@@ -12,6 +12,11 @@ type TokenMeta = {
   revokedAt: string | null;
 };
 
+type Confirm =
+  | { type: "revoke"; id: string }
+  | { type: "delete"; id: string }
+  | { type: "clear" };
+
 function messageOf(err: unknown): string {
   if (err instanceof Error) return err.message;
   return "Could not update tokens";
@@ -22,9 +27,10 @@ export function TokenSettings() {
   const [name, setName] = useState("");
   const [scope, setScope] = useState<"read" | "read-write">("read");
   const [revealed, setRevealed] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
 
   const refresh = async () => {
     const listed = await api.listTokens();
@@ -35,7 +41,27 @@ export function TokenSettings() {
     void refresh().catch((err: unknown) => setError(messageOf(err)));
   }, []);
 
-  const pending = tokens.find((token) => token.id === confirmId);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  const pending = confirm && confirm.type !== "clear" ? tokens.find((token) => token.id === confirm.id) : null;
+  const revokedCount = tokens.filter((token) => token.revokedAt).length;
+
+  const copyToken = () => {
+    if (!revealed) return;
+    void navigator.clipboard.writeText(revealed).then(
+      () => setCopied(true),
+      () => setError("Could not copy the token. Select it and copy it manually."),
+    );
+  };
+
+  const dismissReveal = () => {
+    setRevealed(null);
+    setCopied(false);
+  };
 
   return (
     <section className="sync-card" id="tokens">
@@ -44,18 +70,25 @@ export function TokenSettings() {
         Scripts and CI call <code>/api/v1</code> with <code>Authorization: Bearer</code>.
         The browser UI does not use a token. A token is shown once. Read can list, search,
         lint, and render. Read-write can also create, update, move, and trash diagrams.
-        Revoking a token stops it immediately. These tokens do not protect the browser
+        Revoking a token stops it immediately and cannot be undone. Delete and Clear revoked
+        only remove revoked tokens from this list. These tokens do not protect the browser
         routes. The server listens on loopback until you change <a href="#host">Host</a> or
         set <code>HOST</code>. Anyone who can reach the port can use the browser routes.
       </p>
       {error ? <div className="error-banner">{error}</div> : null}
       {revealed ? (
-        <div>
-          <p>Copy this token now. NerdGram stores only a hash, so it cannot show the token again.</p>
-          <p className="token-once">{revealed}</p>
+        <div className="token-reveal" role="status" data-testid="new-token-panel">
+          <h3>Your new token</h3>
+          <p>Copy this token now. It will not be shown again, because NerdGram stores only a hash.</p>
+          <p className="token-once" data-testid="new-token-value">
+            {revealed}
+          </p>
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setRevealed(null)}>
-              Hide
+            <button type="button" className="btn btn-primary" onClick={copyToken}>
+              {copied ? "Copied" : "Copy"}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={dismissReveal}>
+              Done
             </button>
           </div>
         </div>
@@ -82,6 +115,7 @@ export function TokenSettings() {
           onClick={() => {
             setBusy(true);
             setError(null);
+            setCopied(false);
             void api
               .createToken(name.trim(), scope)
               .then(async (created) => {
@@ -95,6 +129,11 @@ export function TokenSettings() {
         >
           Create token
         </button>
+        {revokedCount > 0 ? (
+          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setConfirm({ type: "clear" })}>
+            Clear revoked
+          </button>
+        ) : null}
       </div>
       {tokens.length === 0 ? <p>No tokens yet.</p> : null}
       {tokens.map((token) => (
@@ -106,24 +145,37 @@ export function TokenSettings() {
               {token.revokedAt ? " · revoked" : ""}
             </p>
           </div>
-          <button
-            type="button"
-            className="btn btn-danger"
-            disabled={busy || token.revokedAt != null}
-            onClick={() => setConfirmId(token.id)}
-          >
-            Revoke
-          </button>
+          <div className="token-row-actions">
+            {token.revokedAt ? (
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={busy}
+                onClick={() => setConfirm({ type: "delete", id: token.id })}
+              >
+                Delete
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={busy}
+                onClick={() => setConfirm({ type: "revoke", id: token.id })}
+              >
+                Revoke
+              </button>
+            )}
+          </div>
         </div>
       ))}
-      {pending ? (
+      {confirm?.type === "revoke" && pending ? (
         <Modal
           title={`Revoke ${pending.name}?`}
           confirmLabel="Revoke token"
-          onClose={() => setConfirmId(null)}
+          onClose={() => setConfirm(null)}
           onConfirm={() => {
             const id = pending.id;
-            setConfirmId(null);
+            setConfirm(null);
             setBusy(true);
             setError(null);
             void api
@@ -134,7 +186,53 @@ export function TokenSettings() {
           }}
         >
           <p>
-            {pending.name} ({pending.prefix}…) stops working immediately. This does not delete diagrams.
+            {pending.name} ({pending.prefix}…) stops working immediately. Revoking cannot be undone.
+            This does not delete diagrams.
+          </p>
+        </Modal>
+      ) : null}
+      {confirm?.type === "delete" && pending ? (
+        <Modal
+          title={`Delete ${pending.name}?`}
+          confirmLabel="Delete token"
+          onClose={() => setConfirm(null)}
+          onConfirm={() => {
+            const id = pending.id;
+            setConfirm(null);
+            setBusy(true);
+            setError(null);
+            void api
+              .deleteRevokedToken(id)
+              .then(() => refresh())
+              .catch((err: unknown) => setError(messageOf(err)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          <p>
+            {pending.name} ({pending.prefix}…) is removed from the list. It stays revoked and cannot be
+            used again.
+          </p>
+        </Modal>
+      ) : null}
+      {confirm?.type === "clear" ? (
+        <Modal
+          title="Clear revoked tokens?"
+          confirmLabel="Clear revoked"
+          onClose={() => setConfirm(null)}
+          onConfirm={() => {
+            setConfirm(null);
+            setBusy(true);
+            setError(null);
+            void api
+              .clearRevokedTokens()
+              .then(() => refresh())
+              .catch((err: unknown) => setError(messageOf(err)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          <p>
+            Remove {revokedCount} revoked token{revokedCount === 1 ? "" : "s"} from the list. This does
+            not reactivate them, and active tokens stay.
           </p>
         </Modal>
       ) : null}

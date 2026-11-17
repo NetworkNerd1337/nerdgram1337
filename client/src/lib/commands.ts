@@ -63,6 +63,8 @@ export type CommandActions = {
   exportAs?: (format: ExportFormatName) => void;
   /** Open the current editor diagram in presentation mode. */
   present?: () => void;
+  /** Leave the editor for the folder that holds the open diagram. */
+  goHome?: () => void;
   find?: () => void;
   replace?: () => void;
   gotoLine?: () => void;

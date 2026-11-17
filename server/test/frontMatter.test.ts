@@ -312,6 +312,23 @@ describe("front matter parsing", () => {
       ),
     ).toBe(0);
   });
+
+  it("keeps spaces in title, description, and notes, and trims only the ends of a font family", () => {
+    const titled = applyDiagramPatch(BODY, { title: "Hello world" });
+    const spaced = applyDiagramPatch(BODY, { title: "Hello " });
+    const described = applyDiagramPatch(BODY, { description: "Edge path " });
+    const noted = applyDiagramPatch(BODY, { notes: "Line one " });
+    const font = applyDiagramPatch(BODY, { fontFamily: "  IBM Plex Sans  " });
+    expect(titled.ok && spaced.ok && described.ok && noted.ok && font.ok).toBe(true);
+    if (!titled.ok || !spaced.ok || !described.ok || !noted.ok || !font.ok) return;
+    expect(parseDiagram(titled.source).title).toBe("Hello world");
+    expect(parseDiagram(spaced.source).title).toBe("Hello ");
+    expect(parseDiagram(described.source).description).toBe("Edge path ");
+    expect(parseDiagram(noted.source).notes).toBe("Line one ");
+    expect(parseDiagram(font.source).fontFamily).toBe("IBM Plex Sans");
+    expect(font.source).toContain("IBM Plex Sans");
+    expect(font.source).not.toContain("IBM Plex Sans  ");
+  });
 });
 
 describe("GET /api/diagram-meta", () => {

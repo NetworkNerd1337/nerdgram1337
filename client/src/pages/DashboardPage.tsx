@@ -34,7 +34,8 @@ import {
 import type { WorkspaceItem } from "../lib/commands";
 import { editorHref, searchDiagrams } from "../lib/diagramSearch";
 import { openWorkspaceReplace, setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
-import { diagramHeading } from "../lib/frontMatter";
+import { diagramCardLabel, folderCountLabel } from "../lib/diagramLabel";
+import { nearestExistingFolder } from "../lib/editorBreadcrumb";
 import {
   basename,
   displayName,
@@ -75,7 +76,6 @@ export function DashboardPage() {
     startPresentation(() => navigate(presentHref(path)));
   };
   const { tree, favorites, loading, error, refresh, toggleFavorite } = useWorkspace();
-  const [folder, setFolder] = useState("");
   const [search, setSearch] = useState("");
   const [namesOnly, setNamesOnly] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -130,6 +130,15 @@ export function DashboardPage() {
   const [over, setOver] = useState<OverTarget | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const requestedFolder = searchParams.get("folder") ?? "";
+  const folder = loading ? requestedFolder : nearestExistingFolder(tree, requestedFolder);
+  const setFolder = (value: string | ((current: string) => string)) => {
+    const next = typeof value === "function" ? value(folder) : value;
+    const params = new URLSearchParams(searchParams);
+    if (next) params.set("folder", next);
+    else params.delete("folder");
+    setSearchParams(params);
+  };
   const dragItemRef = useRef<DragItem | null>(null);
   const rejectRef = useRef<string | null>(null);
   const landedRef = useRef(false);
@@ -140,6 +149,16 @@ export function DashboardPage() {
   useEffect(() => {
     setWorkspaceReplaceFolder(showTrash ? "" : folder);
   }, [folder, showTrash]);
+
+  useEffect(() => {
+    if (loading) return;
+    const resolved = nearestExistingFolder(tree, requestedFolder);
+    if (resolved === requestedFolder) return;
+    const params = new URLSearchParams(searchParams);
+    if (resolved) params.set("folder", resolved);
+    else params.delete("folder");
+    setSearchParams(params, { replace: true });
+  }, [loading, tree, requestedFolder, searchParams, setSearchParams]);
 
   const loadTrash = async () => {
     const result = await api.trash();
@@ -1314,7 +1333,7 @@ function DiagramCard({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
-  const label = diagramHeading(meta?.title ?? match?.title, path);
+  const label = diagramCardLabel(path, meta?.title ?? match?.title);
   return (
     <article
       className={`card${dragging ? " is-dragging" : ""}`}
@@ -1332,14 +1351,19 @@ function DiagramCard({
           cacheKey={meta?.cacheKey ?? null}
           frontMatter={meta?.malformed === true}
         />
-        <Link className="card-thumb-open" to={href} draggable={false} aria-label={`Open ${label}`} />
+        <Link className="card-thumb-open" to={href} draggable={false} aria-label={`Open ${label.name}`} />
       </div>
       <div className="card-body">
         <h3>
           <Link to={href} draggable={false}>
-            {label}
+            {label.name}
           </Link>
         </h3>
+        {label.subtitle ? (
+          <p className="card-title-line" title={label.subtitle}>
+            {label.subtitle}
+          </p>
+        ) : null}
         {match ? <SearchMatch hit={match} /> : null}
         {meta?.description && match?.field !== "description" ? (
           <p className="card-description">{meta.description}</p>
@@ -1348,7 +1372,7 @@ function DiagramCard({
         <TagList tags={meta?.tags ?? []} onTag={onTag} />
         <p>Updated {formatRelativeTime(mtimeMs)}</p>
         <ItemActions
-          label={label}
+          label={label.name}
           favorited={favorited}
           onFavorite={onFavorite}
           onPresent={onPresent}
@@ -1401,8 +1425,7 @@ function ListRow({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
-  const label = diagramHeading(meta?.title ?? match?.title, path);
-  const fileLabel = displayName(path);
+  const label = diagramCardLabel(path, meta?.title ?? match?.title);
   return (
     <div
       className={`list-row${dragging ? " is-dragging" : ""}`}
@@ -1415,20 +1438,25 @@ function ListRow({
     >
       <div className="list-row-main">
         <Link to={href} draggable={false}>
-          <strong>{label}</strong>
+          <strong>{label.name}</strong>
         </Link>
+        {label.subtitle ? (
+          <div className="card-title-line" title={label.subtitle}>
+            {label.subtitle}
+          </div>
+        ) : null}
         {match ? <SearchMatch hit={match} /> : null}
         {meta?.description && match?.field !== "description" ? (
           <div className="card-description">{meta.description}</div>
         ) : null}
         <TagList tags={meta?.tags ?? []} onTag={onTag} />
         <div style={{ color: "var(--ink-soft)", fontSize: "0.8rem" }}>
-          {label === fileLabel ? path : fileLabel} · Updated {formatRelativeTime(mtimeMs)}
+          {path} · Updated {formatRelativeTime(mtimeMs)}
           {meta?.malformed ? " · Front matter needs a fix" : ""}
         </div>
       </div>
       <ItemActions
-        label={label}
+        label={label.name}
         favorited={favorited}
         onFavorite={onFavorite}
         onPresent={onPresent}
@@ -1492,7 +1520,6 @@ function FolderCard({
   onDelete: () => void;
 }) {
   const suppressClick = useRef(false);
-  const count = (node.children || []).filter((child) => child.type === "file").length;
   return (
     <article
       className={`card folder-card${dragging ? " is-dragging" : ""}${dropClass}`}
@@ -1528,9 +1555,7 @@ function FolderCard({
           <span className="folder-glyph" aria-hidden="true" />
           {node.name}
         </h3>
-        <p>
-          {count} diagram{count === 1 ? "" : "s"}
-        </p>
+        <p>{folderCountLabel(node)}</p>
       </button>
       <div className="card-body">
         <ItemActions

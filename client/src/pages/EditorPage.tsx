@@ -68,6 +68,8 @@ import {
   presentationAction,
 } from "../lib/presentationKeys";
 import { rememberThumbnail } from "../lib/thumbnailCache";
+import { EditorBreadcrumb } from "../components/EditorBreadcrumb";
+import { editorExitHref, folderHref } from "../lib/editorBreadcrumb";
 import { displayName, joinPath, parentPath } from "../lib/paths";
 import { setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
 import type { TreeNode } from "../types";
@@ -140,6 +142,21 @@ export function EditorPage() {
   const [repairOpen, setRepairOpen] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [linkMessage, setLinkMessage] = useState<{ path: string; text: string } | null>(null);
+  const [workspaceTree, setWorkspaceTree] = useState<TreeNode[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void api.tree().then(
+      (result) => {
+        if (!cancelled) setWorkspaceTree(result.tree);
+      },
+      () => {
+        if (!cancelled) setWorkspaceTree([]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath]);
   const [refresh, setRefresh] = useState<{
     dataPath: string;
     diff: RefreshDiff;
@@ -708,6 +725,9 @@ export function EditorPage() {
   const readOnly = access !== "edit";
   const info = useMemo(() => parseDiagram(code), [code]);
   const heading = diagramHeading(info.title, filePath);
+  const exitHref = workspaceTree
+    ? editorExitHref(filePath, workspaceTree)
+    : folderHref(parentPath(filePath));
   const trail = useMemo(
     () => trailFromState(location.state, { path: filePath, title: heading }),
     [location.state, filePath, heading],
@@ -849,6 +869,7 @@ export function EditorPage() {
     route: "editor",
     actions: {
       editDiagramInfo: () => setInfoOpen(true),
+      goHome: () => navigate(exitHref),
       linkNode: readOnly ? undefined : () => setLinkNodeOpen(true),
       refreshFromData: readOnly || !dataSource ? undefined : refreshFromData,
       openHistory: () => setHistoryOpen(true),
@@ -907,12 +928,10 @@ export function EditorPage() {
       <div>
       <header className="editor-top">
         <div className="editor-top-title">
-          <Link to="/">
+          <Link to={exitHref} aria-label={parentPath(filePath) ? "Back to folder" : "Back to dashboard"}>
             <Brand compact />
           </Link>
-          <div className="breadcrumb">
-            Local files / <strong>{heading || "Untitled"}</strong>
-          </div>
+          <EditorBreadcrumb filePath={filePath} />
         </div>
         <div className="editor-top-actions">
           {presenting ? null : <SupportLink />}
@@ -922,10 +941,12 @@ export function EditorPage() {
           <CommandsButton />
           <button
             type="button"
-            className="btn btn-ghost"
-            onClick={() => setInfoOpen(true)}
+            className={`btn btn-ghost${infoOpen ? " is-active" : ""}`}
+            onClick={() => setInfoOpen(!infoOpen)}
             disabled={!loaded}
             aria-expanded={infoOpen}
+            aria-pressed={infoOpen}
+            aria-controls="diagram-info-panel"
           >
             Diagram info
           </button>
@@ -1178,13 +1199,6 @@ export function EditorPage() {
                 aria-keyshortcuts="F5"
               >
                 Present
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => setInfoOpen(!infoOpen)}
-              >
-                {infoOpen ? "Hide info" : "Edit info"}
               </button>
             </div>
           </div>
