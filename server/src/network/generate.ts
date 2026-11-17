@@ -18,7 +18,7 @@ export type NetIssue = {
 export type NetworkGenerateOptions = {
   view: "l3" | "l2";
   includeDown: boolean;
-  groupBy: "" | "vrf" | "site" | "role";
+  groupBy: "" | "vrf" | "site" | "role" | "platform";
   vlan: number | null;
   grouping: boolean;
   localDevice: string;
@@ -286,7 +286,8 @@ function buildLayer3(
   const nodes = deviceNodes(devices, annotations, (device) => {
     if (!options.grouping || !options.groupBy) return "";
     if (options.groupBy === "vrf") return vrfGroupLabel(vrfsByDevice.get(device.key));
-    return device[options.groupBy] ?? "";
+    if (options.groupBy === "site" || options.groupBy === "role") return device[options.groupBy] ?? "";
+    return "";
   });
   return { nodes: [...nodes, ...segmentNodes.sort((a, b) => a.key.localeCompare(b.key))], edges: sortEdges(edges) };
 }
@@ -318,7 +319,8 @@ function buildLayer2(
   }
 
   const nodes = deviceNodes(devices, new Map(), (device) => {
-    if (!options.grouping || (options.groupBy !== "site" && options.groupBy !== "role")) return "";
+    if (!options.grouping) return "";
+    if (options.groupBy !== "site" && options.groupBy !== "role" && options.groupBy !== "platform") return "";
     return device[options.groupBy] ?? "";
   });
   return { nodes, edges: sortEdges(edges), warnings };
@@ -493,6 +495,8 @@ function bundleLabel(members: LinkEnd[], interfaces: Map<string, IfaceRecord>, v
   }
   const pairs = members.map((member) => `${member.a.ifaceDisplay} – ${member.b.ifaceDisplay}`);
   lines.push(pairs.join(", "));
+  const described = descriptionLine(members, interfaces);
+  if (described) lines.push(described);
   const left = switchportFor(first.a, interfaces);
   const right = switchportFor(first.b, interfaces);
   const vlanLine = vlanLabel(left, right, vlanNames);
@@ -597,6 +601,24 @@ function carries(item: Switchport, vlan: number): boolean {
   return false;
 }
 
+function descriptionLine(members: LinkEnd[], interfaces: Map<string, IfaceRecord>): string {
+  const parts: string[] = [];
+  for (const member of members) {
+    const left = descriptionOf(member.a, interfaces);
+    const right = descriptionOf(member.b, interfaces);
+    const text = left && right ? (left === right ? left : `${left} – ${right}`) : left || right;
+    if (text && !parts.includes(text)) parts.push(text);
+  }
+  return parts.join(", ");
+}
+
+function descriptionOf(end: Endpoint, interfaces: Map<string, IfaceRecord>): string {
+  const member = interfaces.get(`${end.deviceKey}\0${end.ifaceKey}`)?.raw.description.trim() ?? "";
+  if (member) return member;
+  if (!end.lagKey) return "";
+  return interfaces.get(`${end.deviceKey}\0${end.lagKey}`)?.raw.description.trim() ?? "";
+}
+
 function deviceNodes(
   devices: Map<string, DeviceRecord>,
   annotations: Map<string, string[]>,
@@ -607,7 +629,8 @@ function deviceNodes(
     .map((device) => {
       const notes = [...new Set(annotations.get(device.key) ?? [])].sort((a, b) => a.localeCompare(b));
       const management = managementLine(device, notes);
-      const lines = [device.name, ...(management ? [management] : []), ...notes];
+      const platform = device.platform.trim();
+      const lines = [device.name, ...(platform ? [platform] : []), ...(management ? [management] : []), ...notes];
       return {
         key: device.key,
         label: lines.join("\n"),

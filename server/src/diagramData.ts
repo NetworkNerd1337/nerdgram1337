@@ -60,7 +60,7 @@ export type DataShape = "links" | "nodes" | "edges" | "graph";
 export type FlowDirection = "TD" | "TB" | "LR" | "RL" | "BT";
 export type GroupBy = "platform" | "capability";
 export type NetworkView = "l3" | "l2";
-export type NetworkGroupBy = "vrf" | "site" | "role";
+export type NetworkGroupBy = "vrf" | "site" | "role" | "platform";
 
 export type RowIssue = {
   row: number;
@@ -102,7 +102,8 @@ export type DataSourceConfig = {
   diagramType: "flowchart";
   /**
    * CDP and LLDP use platform or capability.
-   * Network data uses vrf, site, or role. Refresh keeps the same grouping.
+   * Network Layer 3 uses vrf. Network Layer 2 uses site, role, or platform.
+   * Refresh keeps the same grouping.
    */
   groupBy?: GroupBy | NetworkGroupBy;
   /** Fallback hostname when neighbor output, or embedded CDP or LLDP, has no CLI prompt. */
@@ -1601,7 +1602,9 @@ function configFromPlain(block: Record<string, unknown>): DataSourceConfig | nul
       config.vlan = block.vlan;
     }
     if (block.groupBy != null && block.groupBy !== "") {
-      if (block.groupBy !== "vrf" && block.groupBy !== "site" && block.groupBy !== "role") return null;
+      if (block.groupBy !== "vrf" && block.groupBy !== "site" && block.groupBy !== "role" && block.groupBy !== "platform") {
+        return null;
+      }
       config.groupBy = block.groupBy;
     }
   } else if (block.groupBy != null && block.groupBy !== "") {

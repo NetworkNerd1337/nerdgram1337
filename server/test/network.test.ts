@@ -122,6 +122,8 @@ describe("network subnet math", () => {
     expect(block).not.toContain("10.9.9.0/30");
     expect(block).not.toContain("mgmt 10.255.0.1");
     expect(block).toContain("mgmt 10.255.0.2");
+    expect(block).toContain("core-rtr<br/>Cisco IOS-XE<br/>Lo0 10.255.0.1/32");
+    expect(block).toContain("dist-sw<br/>Cisco IOS-XE<br/>mgmt 10.255.0.2");
     expect(block).not.toContain("Gi0/1/0");
     expect(block).not.toContain("Gi0/1/1");
     expect(block).not.toContain("Gi1/0/51");
@@ -144,8 +146,21 @@ describe("network subnet math", () => {
       interfaces: [{ device: "solo", name: "Vlan10", ipv4: [{ address: "192.0.2.1", prefix: 24 }] }],
     };
     const aloneBlock = generated(JSON.stringify(alone));
-    expect(aloneBlock).toContain("Vl10 192.0.2.1/24");
+    expect(aloneBlock).toContain('["solo<br/>Vl10 192.0.2.1/24"]');
     expect(aloneBlock).not.toContain("192.0.2.0/24");
+
+    const blankPlatform = {
+      schemaVersion: 1,
+      devices: [{ name: "solo", platform: "   " }],
+      interfaces: [{ device: "solo", name: "Vlan10", ipv4: [{ address: "192.0.2.1", prefix: 24 }] }],
+    };
+    expect(generated(JSON.stringify(blankPlatform))).toContain('["solo<br/>Vl10 192.0.2.1/24"]');
+
+    const layer3Platform = importDiagramData({ text: sampleText, format: "network", view: "l3", groupBy: "platform" });
+    expect(layer3Platform.errors).toEqual([]);
+    const layer3Block = extractGenerated(layer3Platform.mermaid) ?? "";
+    expect(layer3Block).toContain("Cisco IOS-XE");
+    expect(layer3Block).not.toContain("subgraph");
 
     const pair = {
       schemaVersion: 1,
@@ -178,6 +193,10 @@ describe("network layer 2", () => {
     expect(block).toContain("10,20,30-40 native 99 native");
     expect(block).toContain("access 20 servers");
     expect(block).toContain("access 10 users");
+    expect(block).toContain("core-rtr<br/>Cisco IOS-XE");
+    expect(block).toContain("L2 uplink to dist-sw – L2 uplink to core-rtr");
+    expect(block).toContain("to dist-sw – to access-a");
+    expect(block).toContain("Gi1/0/24 – Gi1/0/1<br/>access 20 servers");
     expect(block).toContain("Gi1/0/47 – Gi1/0/47");
     expect(block).not.toContain("native 1");
     expect(block).toContain('["hq"]');
@@ -224,7 +243,57 @@ describe("network layer 2", () => {
     expect(result.warnings.some((issue) => issue.message.includes("duplicate"))).toBe(true);
     const block = extractGenerated(result.mermaid) ?? "";
     expect(block.match(/Gi1\/0\/1 – Gi1\/0\/48/g)).toHaveLength(1);
-    expect(block).toContain("10,20 native 99");
+    expect(block).toContain("Gi1/0/1 – Gi1/0/48<br/>10,20 native 99");
+  });
+
+  it("groups a Layer 2 view by platform and leaves a file without those fields unchanged", () => {
+    const grouped = importDiagramData({
+      text: sampleText,
+      format: "network",
+      view: "l2",
+      groupBy: "platform",
+      sourceFile: "campus.network.json",
+    });
+    expect(grouped.errors).toEqual([]);
+    expect(grouped.source).toMatchObject({ view: "l2", groupBy: "platform" });
+    expect(readDataSource(grouped.mermaid)?.groupBy).toBe("platform");
+    const block = extractGenerated(grouped.mermaid) ?? "";
+    expect(block).toContain('subgraph');
+    expect(block).toContain('["Cisco IOS-XE"]');
+
+    const mixed = JSON.stringify({
+      schemaVersion: 1,
+      devices: [
+        { name: "core", platform: "Cisco IOS-XE" },
+        { name: "edge", platform: "Junos" },
+        { name: "plain" },
+      ],
+      interfaces: [
+        { device: "core", name: "Gi0/1", description: "to edge", switchportMode: "trunk", trunkVlans: [10] },
+        { device: "edge", name: "ge-0/0/0", description: "to core", switchportMode: "trunk", trunkVlans: [10] },
+        { device: "plain", name: "Gi0/1", switchportMode: "access", accessVlan: 10 },
+        { device: "core", name: "Gi0/2", switchportMode: "access", accessVlan: 10 },
+      ],
+      links: [
+        { a: { device: "core", interface: "Gi0/1" }, b: { device: "edge", interface: "ge-0/0/0" } },
+        { a: { device: "core", interface: "Gi0/2" }, b: { device: "plain", interface: "Gi0/1" } },
+      ],
+    });
+    const result = importDiagramData({ text: mixed, format: "network", view: "l2", groupBy: "platform" });
+    expect(result.errors).toEqual([]);
+    const mixedBlock = extractGenerated(result.mermaid) ?? "";
+    expect(mixedBlock).toContain('["Cisco IOS-XE"]');
+    expect(mixedBlock).toContain('["Junos"]');
+    expect(mixedBlock).toContain("core<br/>Cisco IOS-XE");
+    expect(mixedBlock).toContain("edge<br/>Junos");
+    expect(mixedBlock).toContain('["plain"]');
+    expect(mixedBlock).not.toContain("plain<br/>");
+    expect(mixedBlock).toContain("to edge – to core");
+    expect(mixedBlock).toContain("Gi0/2 – Gi0/1<br/>access 10");
+
+    expect(() => importDiagramData({ text: mixed, format: "network", view: "l2", groupBy: "rack" })).toThrow(
+      /vrf, site, role, or platform/,
+    );
   });
 });
 

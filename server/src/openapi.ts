@@ -373,7 +373,7 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
         groupBy: {
           type: "string",
           enum: ["platform", "capability", "vrf", "site", "role"],
-          description: "CDP and LLDP use platform or capability. Network data uses vrf, site, or role.",
+          description: "CDP and LLDP use platform or capability. Network Layer 3 uses vrf. Network Layer 2 uses site, role, or platform.",
         },
         localDevice: { type: "string", description: "Hostname when CDP or LLDP text has no CLI prompt." },
         title: { type: "string" },

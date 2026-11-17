@@ -15,7 +15,7 @@ import { buildNetwork, type BuiltEdge, type BuiltNode } from "./generate.js";
 import { validateNetwork } from "./validate.js";
 
 const VIEWS = new Set<NetworkView>(["l3", "l2"]);
-const GROUPS = new Set<NetworkGroupBy>(["vrf", "site", "role"]);
+const GROUPS = new Set<NetworkGroupBy>(["vrf", "site", "role", "platform"]);
 
 export function importNetworkFormat(input: ImportInput, text: string): ImportResult {
   const view = resolveView(input.view);
@@ -143,7 +143,7 @@ function resolveNetworkGroup(value: string | undefined): NetworkGroupBy | "" {
   const raw = value?.trim().toLowerCase() ?? "";
   if (!raw || raw === "none") return "";
   if (!GROUPS.has(raw as NetworkGroupBy)) {
-    throw dataFail(400, "Group by for network data must be vrf, site, or role.", "invalid");
+    throw dataFail(400, "Group by for network data must be vrf, site, role, or platform.", "invalid");
   }
   return raw as NetworkGroupBy;
 }

@@ -331,6 +331,7 @@ function NetworkOptions({ state, dispatch }: { state: WizardState; dispatch: Dis
         {layer3 ? <option value="vrf">VRF</option> : null}
         {layer3 ? null : <option value="site">Site</option>}
         {layer3 ? null : <option value="role">Role</option>}
+        {layer3 ? null : <option value="platform">Platform</option>}
       </select>
       {layer3 ? null : (
         <label htmlFor="generate-vlan">

@@ -82,7 +82,7 @@ describe("nerdgram CLI", () => {
     expect(help.stdout).toContain("--vlan");
     expect(help.stdout).toContain("platform or capability");
     expect(help.stdout).toContain("vrf");
-    expect(help.stdout).toContain("site or role");
+    expect(help.stdout).toContain("site, role, or platform");
     expect(help.stdout).toContain('{"ok":true');
 
     const version = await runCli(["--version"]);
