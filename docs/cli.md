@@ -113,7 +113,7 @@ nerdgram generate --path Network/Core.mmd --data docs/samples/neighbors/cisco-io
 nerdgram refresh Network/Core.mmd --data docs/samples/neighbors/cisco-ios-cdp.cdp
 ```
 
-`generate` is `POST /api/v1/generate`. It returns **409** when the path already exists. `refresh` is `POST /api/v1/generate/refresh` with `save: true`, and with `writeData: true` when `--data` is set. `format` on refresh comes from the diagram, so the new file has to match the format `generate` stored. CDP and LLDP use `--format cdp` or `--format lldp`, `--group-by platform|capability`, and `--local-device` when the paste has no prompt. Network JSON uses `--format network` and `--view l3` or `--view l2`. `--include-down` draws shutdown and down interfaces. `--vlan` keeps Layer 2 links that carry that VLAN. `--group-by` is `vrf` for Layer 3, or `site`, `role`, or `platform` for Layer 2. Refresh does not take `--view`. The view and the options are already in the diagram. The same HTTP calls are in [One call builds the whole diagram](api.md#one-call-builds-the-whole-diagram). The format is described in [Layer 3 and Layer 2 from network data](generate-from-data.md#layer-3-and-layer-2-from-network-data).
+`generate` is `POST /api/v1/generate/upsert`. The first run creates the diagram. The next run of the same path updates the generated block and the data file beside it. Notes outside the generated markers stay. `--create-only` is `POST /api/v1/generate` and returns **409** when the path already exists. `refresh` is `POST /api/v1/generate/refresh` with `save: true`, and with `writeData: true` when `--data` is set. `format` on refresh comes from the diagram, so the new file has to match the format `generate` stored. CDP and LLDP use `--format cdp` or `--format lldp`, `--group-by platform|capability`, and `--local-device` when the paste has no prompt. Network JSON uses `--format network` and `--view l3` or `--view l2`. `--include-down` draws shutdown and down interfaces. `--vlan` keeps Layer 2 links that carry that VLAN. `--group-by` is `vrf` for Layer 3, or `site`, `role`, or `platform` for Layer 2. Refresh does not take `--view`. The view and the options are already in the diagram. The same HTTP calls are in [One call builds the whole diagram](api.md#one-call-builds-the-whole-diagram). The format is described in [Layer 3 and Layer 2 from network data](generate-from-data.md#layer-3-and-layer-2-from-network-data).
 
 The default URL is loopback. Point `NERDGRAM_URL` at another machine only when that machine's Host setting or `HOST` is already open to you. The browser `/api` routes have no token. Anyone who can reach the port can use them. A token covers `/api/v1` only.
 
@@ -143,7 +143,8 @@ Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` mea
 | none | `GET /api/v1/render` |
 | `nerdgram render --server` | `POST /api/v1/render` |
 | none | `POST /api/v1/generate/preview` |
-| `nerdgram generate` | `POST /api/v1/generate` |
+| `nerdgram generate` | `POST /api/v1/generate/upsert` |
+| `nerdgram generate --create-only` | `POST /api/v1/generate` |
 | `nerdgram refresh` | `POST /api/v1/generate/refresh` |
 | none | `GET /api/v1/history` |
 | `nerdgram diff` | `GET /api/v1/history/diff` |

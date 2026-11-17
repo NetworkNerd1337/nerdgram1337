@@ -6,6 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- `POST /api/v1/generate/upsert` creates a generated diagram, or updates its generated block and the sibling data file when that path already exists (from #128). Notes outside the generated markers stay. `POST /api/v1/generate` is still create-only and returns **409** when the path exists. `nerdgram generate` calls upsert. `--create-only` keeps the **409**.
 - A clean GitHub pull no longer pushes an empty commit. A pull or conflict resolution that leaves the files matching the latest commit is not treated as a local edit, and NerdGram does not create a commit whose tree matches its only parent. An edit made after a pull still becomes a commit.
 - Network JSON stays on `schemaVersion` 1 and adds optional `device.model`, `device.diagram`, `interface.speed`, and a link `label` (from #127). The model is written under the device name. A child diagram path becomes a click line. Speed and the link label are written on the edge when they are set. `docs/samples/network/campus.network.json` omits them and draws the same views. Unexpected properties are still errors.
 - Network diagrams draw `device.platform` under the device name, and `interface.description` on the Layer 2 link when that text is set (from #126). Layer 2 group-by can be platform, along with site and role. A file that omits those fields draws the same diagram as before.

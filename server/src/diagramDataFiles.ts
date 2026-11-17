@@ -8,11 +8,13 @@ import {
   diffModels,
   importDiagramData,
   isSafeDataPath,
+  extractGenerated,
   readDataSource,
   readGeneratedModel,
   renderNewDiagram,
   renderRefresh,
   type DataFormat,
+  type DataSourceConfig,
   type GraphDiff,
   type ImportInput,
   type ImportResult,
@@ -213,6 +215,85 @@ export async function createGeneratedDiagram(input: CreateGeneratedInput): Promi
     counts: preview.counts,
     warnings: preview.warnings,
   };
+}
+
+export type UpsertGeneratedResult = {
+  path: string;
+  dataPath: string;
+  edgesPath: string;
+  mermaid: string;
+  counts: ImportResult["counts"];
+  warnings: RowIssue[];
+  /** True when this call created the diagram. False when it updated the generated block. */
+  created: boolean;
+};
+
+/**
+ * Create the diagram, or replace its generated block when that path already
+ * holds a generated diagram. The posted body is the whole data file. Text
+ * outside the generated markers is left in place. A diagram that was not
+ * generated from data is left unchanged.
+ */
+export async function upsertGeneratedDiagram(input: CreateGeneratedInput): Promise<UpsertGeneratedResult> {
+  const diagramPath = assertDiagramPath(input.path);
+  if (!(await pathExists(resolveSafePath(diagramPath)))) {
+    const created = await createGeneratedDiagram(input);
+    return { ...created, created: true };
+  }
+
+  const current = (await store.readFile(diagramPath)).content;
+  if (extractGenerated(current) == null) {
+    throw httpFail(409, "That diagram was not generated from data, so it was left unchanged.", "not_generated", {
+      path: diagramPath,
+    });
+  }
+
+  const preview = importDiagramData(input);
+  if (preview.errors.length > 0) {
+    throw dataFail(400, "Fix the rows listed before updating the diagram.", "invalid", { errors: preview.errors });
+  }
+
+  const existing = readDataSource(current);
+  let dataPath = "";
+  let edgesPath = "";
+  if (input.storeData !== false) {
+    dataPath = reusableDataPath(existing, preview.format, diagramPath);
+    await writeDataFile(dataPath, input.text);
+    if (input.edgesText?.trim() && (preview.shape === "graph" || preview.shape === "nodes")) {
+      const edgesFormat = preview.source.edgesFormat ?? (detectEdgesFormat(input.edgesText) || "csv");
+      edgesPath =
+        existing?.edgesFile && existing.format === preview.format && isSafeDataPath(existing.edgesFile)
+          ? existing.edgesFile
+          : siblingDataPath(diagramPath, edgesFormat, "edges");
+      await writeDataFile(edgesPath, input.edgesText);
+    }
+  } else if (existing?.file) {
+    dataPath = existing.file;
+    edgesPath = existing.edgesFile ?? "";
+  }
+
+  const source = {
+    ...preview.source,
+    file: dataPath || preview.source.file,
+    ...(edgesPath ? { edgesFile: edgesPath } : {}),
+  };
+  if (!edgesPath) delete source.edgesFile;
+  const mermaid = renderRefresh(current, preview.model, source);
+  const written = await store.writeFile(diagramPath, mermaid, { force: true });
+  return {
+    path: written.path,
+    dataPath,
+    edgesPath,
+    mermaid,
+    counts: preview.counts,
+    warnings: preview.warnings,
+    created: false,
+  };
+}
+
+function reusableDataPath(existing: DataSourceConfig | null, format: DataFormat, diagramPath: string): string {
+  if (existing?.file && existing.format === format && isSafeDataPath(existing.file)) return existing.file;
+  return siblingDataPath(diagramPath, format, "data");
 }
 
 export async function refreshGeneratedDiagram(input: RefreshGeneratedInput): Promise<RefreshGeneratedResult> {

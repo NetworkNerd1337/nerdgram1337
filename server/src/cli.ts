@@ -46,6 +46,7 @@ const BOOL_FLAGS = new Set([
   "with-data",
   "keep-data",
   "include-down",
+  "create-only",
   "version",
 ]);
 
@@ -89,6 +90,9 @@ Flags
                   diagnostics, folders, files, and the rest of the payload).
                   Failure is {"ok":false,"error","status"} on stdout.
   --include-down  Network data. Draw shutdown and down interfaces. Off by default.
+  --create-only   Create the diagram and return 409 when the path exists.
+                  Without this flag, generate creates the diagram or updates
+                  the generated block and the data file beside it.
   --vlan <1-4094> Layer 2 network view. Keep links that carry this VLAN id.
   --group-by <value>
                   cdp and lldp: platform or capability.
@@ -633,8 +637,9 @@ async function generateCommand(parsed: Parsed, io: Io): Promise<void> {
   const vlanText = flagString(parsed.flags, "vlan");
   if (vlanText != null && !/^\d+$/.test(vlanText)) throw new CliError("vlan must be an integer from 1 to 4094.");
   const text = await fs.readFile(dataFile, "utf8");
+  const createOnly = parsed.flags.get("create-only") === true;
   const { base, token } = configOf(parsed.flags, io.env);
-  const result = await callApi(base, requireToken(token), "POST", "/api/v1/generate", {
+  const result = await callApi(base, requireToken(token), "POST", createOnly ? "/api/v1/generate" : "/api/v1/generate/upsert", {
     path: diagramPath,
     text,
     format,
@@ -647,8 +652,9 @@ async function generateCommand(parsed: Parsed, io: Io): Promise<void> {
     ...(parsed.flags.get("include-down") === true ? { includeDown: true } : {}),
     ...(vlanText != null ? { vlan: Number(vlanText) } : {}),
   });
-  const body = result.json as { path: string; dataPath?: string; counts?: unknown };
-  writeOut(io, isJson(parsed.flags), body, `Created ${body.path}${body.dataPath ? ` from ${body.dataPath}` : ""}`);
+  const body = result.json as { path: string; dataPath?: string; created?: boolean; counts?: unknown };
+  const verb = body.created === false ? "Updated" : "Created";
+  writeOut(io, isJson(parsed.flags), body, `${verb} ${body.path}${body.dataPath ? ` from ${body.dataPath}` : ""}`);
 }
 
 async function diffCommand(parsed: Parsed, io: Io): Promise<void> {

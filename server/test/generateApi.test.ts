@@ -235,4 +235,45 @@ Enabled Capabilities: B
     expect(v1.body.dataPath).toBe("Campus-L2.network.json");
     expect(v1.body.mermaid).toContain("native 99");
   });
+
+  it("upserts the same path, keeps notes outside the markers, and still 409s on create-only", async () => {
+    const server = app();
+    const token = await request(server).post("/api/tokens").set(json).send({ name: "upsert", scope: "read-write" });
+    expect(token.status).toBe(201);
+    const auth = { ...json, Authorization: `Bearer ${token.body.token}` };
+
+    const first = await request(server)
+      .post("/api/v1/generate/upsert")
+      .set(auth)
+      .send({ text: links, path: "Campus.mmd", title: "Campus" });
+    expect(first.status).toBe(201);
+    expect(first.body.created).toBe(true);
+    expect(first.body.dataPath).toBe("Campus.csv");
+
+    await fs.writeFile(path.join(dir, "Campus.mmd"), `${first.body.mermaid}%% keep this note\n`);
+    const next = links.replaceAll("Atlanta", "Boston");
+    const second = await request(server)
+      .post("/api/v1/generate/upsert")
+      .set(auth)
+      .send({ text: next, path: "Campus.mmd", title: "Campus" });
+    expect(second.status).toBe(200);
+    expect(second.body.created).toBe(false);
+    expect(second.body.mermaid).toContain("Boston");
+    expect(second.body.mermaid).toContain("%% keep this note");
+    expect(second.body.mermaid).not.toContain("Atlanta");
+    expect(await fs.readFile(path.join(dir, "Campus.csv"), "utf8")).toBe(next);
+    const disk = await fs.readFile(path.join(dir, "Campus.mmd"), "utf8");
+    expect(disk).toContain("%% keep this note");
+    expect(disk).toContain("Boston");
+
+    const createOnly = await request(server).post("/api/v1/generate").set(auth).send({ text: next, path: "Campus.mmd" });
+    expect(createOnly.status).toBe(409);
+    expect(createOnly.body.code).toBe("exists");
+
+    await fs.writeFile(path.join(dir, "Hand.mmd"), "flowchart LR\n  A --> B\n");
+    const hand = await request(server).post("/api/v1/generate/upsert").set(auth).send({ text: links, path: "Hand.mmd" });
+    expect(hand.status).toBe(409);
+    expect(hand.body.code).toBe("not_generated");
+    expect(await fs.readFile(path.join(dir, "Hand.mmd"), "utf8")).toBe("flowchart LR\n  A --> B\n");
+  });
 });
