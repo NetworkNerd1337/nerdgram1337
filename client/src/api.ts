@@ -1,6 +1,7 @@
 import type { LinkRepairPlan } from "../../server/src/diagramLinks.ts";
 import type { ReplaceApplyResult, ReplacePreview, ReplaceUndoResult } from "./lib/workspaceReplace";
 import type { LintDiagnostic } from "../../server/src/diagramLint.ts";
+import type { UnreadableDiagram } from "../../server/src/readError.ts";
 import type {
   DiagramMeta,
   DiagramSearchResponse,
@@ -87,6 +88,7 @@ export class ApiError extends Error {
     size: number;
   };
   readonly lock?: LockConflict;
+  readonly errno?: string;
 
   constructor(status: number, body: Record<string, unknown>) {
     super(typeof body.error === "string" ? body.error : `Request failed (${status})`);
@@ -135,6 +137,7 @@ export class ApiError extends Error {
         sameInstance: lock.sameInstance !== false,
       };
     }
+    this.errno = typeof body.errno === "string" ? body.errno : undefined;
   }
 }
 
@@ -184,7 +187,11 @@ export const api = {
       linkedFrom: { path: string; target: string; line: number }[];
     }>(`/api/diagram-links?path=${encodeURIComponent(path)}`),
   diagramLint: () =>
-    request<{ checked: number; diagrams: { path: string; diagnostics: LintDiagnostic[] }[] }>("/api/diagram-lint"),
+    request<{
+      checked: number;
+      diagrams: { path: string; diagnostics: LintDiagnostic[] }[];
+      unreadable?: UnreadableDiagram[];
+    }>("/api/diagram-lint"),
   previewLinkRepairs: () => request<LinkRepairPlan>("/api/link-repairs"),
   applyLinkRepairs: (body: { lockToken?: string | null; choices: { from: string; to: string }[] }) =>
     request<LinkRepairPlan>("/api/link-repairs", {

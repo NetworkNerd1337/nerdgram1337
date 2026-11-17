@@ -4,6 +4,7 @@ import { importDiagramData } from "./diagramData.js";
 import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram } from "./diagramDataFiles.js";
 import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
+import { lintWorkspaceFiles } from "./workspaceLint.js";
 import * as store from "./fsStore.js";
 import { sendError } from "./httpError.js";
 import { buildOpenApiSpec, openApiPath, V1_ROUTES, type V1Route, type V1Scope } from "./openapi.js";
@@ -279,13 +280,12 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
         });
         return;
       }
-      const diagrams: { path: string; diagnostics: Awaited<ReturnType<typeof lintDiagramSource>> }[] = [];
-      for (const filePath of paths) {
-        const content = await store.readFile(filePath);
-        const diagnostics = await lintDiagramSource(content.content, { diagramPaths: paths, sourcePath: filePath });
-        if (diagnostics.length > 0) diagrams.push({ path: filePath, diagnostics });
-      }
-      res.json({ checked: paths.length, diagrams });
+      res.json(
+        await lintWorkspaceFiles(
+          paths.map((filePath) => ({ path: filePath })),
+          (filePath) => store.readFile(filePath),
+        ),
+      );
     }),
     lintSource: asyncHandler(async (req, res) => {
       if (!jsonObject(req, res)) return;

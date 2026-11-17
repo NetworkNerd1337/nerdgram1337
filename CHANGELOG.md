@@ -4,6 +4,14 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+### Unreadable diagram files
+
+From #95.
+
+- `GET /api/diagram-lint` and `GET /api/v1/lint` read each diagram on its own. A file that cannot be read is listed with a short explanation, and the other diagrams are still checked. The Diagram checks panel shows that explanation in plain words. EIO, EACCES, EPERM, ENOENT, EBUSY, and ETIMEDOUT each have their own sentence.
+- A dashboard card and the editor say **Can't read file**, with the reason and **Retry**, when the file cannot be read. **Parse error** stays the badge for a diagram Mermaid cannot draw. Lock holder details stay on the **423** lock.
+- Team use docs say that iCloud Drive, OneDrive, Dropbox, and Google Drive are not supported for team locks. Use an SMB or NFS share, or GitHub sync.
+
 ## 1.4.3 "Atlas" - 2026-11-16
 
 Patch on the Atlas line. The code name stays Atlas. The code pane scrolls inside its frame, the preview pans and zooms with Fit, and Settings can set Appearance to Light, Dark, or Match system.

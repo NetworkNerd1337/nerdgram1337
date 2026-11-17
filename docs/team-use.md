@@ -8,6 +8,7 @@ NerdGram has no accounts and no roles.
 
 - [Shared hub](#shared-hub)
 - [Shared folder](#shared-folder)
+- [Synced folders](#synced-folders)
 - [GitHub sync](#github-sync)
 - [Locks, heartbeats, and names](#locks-heartbeats-and-names)
 - [Two engineers and one diagram](#two-engineers-and-one-diagram)
@@ -38,7 +39,17 @@ The hash check is unchanged. A save that lost a race still reports that the file
 
 What this protects: a live "open on another instance" lock across installs that share the folder, and the existing save-conflict check.
 
-What this does not do: it does not merge two edits. The share has to report new and removed files promptly. Use a share that does not heavily cache file metadata. A stale cache can hide a lock that was just written, or keep showing a lock that was released.
+What this does not do: it does not merge two edits. The share has to report new and removed files promptly. Use a share that does not heavily cache file metadata. A stale cache can hide a lock that was just written, or keep showing a lock that was released. A folder that syncs after the fact is not this setup. See [Synced folders](#synced-folders).
+
+## Synced folders
+
+Team locks need a folder that every instance reads at the same moment. That folder is an SMB or NFS share, as in [Shared folder](#shared-folder).
+
+iCloud Drive, OneDrive, Dropbox, and Google Drive are not that kind of folder. They copy files after the fact. A file can stay a download-on-demand placeholder, and two computers can each write a conflict copy. A lock file can arrive late, or not at all, so the lock is not reliable. A read can also fail while a placeholder is still downloading. Those services are not supported for team use.
+
+To share diagrams through the cloud, use [GitHub sync](#github-sync).
+
+**Can't read file** on a dashboard card, or the same words in the editor, means NerdGram could not read that diagram. It is not a Mermaid parse error, and it is not a lock. The sentence under it says why, for example that the file may still be syncing or that this computer cannot read the folder. Wait for the sync to finish, or mark the folder always available offline, then choose **Retry**. On a share, check that the share is connected. The Diagram checks panel names the file in the same words, and the other diagrams are still checked.
 
 ## GitHub sync
 
@@ -82,4 +93,5 @@ sequenceDiagram
 
 - [Configuration](configuration.md)
 - [GitHub sync](github-sync.md)
+- [Troubleshooting](troubleshooting.md)
 - [Security model](security.md)

@@ -59,6 +59,7 @@ import {
   type DiagramPatch,
 } from "../lib/frontMatter";
 import { renderMermaid } from "../lib/mermaidRender";
+import { readFailureMessage } from "../lib/readError";
 import { startPresentation } from "../lib/presentationFullscreen";
 import {
   isCodeEditorTarget,
@@ -124,6 +125,8 @@ export function EditorPage() {
   const [diagnostics, setDiagnostics] = useState<ReportedDiagnostic[] | null>(null);
   const [diagramPaths, setDiagramPaths] = useState<string[] | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [readError, setReadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saveState, setSaveState] = useState<
     "idle" | "saving" | "saved" | "error" | "paused"
   >("idle");
@@ -293,6 +296,7 @@ export function EditorPage() {
     setHistoryOpen(false);
     setRepairOpen(false);
     setLoadError(null);
+    setReadError(null);
     setSaveState("idle");
     renderGen.current += 1;
     renderedRef.current = null;
@@ -352,6 +356,16 @@ export function EditorPage() {
         setLoaded(true);
       } catch (err) {
         if (!editorEpochIsCurrent(filePath, epoch)) return;
+        const failure = readFailureMessage(filePath, err);
+        if (failure) {
+          setReadError(failure);
+          setLoadError(null);
+          setLockNote(null);
+          setLockRemote(null);
+          setLoaded(false);
+          return;
+        }
+        setReadError(null);
         setLoadError(err instanceof Error ? err.message : "Failed to load");
         setLoaded(false);
       }
@@ -366,7 +380,7 @@ export function EditorPage() {
         releaseEditorLock(filePath, token);
       });
     };
-  }, [filePath]);
+  }, [filePath, loadAttempt]);
 
   const revealedKey = useRef("");
   useEffect(() => {
@@ -966,6 +980,17 @@ export function EditorPage() {
         </div>
       </header>
 
+      {readError && (
+        <div className="editor-banner" role="alert" data-testid="cant-read-file">
+          <strong>Can't read file</strong>
+          <div>{readError}</div>
+          <div className="editor-banner-actions">
+            <button type="button" className="btn btn-primary" onClick={() => setLoadAttempt((value) => value + 1)}>
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
       {loadError && (
         <div className="error-banner" style={{ margin: "0.75rem 1rem" }}>
           {loadError}

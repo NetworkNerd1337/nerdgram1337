@@ -37,7 +37,7 @@ A workspace name cannot be only spaces, and it cannot include a drive letter or 
 | GET | `/api/v1/export` | `read` | Reads every diagram under a folder. | query `path` |
 | GET | `/api/v1/link-repairs` | `read` | Previews click-link repairs. Nothing is written. | none |
 | POST | `/api/v1/link-repairs` | `read-write` | Previews, or applies when `dryRun` is false and `confirm` is true. **409** when a pair is not in the preview. | body `dryRun` (default true), `confirm`, `lockToken`, `choices` (`from`, `to`) |
-| GET | `/api/v1/lint` | `read` | Lints one saved diagram, or every diagram when `path` is omitted. Use this for files already in the workspace. | query `path` |
+| GET | `/api/v1/lint` | `read` | Lints one saved diagram, or every diagram when `path` is omitted. A file that cannot be read is returned under `unreadable`, and the other diagrams are still checked. | query `path` |
 | POST | `/api/v1/lint` | `read` | Lints Mermaid source that is not necessarily saved. Use this to check a paste before writing it. | body `source`, `sourcePath`, `diagramPaths`, `rules` |
 | GET | `/api/v1/render` | `read` | Renders a saved diagram to SVG or PNG. **429** over 30 calls a minute per token. | query `path`, `format` (`svg` or `png`), `background` |
 | POST | `/api/v1/render` | `read` | Renders a saved diagram or posted source. Send `path` or `source`, not both. Same **429** limit. | body `path` or `source`, `format`, `background` |

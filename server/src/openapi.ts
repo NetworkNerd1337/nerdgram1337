@@ -138,7 +138,7 @@ export const V1_ROUTES: readonly V1Route[] = [
     path: "/lint",
     scope: "read",
     operationId: "lintWorkspace",
-    summary: "Lint one saved diagram, or every diagram when path is omitted.",
+    summary: "Lint one saved diagram, or every diagram when path is omitted. A file that cannot be read is listed under unreadable, and the other diagrams are still checked.",
     tag: "Lint",
   },
   {

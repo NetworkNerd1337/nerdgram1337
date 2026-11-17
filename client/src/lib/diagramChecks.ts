@@ -85,9 +85,10 @@ export function groupDiagramChecks(findings: readonly DiagramCheckFinding[]): Di
 export function diagramCheckStatus(
   findings: readonly DiagramCheckFinding[] | null,
   failed: boolean,
+  unreadable = 0,
 ): DiagramCheckStatus {
   if (findings == null) return failed ? "failed" : "loading";
-  if (findings.some((item) => item.severity === "error")) return "error";
+  if (unreadable > 0 || findings.some((item) => item.severity === "error")) return "error";
   if (findings.length > 0) return "warning";
   return "clear";
 }
@@ -95,18 +96,21 @@ export function diagramCheckStatus(
 export function diagramCheckSummary(
   status: DiagramCheckStatus,
   findings: readonly DiagramCheckFinding[] | null,
+  unreadable = 0,
 ): string {
   if (status === "loading") return "Checking diagrams…";
   if (status === "failed") return "Diagram checks: could not check the diagrams";
   const items = findings ?? [];
   const errors = items.filter((item) => item.severity === "error").length;
   const warnings = items.length - errors;
-  if (errors === 0 && warnings === 0) return "Diagram checks: all diagrams look good";
-  if (errors === 0) {
+  if (errors === 0 && warnings === 0 && unreadable === 0) return "Diagram checks: all diagrams look good";
+  if (errors === 0 && unreadable === 0) {
     const diagrams = new Set(items.map((item) => item.path)).size;
     return `Diagram checks: ${plural(warnings, "warning")} in ${plural(diagrams, "diagram")}`;
   }
-  const parts = [plural(errors, "error")];
+  const parts: string[] = [];
+  if (unreadable > 0) parts.push(`${plural(unreadable, "file")} couldn't be read`);
+  if (errors > 0) parts.push(plural(errors, "error"));
   if (warnings > 0) parts.push(plural(warnings, "warning"));
   return `Diagram checks: ${parts.join(", ")}`;
 }

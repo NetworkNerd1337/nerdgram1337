@@ -43,6 +43,8 @@ import {
   resolveSafePath,
   toRelativePath,
 } from "./paths.js";
+import { rethrowKnownReadError } from "./readFailure.js";
+import { textFiles } from "./textFile.js";
 import { moveToTrash } from "./trash.js";
 import { dropThumbnail, relocateThumbnails } from "./thumbnails.js";
 import {
@@ -168,7 +170,7 @@ async function readDisk(abs: string): Promise<DiskState> {
   try {
     const stat = await fs.stat(abs);
     if (!stat.isFile()) throw httpFail(400, "Not a diagram file", "invalid");
-    const content = await fs.readFile(abs, "utf8");
+    const content = await textFiles.read(abs);
     return {
       exists: true,
       content,
@@ -180,6 +182,7 @@ async function readDisk(abs: string): Promise<DiskState> {
     if (err && typeof err === "object" && "status" in err) throw err;
     const code = (err as NodeJS.ErrnoException).code;
     if (code === "ENOENT") return { exists: false };
+    rethrowKnownReadError(path.basename(abs), err);
     throw err;
   }
 }

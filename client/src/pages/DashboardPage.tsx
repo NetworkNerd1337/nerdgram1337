@@ -1325,14 +1325,15 @@ function DiagramCard({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      <Link to={href} draggable={false} aria-label={`Open ${label}`}>
+      <div className="card-thumb-frame">
         <MermaidThumbnail
           path={path}
           mtimeMs={mtimeMs}
           cacheKey={meta?.cacheKey ?? null}
           frontMatter={meta?.malformed === true}
         />
-      </Link>
+        <Link className="card-thumb-open" to={href} draggable={false} aria-label={`Open ${label}`} />
+      </div>
       <div className="card-body">
         <h3>
           <Link to={href} draggable={false}>

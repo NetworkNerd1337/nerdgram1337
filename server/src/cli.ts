@@ -430,21 +430,29 @@ async function lintCommand(parsed: Parsed, io: Io): Promise<number> {
     const body = result.json as {
       diagnostics?: { severity: string; line: number; message: string; ruleId: string }[];
       diagrams?: { path: string; diagnostics: { severity: string; line: number; message: string; ruleId: string }[] }[];
+      unreadable?: { path: string; code: string; message: string }[];
       checked?: number;
     };
     if (body.diagrams) {
+      const unreadable = body.unreadable ?? [];
       diagnostics = body.diagrams.flatMap((diagram) =>
         diagram.diagnostics.map((item) => ({ ...item, message: `${diagram.path}: ${item.message}` })),
       );
+      const lines = [
+        ...unreadable.map((item) => item.message),
+        ...diagnostics.map((item) => `${item.ruleId}: ${item.message}`),
+      ];
       writeOut(
         io,
         isJson(parsed.flags),
-        { checked: body.checked ?? 0, diagrams: body.diagrams },
-        diagnostics.map((item) => `${item.ruleId}: ${item.message}`).join("\n") || `Checked ${body.checked ?? 0} diagrams.`,
+        { checked: body.checked ?? 0, diagrams: body.diagrams, unreadable },
+        lines.join("\n") || `Checked ${body.checked ?? 0} diagrams.`,
       );
-      const failed = body.diagrams.some((diagram) =>
-        diagram.diagnostics.some((item) => item.severity === "error" || (strict && diagram.diagnostics.length > 0)),
-      );
+      const failed =
+        unreadable.length > 0 ||
+        body.diagrams.some((diagram) =>
+          diagram.diagnostics.some((item) => item.severity === "error" || (strict && diagram.diagnostics.length > 0)),
+        );
       return failed ? 1 : 0;
     }
     diagnostics = body.diagnostics ?? [];

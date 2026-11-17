@@ -31,6 +31,7 @@ import { importDiagramData } from "./diagramData.js";
 import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram } from "./diagramDataFiles.js";
 import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
+import { lintWorkspaceFiles } from "./workspaceLint.js";
 import { registerTokenRoutes } from "./tokens.js";
 import { mountAutomationApi } from "./v1.js";
 import type { RateLimit } from "./renderDiagram.js";
@@ -371,14 +372,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.get("/api/diagram-lint", async (_req, res) => {
     try {
       const files = walkDiagramFiles(await store.buildTree());
-      const diagramPaths = files.map((file) => file.path);
-      const diagrams: { path: string; diagnostics: Awaited<ReturnType<typeof lintDiagramSource>> }[] = [];
-      for (const file of files) {
-        const content = await store.readFile(file.path);
-        const diagnostics = await lintDiagramSource(content.content, { diagramPaths, sourcePath: file.path });
-        if (diagnostics.length > 0) diagrams.push({ path: file.path, diagnostics });
-      }
-      res.json({ checked: files.length, diagrams });
+      res.json(await lintWorkspaceFiles(files, (filePath) => store.readFile(filePath)));
     } catch (err) {
       sendError(res, err);
     }

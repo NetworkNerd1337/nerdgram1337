@@ -2,7 +2,9 @@ import * as cheerio from "cheerio";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { thumbnailCacheKey } from "./frontMatter.js";
+import { rethrowKnownReadError } from "./readFailure.js";
 import { svgForImage } from "./svgImage.js";
+import { textFiles } from "./textFile.js";
 import { getMetaPath, resolveSafePath, toRelativePath } from "./paths.js";
 import {
   atomicWriteJson,
@@ -196,12 +198,13 @@ async function readDiagram(relativePath: string): Promise<{
   try {
     const stat = await fs.stat(abs);
     if (!stat.isFile()) throw httpFail(400, "Not a diagram file", "invalid");
-    const content = await fs.readFile(abs, "utf8");
+    const content = await textFiles.read(abs);
     return { path: toRelativePath(abs), content, mtimeMs: stat.mtimeMs };
   } catch (err) {
     if (err && typeof err === "object" && "status" in err) throw err;
     const code = (err as NodeJS.ErrnoException).code;
     if (code === "ENOENT") throw httpFail(404, "Not found", "not_found");
+    rethrowKnownReadError(path.basename(abs), err);
     throw err;
   }
 }

@@ -11,6 +11,7 @@ If the API port is taken, the server exits and prints the listen error.
 - [npm cannot find package.json](#npm-cannot-find-packagejson)
 - [npm start cannot find server/dist/index.js](#npm-start-cannot-find-serverdistindexjs)
 - [The page opens, but diagrams do not load](#the-page-opens-but-diagrams-do-not-load)
+- [Can't read file](#cant-read-file)
 - [A save returns 403 or 415](#a-save-returns-403-or-415)
 - [The container exits immediately, or the volume looks empty](#the-container-exits-immediately-or-the-volume-looks-empty)
 - [localhost opens the dev UI, and 127.0.0.1 does not](#localhost-opens-the-dev-ui-and-127001-does-not)
@@ -54,6 +55,12 @@ The production build has not been created. From the project root run `npm run bu
 
 `npm run dev` has to keep both the `server` and `client` processes running. If you started only the client, the page has no API. Stop it, `cd` to the project root, and run `npm run dev`. Then check [http://127.0.0.1:8787/api/health](http://127.0.0.1:8787/api/health). `"ok": true` means the API is up, and `dataDir` shows which folder it is reading. On the dev UI, keep using [http://localhost:5173](http://localhost:5173).
 
+## Can't read file
+
+A dashboard card or the editor says **Can't read file** when that diagram could not be read. The sentence under it is the reason. **Retry** reads the file again. **Parse error** is a different message: Mermaid could not draw the file. A lock names the other instance, the computer, and the time it was opened. A read error does not.
+
+This often means the diagram folder is on iCloud Drive, OneDrive, Dropbox, or Google Drive, and the file is still a placeholder. Those folders are not supported for team locks. See [Synced folders](team-use.md#synced-folders).
+
 ## A save returns 403 or 415
 
 **403** means the `Host` or `Origin` is not on the allow-list. **415** means a change was sent without `Content-Type: application/json`. The [curl example](security.md#security-model) has both headers. A Vite port other than 5173 needs `NERDGRAM_CORS_ORIGINS`. On a Node install, the machine's own IP is allowed after you save it as Host and start again, or when the bind is `0.0.0.0` or `::` and that IP was on an interface at startup. A DNS name still needs `NERDGRAM_ALLOWED_HOSTS`. In Docker, the published host address needs `NERDGRAM_ALLOWED_HOSTS` too.
@@ -70,4 +77,5 @@ Vite is bound to `localhost`, which can be `::1` only. Use [http://localhost:517
 
 - [Install](install.md)
 - [Configuration](configuration.md)
+- [Team use](team-use.md)
 - [Security model](security.md)
