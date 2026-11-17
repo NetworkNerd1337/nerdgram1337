@@ -22,7 +22,7 @@ Empty folders are not stored, because git does not keep empty directories. A fol
 
 Edits wait until the workspace has been idle for 20 seconds (`NERDGRAM_SYNC_IDLE_MS`) and then become one commit. Autosave still writes the file about 500 ms after you type. That does not create a commit per keystroke. Renames, moves, deletes, imports, and restores commit after about a second. A change made in another program is picked up by a reconciliation scan about once a minute (`NERDGRAM_SYNC_RECONCILE_MS`), or when you choose **Sync now**.
 
-If GitHub has commits that this computer does not, NerdGram does not force-push. **Pull** brings those changes into the local folder through the normal save path, including a local revision snapshot. An open editor is not overwritten. When both copies changed, you choose **Keep local**, **Keep both**, or **Use GitHub copy**.
+If GitHub has commits that this computer does not, NerdGram does not force-push. **Pull** brings those changes into the local folder through the normal save path, including a local revision snapshot. A pull that leaves the files matching that GitHub commit does not add another commit. An open editor is not overwritten. When both copies changed, you choose **Keep local**, **Keep both**, or **Use GitHub copy**.
 
 Connected sync resumes when the server starts again.
 

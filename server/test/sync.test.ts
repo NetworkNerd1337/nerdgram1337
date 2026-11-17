@@ -15,7 +15,7 @@ import { discardSearchCache } from "../src/search.js";
 import { emptyConfig, saveConfig } from "../src/sync/configStore.js";
 import { resetSyncForTests, setGithubFetch, setSyncTestHook, syncConcurrency } from "../src/sync/engine.js";
 import { assertCleanRemoteUrl, classifyNetworkError } from "../src/sync/github.js";
-import { gitBasicAuthorization } from "../src/sync/mirror.js";
+import { commitMirror, gitBasicAuthorization, headOid } from "../src/sync/mirror.js";
 import { readToken, writeToken } from "../src/sync/secrets.js";
 import { captureConsole, makeTempDataDir } from "./helpers.js";
 
@@ -765,6 +765,85 @@ describe("GitHub sync", () => {
     const messages = await logMessages(bare);
     expect(messages.some((message) => message.includes("Remote edit"))).toBe(true);
     expect(await headOf(bare)).not.toBe(beforeRemote);
+  });
+
+  it("does not push a commit after a clean pull", async () => {
+    process.env.NERDGRAM_SYNC_WATCH = "1";
+    process.env.NERDGRAM_SYNC_IDLE_MS = "150";
+    remote = await startGitHttp();
+    const bare = remote.bare;
+    const remoteUrl = remote.url;
+    await fs.mkdir(path.join(dir, "Lab"), { recursive: true });
+    await fs.writeFile(path.join(dir, "Lab", "E2ERenamed.mmd"), "flowchart LR\n  A-->B\n");
+    expect((await connect()).status).toBe(200);
+    const remoteContent = "flowchart LR\n  A-->RemoteOnly\n";
+    const remoteCommit = await commitOnRemote(remoteUrl, "Lab/E2ERenamed.mmd", remoteContent);
+    const pulled = await request(app).post("/api/sync/pull").set(json).send({});
+    expect(pulled.status).toBe(200);
+    expect(pulled.body.conflicts).toEqual([]);
+    expect(await fs.readFile(path.join(dir, "Lab", "E2ERenamed.mmd"), "utf8")).toBe(remoteContent);
+    await delay(700);
+    await waitFor(async () => {
+      const status = await request(app).get("/api/sync/status").set("Host", HOST);
+      return status.body.pending === false && status.body.syncing === false;
+    });
+    expect(await headOf(bare)).toBe(remoteCommit);
+    expect(await blobAt(bare, "Lab/E2ERenamed.mmd")).toBe(remoteContent);
+    expect(await logMessages(bare)).not.toContain("Update Lab/E2ERenamed.mmd");
+  });
+
+  it("commits a real local edit after a pull", async () => {
+    process.env.NERDGRAM_SYNC_WATCH = "1";
+    process.env.NERDGRAM_SYNC_IDLE_MS = "150";
+    remote = await startGitHttp();
+    const bare = remote.bare;
+    const remoteUrl = remote.url;
+    await fs.mkdir(path.join(dir, "Lab"), { recursive: true });
+    await fs.writeFile(path.join(dir, "Lab", "E2ERenamed.mmd"), "flowchart LR\n  A-->B\n");
+    expect((await connect()).status).toBe(200);
+    const remoteContent = "flowchart LR\n  A-->RemoteOnly\n";
+    const remoteCommit = await commitOnRemote(remoteUrl, "Lab/E2ERenamed.mmd", remoteContent);
+    const pulled = await request(app).post("/api/sync/pull").set(json).send({});
+    expect(pulled.status).toBe(200);
+    expect(await headOf(bare)).toBe(remoteCommit);
+
+    const edited = "flowchart LR\n  A-->LocalAfter\n";
+    const saved = await save(app, "Lab/E2ERenamed.mmd", edited);
+    expect(saved.status).toBe(200);
+    await waitFor(async () => (await blobAt(bare, "Lab/E2ERenamed.mmd")) === edited, 4000);
+    expect(await headOf(bare)).not.toBe(remoteCommit);
+    const parent = (await git.readCommit({ fs: nodeFs, gitdir: bare, oid: (await headOf(bare)) || "" })).commit.parent[0];
+    const parentTree = (await git.readCommit({ fs: nodeFs, gitdir: bare, oid: parent })).commit.tree;
+    const headTree = (await git.readCommit({ fs: nodeFs, gitdir: bare, oid: (await headOf(bare)) || "" })).commit.tree;
+    expect(headTree).not.toBe(parentTree);
+  });
+
+  it("does not create a commit whose tree matches its only parent", async () => {
+    const repo = await fs.mkdtemp(path.join(os.tmpdir(), "nerdgram-empty-commit-"));
+    try {
+      await git.init({ fs: nodeFs, dir: repo, defaultBranch: "main" });
+      const file = path.join(repo, "Notes.mmd");
+      const original = "flowchart LR\n  A-->B\n";
+      await fs.writeFile(file, original);
+      const first = await commitMirror(repo, "Initial");
+      expect(first).toBeTruthy();
+      await fs.writeFile(file, "flowchart LR\n  A-->Changed\n");
+      await git.add({ fs: nodeFs, dir: repo, filepath: "Notes.mmd" });
+      await fs.writeFile(file, original);
+      const second = await commitMirror(repo, "Update Notes.mmd");
+      expect(second).toBeNull();
+      expect(await headOid(repo)).toBe(first);
+      await fs.writeFile(file, "flowchart LR\n  A-->LocalAfter\n");
+      const third = await commitMirror(repo, "Update Notes.mmd");
+      expect(third).toBeTruthy();
+      expect(third).not.toBe(first);
+      const created = await git.readCommit({ fs: nodeFs, dir: repo, oid: third || "" });
+      const parentCommit = await git.readCommit({ fs: nodeFs, dir: repo, oid: first || "" });
+      expect(created.commit.tree).not.toBe(parentCommit.commit.tree);
+      expect(created.commit.parent).toEqual([first]);
+    } finally {
+      await fs.rm(repo, { recursive: true, force: true });
+    }
   });
 
   it("serializes overlapping sync requests", async () => {
