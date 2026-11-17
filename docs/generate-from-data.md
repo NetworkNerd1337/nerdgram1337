@@ -48,7 +48,7 @@ nerdgram generate --path Edge.mmd --data docs/samples/neighbors/lldpd.json --for
 
 CDP and LLDP draw physical neighbors. A Layer 3 or Layer 2 diagram needs addresses, VLANs, and bundles, and those commands are different on every platform. NerdGram does not parse that output and does not guess links. It reads one vendor-neutral JSON document, `format: "network"`, `schemaVersion: 1`, and draws the diagram from that document only. The same file always produces the same generated block. A later refresh replaces that block. It does not invent a link that is not in the file.
 
-You produce the JSON. NerdGram does not ship TextFSM, Genie, NAPALM, Batfish, Nautobot, or NetBox. The schema is [docs/schema/network.schema.json](schema/network.schema.json). A file is stored as `.network.json`.
+You produce the JSON. NerdGram does not ship TextFSM, Genie, NAPALM, Batfish, Nautobot, or NetBox. The schema is [docs/schema/network.schema.json](schema/network.schema.json). The compatibility rule is [Schema compatibility](#schema-compatibility). A file is stored as `.network.json`.
 
 | Field | Required | What it is |
 | --- | --- | --- |
@@ -86,8 +86,24 @@ TextFSM, including ntc-templates, parses one command into rows. A `show ip inter
 
 CDP and LLDP links can be copied from a diagram you already imported, or from the parser you trust, into `links`. You can also paste the raw `show cdp neighbors detail` or `show lldp neighbors detail` into `neighbors.cdp` or `neighbors.lldp`. That text is parsed by the existing CDP and LLDP parsers. NerdGram does not add a parser for any other command.
 
+## Schema compatibility
+
+`schemaVersion` is 1. An additive optional field stays on 1. A change to a field's meaning bumps `schemaVersion` to 2. The schema stays closed, so an unexpected property is still an error. A file that uses a key added in NerdGram 1.5 needs NerdGram 1.5 or later. A file that omits that key keeps working. The same rule is in [Schema compatibility](schema/README.md) and in the description of [network.schema.json](schema/network.schema.json).
+
+| Change | What happens |
+| --- | --- |
+| Add an optional field. A file that omits it still validates, and every field it already uses keeps the same meaning. | Stay on `schemaVersion` 1. |
+| Add an allowed value older files do not use, while every value they already use means the same thing. | Stay on `schemaVersion` 1. |
+| Change the type, the name, or the requiredness of a field, change what a value it already accepts means, or remove a field. | Bump `schemaVersion` to 2. |
+| Send a property the schema does not list. | The file is invalid. List the property in the schema as an optional field to stay on 1. |
+
+`additionalProperties` is false on the document and on every object in `$defs`. `validateNetwork()` reports `unexpected property "<name>".` at that path. A `schemaVersion` other than 1 fails with `schemaVersion must be 1.` Version 2 is the number for a later meaning change. This tree still accepts only 1.
+
+A key added in NerdGram 1.5 is rejected by an earlier release, because that release's schema is closed. Leaving the key out keeps the file on version 1, and the generated diagram stays the one that file already produced. An optional device model, or an optional speed on an interface, stays on 1 once the schema lists that field. Renaming `platform`, or making `managementIp` required, is a bump to 2.
+
 ## See also
 
+- [Schema compatibility](schema/README.md)
 - [Features](features.md)
 - [Automation API](api.md)
 - [nerdgram command](cli.md)
