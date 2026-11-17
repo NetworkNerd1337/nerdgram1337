@@ -6,11 +6,18 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 1.5.0 "Compass" - 2026-11-17
+
+Minor release. The code name for 1.5.0 through 1.9.x is Compass. 1.0.0 through 1.4.x stay Atlas.
+
 - Multi-line edge labels keep every line. Side padding is on the label text, not the inline wrapper that was clipping the last line. SVG and PNG from the API and `nerdgram render` are well-formed XML, including labels that contain a line break and diagrams with a `click` line. A render that does not parse fails instead of writing a broken file (from #139).
 - The editor divider reports a whole-number value at its limits. Resizing the window clamps only the panes on screen and does not replace the saved split (from #140).
 - Network JSON validation errors name the field path, for example `/devices/0/serial`, and ask you to fix the fields listed before creating, updating, or refreshing. CSV and other row-based imports still name the row (from #135).
 - Edge labels in the editor preview, presentation, and SVG and PNG exports have a few pixels of side padding in the light and dark themes. The label text and the Mermaid source stay the same (from #136).
 - The divider between the code pane and the preview can be dragged. The split is remembered in this browser, a double-click puts it back, and arrow keys move it. A narrow window still stacks the panes (from #137).
+- Refreshing a diagram after this upgrade draws `device.platform` on the device and `interface.description` on the Layer 2 link when the file already set them (from #126). A file that omits those fields draws the same diagram as before.
 - `POST /api/v1/generate/upsert` creates a generated diagram, or updates its generated block and the sibling data file when that path already exists (from #128). Notes outside the generated markers stay. `POST /api/v1/generate` is still create-only and returns **409** when the path exists. `nerdgram generate` calls upsert. `--create-only` keeps the **409**.
 - A clean GitHub pull no longer pushes an empty commit. A pull or conflict resolution that leaves the files matching the latest commit is not treated as a local edit, and NerdGram does not create a commit whose tree matches its only parent. An edit made after a pull still becomes a commit.
 - Network JSON stays on `schemaVersion` 1 and adds optional `device.model`, `device.diagram`, `interface.speed`, and a link `label` (from #127). The model is written under the device name. A child diagram path becomes a click line. Speed and the link label are written on the edge when they are set. `docs/samples/network/campus.network.json` omits them and draws the same views. Unexpected properties are still errors.

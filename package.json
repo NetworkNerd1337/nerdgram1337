@@ -1,9 +1,10 @@
 {
   "name": "nerdgram1337",
-  "version": "1.4.8",
+  "version": "1.5.0",
   "codenames": {
-    "1": "Atlas",
-    "2": "Meridian"
+    "1.0": "Atlas",
+    "1.5": "Compass",
+    "2.0": "Meridian"
   },
   "private": true,
   "description": "Local-first Mermaid diagramming app by NetworkNerd1337",

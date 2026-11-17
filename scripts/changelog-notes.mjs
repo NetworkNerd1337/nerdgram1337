@@ -126,7 +126,7 @@ export function cutChangelogRelease(markdown, release) {
 
 /**
  * GitHub Release title. The version comes from the tag. The code name comes
- * from the codenames map for that major, not from the release title text.
+ * from the codenames map for that half (minor below 5, or 5 and above), not from the release title text.
  * @param {string} version
  * @param {string} codename
  */
@@ -184,7 +184,7 @@ export function runChangelogNotes(argv, repoRoot = root) {
     return {
       code: 2,
       stdout: "",
-      stderr: `Major version ${version.split(".")[0]} has no code name in package.json codenames.\n`,
+      stderr: `Code name for ${version} has no entry in package.json codenames.\n`,
     };
   }
 

@@ -1,6 +1,6 @@
 # Roadmap
 
-The planned work after v1.4.8 Atlas, still on the Atlas line.
+The planned work after 1.4.8. 1.5.0 through 1.9.x use the code name Compass.
 
 [Back to the documentation index](README.md)
 
@@ -22,7 +22,7 @@ The planned work after v1.4.8 Atlas, still on the Atlas line.
 
 Progress is tracked in [GitHub milestones](https://github.com/NetworkNerd1337/NerdGram1337/milestones).
 
-This roadmap is a plan, not a commitment. The work starts from the v1.4.8 Atlas tree. Later 1.x.y releases stay Atlas.
+This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas tree. 1.5.0 through 1.9.x are Compass. The code-name rule is in [Versioning and releases](releases.md#version-numbers-and-code-names).
 
 ## Where we are
 
@@ -30,7 +30,7 @@ This roadmap is a plan, not a commitment. The work starts from the v1.4.8 Atlas 
 
 | Fact | Value |
 | --- | --- |
-| Current release | 1.4.8 Atlas |
+| Current release | 1.5.0 Compass |
 | Canonical network schema | `schemaVersion` 1, in [docs/schema/network.schema.json](schema/network.schema.json) |
 | Automation API | `GET /api/v1/openapi.json` already exists (OpenAPI 3.0.3, no token) |
 | Generate behavior | `POST /api/v1/generate` returns **409** if the path exists; refresh updates an existing diagram |
@@ -58,7 +58,7 @@ That line is already written into the 1.4.8 docs. [Generate from data](generate-
 
 ## How data lands today
 
-There are two JSON shapes, and that distinction matters. A generic CSV or JSON file is a table of nodes and edges for a flowchart. A network JSON file (`format: "network"`, `schemaVersion` 1) is the richer, vendor-neutral document for Layer 3 and Layer 2 views. CDP and LLDP are a third path: pasted CLI output that becomes a links table. All three go through the same generate and refresh routes. Facts below are from v1.4.8.
+There are two JSON shapes, and that distinction matters. A generic CSV or JSON file is a table of nodes and edges for a flowchart. A network JSON file (`format: "network"`, `schemaVersion` 1) is the richer, vendor-neutral document for Layer 3 and Layer 2 views. CDP and LLDP are a third path: pasted CLI output that becomes a links table. All three go through the same generate and refresh routes. Facts below are from the 1.4.8 tree.
 
 | Format | What it is | Code and docs |
 | --- | --- | --- |
@@ -147,7 +147,7 @@ The create-or-update upsert lives in 1.5.0 even though it does not depend on whi
 
 ## [1.5.0 Canonical JSON and one upsert](https://github.com/NetworkNerd1337/NerdGram1337/milestone/1)
 
-Settle the document shape, write the compatibility rule those changes need, and add the one create-or-update call. Four complete one-PR issues, in this order. Still Atlas. Old documents without new optional fields must still validate and draw the same diagram.
+Settle the document shape, write the compatibility rule those changes need, and add the one create-or-update call. Four complete one-PR issues, in this order. Code name Compass. Old documents without new optional fields must still validate and draw the same diagram.
 
 ### 1.5.0-a Schema versioning and compatibility policy
 
@@ -175,7 +175,7 @@ Add a single call that creates the diagram on first push and refreshes the gener
 
 ## [1.6.0 Published schemas and push scripts](https://github.com/NetworkNerd1337/NerdGram1337/milestone/2)
 
-Publish the contract against the shape 1.5.0 already settled. Do not add fields here. Two complete one-PR issues. Still Atlas.
+Publish the contract against the shape 1.5.0 already settled. Do not add fields here. Two complete one-PR issues. Code name Compass.
 
 ### 1.6.0-a Publish and polish the schemas
 

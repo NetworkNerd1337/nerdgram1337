@@ -40,13 +40,13 @@ COPY templates templates
 COPY reference reference
 COPY diagrams diagrams
 COPY Dockerfile compose.yaml compose.build.yaml README.md CHANGELOG.md LICENSE ./
-ARG NERDGRAM_VERSION=1.4.8
-ARG NERDGRAM_CODENAME=Atlas
+ARG NERDGRAM_VERSION=1.5.0
+ARG NERDGRAM_CODENAME=Compass
 ENV NERDGRAM_VERSION=${NERDGRAM_VERSION} \
     NERDGRAM_CODENAME=${NERDGRAM_CODENAME}
 RUN node scripts/check-version.mjs \
  && node -e "const v=require('./package.json').version; if (v !== process.env.NERDGRAM_VERSION) { console.error('NERDGRAM_VERSION '+process.env.NERDGRAM_VERSION+' does not match package.json '+v); process.exit(1); }" \
- && node -e "const p=require('./package.json'); const major=String(p.version).split('.')[0]; const name=p.codenames&&p.codenames[major]; if (name !== process.env.NERDGRAM_CODENAME) { console.error('NERDGRAM_CODENAME '+process.env.NERDGRAM_CODENAME+' does not match package.json '+(name||'(missing)')); process.exit(1); }" \
+ && node -e "const p=require('./package.json'); const parts=String(p.version).split('.'); const key=parts[0]+'.'+(Number(parts[1])<5?'0':'5'); const name=p.codenames&&p.codenames[key]; if (name !== process.env.NERDGRAM_CODENAME) { console.error('NERDGRAM_CODENAME '+process.env.NERDGRAM_CODENAME+' does not match package.json '+(name||'(missing)')); process.exit(1); }" \
  && npm run build --prefix client \
  && npm run build --prefix server
 
@@ -106,8 +106,8 @@ RUN chmod -R a-w /app/templates /app/reference /app/diagrams /app/server/dist /a
  && printf '%s\n' '#!/bin/sh' 'exec node /app/server/dist/cli.js "$@"' > /usr/local/bin/nerdgram \
  && chmod 755 /usr/local/bin/nerdgram
 
-ARG NERDGRAM_VERSION=1.4.8
-ARG NERDGRAM_CODENAME=Atlas
+ARG NERDGRAM_VERSION=1.5.0
+ARG NERDGRAM_CODENAME=Compass
 ARG NERDGRAM_COMMIT=
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
