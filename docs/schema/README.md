@@ -31,7 +31,7 @@ The number on a file names the meanings of the fields in that file. Version 1 is
 
 Leave the number at 1 when older files still validate without edits, and every field those files already use still means the same thing.
 
-Add the new optional field to [network.schema.json](network.schema.json) and to `validateNetwork()` in the same change. A file that omits the field is still valid version 1. An optional device model, or an optional speed on an interface, is this kind of change once the schema lists that field.
+Add the new optional field to [network.schema.json](network.schema.json) and to `validateNetwork()` in the same change. A file that omits the field is still valid version 1. `device.model`, `device.diagram`, `interface.speed`, and a link `label` are this kind of field.
 
 A new allowed value on a field that already exists stays on 1 when older files never have to send it, and the values they already send still mean what they mean today. The `$id` stays `network-v1`.
 

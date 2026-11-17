@@ -6,15 +6,21 @@ export type NetworkAddress = {
 export type NetworkDevice = {
   name: string;
   platform: string;
+  /** Hardware model, distinct from platform and role. */
+  model: string;
   role: string;
   site: string;
   managementIp: string;
+  /** Workspace path of a child diagram, without the nerdgram: prefix. */
+  diagram: string;
 };
 
 export type NetworkInterface = {
   device: string;
   name: string;
   description: string;
+  /** Free-text speed, such as 10G. Empty when the file omits it. */
+  speed: string;
   adminStatus: "" | "up" | "down";
   operStatus: "" | "up" | "down";
   ipv4: NetworkAddress[];
@@ -37,6 +43,8 @@ export type NetworkEndpoint = {
 export type NetworkLink = {
   a: NetworkEndpoint;
   b: NetworkEndpoint;
+  /** Optional name written on the Layer 2 edge. */
+  label: string;
 };
 
 export type NetworkVlan = {

@@ -1,3 +1,4 @@
+import { clickTargetKind, resolveDiagramTarget } from "../diagramLinks.js";
 import { canonicalIp } from "./ip.js";
 import type {
   NetworkAddress,
@@ -10,11 +11,12 @@ import type {
   SchemaIssue,
 } from "./types.js";
 
-const DEVICE_FIELDS = new Set(["name", "platform", "role", "site", "managementIp"]);
+const DEVICE_FIELDS = new Set(["name", "platform", "model", "role", "site", "managementIp", "diagram"]);
 const INTERFACE_FIELDS = new Set([
   "device",
   "name",
   "description",
+  "speed",
   "adminStatus",
   "operStatus",
   "ipv4",
@@ -27,7 +29,7 @@ const INTERFACE_FIELDS = new Set([
   "lag",
 ]);
 const ADDRESS_FIELDS = new Set(["address", "prefix"]);
-const LINK_FIELDS = new Set(["a", "b"]);
+const LINK_FIELDS = new Set(["a", "b", "label"]);
 const ENDPOINT_FIELDS = new Set(["device", "interface"]);
 const VLAN_FIELDS = new Set(["id", "name"]);
 const ROOT_FIELDS = new Set(["schemaVersion", "format", "devices", "interfaces", "links", "vlans", "neighbors"]);
@@ -109,12 +111,19 @@ function readDevices(value: unknown, issues: SchemaIssue[]): NetworkDevice[] | n
       ok = false;
       return;
     }
+    const diagram = childDiagram(item.diagram, `${path}/diagram`, issues);
+    if (diagram == null) {
+      ok = false;
+      return;
+    }
     devices.push({
       name,
       platform: optionalString(item.platform, `${path}/platform`, "platform", issues),
+      model: optionalString(item.model, `${path}/model`, "model", issues),
       role: optionalString(item.role, `${path}/role`, "role", issues),
       site: optionalString(item.site, `${path}/site`, "site", issues),
       managementIp: optionalString(item.managementIp, `${path}/managementIp`, "managementIp", issues),
+      diagram,
     });
   });
   return ok && !issues.some((issue) => issue.path.startsWith("/devices/")) ? devices : null;
@@ -155,6 +164,7 @@ function readInterfaces(value: unknown, issues: SchemaIssue[]): NetworkInterface
       device,
       name,
       description: optionalString(item.description, `${path}/description`, "description", issues),
+      speed: optionalString(item.speed, `${path}/speed`, "speed", issues),
       adminStatus,
       operStatus,
       ipv4,
@@ -235,7 +245,11 @@ function readLinks(value: unknown, issues: SchemaIssue[]): NetworkLink[] | null 
       ok = false;
       return;
     }
-    links.push({ a, b });
+    links.push({
+      a,
+      b,
+      label: optionalString(item.label, `${path}/label`, "label", issues),
+    });
   });
   return ok ? links : null;
 }
@@ -335,6 +349,26 @@ function requiredString(value: unknown, path: string, label: string, issues: Sch
     return "";
   }
   return value.trim();
+}
+
+function childDiagram(value: unknown, path: string, issues: SchemaIssue[]): string | null {
+  if (value == null || value === "") return "";
+  if (typeof value !== "string") {
+    issues.push({ path, message: "diagram must be a string." });
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/[\u0000-\u001f"\\?#]/.test(trimmed) || clickTargetKind(trimmed) === "unsafe" || clickTargetKind(trimmed) === "external") {
+    issues.push({ path, message: "diagram must be a workspace .mmd path." });
+    return null;
+  }
+  const resolved = resolveDiagramTarget(trimmed, "");
+  if (!resolved.ok) {
+    issues.push({ path, message: "diagram must be a workspace .mmd path." });
+    return null;
+  }
+  return resolved.path;
 }
 
 function optionalString(value: unknown, path: string, label: string, issues: SchemaIssue[]): string {
