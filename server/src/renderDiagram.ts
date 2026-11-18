@@ -147,7 +147,7 @@ async function draw(page: Page, source: string, background: string): Promise<str
     async (code: string, mermaidConfig: Record<string, unknown>, fill: string, padSource: string) => {
       const padSvg = new Function(
         "svg",
-        `${padSource}\nreturn padEdgeLabelSvg(svg);`,
+        `var __name = function (target) { return target; };\n${padSource}\nreturn padEdgeLabelSvg(svg);`,
       ) as (svg: string) => string;
       const api = (window as unknown as { mermaid?: { initialize: (config: unknown) => void; render: (id: string, text: string) => Promise<{ svg: string }> } }).mermaid;
       if (!api) return { ok: false as const, message: "Mermaid did not load", loc: null, token: undefined };
