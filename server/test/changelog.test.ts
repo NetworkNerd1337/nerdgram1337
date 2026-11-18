@@ -35,17 +35,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Galileo title and the 1.6.0 section without the heading", () => {
-    const title = notes(["--title", "v1.6.0"]);
+  it("prints the Galileo title and the 1.6.1 section without the heading", () => {
+    const title = notes(["--title", "v1.6.1"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.6.0 "Galileo"\n');
-    const body = notes(["v1.6.0"]);
+    expect(title.stdout).toBe('v1.6.1 "Galileo"\n');
+    const body = notes(["v1.6.1"]);
     expect(body.code).toBe(0);
-    expect(body.stdout.startsWith("Minor release.")).toBe(true);
-    expect(body.stdout).toContain("schema/network.json");
-    expect(body.stdout).toContain("Galileo");
-    expect(body.stdout).not.toContain('## 1.6.0 "Galileo"');
-    expect(body.stdout).not.toContain("Patch on the Compass line.");
+    expect(body.stdout.startsWith("Patch on the Galileo line.")).toBe(true);
+    expect(body.stdout).toContain("warnings=muted");
+    expect(body.stdout).toContain("from #161");
+    expect(body.stdout).not.toContain('## 1.6.1 "Galileo"');
+    expect(body.stdout).not.toContain("Minor release.");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
 
