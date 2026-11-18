@@ -6,6 +6,8 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- Multi-line edge labels keep every line. Side padding is on the label text, not the inline wrapper that was clipping the last line. SVG and PNG from the API and `nerdgram render` are well-formed XML, including labels that contain a line break and diagrams with a `click` line. A render that does not parse fails instead of writing a broken file (from #139).
+- The editor divider reports a whole-number value at its limits. Resizing the window clamps only the panes on screen and does not replace the saved split (from #140).
 - Network JSON validation errors name the field path, for example `/devices/0/serial`, and ask you to fix the fields listed before creating, updating, or refreshing. CSV and other row-based imports still name the row (from #135).
 - Edge labels in the editor preview, presentation, and SVG and PNG exports have a few pixels of side padding in the light and dark themes. The label text and the Mermaid source stay the same (from #136).
 - The divider between the code pane and the preview can be dragged. The split is remembered in this browser, a double-click puts it back, and arrow keys move it. A narrow window still stacks the panes (from #137).

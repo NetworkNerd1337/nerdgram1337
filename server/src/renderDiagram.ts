@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import type { Browser, Page } from "puppeteer";
 import puppeteer from "puppeteer";
-import { padEdgeLabelBoxes } from "./edgeLabelPadding.js";
+import { padEdgeLabelBoxes, padEdgeLabelSvg, repairSvgMarkup, svgXmlError } from "./edgeLabelPadding.js";
 import { diagramInitConfig } from "./frontMatter.js";
 import { locateParseError } from "./parseError.js";
 import { httpFail } from "./storage.js";
@@ -145,17 +145,10 @@ async function draw(page: Page, source: string, background: string): Promise<str
   await page.addScriptTag({ path: mermaidScript() });
   const drawn = await page.evaluate(
     async (code: string, mermaidConfig: Record<string, unknown>, fill: string, padSource: string) => {
-      const padBoxes = new Function("root", `return (${padSource})(root);`) as (root: unknown) => void;
-      const dom = globalThis as unknown as {
-        DOMParser: new () => { parseFromString(xml: string, type: string): { documentElement: unknown } };
-        XMLSerializer: new () => { serializeToString(node: unknown): string };
-      };
-      const padSvg = (svg: string): string => {
-        if (!svg.includes("edgeLabel")) return svg;
-        const doc = new dom.DOMParser().parseFromString(svg, "image/svg+xml");
-        padBoxes(doc);
-        return new dom.XMLSerializer().serializeToString(doc.documentElement);
-      };
+      const padSvg = new Function(
+        "svg",
+        `var __name = function (target) { return target; };\n${padSource}\nreturn padEdgeLabelSvg(svg);`,
+      ) as (svg: string) => string;
       const api = (window as unknown as { mermaid?: { initialize: (config: unknown) => void; render: (id: string, text: string) => Promise<{ svg: string }> } }).mermaid;
       if (!api) return { ok: false as const, message: "Mermaid did not load", loc: null, token: undefined };
       document.body.style.background = fill;
@@ -188,7 +181,7 @@ async function draw(page: Page, source: string, background: string): Promise<str
     source,
     config,
     background,
-    padEdgeLabelBoxes.toString(),
+    `${repairSvgMarkup.toString()}\n${padEdgeLabelBoxes.toString()}\n${padEdgeLabelSvg.toString()}`,
   );
   if (!drawn.ok) {
     const parsed = drawn.loc != null || /parse error on line/i.test(drawn.message);
@@ -227,6 +220,26 @@ async function rasterize(page: Page, svg: string, background: string): Promise<B
   return Buffer.from(png);
 }
 
+async function xmlErrorOnPage(page: Page, svg: string): Promise<string | null> {
+  const message = await page.evaluate((markup: string) => {
+    const g = globalThis as unknown as {
+      DOMParser: new () => {
+        parseFromString(xml: string, type: string): {
+          querySelector(selector: string): { textContent: string | null } | null;
+          documentElement: { localName?: string } | null;
+        };
+      };
+    };
+    const doc = new g.DOMParser().parseFromString(markup, "image/svg+xml");
+    const err = doc.querySelector("parsererror");
+    if (err || doc.documentElement?.localName !== "svg") {
+      return (err?.textContent || "Rendered SVG is not well-formed XML.").replace(/\s+/g, " ").trim().slice(0, 300);
+    }
+    return "";
+  }, svg);
+  return message || null;
+}
+
 async function renderOnce(input: RenderInput): Promise<RenderOutput> {
   const source = assertSource(input.source);
   if (input.format !== "svg" && input.format !== "png") {
@@ -251,6 +264,8 @@ async function renderOnce(input: RenderInput): Promise<RenderOutput> {
     if (/<script[\s>/]/i.test(cleaned)) {
       throw httpFail(400, "Rendered SVG was rejected.", "invalid");
     }
+    const markupError = svgXmlError(cleaned) ?? (await xmlErrorOnPage(page, cleaned));
+    if (markupError) throw httpFail(500, markupError, "invalid");
     if (input.format === "svg") {
       return { format: "svg", contentType: "image/svg+xml; charset=utf-8", body: Buffer.from(cleaned, "utf8") };
     }

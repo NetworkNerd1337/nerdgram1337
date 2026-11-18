@@ -23,17 +23,17 @@ export function EditorDivider({
   onPointerMove,
   onPointerUp,
 }: EditorDividerProps) {
-  const now = clampAria(value, min, max);
-  const low = Math.round(min);
-  const high = Math.round(max);
+  const low = Math.round(Math.min(min, max));
+  const high = Math.round(Math.max(min, max));
+  const now = clampAria(value, low, high);
   return (
     <div
       className="editor-split"
       role="separator"
       aria-orientation="vertical"
       aria-valuenow={now}
-      aria-valuemin={Math.min(low, high)}
-      aria-valuemax={Math.max(low, high)}
+      aria-valuemin={low}
+      aria-valuemax={high}
       aria-valuetext={`${now} percent`}
       aria-label="Resize editor and preview"
       tabIndex={0}
@@ -66,9 +66,8 @@ export function EditorDivider({
   );
 }
 
-function clampAria(value: number, min: number, max: number): number {
-  const low = Math.min(min, max);
-  const high = Math.max(min, max);
+/** Whole-number ARIA value inside the already-rounded limits. */
+function clampAria(value: number, low: number, high: number): number {
   const next = Math.round(Number.isFinite(value) ? value : low);
   return Math.min(high, Math.max(low, next));
 }
