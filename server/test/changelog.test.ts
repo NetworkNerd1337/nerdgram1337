@@ -35,17 +35,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Compass title and the 1.5.1 section without the heading", () => {
-    const title = notes(["--title", "v1.5.1"]);
+  it("prints the Galileo title and the 1.6.0 section without the heading", () => {
+    const title = notes(["--title", "v1.6.0"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.5.1 "Compass"\n');
-    const body = notes(["v1.5.1"]);
+    expect(title.stdout).toBe('v1.6.0 "Galileo"\n');
+    const body = notes(["v1.6.0"]);
     expect(body.code).toBe(0);
-    expect(body.stdout.startsWith("Patch on the Compass line.")).toBe(true);
-    expect(body.stdout).toContain("wrappingWidth");
-    expect(body.stdout).toContain("from #144");
-    expect(body.stdout).not.toContain('## 1.5.1 "Compass"');
-    expect(body.stdout).not.toContain("Minor release.");
+    expect(body.stdout.startsWith("Minor release.")).toBe(true);
+    expect(body.stdout).toContain("schema/network.json");
+    expect(body.stdout).toContain("Galileo");
+    expect(body.stdout).not.toContain('## 1.6.0 "Galileo"');
+    expect(body.stdout).not.toContain("Patch on the Compass line.");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
 

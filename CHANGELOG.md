@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 1.6.0 "Galileo" - 2026-11-18
+
+Minor release. The code name for 1.6.y is Galileo. 1.5.y stays Compass. The public schema routes and the campus push sample are in this release.
+
 - The OpenAPI document omits an empty `required` list, types the nullable baseline `revision`, and references `Error`, `NetworkDocument`, and `GraphDocument` with `$ref` so a generated client can type them. `npx @redocly/cli lint` on the served document reports no errors (follow-up to #148).
 - `GET /api/v1/openapi.json` now has response schemas, request examples, and the network document as the `NetworkDocument` component. `groupBy` lists platform, capability, vrf, site, and role. Upsert is the create-or-update call in that document.
 - `GET /api/v1/schema/network.json` serves `docs/schema/network.schema.json` with no token. The `$id` is `http://127.0.0.1:8787/api/v1/schema/network.json`. Host checks still apply. `GET /api/v1/schema/graph.json` serves the generic nodes, edges, and links schema. No document fields were added.

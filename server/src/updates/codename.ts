@@ -99,7 +99,7 @@ export function releaseCodename(
   return codenameFromReleaseTitle(version, title);
 }
 
-/** `v1.5.1 "Compass"`, or `v1.5.1` when this version has no code name. */
+/** `v1.6.0 "Galileo"`, or `v1.6.0` when this version has no code name. */
 export function formatVersionLabel(version: string, codename: string | null | undefined): string {
   const trimmed = version.trim();
   const base = trimmed.startsWith("v") ? trimmed : `v${trimmed}`;
