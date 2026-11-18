@@ -155,6 +155,34 @@ describe("edge label padding", () => {
     expect(foreign?.getAttribute("width")).toBe("92");
     expect(foreign?.getAttribute("height")).toBe("48");
   });
+
+  it("keeps inner padding on a long IPv6 node label in the preview and the export", async () => {
+    installTextBox();
+    const source = "flowchart LR\n  core[\"Lo0 2001:db8::1/128\"] -->|Gi0/1| guest[Short]\n";
+    for (const theme of ["dark", "default"]) {
+      const preview = await renderMermaid(source, theme);
+      const exported = await renderForExport(source, theme);
+      for (const svg of [preview.svg, exported]) {
+        expect(svgXmlError(svg)).toBeNull();
+        expect(svg).toContain("Lo0 2001:db8::1/128");
+        expect(svg).toContain("Gi0/1");
+        expect(svg).toContain("data-nerdgram-pad");
+        expect(svg).not.toMatch(/<span[^>]*edgeLabel[^>]*padding/);
+        const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+        const node = [...doc.querySelectorAll("g.node")].find((item) => (item.textContent ?? "").includes("2001:db8::1/128"));
+        const rect = node?.querySelector("rect");
+        const foreign = node?.querySelector("foreignObject");
+        const width = Number.parseFloat(rect?.getAttribute("width") ?? "0");
+        if (foreign) {
+          const label = Number.parseFloat(foreign.getAttribute("width") ?? "0");
+          expect(label).toBeGreaterThan(120);
+          expect(width - label).toBeGreaterThanOrEqual(24);
+        } else {
+          expect(width).toBeGreaterThan(140);
+        }
+      }
+    }
+  });
 });
 
 function hostWith(doc: Document): void {

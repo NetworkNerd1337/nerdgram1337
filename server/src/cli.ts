@@ -198,6 +198,15 @@ class CliError extends Error {
   }
 }
 
+/** HTTP status when the failure has one, otherwise a stable non-null marker. */
+function failureStatus(err: unknown): number | "error" {
+  if (err instanceof CliError && typeof err.status === "number") return err.status;
+  if (err && typeof err === "object" && "status" in err && typeof (err as { status: unknown }).status === "number") {
+    return (err as { status: number }).status;
+  }
+  return "error";
+}
+
 type RowIssue = { row?: unknown; message?: unknown; path?: unknown };
 
 /** Lines for the row and field errors a generate or refresh response includes. */
@@ -959,11 +968,10 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const status = err instanceof CliError ? err.status : undefined;
     if (isJson(parsed.flags)) {
       const errors = err instanceof CliError && Array.isArray(err.details?.errors) ? err.details.errors : undefined;
       streams.stdout(
-        `${JSON.stringify({ ok: false, error: message, status: status ?? null, ...(errors ? { errors } : {}) })}\n`,
+        `${JSON.stringify({ ok: false, error: message, status: failureStatus(err), ...(errors ? { errors } : {}) })}\n`,
       );
     } else streams.stderr(`${message}\n`);
     return 1;

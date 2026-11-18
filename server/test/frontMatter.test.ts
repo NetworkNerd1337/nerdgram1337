@@ -7,6 +7,8 @@ import {
   applyDiagramPatch,
   diagramInitConfig,
   diagramMetaFrom,
+  NODE_LABEL_WRAP_WIDTH,
+  withNodeLabelRoom,
   diagramSearchRank,
   matchFrontMatter,
   migrateInitDirectives,
@@ -49,6 +51,13 @@ describe("front matter parsing", () => {
       theme: "dark",
       fontFamily: DEFAULT_FONT_FAMILY,
     });
+    const room = withNodeLabelRoom(diagramInitConfig(source, "dark"));
+    expect(room.flowchart).toEqual({ wrappingWidth: NODE_LABEL_WRAP_WIDTH });
+    const chosen = withNodeLabelRoom({
+      ...diagramInitConfig(source, "dark"),
+      flowchart: { curve: "basis", wrappingWidth: 80 },
+    });
+    expect(chosen.flowchart).toEqual({ curve: "basis", wrappingWidth: 80 });
   });
 
   it("matches Mermaid's front matter fence, including the awkward blank-line case", () => {

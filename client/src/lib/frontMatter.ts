@@ -4,6 +4,8 @@ export {
   applyDiagramPatch,
   diagramConfigKey,
   diagramInitConfig,
+  NODE_LABEL_WRAP_WIDTH,
+  withNodeLabelRoom,
   diagramMetaFrom,
   diagramSearchRank,
   matchFrontMatter,

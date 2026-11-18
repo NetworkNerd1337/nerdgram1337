@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import type { Browser, Page } from "puppeteer";
 import puppeteer from "puppeteer";
 import { padEdgeLabelBoxes, padEdgeLabelSvg, repairSvgMarkup, svgXmlError } from "./edgeLabelPadding.js";
-import { diagramInitConfig } from "./frontMatter.js";
+import { diagramInitConfig, withNodeLabelRoom } from "./frontMatter.js";
 import { locateParseError } from "./parseError.js";
 import { httpFail } from "./storage.js";
 import { sanitizeThumbnailSvg } from "./thumbnails.js";
@@ -133,7 +133,7 @@ function plainError(err: unknown): string {
 }
 
 async function draw(page: Page, source: string, background: string): Promise<string> {
-  const init = diagramInitConfig(source);
+  const init = withNodeLabelRoom(diagramInitConfig(source));
   init.startOnLoad = false;
   init.securityLevel = "strict";
   init.suppressErrorRendering = true;

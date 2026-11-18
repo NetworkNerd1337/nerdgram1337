@@ -34,6 +34,8 @@ Drag the divider between the code pane and the preview to give either side more 
 
 The toolbar still sets the diagram theme, look, and layout, and it still has **Present**. **Diagram info** in the editor header opens and closes the info panel. Those controls are not part of the pan. Text outside the preview, including the code pane, still selects as usual.
 
+A flowchart node keeps the same inner padding when a line is a long address, such as `2001:db8::1/128`. The preview, presentation, and SVG and PNG exports all do this, in the light and dark themes. A label that already has a line break still shows every line. Edge labels are unchanged. A file that sets `flowchart.wrappingWidth` keeps that width.
+
 ## Editing
 
 The editor header is the folder path: **Local files**, then each folder, then the file name without `.mmd`. Each folder is a link to that folder on the dashboard, and **Local files** returns to the dashboard root. Click the file name, or run **Rename file** from the command palette, to rename the file in place. That does not change the front matter title, and renaming the title does not rename the file. Unsaved edits are saved first. A long path collapses the middle folders to an ellipsis, and the tooltip is the full path. The logo leaves the editor for the folder that contains the diagram. A diagram at the root returns to the dashboard root. If that folder is gone, the link opens the nearest folder that is still there. The browser Back button is unchanged. **Diagram info** in that same header toggles the info panel. It stays marked while the panel is open. The command palette command **Edit diagram info** still opens the panel.
@@ -230,7 +232,7 @@ Replace saves each selected diagram the usual way, so the previous text is a rev
 
 ## Presentation
 
-**Present** shows the diagram on its own, using the theme, look, and layout stored in the file. The title is the front-matter title when the file has one, and the file name otherwise. The control bar can hide the title.
+**Present** shows the diagram on its own, using the theme, look, and layout stored in the file. The title is the front-matter title when the file has one, and the file name otherwise. The control bar can hide the title. Node labels use the same inner padding as the preview, including a long IPv6 address.
 
 In the editor, use **Present** on the preview toolbar, press **F5**, or press **Ctrl+Shift+Enter** (**Cmd+Shift+Enter** on a Mac). **Present diagram** is also in the command palette. **F5** is the browser reload key. NerdGram uses it for presentation only when a diagram is open and the cursor is not in a form field (search, rename, diagram info, go to line, or the command palette). It does work from the code pane. On the dashboard, the new-diagram page, and the reference, F5 still reloads the page. Ctrl+F5, Alt+F5, and Shift+F5 stay a reload. Pan and zoom keys do not run while you are typing in the editor. They run only during presentation.
 
