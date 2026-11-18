@@ -46,7 +46,7 @@ ENV NERDGRAM_VERSION=${NERDGRAM_VERSION} \
     NERDGRAM_CODENAME=${NERDGRAM_CODENAME}
 RUN node scripts/check-version.mjs \
  && node -e "const v=require('./package.json').version; if (v !== process.env.NERDGRAM_VERSION) { console.error('NERDGRAM_VERSION '+process.env.NERDGRAM_VERSION+' does not match package.json '+v); process.exit(1); }" \
- && node -e "const p=require('./package.json'); const parts=String(p.version).split('.'); const key=parts[0]+'.'+(Number(parts[1])<5?'0':'5'); const name=p.codenames&&p.codenames[key]; if (name !== process.env.NERDGRAM_CODENAME) { console.error('NERDGRAM_CODENAME '+process.env.NERDGRAM_CODENAME+' does not match package.json '+(name||'(missing)')); process.exit(1); }" \
+ && test "$(node scripts/codenames.mjs)" = "$NERDGRAM_CODENAME" \
  && npm run build --prefix client \
  && npm run build --prefix server
 
@@ -96,11 +96,12 @@ COPY --link --from=build /src/client/dist /app/client/dist
 COPY --link --from=build /src/templates /app/templates
 COPY --link --from=build /src/reference /app/reference
 COPY --link --from=build /src/diagrams /app/diagrams
+COPY docs/schema /app/docs/schema
 
 # The process can read these. It cannot change the bundled templates,
 # reference, or sample files. Synced reference pages go to /data.
-RUN chmod -R a-w /app/templates /app/reference /app/diagrams /app/server/dist /app/package.json /app/server/package.json \
- && chmod -R a+rX /app/templates /app/reference /app/diagrams /app/server /app/client /app/package.json \
+RUN chmod -R a-w /app/templates /app/reference /app/diagrams /app/docs/schema /app/server/dist /app/package.json /app/server/package.json \
+ && chmod -R a+rX /app/templates /app/reference /app/diagrams /app/docs/schema /app/server /app/client /app/package.json \
  && chmod -R a+rX /opt/puppeteer \
  && chmod -R a+x /opt/puppeteer \
  && printf '%s\n' '#!/bin/sh' 'exec node /app/server/dist/cli.js "$@"' > /usr/local/bin/nerdgram \

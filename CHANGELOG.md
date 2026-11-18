@@ -6,7 +6,10 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- `GET /api/v1/openapi.json` now has response schemas, request examples, and the network document as the `NetworkDocument` component. `groupBy` lists platform, capability, vrf, site, and role. Upsert is the create-or-update call in that document.
+- `GET /api/v1/schema/network.json` serves `docs/schema/network.schema.json` with no token. The `$id` is `http://127.0.0.1:8787/api/v1/schema/network.json`. Host checks still apply. `GET /api/v1/schema/graph.json` serves the generic nodes, edges, and links schema. No document fields were added.
+- `docs/samples/push-campus.sh` previews and upserts the campus network sample. The first run creates the diagram. The next run updates it. A crontab line is in `docs/samples/push-campus.cron`.
+- Code names change at each named milestone. 1.5.x stays Compass. 1.6.x is Galileo. 1.7.y, including 1.7.0 and 1.7.5, is Navigator. 1.8.y, including 1.8.0 and 1.8.5, is Meridian. 2.0 is not named yet. The `codenames` map in `package.json` is that list. 1.0.y through 1.4.y stay Atlas.
 
 ## 1.5.1 "Compass" - 2026-11-17
 

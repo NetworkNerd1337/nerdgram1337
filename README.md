@@ -124,7 +124,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Data and backups](docs/data-and-backups.md).** By default, diagrams live in `diagrams/` inside the project.
 - **[Upgrading](docs/upgrading.md).** Stop the app before you replace it.
 - **[Versioning and releases](docs/releases.md).** Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix.
-- **[Roadmap](docs/roadmap.md).** Planned work after v1.5.1, on the Compass half of the 1.x line, with future ideas at the end that are not committed.
+- **[Roadmap](docs/roadmap.md).** Planned work after v1.5.1. 1.5.x is Compass. Later milestones name their own code names. Future ideas at the end are not committed.
 - **[Troubleshooting](docs/troubleshooting.md).** If the API port is taken, the server exits and prints the listen error.
 - **[Developing](docs/developing.md).** The project folders, the npm scripts, and what CI runs.
 

@@ -1,4 +1,6 @@
 import { createRequire } from "node:module";
+import { graphOpenApiSchemas, networkOpenApiSchemas } from "./publishedSchemas.js";
+import { jsonSuccess, REQUEST_EXAMPLES, RESPONSE_SCHEMAS, SHARED_SCHEMAS } from "./openapiShapes.js";
 
 const require = createRequire(import.meta.url);
 const serverPackage = require("../package.json") as { version: string };
@@ -27,6 +29,22 @@ export const V1_ROUTES: readonly V1Route[] = [
     scope: "public",
     operationId: "getOpenApi",
     summary: "OpenAPI document for this API.",
+    tag: "Meta",
+  },
+  {
+    method: "get",
+    path: "/schema/network.json",
+    scope: "public",
+    operationId: "getNetworkSchema",
+    summary: "JSON Schema for the network document. Same file as docs/schema/network.schema.json. No token.",
+    tag: "Meta",
+  },
+  {
+    method: "get",
+    path: "/schema/graph.json",
+    scope: "public",
+    operationId: "getGraphSchema",
+    summary: "JSON Schema for generic nodes, edges, and links. No token.",
     tag: "Meta",
   },
   {
@@ -299,13 +317,20 @@ const pathQuery = {
   description: "Workspace path relative to the data directory. Empty is the root.",
 };
 
-function jsonBody(description: string, properties: Record<string, unknown>, required: string[]): Record<string, unknown> {
+function jsonBody(
+  description: string,
+  properties: Record<string, unknown>,
+  required: string[],
+  examples?: Record<string, { summary: string; value: unknown }>,
+): Record<string, unknown> {
+  const media: Record<string, unknown> = {
+    schema: { type: "object", description, properties, required },
+  };
+  if (examples) media.examples = examples;
   return {
     required: true,
     content: {
-      "application/json": {
-        schema: { type: "object", description, properties, required },
-      },
+      "application/json": media,
     },
   };
 }
@@ -369,27 +394,38 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
     case "previewGenerate":
     case "generateDiagram":
     case "upsertDiagram":
-      return jsonBody("CSV, JSON, Cisco CDP, LLDP, or network JSON. Network data also sends view.", {
-        text: { type: "string" },
-        path: { type: "string", description: "Required for generate. Diagram path ending in .mmd." },
-        format: { type: "string", enum: ["csv", "json", "cdp", "lldp", "network"] },
-        view: { type: "string", enum: ["l3", "l2"], description: "Required when format is network. l3 is subnets. l2 is VLANs, trunks, and LAGs." },
-        includeDown: { type: "boolean", description: "Network data. Include shutdown or down interfaces. Defaults to false." },
-        vlan: { type: "integer", description: "Layer 2 network view. Draw only links that carry this VLAN id." },
-        shape: { type: "string" },
-        direction: { type: "string", enum: ["TD", "TB", "LR", "RL", "BT"] },
-        mapping: { type: "object" },
-        grouping: { type: "boolean" },
-        groupBy: {
-          type: "string",
-          enum: ["platform", "capability", "vrf", "site", "role"],
-          description: "CDP and LLDP use platform or capability. Network Layer 3 uses vrf. Network Layer 2 uses site, role, or platform.",
+      return jsonBody(
+        "CSV, JSON, Cisco CDP, LLDP, or network JSON. When format is network, text is a JSON encoding of NetworkDocument. When format is json, text is GraphDocument. Network data also sends view. Upsert creates the diagram or updates the generated block.",
+        {
+          text: {
+            type: "string",
+            description:
+              "The whole file. When format is network, parse this string as NetworkDocument. When format is json, parse it as GraphDocument. The canonical JSON Schemas are GET /api/v1/schema/network.json and GET /api/v1/schema/graph.json.",
+            "x-networkDocument": { $ref: "#/components/schemas/NetworkDocument" },
+            "x-graphDocument": { $ref: "#/components/schemas/GraphDocument" },
+          },
+          path: { type: "string", description: "Required for generate and upsert. Diagram path ending in .mmd." },
+          format: { type: "string", enum: ["csv", "json", "cdp", "lldp", "network"] },
+          view: { type: "string", enum: ["l3", "l2"], description: "Required when format is network. l3 is subnets. l2 is VLANs, trunks, and LAGs." },
+          includeDown: { type: "boolean", description: "Network data. Include shutdown or down interfaces. Defaults to false." },
+          vlan: { type: "integer", description: "Layer 2 network view. Draw only links that carry this VLAN id." },
+          shape: { type: "string" },
+          direction: { type: "string", enum: ["TD", "TB", "LR", "RL", "BT"] },
+          mapping: { type: "object" },
+          grouping: { type: "boolean" },
+          groupBy: {
+            type: "string",
+            enum: ["platform", "capability", "vrf", "site", "role"],
+            description:
+              "Every group-by value. CDP and LLDP use platform (the default) or capability. Network Layer 3 uses vrf. Network Layer 2 uses site, role, or platform.",
+          },
+          localDevice: { type: "string", description: "Hostname when CDP or LLDP text has no CLI prompt." },
+          title: { type: "string" },
+          edgesText: { type: "string" },
+          storeData: { type: "boolean" },
         },
-        localDevice: { type: "string", description: "Hostname when CDP or LLDP text has no CLI prompt." },
-        title: { type: "string" },
-        edgesText: { type: "string" },
-        storeData: { type: "boolean" },
-      }, ["text"]);
+        ["text"],
+      );
     case "applyLinkRepairs":
       return jsonBody("Link repair. Omit dryRun or set it true to preview. Writes require dryRun false and confirm true.", {
         dryRun: { type: "boolean", description: "Defaults to true. Nothing is written while this is true." },
@@ -531,12 +567,25 @@ export function buildOpenApiSpec(): Record<string, unknown> {
   for (const route of V1_ROUTES) {
     const specPath = openApiPath(route);
     const item = paths[specPath] ?? {};
+    const successSchema = RESPONSE_SCHEMAS[route.operationId] ?? { type: "object" };
     const responses: Record<string, unknown> = {
       "200": route.operationId.startsWith("render")
-        ? { description: "SVG or PNG bytes." }
-        : { description: "Success.", content: { "application/json": { schema: { type: "object" } } } },
+        ? {
+            description: "SVG or PNG bytes.",
+            content: {
+              "image/svg+xml": { schema: { type: "string", format: "binary" } },
+              "image/png": { schema: { type: "string", format: "binary" } },
+            },
+          }
+        : jsonSuccess(successSchema, route.operationId === "upsertDiagram" ? "Updated an existing generated diagram." : "Success."),
       "400": { description: "The request was rejected.", content: { "application/json": { schema: errorSchema } } },
     };
+    if (route.operationId === "upsertDiagram" || route.operationId === "generateDiagram" || route.operationId === "createDiagram" || route.operationId === "duplicateDiagram" || route.operationId === "createFolder" || route.operationId === "createBaseline") {
+      responses["201"] = jsonSuccess(
+        successSchema,
+        route.operationId === "upsertDiagram" ? "Created the generated diagram." : "Created.",
+      );
+    }
     if (route.scope !== "public") {
       responses["401"] = { description: "Missing, unknown, or revoked token.", content: { "application/json": { schema: errorSchema } } };
     }
@@ -561,7 +610,12 @@ export function buildOpenApiSpec(): Record<string, unknown> {
     const parameters = operationParameters(route.operationId);
     if (parameters.length > 0) operation.parameters = parameters;
     const requestBody = operationBody(route.operationId);
-    if (requestBody) operation.requestBody = requestBody;
+    if (requestBody) {
+      const examples = REQUEST_EXAMPLES[route.operationId];
+      const media = (requestBody.content as { "application/json"?: { examples?: unknown } })["application/json"];
+      if (examples && media && !media.examples) media.examples = examples;
+      operation.requestBody = requestBody;
+    }
     item[route.method] = operation;
     paths[specPath] = item;
   }
@@ -592,6 +646,12 @@ export function buildOpenApiSpec(): Record<string, unknown> {
           bearerFormat: "API token",
           description: "Authorization: Bearer ng_…  Scope is read or read-write. A read-write token can read.",
         },
+      },
+      schemas: {
+        Error: errorSchema,
+        ...SHARED_SCHEMAS,
+        ...networkOpenApiSchemas(),
+        ...graphOpenApiSchemas(),
       },
     },
     paths,

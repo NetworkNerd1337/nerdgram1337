@@ -31,7 +31,10 @@ reference.bak
 # there has to ship with the others. server/test/docker.test.ts checks that.
 
 screenshots
-docs
+# The published JSON Schemas are served from /app/docs/schema. The rest of docs stays out.
+docs/*
+!docs/schema
+!docs/schema/**
 **/*.mp4
 **/*.webp
 

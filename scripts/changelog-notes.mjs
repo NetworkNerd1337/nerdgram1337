@@ -126,7 +126,7 @@ export function cutChangelogRelease(markdown, release) {
 
 /**
  * GitHub Release title. The version comes from the tag. The code name comes
- * from the codenames map for that half (minor below 5, or 5 and above), not from the release title text.
+ * from the codenames map for that milestone, not from the release title text.
  * @param {string} version
  * @param {string} codename
  */

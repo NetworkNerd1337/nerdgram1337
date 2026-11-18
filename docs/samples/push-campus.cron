@@ -1,0 +1,10 @@
+# Campus push, every night at 02:15.
+# Edit the checkout path and the token. The script creates Campus-L3.mmd on the
+# first run and updates it after that. It previews, then calls
+# POST /api/v1/generate/upsert. It does not fall back to refresh.
+#
+# The OpenAPI document and the JSON Schemas (no token):
+#   http://127.0.0.1:8787/api/v1/openapi.json
+#   http://127.0.0.1:8787/api/v1/schema/network.json
+#   http://127.0.0.1:8787/api/v1/schema/graph.json
+15 2 * * * cd /path/to/NerdGram1337 && NERDGRAM_TOKEN=ng_your_token sh docs/samples/push-campus.sh

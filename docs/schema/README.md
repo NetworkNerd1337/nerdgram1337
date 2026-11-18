@@ -14,7 +14,7 @@ Network JSON stays on schemaVersion 1 when a change only adds optional fields, a
 
 ## Decision
 
-The schema in this folder is [network.schema.json](network.schema.json). `schemaVersion` is required, and this file sets it to the number 1. `format`, when it is present, is `"network"`. The `$id` is `https://nerdgram1337.local/schema/network-v1.schema.json`. That name is version 1 of this document. While `schemaVersion` stays 1, the `$id` stays on `network-v1`.
+The schema in this folder is [network.schema.json](network.schema.json). `schemaVersion` is required, and this file sets it to the number 1. `format`, when it is present, is `"network"`. The `$id` is `http://127.0.0.1:8787/api/v1/schema/network.json`. That URL is the copy the server serves, with no token, on the default loopback port. The same path is `GET /api/v1/schema/network.json` when the port is different. While `schemaVersion` stays 1, the `$id` stays on that route. A meaning change that bumps `schemaVersion` to 2 gets a new `$id`.
 
 The number on a file names the meanings of the fields in that file. Version 1 is the meanings in the schema today. NerdGram accepts only `schemaVersion` 1. Any other number fails with `schemaVersion must be 1.` Version 2 is the number a later change uses when a meaning changes. This page is that rule. Version 2 becomes valid when that change ships.
 
@@ -33,7 +33,7 @@ Leave the number at 1 when older files still validate without edits, and every f
 
 Add the new optional field to [network.schema.json](network.schema.json) and to `validateNetwork()` in the same change. A file that omits the field is still valid version 1. `device.model`, `device.diagram`, `interface.speed`, and a link `label` are this kind of field.
 
-A new allowed value on a field that already exists stays on 1 when older files never have to send it, and the values they already send still mean what they mean today. The `$id` stays `network-v1`.
+A new allowed value on a field that already exists stays on 1 when older files never have to send it, and the values they already send still mean what they mean today. The `$id` stays the version-1 route.
 
 ## Bump to 2
 
