@@ -30,7 +30,7 @@ This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas t
 
 | Fact | Value |
 | --- | --- |
-| Current release | 1.6.0 Galileo |
+| Current release | 1.6.1 Galileo |
 | Canonical network schema | `schemaVersion` 1, in [docs/schema/network.schema.json](schema/network.schema.json) |
 | Automation API | `GET /api/v1/openapi.json` already exists (OpenAPI 3.0.3, no token) |
 | Generate behavior | `POST /api/v1/generate` returns **409** if the path exists; refresh updates an existing diagram |

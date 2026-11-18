@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 1.6.1 "Galileo" - 2026-11-18
+
+Patch on the Galileo line. The code name stays Galileo.
+
 - `GET /api/v1/schema/network.json` and `GET /api/v1/schema/graph.json` set `$id` from the host and port of the request. The files in `docs/schema/` keep `http://127.0.0.1:8787/...`. The Host check is unchanged. A foreign Host is still **403** (from #153).
 - Bug reports and feature requests use the forms in `.github/ISSUE_TEMPLATE/`. Blank issues are off. Pull requests start from `.github/pull_request_template.md` (from #154).
 - `SECURITY.md` is the vulnerability reporting policy. Fixes go to 1.6.x. The security model stays in `docs/security.md` (from #155).
