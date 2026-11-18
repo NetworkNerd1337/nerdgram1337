@@ -93,4 +93,38 @@ describe("editor split", () => {
     render();
     expect(document.querySelector("[role='separator']")?.getAttribute("aria-valuenow")).toBe("42");
   });
+
+  it("reports a whole number at a fractional limit", () => {
+    act(() => {
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      root = createRoot(host);
+      root.render(
+        <EditorDivider
+          value={78.658}
+          min={22.2}
+          max={78.658}
+          onChange={() => undefined}
+          onReset={() => undefined}
+          onPointerDown={() => undefined}
+          onPointerMove={() => undefined}
+          onPointerUp={() => undefined}
+        />,
+      );
+    });
+    const separator = document.querySelector("[role='separator']");
+    expect(separator?.getAttribute("aria-valuenow")).toBe("79");
+    expect(separator?.getAttribute("aria-valuemin")).toBe("22");
+    expect(separator?.getAttribute("aria-valuemax")).toBe("79");
+  });
+
+  it("clamps a wide split for a narrower window without replacing the saved choice", () => {
+    const saved = 82;
+    writeEditorSplit(localStorage, saved);
+    const narrow = clampEditorSplit(readEditorSplit(localStorage), 992, CODE_MIN_PX, PREVIEW_MIN_PX);
+    expect(narrow).toBeCloseTo(71.77, 1);
+    expect(readEditorSplit(localStorage)).toBe(saved);
+    const wide = clampEditorSplit(readEditorSplit(localStorage), 1592, CODE_MIN_PX, PREVIEW_MIN_PX);
+    expect(wide).toBe(saved);
+  });
 });

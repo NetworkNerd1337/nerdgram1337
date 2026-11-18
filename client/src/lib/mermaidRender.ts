@@ -1,5 +1,5 @@
 import mermaid from "mermaid";
-import { padEdgeLabelBoxes } from "../../../server/src/edgeLabelPadding.ts";
+import { padEdgeLabelSvg } from "../../../server/src/edgeLabelPadding.ts";
 import { withSvgTextLabels } from "./exportSvg";
 import { diagramInitConfig, FALLBACK_THEME } from "./frontMatter";
 
@@ -24,11 +24,7 @@ function removeMermaidTemp(id: string): void {
 }
 
 function padRenderedSvg(svg: string): string {
-  if (!svg.includes("edgeLabel") || typeof DOMParser === "undefined") return svg;
-  const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
-  if (doc.querySelector("parsererror")) return svg;
-  padEdgeLabelBoxes(doc);
-  return new XMLSerializer().serializeToString(doc.documentElement);
+  return padEdgeLabelSvg(svg);
 }
 
 function initializeFor(code: string, fallbackTheme: string): void {

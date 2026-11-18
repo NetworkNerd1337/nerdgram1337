@@ -2,7 +2,7 @@
  * @vitest-environment happy-dom
  */
 import { describe, expect, it } from "vitest";
-import { padEdgeLabelBoxes } from "../../server/src/edgeLabelPadding.ts";
+import { padEdgeLabelBoxes, padEdgeLabelSvg, svgXmlError } from "../../server/src/edgeLabelPadding.ts";
 import { renderForExport, renderMermaid } from "../src/lib/mermaidRender";
 
 function pad(svg: string): Document {
@@ -28,7 +28,9 @@ describe("edge label padding", () => {
     const span = doc.querySelector("span.edgeLabel");
     const label = doc.querySelector("g.label");
     expect(foreign?.getAttribute("width")).toBe("152");
-    expect(span?.getAttribute("style")).toContain("padding:0 6px");
+    expect(foreign?.getAttribute("height")).toBe("18");
+    expect(span?.getAttribute("style") ?? "").not.toContain("padding");
+    expect(doc.querySelector("p")?.getAttribute("style")).toContain("padding:0 6px");
     expect(span?.textContent).toBe("Gi0/1/0 – Gi1/0/51");
     expect(label?.getAttribute("transform")).toBe("translate(-76, -9)");
     expect(doc.querySelector("g.edgeLabel")?.getAttribute("transform")).toBe("translate(200, 40)");
@@ -77,13 +79,88 @@ describe("edge label padding", () => {
     expect(exportLabel?.textContent).toContain("Gi1/0/51");
     expect(previewLabel?.getAttribute("data-nerdgram-pad")).toBe("1");
     expect(exportLabel?.getAttribute("data-nerdgram-pad")).toBe("1");
-    expect(previewDoc.querySelector("g.edgeLabel .edgeLabel")?.getAttribute("style") ?? "").toContain("padding:0 6px");
+    const previewSpan = previewDoc.querySelector("g.edgeLabel span.edgeLabel");
+    expect(previewSpan?.getAttribute("style") ?? "").not.toContain("padding");
+    const padded = [...previewDoc.querySelectorAll("g.edgeLabel [style]")].find((el) =>
+      (el.getAttribute("style") ?? "").includes("padding:0 6px"),
+    );
+    expect(padded?.localName === "p" || padded?.classList.contains("labelBkg")).toBe(true);
     const rect = exportDoc.querySelector("g.edgeLabel rect");
     const width = Number.parseFloat(rect?.getAttribute("width") ?? "0");
     const textWidth = Math.max(8, (exportLabel?.textContent ?? "").trim().length * 7);
     expect(width).toBeGreaterThanOrEqual(textWidth + 12 - 1);
   }, 30_000);
+
+  it("keeps every line of a multi-line edge label and does not pad the inline span", () => {
+    const lines = ["access 20 servers", "10,20", "10,20,30 native 99 native"];
+    const raw = `<svg xmlns="http://www.w3.org/2000/svg">
+      <g class="edgeLabel" transform="translate(120, 40)">
+        <g class="label" transform="translate(-70, -36)">
+          <foreignObject width="140" height="72">
+            <div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg">
+              <span class="edgeLabel"><p>${lines.join("<br>")}</p></span>
+            </div>
+          </foreignObject>
+        </g>
+      </g>
+    </svg>`;
+    const padded = padEdgeLabelSvg(raw);
+    expect(svgXmlError(padded)).toBeNull();
+    const doc = new DOMParser().parseFromString(padded, "image/svg+xml");
+    const label = doc.querySelector("g.edgeLabel");
+    const foreign = label?.querySelector("foreignObject");
+    const paragraph = label?.querySelector("p");
+    const span = label?.querySelector("span.edgeLabel");
+    hostWith(doc);
+    for (const line of lines) expect(label?.textContent).toContain(line);
+    expect(span?.getAttribute("style") ?? "").not.toContain("padding");
+    expect(paragraph?.getAttribute("style") ?? "").toContain("padding:0 6px");
+    expect(foreign?.getAttribute("height")).toBe("72");
+    expect(Number.parseFloat(foreign?.getAttribute("width") ?? "0")).toBe(152);
+    const boxHeight = Number.parseFloat(foreign?.getAttribute("height") ?? "0");
+    const textHeight = paragraph?.getBoundingClientRect().height ?? 0;
+    expect(boxHeight).toBeGreaterThan(0);
+    if (textHeight > 0) expect(boxHeight + 0.5).toBeGreaterThanOrEqual(textHeight);
+  });
+
+  it("pads a click diagram and emits well-formed breaks", () => {
+    const raw = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80">
+      <g class="edgeLabel" transform="translate(100, 40)">
+        <g class="label" transform="translate(-40, -24)">
+          <foreignObject width="80" height="48">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              <span class="edgeLabel"><p>line one<br>line two<br>line three</p></span>
+            </div>
+          </foreignObject>
+        </g>
+      </g>
+      <a xlink:href="https://example.com"><text>Core</text></a>
+    </svg>`;
+    expect(svgXmlError(raw)).toMatch(/br/);
+    const padded = padEdgeLabelSvg(raw);
+    expect(svgXmlError(padded)).toBeNull();
+    expect(padded).toContain('xmlns:xlink="http://www.w3.org/1999/xlink"');
+    expect(padded).toContain('xlink:href="https://example.com"');
+    expect(padded).not.toMatch(/<br(?![^>]*\/>)/);
+    const doc = new DOMParser().parseFromString(padded, "image/svg+xml");
+    expect(doc.querySelector("parsererror")).toBeNull();
+    expect(doc.querySelector("g.edgeLabel")?.getAttribute("data-nerdgram-pad")).toBe("1");
+    const text = doc.querySelector("g.edgeLabel")?.textContent ?? "";
+    expect(text).toContain("line one");
+    expect(text).toContain("line two");
+    expect(text).toContain("line three");
+    expect(doc.querySelector("span.edgeLabel")?.getAttribute("style") ?? "").not.toContain("padding");
+    expect(doc.querySelector("p")?.getAttribute("style")).toContain("padding:0 6px");
+    const foreign = doc.querySelector("foreignObject");
+    expect(foreign?.getAttribute("width")).toBe("92");
+    expect(foreign?.getAttribute("height")).toBe("48");
+  });
 });
+
+function hostWith(doc: Document): void {
+  const svg = doc.documentElement;
+  if (svg.parentNode !== document.body) document.body.appendChild(svg);
+}
 
 function installTextBox(): void {
   const box = function (this: Element) {
