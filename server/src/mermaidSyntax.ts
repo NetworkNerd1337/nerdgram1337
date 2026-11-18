@@ -1,6 +1,7 @@
 import mermaid from "mermaid";
 import { lintDiagram, type LintDiagnostic, type LintOptions } from "./diagramLint.js";
 import { isMermaidEnvironmentError, locateParseError } from "./parseError.js";
+import { omitMutedWarnings } from "./warningMute.js";
 
 /**
  * Syntax errors from Mermaid's parser, as error diagnostics.
@@ -35,12 +36,17 @@ export async function mermaidSyntaxDiagnostic(source: string): Promise<LintDiagn
   }
 }
 
-/** Text checks plus a Mermaid syntax error, when the diagram does not parse. */
+/**
+ * Text checks plus a Mermaid syntax error, when the diagram does not parse.
+ * A file that mutes warnings drops those warnings. Errors stay.
+ */
 export async function lintDiagramSource(source: string, options: LintOptions = {}): Promise<LintDiagnostic[]> {
   const diagnostics = lintDiagram(source, options);
   const syntax = await mermaidSyntaxDiagnostic(source);
-  if (!syntax) return diagnostics;
-  return [...diagnostics, syntax].sort(
-    (a, b) => a.from - b.from || a.line - b.line || String(a.ruleId).localeCompare(String(b.ruleId)),
-  );
+  const combined = !syntax
+    ? diagnostics
+    : [...diagnostics, syntax].sort(
+        (a, b) => a.from - b.from || a.line - b.line || String(a.ruleId).localeCompare(String(b.ruleId)),
+      );
+  return omitMutedWarnings(source, combined);
 }

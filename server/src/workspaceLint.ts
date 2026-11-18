@@ -1,11 +1,14 @@
 import type { LintDiagnostic } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
 import { reportUnreadable, type UnreadableDiagram } from "./readError.js";
+import { warningsMuted } from "./warningMute.js";
 
 export type WorkspaceLintResult = {
   checked: number;
   diagrams: { path: string; diagnostics: LintDiagnostic[] }[];
   unreadable: UnreadableDiagram[];
+  /** Paths whose warnings are muted. No warning text. */
+  muted: string[];
 };
 
 /**
@@ -19,6 +22,7 @@ export async function lintWorkspaceFiles(
   const diagramPaths = files.map((file) => file.path);
   const diagrams: { path: string; diagnostics: LintDiagnostic[] }[] = [];
   const unreadable: UnreadableDiagram[] = [];
+  const muted: string[] = [];
   for (const file of files) {
     let content: string;
     try {
@@ -27,8 +31,9 @@ export async function lintWorkspaceFiles(
       unreadable.push(reportUnreadable(file.path, err));
       continue;
     }
+    if (warningsMuted(content)) muted.push(file.path);
     const diagnostics = await lintDiagramSource(content, { diagramPaths, sourcePath: file.path });
     if (diagnostics.length > 0) diagrams.push({ path: file.path, diagnostics });
   }
-  return { checked: files.length, diagrams, unreadable };
+  return { checked: files.length, diagrams, unreadable, muted };
 }

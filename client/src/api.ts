@@ -225,6 +225,7 @@ export const api = {
       checked: number;
       diagrams: { path: string; diagnostics: LintDiagnostic[] }[];
       unreadable?: UnreadableDiagram[];
+      muted?: string[];
     }>("/api/diagram-lint"),
   previewLinkRepairs: () => request<LinkRepairPlan>("/api/link-repairs"),
   applyLinkRepairs: (body: { lockToken?: string | null; choices: { from: string; to: string }[] }) =>

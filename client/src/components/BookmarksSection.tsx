@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   BOOKMARK_FOLDERS_KEY,
@@ -146,7 +146,7 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
                       {folder.name}
                     </span>
                   )}
-                  <span className="sidebar-row-actions">
+                  <RowActions label={`Actions for ${folder.name}`}>
                     <button type="button" className="sidebar-mini" aria-label={`Move ${folder.name} up`} onClick={() => onChange(reorderBookmarkFolder(state, folder.id, -1))}>
                       Up
                     </button>
@@ -172,7 +172,7 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
                     >
                       Delete
                     </button>
-                  </span>
+                  </RowActions>
                 </div>
                 {folderOpen ? (
                   <ul className="sidebar-rows sidebar-rows-nested">
@@ -249,19 +249,20 @@ function BookmarkRow({
   onMove: (folderId: string | null) => void;
 }) {
   const name = displayName(path);
+  const tip = name === path ? name : `${name} (${path})`;
   return (
     <li className="sidebar-row" draggable onDragStart={(event) => onDragStart(event, path)}>
       {missing ? (
-        <span className="sidebar-row-label is-missing" title={`${path} (missing)`}>
+        <span className="sidebar-row-label is-missing" title={`${tip} (missing)`}>
           {name}
           <span className="sidebar-missing"> Missing</span>
         </span>
       ) : (
-        <Link className="sidebar-row-label" to={`/edit/${path}`} title={path}>
+        <Link className="sidebar-row-label" to={`/edit/${path}`} title={tip}>
           {name}
         </Link>
       )}
-      <span className="sidebar-row-actions">
+      <RowActions label={`Actions for ${name}`}>
         <button type="button" className="sidebar-mini" aria-label={`Move ${name} up`} onClick={onUp}>
           Up
         </button>
@@ -294,7 +295,48 @@ function BookmarkRow({
         <button type="button" className="sidebar-mini" aria-label={`Remove bookmark ${name}`} onClick={onRemove}>
           Remove
         </button>
-      </span>
+      </RowActions>
     </li>
+  );
+}
+
+function RowActions({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    const onPointer = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onPointer);
+    };
+  }, [open]);
+
+  return (
+    <div className="sidebar-menu" ref={ref}>
+      <button
+        type="button"
+        className="sidebar-mini"
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label={label}
+        onClick={() => setOpen((value) => !value)}
+      >
+        Actions
+      </button>
+      {open ? (
+        <div className="sidebar-menu-panel" role="group" aria-label={label}>
+          {children}
+        </div>
+      ) : null}
+    </div>
   );
 }

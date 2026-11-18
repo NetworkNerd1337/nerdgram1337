@@ -118,3 +118,9 @@ export function diagramCheckSummary(
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
+
+/** Quiet line for diagrams whose warnings are hidden. It names no warning. */
+export function mutedWarningNote(count: number): string {
+  if (count <= 0) return "";
+  return count === 1 ? "1 diagram has muted warnings" : `${count} diagrams have muted warnings`;
+}

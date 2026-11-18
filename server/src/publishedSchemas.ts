@@ -1,8 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { REPO_ROOT } from "./paths.js";
+import { parseHostHeader } from "./security.js";
 
-/** Default loopback URL. The running server serves this path with no token. */
+/**
+ * `$id` in the repository files. The running server rewrites `$id` to the
+ * host and port of the request. These constants stay the default-port names.
+ */
 export const NETWORK_SCHEMA_ID = "http://127.0.0.1:8787/api/v1/schema/network.json";
 export const GRAPH_SCHEMA_ID = "http://127.0.0.1:8787/api/v1/schema/graph.json";
 
@@ -13,6 +17,47 @@ const DROP = new Set(["$schema", "$id", "$defs", "$comment"]);
 
 export function readPublishedSchema(filePath: string): Buffer {
   return fs.readFileSync(filePath);
+}
+
+/**
+ * `$id` for a schema response. Built from the Host header the Host check
+ * already allowed, plus the request protocol. A missing port uses `fallbackPort`
+ * (the socket port). The repository file is not changed.
+ */
+export function schemaIdForRequest(
+  kind: "network" | "graph",
+  hostHeader: string | undefined,
+  protocol: string | undefined,
+  fallbackPort: number,
+): string {
+  const parsed = hostHeader ? parseHostHeader(hostHeader) : null;
+  const hostname = parsed?.hostname || "127.0.0.1";
+  let port = parsed?.port ?? null;
+  if (port == null || !/^[0-9]+$/.test(port)) {
+    const fallback = Number.isInteger(fallbackPort) && fallbackPort >= 1 && fallbackPort <= 65535 ? fallbackPort : 8787;
+    port = String(fallback);
+  }
+  const host = hostname.includes(":") ? `[${hostname}]` : hostname;
+  const proto = protocol === "https" ? "https" : "http";
+  const file = kind === "network" ? "network.json" : "graph.json";
+  return `${proto}://${host}:${port}/api/v1/schema/${file}`;
+}
+
+/** Replace the document `$id` when it differs. The same id returns the original bytes. */
+export function withRequestSchemaId(body: Buffer, id: string): Buffer {
+  const text = body.toString("utf8");
+  let current: unknown;
+  try {
+    current = (JSON.parse(text) as { $id?: unknown }).$id;
+  } catch {
+    return body;
+  }
+  if (typeof current !== "string" || current === id) return body;
+  const needle = `"$id": ${JSON.stringify(current)}`;
+  const next = `"$id": ${JSON.stringify(id)}`;
+  const at = text.indexOf(needle);
+  if (at < 0) return body;
+  return Buffer.from(text.slice(0, at) + next + text.slice(at + needle.length));
 }
 
 function componentName(prefix: string, defName: string): string {

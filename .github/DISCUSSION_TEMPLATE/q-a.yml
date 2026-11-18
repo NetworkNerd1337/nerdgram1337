@@ -1,0 +1,28 @@
+title: "[Question]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask how to use NerdGram. Bugs and feature requests still belong in Issues.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to do?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: NerdGram version
+      description: Shown on the About screen.
+      placeholder: 1.6.0
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install method
+      options:
+        - Docker
+        - npm
+        - From source
+        - Not sure

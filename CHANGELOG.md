@@ -6,7 +6,15 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- `GET /api/v1/schema/network.json` and `GET /api/v1/schema/graph.json` set `$id` from the host and port of the request. The files in `docs/schema/` keep `http://127.0.0.1:8787/...`. The Host check is unchanged. A foreign Host is still **403** (from #153).
+- Bug reports and feature requests use the forms in `.github/ISSUE_TEMPLATE/`. Blank issues are off. Pull requests start from `.github/pull_request_template.md` (from #154).
+- `SECURITY.md` is the vulnerability reporting policy. Fixes go to 1.6.x. The security model stays in `docs/security.md` (from #155).
+- `docs/faq.md` answers the questions that come up first and links to the longer pages (from #156).
+- The README and the docs index link [Discussions](https://github.com/NetworkNerd1337/NerdGram1337/discussions). `.github/DISCUSSION_TEMPLATE/q-a.yml` is an optional Q&A form. Turning Discussions on is a repository setting (from #157).
+- The README's opening paragraph describes the local, code-first Mermaid app and the generate and export behavior that 1.6.x ships (from #158).
+- `docs/images/social-preview.png` is the 1280×640 social card. `scripts/make-social-preview.py` regenerates it. The script is not in the npm package or the Docker image. Uploading it as the repository social preview is a setting (from #159).
+- **Mute warnings** in the editor hides that diagram's warnings everywhere they were listed, including the dashboard counts, Needs attention, and `nerdgram lint`. The file keeps `%% nerdgram: warnings=muted`. Errors are not muted (from #160).
+- The sidebar edge can be dragged. The width is saved in this browser, a double-click or Home or Enter restores 280 pixels, and a narrow window hides the divider. Bookmark actions sit behind **Actions** so the name stays readable (from #161).
 
 ## 1.6.0 "Galileo" - 2026-11-18
 

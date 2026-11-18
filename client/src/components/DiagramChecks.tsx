@@ -8,6 +8,7 @@ import {
   diagramCheckSummary,
   findingsFromLint,
   groupDiagramChecks,
+  mutedWarningNote,
   readDiagramChecksOpen,
   writeDiagramChecksOpen,
   type DiagramCheckFinding,
@@ -27,6 +28,7 @@ export function DiagramChecks({ onViewAll }: { onViewAll?: () => void } = {}) {
   const [open, setOpen] = useState(() => readDiagramChecksOpen());
   const [ownFindings, setOwnFindings] = useState<DiagramCheckFinding[] | null>(null);
   const [ownUnreadable, setOwnUnreadable] = useState<UnreadableDiagram[]>([]);
+  const [ownMuted, setOwnMuted] = useState<string[]>([]);
   const [ownError, setOwnError] = useState<string | null>(null);
   const [repairOpen, setRepairOpen] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
@@ -39,12 +41,14 @@ export function DiagramChecks({ onViewAll }: { onViewAll?: () => void } = {}) {
         if (cancelled) return;
         setOwnFindings(findingsFromLint(result));
         setOwnUnreadable(result.unreadable ?? []);
+        setOwnMuted(result.muted ?? []);
         setOwnError(null);
       },
       (err: unknown) => {
         if (cancelled) return;
         setOwnFindings(null);
         setOwnUnreadable([]);
+        setOwnMuted([]);
         setOwnError(err instanceof Error ? err.message : "Could not check the diagrams");
       },
     );
@@ -55,6 +59,7 @@ export function DiagramChecks({ onViewAll }: { onViewAll?: () => void } = {}) {
 
   const findings = shared ? shared.findings : ownFindings;
   const unreadable = shared ? shared.unreadable : ownUnreadable;
+  const muted = shared ? shared.muted : ownMuted;
   const error = shared ? shared.error : ownError;
 
   const status = diagramCheckStatus(findings, error != null, unreadable.length);
@@ -82,6 +87,18 @@ export function DiagramChecks({ onViewAll }: { onViewAll?: () => void } = {}) {
       <div className="diagram-checks-body">
         <p className="diagram-checks-explainer">{DIAGRAM_CHECKS_EXPLAINER}</p>
         {error ? <p className="diagram-checks-error">{error}</p> : null}
+        {muted.length > 0 ? (
+          <div className="diagram-checks-muted">
+            <p>{mutedWarningNote(muted.length)}</p>
+            <ul>
+              {muted.map((path) => (
+                <li key={path}>
+                  <Link to={editorHref(path, 1, "")}>{path}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {unreadable.length > 0 ? (
           <ul className="diagram-checks-unreadable">
             {unreadable.map((item) => (
@@ -137,6 +154,7 @@ export function DiagramChecks({ onViewAll }: { onViewAll?: () => void } = {}) {
             setRepairOpen(false);
             setOwnFindings(null);
             setOwnUnreadable([]);
+            setOwnMuted([]);
             setOwnError(null);
             if (shared) shared.reload();
             else setReloadToken((value) => value + 1);

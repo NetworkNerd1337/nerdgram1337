@@ -31,6 +31,8 @@ reference.bak
 # there has to ship with the others. server/test/docker.test.ts checks that.
 
 screenshots
+# Dev-only generator for docs/images/social-preview.png. Not part of the image.
+scripts/make-social-preview.py
 # The published JSON Schemas are served from /app/docs/schema. The rest of docs stays out.
 docs/*
 !docs/schema

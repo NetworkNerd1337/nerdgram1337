@@ -82,6 +82,8 @@ describe("sidebar folder tree", () => {
 
     const name = document.querySelector('[data-testid="folder-link-Field Sites"]');
     if (!(name instanceof HTMLButtonElement)) throw new Error("folder name missing");
+    expect(name.getAttribute("title")).toBe("Field Sites");
+    expect(name.querySelector(".tree-label")?.textContent).toBe("Field Sites");
     await act(async () => {
       name.click();
     });

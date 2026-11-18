@@ -128,7 +128,7 @@ A file that does not set `flowchart.wrappingWidth` now wraps node labels at 480p
 
 ## Public schema routes
 
-`GET /api/v1/openapi.json`, `GET /api/v1/schema/network.json`, and `GET /api/v1/schema/graph.json` do not require a token. Host checks still apply. The network route serves the same bytes as `docs/schema/network.schema.json`. No network fields were added, so a file that validated on 1.5.1 still validates. On the default port the network schema `$id` is `http://127.0.0.1:8787/api/v1/schema/network.json`.
+`GET /api/v1/openapi.json`, `GET /api/v1/schema/network.json`, and `GET /api/v1/schema/graph.json` do not require a token. Host checks still apply. The network route serves the same document as `docs/schema/network.schema.json`. The repository file keeps `$id` `http://127.0.0.1:8787/api/v1/schema/network.json`. The served copy sets `$id` from the request host and port. On the default port, with Host `127.0.0.1:8787`, the bytes still match. No network fields were added, so a file that validated on 1.5.1 still validates.
 
 ## See also
 

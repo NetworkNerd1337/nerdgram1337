@@ -12,6 +12,7 @@ import { applyLintFix } from "./lintActions";
 import { readAstFacts } from "./mermaidFacts";
 import { inspectMermaid } from "./mermaidRender";
 import { isMermaidEnvironmentError, locateParseError } from "./parseError";
+import { omitMutedWarnings } from "../../../server/src/warningMute.ts";
 
 export const LINT_DELAY_MS = 400;
 
@@ -37,10 +38,10 @@ export async function lintMermaidDoc(code: string, options: LintOptions = {}): P
   const text = lintDiagram(code, options);
   const inspected = await inspectMermaid(code);
   if (!inspected.ok) {
-    if (isMermaidEnvironmentError(inspected.error)) return text;
+    if (isMermaidEnvironmentError(inspected.error)) return omitMutedWarnings(code, text);
     const header = parseDiagram(code);
     const raw = inspected.error instanceof Error ? inspected.error.message : String(inspected.error);
-    if (header.malformed && /yaml|front matter/i.test(raw)) return text;
+    if (header.malformed && /yaml|front matter/i.test(raw)) return omitMutedWarnings(code, text);
     const located = locateParseError(inspected.error, code);
     const parseError: ParseDiagnostic = {
       ruleId: "parse",
@@ -52,10 +53,11 @@ export async function lintMermaidDoc(code: string, options: LintOptions = {}): P
       column: located.column,
       fixes: [],
     };
-    return [parseError, ...text];
+    return omitMutedWarnings(code, [parseError, ...text]);
   }
   const facts = readAstFacts(inspected.diagram);
-  return facts ? mergeAstFacts(code, text, facts, options) : text;
+  const merged = facts ? mergeAstFacts(code, text, facts, options) : text;
+  return omitMutedWarnings(code, merged);
 }
 
 export function toCodeMirrorDiagnostics(items: readonly ReportedDiagnostic[]): Diagnostic[] {

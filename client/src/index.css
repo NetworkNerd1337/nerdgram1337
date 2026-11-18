@@ -111,7 +111,7 @@ a {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: var(--sidebar-width, 280px) 8px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -126,6 +126,7 @@ a {
   top: 0;
   height: 100vh;
   overflow: auto;
+  min-width: 0;
 }
 
 .brand {
@@ -209,12 +210,20 @@ a {
   align-items: center;
   gap: 0.55rem;
   width: 100%;
+  min-width: 0;
   border: 0;
   background: transparent;
   color: var(--ink);
   text-align: left;
   border-radius: 10px;
   padding: 0.45rem 0.55rem;
+}
+
+.tree-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-link:hover,
@@ -1141,6 +1150,12 @@ html[data-theme="dark"] .editor-split {
   cursor: col-resize;
 }
 
+body.is-col-resizing,
+body.is-col-resizing * {
+  user-select: none;
+  cursor: col-resize;
+}
+
 .panel {
   min-height: 0;
   display: flex;
@@ -1542,6 +1557,45 @@ html[data-theme="dark"] .editor-split {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--ink-soft);
+}
+
+.problems-muted {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.problems-muted button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.diagram-checks-muted,
+.muted-warnings-note {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.diagram-checks-muted ul,
+.muted-warnings-note {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.diagram-checks-muted ul {
+  list-style: none;
+  padding: 0;
+}
+
+.muted-warnings-note a {
+  margin-right: 0.65rem;
+  text-decoration: underline;
 }
 
 .problems-panel p,
@@ -2206,6 +2260,10 @@ html[data-theme="dark"] .editor-split {
 @media (max-width: 960px) {
   .app-shell {
     grid-template-columns: 1fr;
+  }
+
+  .app-split {
+    display: none;
   }
 
   .sidebar {
@@ -3957,6 +4015,7 @@ body[data-presenting="true"] .support-link {
 .template-section-head {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.25rem;
   min-width: 0;
 }
@@ -4025,10 +4084,20 @@ button.breadcrumb-current {
   font-size: 0.78rem;
 }
 
-.sidebar-row-actions {
+.sidebar-row-actions,
+.sidebar-menu-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 0.15rem;
+}
+
+.sidebar-menu {
+  display: contents;
+}
+
+.sidebar-menu-panel {
+  flex: 1 0 100%;
+  padding: 0.1rem 0 0.25rem;
 }
 
 .sidebar-mini,
