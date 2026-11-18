@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { useCommandHost } from "../components/commandPaletteContext";
@@ -13,12 +13,11 @@ import { StylePresetChoice, type PresetChoice } from "../components/StylePresetC
 import { TagCombobox } from "../components/TagCombobox";
 import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
-import { EditorDivider } from "../components/EditorDivider";
 import { Sidebar } from "../components/Sidebar";
+import { WorkspaceShell } from "../components/WorkspaceShell";
 import { SupportLink } from "../components/SupportLink";
 import { useSidebarWidth } from "../hooks/useSidebarWidth";
 import { useWorkspace } from "../hooks/useWorkspace";
-import { SIDEBAR_STEP } from "../lib/sidebarWidth";
 import {
   classifyDrag,
   filesFromDataTransfer,
@@ -840,10 +839,9 @@ export function DashboardPage() {
       : 0;
 
   return (
-    <div
-      className="app-shell"
-      style={{ "--sidebar-width": `${sidebar.width}px` } as CSSProperties}
-    >
+    <WorkspaceShell
+      width={sidebar}
+      sidebar={
       <Sidebar
         tree={tree}
         bookmarks={bookmarks}
@@ -904,21 +902,8 @@ export function DashboardPage() {
           setActionError("Trash is not a drop target.");
         }}
       />
-      <EditorDivider
-        className="app-split"
-        label="Resize sidebar"
-        value={sidebar.width}
-        min={sidebar.bounds.min}
-        max={sidebar.bounds.max}
-        step={SIDEBAR_STEP}
-        valueText={`${Math.round(sidebar.width)} pixels`}
-        onChange={sidebar.onChange}
-        onReset={sidebar.onReset}
-        onHome={sidebar.onReset}
-        onPointerDown={sidebar.onPointerDown}
-        onPointerMove={sidebar.onPointerMove}
-        onPointerUp={sidebar.onPointerUp}
-      />
+      }
+    >
       <main className={`main${paneClass}`} onDragOver={markPane} onDrop={dropOnPane}>
         <header className="page-header">
           <h1>{showAttention ? "Needs attention" : showTrash ? "Trash" : search.trim() ? "Search" : title}</h1>
@@ -1377,7 +1362,7 @@ export function DashboardPage() {
           }}
         />
       ) : null}
-    </div>
+    </WorkspaceShell>
   );
 }
 

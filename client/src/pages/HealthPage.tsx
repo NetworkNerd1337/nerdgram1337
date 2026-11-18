@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { RepairLinksDialog } from "../components/RepairLinksDialog";
 import { Sidebar } from "../components/Sidebar";
+import { WorkspaceShell } from "../components/WorkspaceShell";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { useSidebarWidth } from "../hooks/useSidebarWidth";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -145,26 +146,30 @@ export function HealthPage() {
   const noneCollapsed = collapsed.size === 0;
 
   return (
-    <div className="app-shell" style={{ "--sidebar-width": `${sidebar.width}px` } as CSSProperties}>
-      <Sidebar
-        tree={tree}
-        bookmarks={bookmarks ?? EMPTY_BOOKMARKS}
-        onBookmarks={(next) => void saveBookmarks(next)}
-        knownPaths={knownPaths}
-        recent={recent}
-        onClearRecent={() => {
-          writeRecent(browserStore(), []);
-          setRecent([]);
-        }}
-        attentionCount={findings == null ? 0 : errorCount + warningCount + unreadable.length}
-        onOpenAttention={() => navigate("/?attention=1")}
-        currentFolder="__health__"
-        healthActive
-        search=""
-        onSearch={() => navigate("/")}
-        onSelectFolder={(path) => navigate(path ? `/?folder=${encodeURIComponent(path)}` : "/")}
-        onOpenTrash={() => navigate("/")}
-      />
+    <WorkspaceShell
+      width={sidebar}
+      sidebar={
+        <Sidebar
+          tree={tree}
+          bookmarks={bookmarks ?? EMPTY_BOOKMARKS}
+          onBookmarks={(next) => void saveBookmarks(next)}
+          knownPaths={knownPaths}
+          recent={recent}
+          onClearRecent={() => {
+            writeRecent(browserStore(), []);
+            setRecent([]);
+          }}
+          attentionCount={findings == null ? 0 : errorCount + warningCount + unreadable.length}
+          onOpenAttention={() => navigate("/?attention=1")}
+          currentFolder="__health__"
+          healthActive
+          search=""
+          onSearch={() => navigate("/")}
+          onSelectFolder={(path) => navigate(path ? `/?folder=${encodeURIComponent(path)}` : "/")}
+          onOpenTrash={() => navigate("/")}
+        />
+      }
+    >
       <main className="health-page">
         <header className="health-head">
           <div>
@@ -325,6 +330,6 @@ export function HealthPage() {
           />
         ) : null}
       </main>
-    </div>
+    </WorkspaceShell>
   );
 }

@@ -368,8 +368,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
 
   app.get("/api/diagram-meta", async (_req, res) => {
     try {
-      const diagrams = await store.listDiagramMeta();
-      res.json({ diagrams });
+      res.json(await store.listDiagramMeta());
     } catch (err) {
       sendError(res, err);
     }
@@ -377,8 +376,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
 
   app.get("/api/tags", async (_req, res) => {
     try {
-      const tags = await listWorkspaceTags();
-      res.json({ tags });
+      res.json(await listWorkspaceTags());
     } catch (err) {
       sendError(res, err);
     }
@@ -1321,6 +1319,19 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     }
   });
 
+  app.get("/api/export/available", async (req, res) => {
+    try {
+      const itemPath = String(req.query.path || "");
+      if (!itemPath.toLowerCase().endsWith(".mmd")) {
+        res.status(400).json({ error: "path must be a diagram", code: "invalid" });
+        return;
+      }
+      res.json(await store.networkBesideDiagram(itemPath));
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
   // Tokenless twin of POST /api/v1/export/:target. The page stores no token.
   app.post("/api/export/:target", async (req, res) => {
     try {
@@ -1337,7 +1348,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
           target: String(req.params.target ?? ""),
           body: req.body,
           bytes: Math.max(declared, actual),
-          readText: async (filePath) => (await store.readFile(filePath)).content,
+          readText: (filePath) => store.readExportInput(filePath),
         }),
       );
     } catch (err) {

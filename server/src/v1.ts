@@ -383,7 +383,7 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
         target: String(req.params.target ?? ""),
         body: req.body,
         bytes: Math.max(declared, actual),
-        readText: async (filePath) => (await store.readFile(filePath)).content,
+        readText: (filePath) => store.readExportInput(filePath),
       });
       res.json(prepared);
     }),

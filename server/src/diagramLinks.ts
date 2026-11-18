@@ -388,6 +388,8 @@ export type LinkRepairPlan = {
   dataFiles: DataFileRepair[];
   applied: boolean;
   saved: string[];
+  /** Diagrams that could not be read. The other files are still checked. */
+  unreadable?: { path: string; code: string; message: string }[];
 };
 
 /**

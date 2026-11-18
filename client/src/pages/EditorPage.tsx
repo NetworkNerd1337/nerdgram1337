@@ -9,6 +9,7 @@ import { SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { DiagramInfoPanel, type DiagramLinkRow } from "../components/DiagramInfoPanel";
+import { LabExportGroup } from "../components/LabExportGroup";
 import { DrillTrail } from "../components/DrillTrail";
 import { LinkNodeDialog } from "../components/LinkNodeDialog";
 import { RefreshDiffDialog, type RefreshDiff } from "../components/RefreshDiffDialog";
@@ -166,33 +167,6 @@ export function EditorPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!filePath || templateId || !code.trim()) {
-      setHasNetwork(false);
-      return;
-    }
-    const recorded = readDataSource(code);
-    const fromSource = recorded?.file?.toLowerCase().endsWith(".network.json") ? recorded.file : "";
-    const stem = filePath.replace(/\.mmd$/i, "");
-    const beside = stem ? `${stem}.network.json` : "";
-    const candidate = fromSource || beside;
-    if (!candidate) {
-      setHasNetwork(false);
-      return;
-    }
-    let cancelled = false;
-    void fetch(`/api/file?path=${encodeURIComponent(candidate)}`)
-      .then((response) => {
-        if (!cancelled) setHasNetwork(response.ok);
-      })
-      .catch(() => {
-        if (!cancelled) setHasNetwork(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [code, filePath, templateId]);
-
   const downloadExport = (filename: string, body: Blob) => {
     const url = URL.createObjectURL(body);
     const link = document.createElement("a");
@@ -230,6 +204,28 @@ export function EditorPage() {
   const [saveState, setSaveState] = useState<
     "idle" | "saving" | "saved" | "error" | "paused"
   >("idle");
+
+  useEffect(() => {
+    if (!filePath || templateId) {
+      setHasNetwork(false);
+      return;
+    }
+    let cancelled = false;
+    void Promise.resolve()
+      .then(() => api.exportAvailable(filePath))
+      .then(
+        (result) => {
+          if (!cancelled) setHasNetwork(result.hasNetwork);
+        },
+        () => {
+          if (!cancelled) setHasNetwork(false);
+        },
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath, saveState, templateId]);
+
   const [exportError, setExportError] = useState<string | null>(null);
   const [templateTitle, setTemplateTitle] = useState("");
   const [renamingFile, setRenamingFile] = useState(false);
@@ -1272,15 +1268,7 @@ export function EditorPage() {
               <option value="png-transparent">PNG (transparent)</option>
               <option value="jpg">JPG</option>
               <option value="pdf">PDF</option>
-              {hasNetwork && exporters.length > 0 ? (
-                <optgroup label="Lab and automation">
-                  {exporters.map((item) => (
-                    <option key={item.id} value={`lab:${item.id}`} title={item.description}>
-                      {item.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
+              {hasNetwork ? <LabExportGroup exporters={exporters} /> : null}
             </select>
           </label>
         </div>
