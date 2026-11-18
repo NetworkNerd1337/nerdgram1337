@@ -6,10 +6,16 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- **Fixed:** The server starts when a diagram in the data folder cannot be read. The log names that file. Search, sync, and link checks skip it instead of stopping.
-- **Fixed:** Diagram health uses the same sidebar and divider as the dashboard, so the findings fill the window (follows #191).
-- **Fixed:** A diagram that cannot be read no longer fails the dashboard diagram list, the tag list, or Repair links. The file is listed as unreadable and the rest of the library is still returned.
-- **Fixed:** **Lab and automation** appears when a sibling `.network.json` exists. Exporting from the diagram path reads that file on the server. `/api/file` still accepts only `.mmd` (follows #184).
+_No unreleased items._
+
+## 1.8.5 "Meridian" - 2026-11-18
+
+Milestone release. The code name for 1.8.y is Meridian. 1.7.y stays Navigator. This release includes the 1.8.0 export framework and the 1.8.5 export targets. There was no separate 1.8.0 release.
+
+- **Fixed:** The server starts when a diagram in the data folder cannot be read. The log names that file. Search, sync, and link checks skip it instead of stopping (#194).
+- **Fixed:** Diagram health uses the same sidebar and divider as the dashboard, so the findings fill the window (follows #191, #193).
+- **Fixed:** A diagram that cannot be read no longer fails the dashboard diagram list, the tag list, or Repair links. The file is listed as unreadable and the rest of the library is still returned (#193).
+- **Fixed:** **Lab and automation** appears when a sibling `.network.json` exists. Exporting from the diagram path reads that file on the server. `/api/file` still accepts only `.mmd` (follows #184, #193).
 - **Export as** can write a lab or inventory file from a diagram that has network JSON beside it. `nerdgram export <target>` does the same with the server down. Targets are one file each under `server/src/exporters/`. pyATS, containerlab, CML, Ansible, Nornir, GNS3, and EVE-NG are included. Passwords and images are `CHANGE_ME`. Nothing is contacted. `nerdgram export <folder> -o dir/` is unchanged (from #184, #185, #186, #187, #188, #189, #190).
 - The folder tree has **Expand all** beside **Collapse all**, as one control. A disabled action stays in place (from #183).
 - **Diagram health** is a page at `/health`, linked under Dashboard. The library-wide check runs when that page opens or when **Check again** is clicked. The dashboard does not call it. Needs attention reads `GET /api/diagram-lint/summary` and says when the library was last checked, or that it has not been checked. A second check of an unchanged library does not re-parse the files (from #191).

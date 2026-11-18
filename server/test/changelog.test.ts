@@ -35,18 +35,18 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Navigator title and the 1.7.5 section without the heading", () => {
-    const title = notes(["--title", "v1.7.5"]);
+  it("prints the Meridian title and the 1.8.5 section without the heading", () => {
+    const title = notes(["--title", "v1.8.5"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.7.5 "Navigator"\n');
-    const body = notes(["v1.7.5"]);
+    expect(title.stdout).toBe('v1.8.5 "Meridian"\n');
+    const body = notes(["v1.8.5"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Milestone release.")).toBe(true);
-    expect(body.stdout).toContain("1.7.0 translator framework");
-    expect(body.stdout).toContain("from #165");
-    expect(body.stdout).toContain("#178");
-    expect(body.stdout).not.toContain('## 1.7.5 "Navigator"');
-    expect(body.stdout).not.toContain("Patch on the Galileo line.");
+    expect(body.stdout).toContain("1.8.0 export framework");
+    expect(body.stdout).toContain("Expand all");
+    expect(body.stdout).toContain("Diagram health");
+    expect(body.stdout).not.toContain('## 1.8.5 "Meridian"');
+    expect(body.stdout).not.toContain("1.7.0 translator framework");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
 
