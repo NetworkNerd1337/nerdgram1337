@@ -43,7 +43,7 @@ import {
   conflictsPath,
   isDataFile,
   isSyncedFile,
-  listUserFiles,
+  listUserFilesDetailed,
   mirrorPath,
   removePrivateFile,
   writePrivateFile,
@@ -618,8 +618,10 @@ async function pullLocked(config: SyncConfig): Promise<void> {
   }
   const baseFiles = compared.base ? await readUserFilesAt(mirror, compared.base) : new Map<string, string>();
   const remoteFiles = await readUserFilesAt(mirror, compared.remote);
-  const localFiles = await listUserFiles(ensureDataRoot());
-  const plan = await planMerge(baseFiles, localFiles, remoteFiles);
+  const listed = await listUserFilesDetailed(ensureDataRoot());
+  const localFiles = listed.files;
+  const held = new Set(listed.unreadable.map((item) => item.path));
+  const plan = await planMerge(baseFiles, localFiles, remoteFiles, held);
   if (plan.conflicts.length > 0) {
     await saveConflicts({
       remoteOid: compared.remote,
@@ -644,7 +646,9 @@ async function pullLocked(config: SyncConfig): Promise<void> {
       await applyPlan(plan.actions);
     });
     await captureDiagramSightings();
-    const after = await listUserFiles(ensureDataRoot());
+    const afterListed = await listUserFilesDetailed(ensureDataRoot());
+    const after = afterListed.files;
+    for (const item of afterListed.unreadable) remoteFiles.delete(item.path);
     const same = mapsEqual(after, remoteFiles);
     const canFastForward = localCommit != null && (await isAncestor(mirror, localCommit, remoteCommit));
     if (same && canFastForward) {
@@ -724,11 +728,13 @@ async function planMerge(
   base: Map<string, string>,
   local: Map<string, string>,
   remote: Map<string, string>,
+  hold: ReadonlySet<string> = new Set(),
 ): Promise<{ actions: MergeAction[]; conflicts: StoredConflict[] }> {
   const paths = new Set([...base.keys(), ...local.keys(), ...remote.keys()]);
   const actions: MergeAction[] = [];
   const conflicts: StoredConflict[] = [];
   for (const filePath of [...paths].sort()) {
+    if (hold.has(filePath)) continue;
     const baseContent = base.get(filePath) ?? null;
     const localContent = local.get(filePath) ?? null;
     const remoteContent = remote.get(filePath) ?? null;
@@ -917,9 +923,10 @@ async function copyWouldChange(): Promise<boolean> {
   } catch {
     return false;
   }
-  const desired = await listUserFiles(ensureDataRoot());
+  const listed = await listUserFilesDetailed(ensureDataRoot());
   const committed = await readUserFilesAt(mirror, "HEAD");
-  return !mapsEqual(desired, committed);
+  for (const item of listed.unreadable) committed.delete(item.path);
+  return !mapsEqual(listed.files, committed);
 }
 
 function mapsEqual(left: Map<string, string>, right: Map<string, string>): boolean {

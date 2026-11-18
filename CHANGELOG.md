@@ -6,6 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- **Fixed:** The server starts when a diagram in the data folder cannot be read. The log names that file. Search, sync, and link checks skip it instead of stopping.
 - **Fixed:** Diagram health uses the same sidebar and divider as the dashboard, so the findings fill the window (follows #191).
 - **Fixed:** A diagram that cannot be read no longer fails the dashboard diagram list, the tag list, or Repair links. The file is listed as unreadable and the rest of the library is still returned.
 - **Fixed:** **Lab and automation** appears when a sibling `.network.json` exists. Exporting from the diagram path reads that file on the server. `/api/file` still accepts only `.mmd` (follows #184).

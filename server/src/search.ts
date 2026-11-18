@@ -13,6 +13,7 @@ import {
 } from "./frontMatter.js";
 import * as store from "./fsStore.js";
 import { getDataRoot, getMetaPath } from "./paths.js";
+import { warnUnreadable } from "./readError.js";
 import { extractTextElements } from "./textElements.js";
 import { atomicWriteJson, httpFail, readJsonFile, rewriteMovedPath } from "./storage.js";
 
@@ -434,7 +435,15 @@ export async function searchDiagrams(options: {
 
     const hits: DiagramSearchHit[] = [];
     for (const file of files) {
-      const entry = await entryFor(file, current);
+      let entry: IndexEntry;
+      try {
+        entry = await entryFor(file, current);
+      } catch (err) {
+        const skipped = store.skippedUnreadable(file.path, err);
+        if (!skipped) throw err;
+        warnUnreadable([skipped]);
+        continue;
+      }
       const match = matchDiagramSearch(
         {
           path: file.path,

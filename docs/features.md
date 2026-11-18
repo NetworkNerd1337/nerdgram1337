@@ -207,7 +207,7 @@ Turn a warning off under **Check rules** on the settings page (`/settings#diagra
 | Duplicate siblings | A mindmap repeats a label under the same parent, or a timeline repeats an event in one period. The same label under a different parent, or the same event in a different period, is left alone. |
 | Empty nodes | A mindmap node or a timeline event has no text. An icon line (`::icon(...)`) is not a node. |
 
-**Diagram health** is that list for the whole library. It is not a box on the dashboard. A thumbnail whose file could not be read still shows **Can't read file**, with the reason and **Retry**. A thumbnail whose diagram cannot be drawn shows a **Parse error** badge. A header that cannot be parsed shows **Front matter**. One unreadable diagram does not stop the dashboard. The diagram list, the tag list, and **Repair links** skip that file, name it as unreadable, and still return the rest. Opening the file itself still reports the error.
+**Diagram health** is that list for the whole library. It is not a box on the dashboard. A thumbnail whose file could not be read still shows **Can't read file**, with the reason and **Retry**. A thumbnail whose diagram cannot be drawn shows a **Parse error** badge. A header that cannot be parsed shows **Front matter**. One unreadable diagram does not stop the server, the dashboard, search, sync, or link checks. The log names that file in one line, and those walks skip it. The diagram list, the tag list, and **Repair links** name it as unreadable and still return the rest. Opening the file itself, or asking for its thumbnail, still reports the error.
 
 ![Diagram health lists findings for the library, with a summary strip and filters.](images/diagram-health.png)
 
