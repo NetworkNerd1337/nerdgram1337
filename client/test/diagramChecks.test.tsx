@@ -379,6 +379,27 @@ describe("diagram checks panel", () => {
     expect(diagramLint).toHaveBeenCalledTimes(2);
     expect(summaryText()).toBe("Diagram checks: all diagrams look good");
   });
+
+  it("leaves muted warnings out of the count and lists the diagram without the warning", async () => {
+    diagramLint.mockResolvedValue({
+      checked: 2,
+      diagrams: warnings.diagrams,
+      unreadable: [],
+      muted: ["Quiet.mmd"],
+    });
+    renderPanel();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await settle();
+    expect(summaryText()).toContain("warning");
+    expect(summaryText()).not.toContain("Quiet.mmd");
+    expect(document.body.textContent).toContain("1 diagram has muted warnings");
+    expect(document.body.textContent).toContain("Quiet.mmd");
+    const quiet = [...document.querySelectorAll("a")].find((link) => link.textContent === "Quiet.mmd");
+    expect(quiet?.textContent).toBe("Quiet.mmd");
+    expect(quiet?.textContent).not.toContain("classDef");
+  });
 });
 
 function renderPanel(): void {

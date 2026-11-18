@@ -12,6 +12,8 @@ import {
   GRAPH_SCHEMA_ID,
   NETWORK_SCHEMA_FILE,
   NETWORK_SCHEMA_ID,
+  schemaIdForRequest,
+  withRequestSchemaId,
 } from "../src/publishedSchemas.js";
 import { REPO_ROOT } from "../src/paths.js";
 import { makeTempDataDir } from "./helpers.js";
@@ -58,6 +60,45 @@ describe("published schemas", () => {
     expect(JSON.parse(graphDisk).$id).toBe(GRAPH_SCHEMA_ID);
     const graphForeign = await request(server).get("/api/v1/schema/graph.json").set("Host", "evil.example");
     expect(graphForeign.status).toBe(403);
+  });
+
+  it("sets $id from the request host and port and leaves the repository file alone", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    const server = createApp({
+      mode: "production",
+      port: 8816,
+      bindHosts: ["127.0.0.1", "::1"],
+    });
+    const disk = JSON.parse(fs.readFileSync(NETWORK_SCHEMA_FILE, "utf8")) as { $id: string };
+    expect(disk.$id).toBe(NETWORK_SCHEMA_ID);
+    expect(schemaIdForRequest("network", "127.0.0.1:8816", "http", 8816)).toBe(
+      "http://127.0.0.1:8816/api/v1/schema/network.json",
+    );
+    expect(schemaIdForRequest("graph", "[::1]:8816", "http", 8816)).toBe(
+      "http://[::1]:8816/api/v1/schema/graph.json",
+    );
+    expect(schemaIdForRequest("network", "localhost", "https", 8816)).toBe(
+      "https://localhost:8816/api/v1/schema/network.json",
+    );
+
+    const served = await request(server).get("/api/v1/schema/network.json").set("Host", "127.0.0.1:8816");
+    expect(served.status).toBe(200);
+    const body = JSON.parse(served.text) as { $id: string };
+    expect(body.$id).toBe("http://127.0.0.1:8816/api/v1/schema/network.json");
+    const { $id: servedId, ...servedRest } = body;
+    const { $id: diskId, ...diskRest } = disk;
+    expect(servedId).not.toBe(diskId);
+    expect(servedRest).toEqual(diskRest);
+
+    const graph = await request(server).get("/api/v1/schema/graph.json").set("Host", "127.0.0.1:8816");
+    expect(JSON.parse(graph.text).$id).toBe("http://127.0.0.1:8816/api/v1/schema/graph.json");
+
+    const foreign = await request(server).get("/api/v1/schema/network.json").set("Host", "evil.example");
+    expect(foreign.status).toBe(403);
+
+    const same = withRequestSchemaId(fs.readFileSync(NETWORK_SCHEMA_FILE), NETWORK_SCHEMA_ID);
+    expect(same.equals(fs.readFileSync(NETWORK_SCHEMA_FILE))).toBe(true);
   });
 
   it("validates the OpenAPI document and the generic samples", async () => {

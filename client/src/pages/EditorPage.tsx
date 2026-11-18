@@ -29,6 +29,7 @@ import { getEditorView, revealEditorLine, revealEditorMatch, runFind, runGotoLin
 import { extractNodeIds } from "../lib/mermaidCompletions";
 import { applyLintFix } from "../lib/lintActions";
 import type { ReportedDiagnostic } from "../lib/mermaidLint";
+import { setWarningsMuted, warningsMuted } from "../../../server/src/warningMute.ts";
 import {
   OTHER_WINDOW_NOTE,
   releaseEditorLock,
@@ -93,6 +94,22 @@ type ConflictState = {
   diskHash: string;
   open: boolean;
 };
+
+/**
+ * Mute or unmute by editing the file. A CodeMirror change is one undo step
+ * and follows the same save path as any other edit.
+ */
+function toggleDiagramWarnings(code: string, muted: boolean, setCode: (value: string) => void): void {
+  const view = getEditorView();
+  const current = view?.state.doc.toString() ?? code;
+  const next = setWarningsMuted(current, muted);
+  if (next === current) return;
+  if (view) {
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
+    return;
+  }
+  setCode(next);
+}
 
 async function writeCopy(originalPath: string, content: string): Promise<string> {
   const parent = parentPath(originalPath);
@@ -1358,6 +1375,8 @@ export function EditorPage() {
             diagnostics={diagnostics ?? []}
             pending={diagnostics == null}
             readOnly={readOnly}
+            warningsMuted={warningsMuted(code)}
+            onToggleWarnings={() => toggleDiagramWarnings(code, !warningsMuted(code), setCode)}
             onSelect={(diagnostic) => {
               revealEditorRange(diagnostic.from, diagnostic.to);
             }}

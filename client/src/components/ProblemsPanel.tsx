@@ -5,16 +5,28 @@ type ProblemsPanelProps = {
   diagnostics: readonly ReportedDiagnostic[];
   pending?: boolean;
   readOnly?: boolean;
+  warningsMuted?: boolean;
+  onToggleWarnings?: () => void;
   onSelect: (diagnostic: ReportedDiagnostic) => void;
   onFix: (fix: LintFix) => void;
 };
 
-export function ProblemsPanel({ diagnostics, pending = false, readOnly = false, onSelect, onFix }: ProblemsPanelProps) {
+export function ProblemsPanel({
+  diagnostics,
+  pending = false,
+  readOnly = false,
+  warningsMuted = false,
+  onToggleWarnings,
+  onSelect,
+  onFix,
+}: ProblemsPanelProps) {
   const errors = diagnostics.filter((item) => item.severity === "error").length;
   const warnings = diagnostics.length - errors;
   const summary = pending
       ? "Checking…"
-      : diagnostics.length === 0
+      : warningsMuted && errors === 0 && warnings === 0
+        ? "Warnings muted"
+        : diagnostics.length === 0
       ? "No problems"
       : [
           errors ? `${errors} error${errors === 1 ? "" : "s"}` : "",
@@ -22,10 +34,19 @@ export function ProblemsPanel({ diagnostics, pending = false, readOnly = false, 
         ]
           .filter(Boolean)
           .join(", ");
+  const showToggle = Boolean(onToggleWarnings) && (warningsMuted || warnings > 0);
 
   return (
     <section className="problems-panel" aria-label="Problems">
       <h3>{summary}</h3>
+      {showToggle ? (
+        <p className="problems-muted">
+          {warningsMuted && errors > 0 ? <span>Warnings muted</span> : null}
+          <button type="button" onClick={onToggleWarnings} disabled={readOnly}>
+            {warningsMuted ? "Unmute" : "Mute warnings"}
+          </button>
+        </p>
+      ) : null}
       {diagnostics.length > 0 ? (
         <ul>
           {diagnostics.map((item, index) => (
@@ -57,7 +78,7 @@ export function ProblemsPanel({ diagnostics, pending = false, readOnly = false, 
         </ul>
       ) : pending ? (
         <p>Looking through the diagram.</p>
-      ) : (
+      ) : warningsMuted ? null : (
         <p>Nothing to fix in this diagram.</p>
       )}
     </section>

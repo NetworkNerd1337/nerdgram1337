@@ -6,6 +6,8 @@ import type { UnreadableDiagram } from "../../../server/src/readError.ts";
 export type DiagramLintSnapshot = {
   findings: DiagramCheckFinding[] | null;
   unreadable: UnreadableDiagram[];
+  /** Paths with muted warnings. No warning text. */
+  muted: string[];
   error: string | null;
   reload: () => void;
 };
@@ -20,6 +22,7 @@ const DiagramLintContext = createContext<DiagramLintSnapshot | null>(null);
 export function DiagramLintProvider({ revision, children }: { revision: number; children: ReactNode }) {
   const [findings, setFindings] = useState<DiagramCheckFinding[] | null>(null);
   const [unreadable, setUnreadable] = useState<UnreadableDiagram[]>([]);
+  const [muted, setMuted] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
@@ -32,12 +35,14 @@ export function DiagramLintProvider({ revision, children }: { revision: number; 
           if (cancelled) return;
           setFindings(findingsFromLint(result));
           setUnreadable(result.unreadable ?? []);
+          setMuted(result.muted ?? []);
           setError(null);
         },
         (err: unknown) => {
           if (cancelled) return;
           setFindings(null);
           setUnreadable([]);
+          setMuted([]);
           setError(err instanceof Error ? err.message : "Could not check the diagrams");
         },
       );
@@ -51,6 +56,7 @@ export function DiagramLintProvider({ revision, children }: { revision: number; 
   const value: DiagramLintSnapshot = {
     findings,
     unreadable,
+    muted,
     error,
     reload: () => setTick((value) => value + 1),
   };

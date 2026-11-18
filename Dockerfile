@@ -39,7 +39,7 @@ COPY cli cli
 COPY templates templates
 COPY reference reference
 COPY diagrams diagrams
-COPY Dockerfile compose.yaml compose.build.yaml README.md CHANGELOG.md LICENSE ./
+COPY Dockerfile compose.yaml compose.build.yaml README.md CHANGELOG.md LICENSE SECURITY.md ./
 ARG NERDGRAM_VERSION=1.6.0
 ARG NERDGRAM_CODENAME=Galileo
 ENV NERDGRAM_VERSION=${NERDGRAM_VERSION} \

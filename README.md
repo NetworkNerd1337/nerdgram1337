@@ -4,7 +4,7 @@
 
 [![Ko-fi: Support the developer](https://img.shields.io/badge/Ko--fi-Support%20the%20developer-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/networknerd1337)
 
-NerdGram1337 is a local, single-user app for writing [Mermaid](https://mermaid.js.org/) diagrams as Markdown. It is [MIT](LICENSE) licensed, © Ryan Thomas Huff. You edit a diagram, preview it live, keep it as a real `.mmd` file on disk, and export **SVG**, **PNG**, **JPG**, or **PDF**. Exports use the diagram theme and background. JPG and PDF are exports from the browser. The API and the CLI render SVG or PNG. There is no account, no hosted service, no AI generation, and no paywall. Optional GitHub sync can copy those diagrams to a private repository you own.
+NerdGram1337 is a local, code-first app for network diagrams in [Mermaid](https://mermaid.js.org/). Generate a diagram from CSV, JSON, network JSON, or CDP and LLDP text you already have, keep hand edits outside the generated block, and export **SVG**, **PNG**, **JPG**, or **PDF**. It is [MIT](LICENSE) licensed, © Ryan Thomas Huff. You edit a diagram, preview it live, and keep it as a real `.mmd` file on disk. Exports use the diagram theme and background. JPG and PDF are exports from the browser. The API and the CLI render SVG or PNG. There is no account, no hosted service, no AI generation, and no paywall. Optional GitHub sync can copy those diagrams to a private repository you own.
 
 The **client** is a React app: the dashboard, the paste page, and the split editor. The **server** is an Express API that reads and writes the files. In development they run side by side. A production build, including the Docker image, serves the built client and the API from one process.
 
@@ -21,6 +21,10 @@ The full-quality recording is [screenshots/nerdgram1337_dashboard_editor_demo.mp
 NerdGram1337 is free and open source, built and maintained by NetworkNerd1337. If the app is useful to you, a donation on [Ko-fi](https://ko-fi.com/networknerd1337) helps support continued development and feature prioritization. A star on this repository, and an issue when something breaks, really help as well. NerdGram1337 is a gift to the open-source community, and I am committed to keeping it free.
 
 The same page is in the app. **Support** is in the header on the dashboard, the paste page, the editor, and the other screens. It opens Ko-fi in a new tab and is hidden while a diagram is presented. **About** at the bottom of the sidebar, and **About NerdGram1337** in the command palette, open a dialog with the running version, the author, help links, the MIT license, and a **Support on Ko-fi** button. Nothing donation-related opens on its own.
+
+## Questions and ideas
+
+Questions and ideas go to [Discussions](https://github.com/NetworkNerd1337/NerdGram1337/discussions). A bug or a feature request uses the forms on the [issue page](https://github.com/NetworkNerd1337/NerdGram1337/issues/new/choose). A vulnerability is reported in private, as [SECURITY.md](SECURITY.md) describes.
 
 ## Quick start
 
@@ -92,12 +96,12 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 
 - **[Preview](docs/features.md#preview).** Drag the preview to pan, and use the wheel to zoom toward the pointer. **Fit** resets that view.
 - **[Editing](docs/features.md#editing).** Opening a diagram takes a lock for that browser tab.
-- **[Files](docs/features.md#files).** **Your space** lists Recent, Bookmarks, and Needs attention above the folder tree. **Move to…** is on every diagram and folder, next to Rename and Delete.
+- **[Files](docs/features.md#files).** **Your space** lists Recent, Bookmarks, and Needs attention above the folder tree. Drag the edge of the sidebar to widen it. **Move to…** is on every diagram and folder, next to Rename and Delete.
 - **[Trash and history](docs/features.md#trash-and-history).** Delete moves a diagram or a folder into the trash.
 - **[Titles, themes, and notes](docs/features.md#titles-themes-and-notes).** A diagram can start with [Mermaid's YAML front matter](https://mermaid.js.org/config/configuration.html). Cards show the file name, and a different title on a second line.
 - **[Style presets](docs/features.md#style-presets).** Save a diagram's theme, colors, and font as a named preset, and copy it onto another diagram or a new one.
 - **[Appearance](docs/features.md#appearance).** Light, Dark, or Match system. The choice stays in this browser. It does not change a diagram's theme.
-- **[Diagram checks](docs/features.md#diagram-checks).** The code pane checks the diagram while you type. A link to a subgraph id is not reported as a typo.
+- **[Diagram checks](docs/features.md#diagram-checks).** The code pane checks the diagram while you type. Mute warnings for one diagram from the editor. Errors stay. A link to a subgraph id is not reported as a typo.
 - **[Linked diagrams](docs/features.md#linked-diagrams).** A node can open another diagram.
 - **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, or network JSON file can build the diagram.
 - **[Thumbnails, find, and shortcuts](docs/features.md#thumbnails-find-and-shortcuts).** Dashboard cards keep a thumbnail of each diagram.
@@ -111,6 +115,8 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 ## Documentation
 
 - **[Documentation index](docs/README.md).** Guides for installing NerdGram1337, using it, and working on it.
+- **[FAQ](docs/faq.md).** Short answers, with a link to the page that has the detail.
+- **[Security policy](SECURITY.md).** How to report a vulnerability in private.
 - **[Install](docs/install.md).** Run NerdGram with Docker, or with Node.js on the machine.
 - **[Features](docs/features.md).** The dashboard lists folders and diagrams in a tree, with search and grid or list view.
 - **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, or network JSON file can build the diagram.

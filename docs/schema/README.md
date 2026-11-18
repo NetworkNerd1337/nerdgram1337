@@ -14,7 +14,7 @@ Network JSON stays on schemaVersion 1 when a change only adds optional fields, a
 
 ## Decision
 
-The schema in this folder is [network.schema.json](network.schema.json). `schemaVersion` is required, and this file sets it to the number 1. `format`, when it is present, is `"network"`. The `$id` is `http://127.0.0.1:8787/api/v1/schema/network.json`. That URL is the copy the server serves, with no token, on the default loopback port. The same path is `GET /api/v1/schema/network.json` when the port is different. While `schemaVersion` stays 1, the `$id` stays on that route. A meaning change that bumps `schemaVersion` to 2 gets a new `$id`.
+The schema in this folder is [network.schema.json](network.schema.json). `schemaVersion` is required, and this file sets it to the number 1. `format`, when it is present, is `"network"`. The `$id` in this file is `http://127.0.0.1:8787/api/v1/schema/network.json`. That is the default-port name of the version-1 route. The running server rewrites `$id` to the host and port of the request. `GET /api/v1/schema/network.json` is the same path on any port, and it still needs no token. The Host check is unchanged. While `schemaVersion` stays 1, the route stays this path. A meaning change that bumps `schemaVersion` to 2 gets a new `$id`.
 
 The number on a file names the meanings of the fields in that file. Version 1 is the meanings in the schema today. NerdGram accepts only `schemaVersion` 1. Any other number fails with `schemaVersion must be 1.` Version 2 is the number a later change uses when a meaning changes. This page is that rule. Version 2 becomes valid when that change ships.
 

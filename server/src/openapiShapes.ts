@@ -135,12 +135,12 @@ export const RESPONSE_SCHEMAS: Record<string, Record<string, unknown>> = {
   getNetworkSchema: {
     type: "object",
     description:
-      "JSON Schema for the network document. The same document as docs/schema/network.schema.json. $id is http://127.0.0.1:8787/api/v1/schema/network.json.",
+      "JSON Schema for the network document. The same document as docs/schema/network.schema.json. The repository file keeps $id http://127.0.0.1:8787/api/v1/schema/network.json. The served copy sets $id from the request host and port.",
   },
   getGraphSchema: {
     type: "object",
     description:
-      "JSON Schema for generic nodes, edges, and links. $id is http://127.0.0.1:8787/api/v1/schema/graph.json.",
+      "JSON Schema for generic nodes, edges, and links. The repository file keeps $id http://127.0.0.1:8787/api/v1/schema/graph.json. The served copy sets $id from the request host and port.",
   },
   listDiagrams: {
     type: "object",
@@ -260,7 +260,7 @@ export const RESPONSE_SCHEMAS: Record<string, Record<string, unknown>> = {
   applyLinkRepairs: { $ref: "#/components/schemas/LinkRepairPlan" },
   lintWorkspace: {
     type: "object",
-    description: "One diagram returns path and diagnostics. The whole workspace returns checked, diagrams, and unreadable.",
+    description: "One diagram returns path and diagnostics. The whole workspace returns checked, diagrams, unreadable, and muted. muted is paths only, with no warning text. Muted warnings are omitted. Errors stay.",
     properties: {
       path: { type: "string" },
       diagnostics: { type: "array", items: lintDiagnostic },
@@ -287,6 +287,11 @@ export const RESPONSE_SCHEMAS: Record<string, Record<string, unknown>> = {
           },
           required: ["path", "code", "message"],
         },
+      },
+      muted: {
+        type: "array",
+        items: { type: "string" },
+        description: "Diagrams whose warnings are muted. Paths only, with no warning text.",
       },
     },
   },

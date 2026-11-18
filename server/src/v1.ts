@@ -8,7 +8,13 @@ import { lintWorkspaceFiles } from "./workspaceLint.js";
 import * as store from "./fsStore.js";
 import { sendError } from "./httpError.js";
 import { buildOpenApiSpec, openApiPath, V1_ROUTES, type V1Route, type V1Scope } from "./openapi.js";
-import { GRAPH_SCHEMA_FILE, NETWORK_SCHEMA_FILE, readPublishedSchema } from "./publishedSchemas.js";
+import {
+  GRAPH_SCHEMA_FILE,
+  NETWORK_SCHEMA_FILE,
+  readPublishedSchema,
+  schemaIdForRequest,
+  withRequestSchemaId,
+} from "./publishedSchemas.js";
 import { createRateLimiter, defaultRenderRate, renderDiagram, type RateLimit, type RenderFormat } from "./renderDiagram.js";
 import * as search from "./search.js";
 import * as historyApi from "./historyApi.js";
@@ -63,8 +69,11 @@ function requireScope(scope: V1Scope): RequestHandler {
   };
 }
 
-function sendSchema(res: Response, filePath: string): void {
-  const body = readPublishedSchema(filePath);
+function sendSchema(req: Request, res: Response, filePath: string, kind: "network" | "graph"): void {
+  const socketPort = req.socket?.localPort;
+  const fallback = typeof socketPort === "number" && socketPort > 0 ? socketPort : 8787;
+  const id = schemaIdForRequest(kind, req.header("host"), req.protocol, fallback);
+  const body = withRequestSchemaId(readPublishedSchema(filePath), id);
   res.setHeader("Content-Type", "application/schema+json; charset=utf-8");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Cache-Control", "no-store");
@@ -144,11 +153,11 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
     getOpenApi: (_req, res) => {
       res.json(buildOpenApiSpec());
     },
-    getNetworkSchema: (_req, res) => {
-      sendSchema(res, NETWORK_SCHEMA_FILE);
+    getNetworkSchema: (req, res) => {
+      sendSchema(req, res, NETWORK_SCHEMA_FILE, "network");
     },
-    getGraphSchema: (_req, res) => {
-      sendSchema(res, GRAPH_SCHEMA_FILE);
+    getGraphSchema: (req, res) => {
+      sendSchema(req, res, GRAPH_SCHEMA_FILE, "graph");
     },
     listDiagrams: asyncHandler(async (req, res) => {
       const listing = await store.listFolder(String(req.query.path || ""));

@@ -125,6 +125,7 @@ function FolderLevel({
                 type="button"
                 className={`tree-item${active ? " active" : ""}${dropClass}`}
                 data-testid={`folder-link-${folder.path}`}
+                title={folder.name}
                 onClick={() => onSelectFolder(folder.path)}
                 onKeyDown={onArrow}
                 onDragOver={
@@ -133,7 +134,7 @@ function FolderLevel({
                 onDrop={onFolderDrop ? (event) => onFolderDrop(folder.path, event) : undefined}
               >
                 <span className="folder-glyph" aria-hidden="true" />
-                <span>{folder.name}</span>
+                <span className="tree-label">{folder.name}</span>
               </button>
             </div>
             {expanded && folder.children ? (

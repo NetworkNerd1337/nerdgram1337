@@ -20,11 +20,18 @@ NerdGram1337/                  (or NerdGram1337-main/ from the ZIP)
 ├── docs/demo.gif              animated README demo
 ├── docs/images/               README screenshots
 ├── docs/README.md             documentation index
+├── docs/faq.md                short answers that link to the longer pages
+├── SECURITY.md                private vulnerability reports
 ├── screenshots/               earlier captures and the full-quality recording
+├── .github/ISSUE_TEMPLATE/    bug and feature forms, blank issues off
+├── .github/DISCUSSION_TEMPLATE/ optional Q&A form for Discussions
+├── .github/pull_request_template.md
 └── .github/workflows/         ci.yml, release.yml, docker-publish.yml
 ```
 
 `npm install` adds `node_modules/` at the root, in `client/`, and in `server/`. Leave those folders in place.
+
+Bug reports and feature requests use the forms in `.github/ISSUE_TEMPLATE/`. Blank issues are off. Pull requests start from `.github/pull_request_template.md`. Questions and ideas go to [Discussions](https://github.com/NetworkNerd1337/NerdGram1337/discussions). A vulnerability is reported as [SECURITY.md](../SECURITY.md) describes, not as a public issue.
 
 | Command | What it does |
 | --- | --- |

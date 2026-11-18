@@ -36,7 +36,7 @@ export const V1_ROUTES: readonly V1Route[] = [
     path: "/schema/network.json",
     scope: "public",
     operationId: "getNetworkSchema",
-    summary: "JSON Schema for the network document. Same file as docs/schema/network.schema.json. No token.",
+    summary: "JSON Schema for the network document. Same document as docs/schema/network.schema.json, with $id set from this request. No token.",
     tag: "Meta",
   },
   {
@@ -44,7 +44,7 @@ export const V1_ROUTES: readonly V1Route[] = [
     path: "/schema/graph.json",
     scope: "public",
     operationId: "getGraphSchema",
-    summary: "JSON Schema for generic nodes, edges, and links. No token.",
+    summary: "JSON Schema for generic nodes, edges, and links. $id is set from this request. No token.",
     tag: "Meta",
   },
   {

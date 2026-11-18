@@ -44,6 +44,7 @@ Production does not enable cross-origin browser access, because the UI and the A
 
 ## See also
 
+- [Security policy](../SECURITY.md)
 - [Configuration](configuration.md)
 - [Automation API](api.md)
 - [GitHub sync](github-sync.md)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { useCommandHost } from "../components/commandPaletteContext";
@@ -15,9 +15,12 @@ import { StylePresetChoice, type PresetChoice } from "../components/StylePresetC
 import { TagCombobox } from "../components/TagCombobox";
 import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
+import { EditorDivider } from "../components/EditorDivider";
 import { Sidebar } from "../components/Sidebar";
 import { SupportLink } from "../components/SupportLink";
+import { useSidebarWidth } from "../hooks/useSidebarWidth";
 import { useWorkspace } from "../hooks/useWorkspace";
+import { SIDEBAR_STEP } from "../lib/sidebarWidth";
 import {
   classifyDrag,
   filesFromDataTransfer,
@@ -42,6 +45,7 @@ import { diagramCardLabel, folderCountLabel } from "../lib/diagramLabel";
 import { contentWithStyle } from "../lib/stylePresets";
 import { nearestExistingFolder } from "../lib/editorBreadcrumb";
 import { attentionRows } from "../lib/attention";
+import { mutedWarningNote } from "../lib/diagramChecks";
 import type { TagCount } from "../lib/tagSuggestions";
 import { fileNameIssue, sanitizeFileStem } from "../lib/fileName";
 import {
@@ -99,6 +103,7 @@ export function DashboardPage() {
     startPresentation(() => navigate(presentHref(path)));
   };
   const { tree, favorites, bookmarks, saveBookmarks, revision, loading, error, refresh, toggleFavorite } = useWorkspace();
+  const sidebar = useSidebarWidth();
   const [search, setSearch] = useState("");
   const [namesOnly, setNamesOnly] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -816,7 +821,10 @@ export function DashboardPage() {
   return (
     <DiagramLintProvider revision={revision}>
     <AttentionBridge onCount={setAttentionCount} />
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      style={{ "--sidebar-width": `${sidebar.width}px` } as CSSProperties}
+    >
       <Sidebar
         tree={tree}
         bookmarks={bookmarks}
@@ -876,6 +884,21 @@ export function DashboardPage() {
           setStatus(null);
           setActionError("Trash is not a drop target.");
         }}
+      />
+      <EditorDivider
+        className="app-split"
+        label="Resize sidebar"
+        value={sidebar.width}
+        min={sidebar.bounds.min}
+        max={sidebar.bounds.max}
+        step={SIDEBAR_STEP}
+        valueText={`${Math.round(sidebar.width)} pixels`}
+        onChange={sidebar.onChange}
+        onReset={sidebar.onReset}
+        onHome={sidebar.onReset}
+        onPointerDown={sidebar.onPointerDown}
+        onPointerMove={sidebar.onPointerMove}
+        onPointerUp={sidebar.onPointerUp}
       />
       <main className={`main${paneClass}`} onDragOver={markPane} onDrop={dropOnPane}>
         <header className="page-header">
@@ -1360,32 +1383,48 @@ function AttentionBridge({ onCount }: { onCount: (count: number) => void }) {
 function AttentionView() {
   const lint = useSharedDiagramLint();
   const rows = attentionRows(lint?.findings ?? null, lint?.unreadable ?? []);
+  const muted = lint?.muted ?? [];
   if (lint?.error) return <div className="error-banner">{lint.error}</div>;
   if (lint?.findings == null) return <p>Checking diagrams…</p>;
-  if (rows.length === 0) {
-    return (
-      <div className="empty-state attention-clear">
-        <span className="attention-check" aria-hidden="true">
-          ✓
-        </span>
-        <p>All diagrams look good.</p>
-      </div>
-    );
-  }
   return (
-    <ul className="attention-list">
-      {rows.map((row) => (
-        <li key={row.path}>
-          <Link className="attention-row" to={editorHref(row.path, row.line, "")}>
-            <strong>{displayName(row.path)}</strong>
-            <span>
-              {row.count} {row.count === 1 ? "problem" : "problems"}
-            </span>
-            <span>{row.message}</span>
-          </Link>
-        </li>
+    <div>
+      {muted.length > 0 ? <MutedWarningsNote paths={muted} /> : null}
+      {rows.length === 0 ? (
+        <div className="empty-state attention-clear">
+          <span className="attention-check" aria-hidden="true">
+            ✓
+          </span>
+          <p>All diagrams look good.</p>
+        </div>
+      ) : (
+        <ul className="attention-list">
+          {rows.map((row) => (
+            <li key={row.path}>
+              <Link className="attention-row" to={editorHref(row.path, row.line, "")}>
+                <strong>{displayName(row.path)}</strong>
+                <span>
+                  {row.count} {row.count === 1 ? "problem" : "problems"}
+                </span>
+                <span>{row.message}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function MutedWarningsNote({ paths }: { paths: readonly string[] }) {
+  return (
+    <p className="muted-warnings-note">
+      {mutedWarningNote(paths.length)}{" "}
+      {paths.map((path) => (
+        <Link key={path} to={editorHref(path, 1, "")} title={path}>
+          {displayName(path)}
+        </Link>
       ))}
-    </ul>
+    </p>
   );
 }
 

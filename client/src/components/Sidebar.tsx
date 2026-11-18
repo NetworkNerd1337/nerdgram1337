@@ -151,7 +151,11 @@ export function Sidebar({
                 <ul className="sidebar-rows">
                   {recent.map((item) => (
                     <li key={item.path}>
-                      <Link className="sidebar-row-label" to={`/edit/${item.path}`} title={item.path}>
+                      <Link
+                        className="sidebar-row-label"
+                        to={`/edit/${item.path}`}
+                        title={displayName(item.path) === item.path ? item.path : `${displayName(item.path)} (${item.path})`}
+                      >
                         {displayName(item.path)}
                       </Link>
                     </li>
