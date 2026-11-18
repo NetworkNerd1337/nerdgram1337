@@ -30,7 +30,7 @@ This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas t
 
 | Fact | Value |
 | --- | --- |
-| Current release | 1.8.5 Meridian |
+| Current release | 1.8.6 Meridian |
 | Canonical network schema | `schemaVersion` 1, in [docs/schema/network.schema.json](schema/network.schema.json) |
 | Automation API | `GET /api/v1/openapi.json` already exists (OpenAPI 3.0.3, no token) |
 | Generate behavior | `POST /api/v1/generate` returns **409** if the path exists; refresh updates an existing diagram |
@@ -327,7 +327,7 @@ When a translator is selected on that paste screen, a soft info callout sits abo
 
 ## [1.8.0 Design exports](https://github.com/NetworkNerd1337/NerdGram1337/milestone/5)
 
-Code name Meridian. Shipped in v1.8.5. There was no separate 1.8.0 release. 1.8.5 stays on Meridian.
+Code name Meridian. Shipped in 1.8.5. There was no separate 1.8.0 release. 1.8.5 stays on Meridian.
 
 Export a diagram, Mermaid plus its network JSON, to text files that outside test and lab tools can open. NerdGram never connects to devices, and it never stores credentials. Any password or token field in an exported file is a placeholder for the tool, or the operator, to fill in. The workflow assumption, especially for pyATS, is that the user makes sure the node names and IPs in the diagram match the real environment they test with.
 
@@ -355,7 +355,7 @@ A CML lab YAML from the same document.
 
 ## [1.8.5 Additional exports](https://github.com/NetworkNerd1337/NerdGram1337/milestone/6)
 
-Code name Meridian. Shipped in v1.8.5.
+Code name Meridian. Shipped in 1.8.5.
 
 **Gated on 1.8.0.** This milestone exists only if 1.8.0 proves the modular export system works. If 1.8.0 shows that system will not work, 1.8.5 is simply dropped from the roadmap. It does not depend on 1.7.5, and nothing in 1.5.0 or 1.6.0 depends on it.
 
