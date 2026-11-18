@@ -1,6 +1,6 @@
 # Roadmap
 
-The planned work after 1.4.8. 1.5.0 through 1.9.x use the code name Compass.
+The planned work after 1.4.8. 1.5.x is Compass. Later milestones use the code name written on each section.
 
 [Back to the documentation index](README.md)
 
@@ -22,7 +22,7 @@ The planned work after 1.4.8. 1.5.0 through 1.9.x use the code name Compass.
 
 Progress is tracked in [GitHub milestones](https://github.com/NetworkNerd1337/NerdGram1337/milestones).
 
-This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas tree. 1.5.0 through 1.9.x are Compass. The code-name rule is in [Versioning and releases](releases.md#version-numbers-and-code-names).
+This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas tree. 1.5.x is Compass. 1.6.x is Galileo. 1.7.0 through 1.7.5, and the other 1.7.y patches, are Navigator. 1.8.0 through 1.8.5, and the other 1.8.y patches, are Meridian. 2.0 is not named yet. The code-name rule is in [Versioning and releases](releases.md#version-numbers-and-code-names).
 
 ## Where we are
 
@@ -90,7 +90,7 @@ Recognized fields are `SHAPE_FIELDS` and `ALIASES` in `diagramData.ts`.
 | Node list | `id` | `label`, `group`, `type`, `styleClass`, `diagram` | A node list without an edges file or embedded edges is rejected. Extra keys that do not alias to a known field are ignored. |
 | Edges | `source`, `target` | `label` | Same as above: only mapped fields are used. |
 
-There is no JSON Schema for this generic graph shape. Column names are matched through aliases (for example `neighbor`, `hostname`, `site`, `role`, `href`). Groups become subgraphs, types become `classDef`, and a child diagram path becomes a `click` line.
+The generic graph shape has a JSON Schema at [docs/schema/graph.schema.json](schema/graph.schema.json), served at `GET /api/v1/schema/graph.json`. Column names are matched through aliases (for example `neighbor`, `hostname`, `site`, `role`, `href`). Groups become subgraphs, types become `classDef`, and a child diagram path becomes a `click` line.
 
 ### CDP and LLDP
 
@@ -116,8 +116,8 @@ So the network format is not a thin subset. It already has devices, interfaces, 
 
 **What is already published, and what is thin.**
 
-- [docs/schema/network.schema.json](schema/network.schema.json) is a real JSON Schema (draft 2020-12), with `$id` `https://nerdgram1337.local/schema/network-v1.schema.json`. That `$id` is not a reachable URL. The file is in the repo, not served by a server route.
-- `GET /api/v1/openapi.json` is public and is built in `server/src/openapi.ts`. Request bodies for generate list `format`, `view`, and related fields. Success responses are typed only as a generic object. There are no examples, and the network document schema is not a component in that spec.
+- [docs/schema/network.schema.json](schema/network.schema.json) is a real JSON Schema (draft 2020-12). The `$id` is `http://127.0.0.1:8787/api/v1/schema/network.json`, and `GET /api/v1/schema/network.json` serves that file with no token.
+- `GET /api/v1/openapi.json` is public and is built in `server/src/openapi.ts`. It includes response schemas, request examples, the upsert call, every group-by value including platform, and the network document as the `NetworkDocument` component.
 - [Automation API](api.md) and [the command-line tool](cli.md) already document the routes, the 409-on-create behavior, and curl examples for CDP and a small network JSON body. There is no checked-in cron script, and no example that maps NetBox or LibreNMS output.
 
 ## Out of scope
@@ -175,7 +175,7 @@ Add a single call that creates the diagram on first push and refreshes the gener
 
 ## [1.6.0 Published schemas and push scripts](https://github.com/NetworkNerd1337/NerdGram1337/milestone/2)
 
-Publish the contract against the shape 1.5.0 already settled. Do not add fields here. Two complete one-PR issues. Code name Compass.
+Publish the contract against the shape 1.5.0 already settled. Do not add fields here. Two complete one-PR issues. Code name Galileo.
 
 ### 1.6.0-a Publish and polish the schemas
 
@@ -190,6 +190,8 @@ Add copy-paste curl and cron examples under `docs/samples` that preview and upse
 **Success.** A script in the repo creates a diagram on the first run and updates it on the second, without a generate-then-refresh fallback, and the docs point at the served OpenAPI and JSON Schema.
 
 ## [1.7.0 Stateless translators](https://github.com/NetworkNerd1337/NerdGram1337/milestone/3)
+
+Code name Navigator. 1.7.5 stays on Navigator.
 
 Do not add a NetBox pipeline or a LibreNMS pipeline as first-class NerdGram features. Add small, stateless translators that take a file or a JSON payload from those tools and write NerdGram's canonical network JSON. These mappers target the JSON shape settled in 1.5.0 and the schema and upsert published in 1.6.0, so they do not have to be rewritten when the contract changes. Translators hold no credentials and make no outbound calls. The always-on piece, and any tokens, stay in NetBox, LibreNMS, or a cron job the operator already runs.
 
@@ -226,6 +228,8 @@ One PR that adds a second mapping module, CLI source, and `/api/v1/convert/libre
 **Success.** Adding or removing the LibreNMS translator is done by adding or deleting its module file, with no core edits and no changes to the NetBox module; docs show one command per source; tests cover both happy-path fixtures and a payload that is missing links.
 
 ## [1.7.5 Additional translators](https://github.com/NetworkNerd1337/NerdGram1337/milestone/4)
+
+Code name Navigator.
 
 **Gated on 1.7.0.** This milestone exists only if 1.7.0 proves the modular translator system works. If 1.7.0 shows that system will not work, 1.7.5 is simply dropped from the roadmap. Nothing in 1.5.0 or 1.6.0 depends on it.
 
@@ -323,6 +327,8 @@ When a translator is selected on that paste screen, a soft info callout sits abo
 
 ## [1.8.0 Design exports](https://github.com/NetworkNerd1337/NerdGram1337/milestone/5)
 
+Code name Meridian. 1.8.5 stays on Meridian.
+
 Export a diagram, Mermaid plus its network JSON, to text files that outside test and lab tools can open. NerdGram never connects to devices, and it never stores credentials. Any password or token field in an exported file is a placeholder for the tool, or the operator, to fill in. The workflow assumption, especially for pyATS, is that the user makes sure the node names and IPs in the diagram match the real environment they test with.
 
 Exporters should use the same one-file-per-target modular pattern that 1.7.0 proves for translators: one module, registered and discovered automatically, added or removed without core edits. A later 1.8.5 milestone expands the set only if this export architecture holds. Tool format notes below are a starting point; when each issue is written, verify them against that tool's current documentation.
@@ -348,6 +354,8 @@ A CML lab YAML from the same document.
 **Success.** One module file, no core edits; credentials if the format requires them are placeholders only; NerdGram does not log in to CML. Verify the current CML lab format when the issue is written.
 
 ## [1.8.5 Additional exports](https://github.com/NetworkNerd1337/NerdGram1337/milestone/6)
+
+Code name Meridian.
 
 **Gated on 1.8.0.** This milestone exists only if 1.8.0 proves the modular export system works. If 1.8.0 shows that system will not work, 1.8.5 is simply dropped from the roadmap. It does not depend on 1.7.5, and nothing in 1.5.0 or 1.6.0 depends on it.
 

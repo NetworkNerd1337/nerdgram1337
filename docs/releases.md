@@ -18,23 +18,25 @@ This tree is v1.5.1, code name Compass. v1.0.5 was the first release, code name 
 
 ## Version numbers and code names
 
-A code name covers half of a major line. Minor numbers 0 through 4 share one name. Minor numbers 5 through 9 share the next name. A patch stays on the name of its minor.
+A code name belongs to a milestone. The key in the map is the major and the minor where that name starts. The name covers every patch of that minor. It also covers later minors of the same major until the next key. The last key of a major covers only its own minor, so a later minor stays unnamed until it has a key. A patch stays on the name of its minor.
 
-| Half | Code name | First release on that half |
+| Versions | Code name | First release |
 | --- | --- | --- |
-| 1.0 through 1.4 | Atlas | v1.0.5 |
-| 1.5 through 1.9 | Compass | 1.5.0 |
-| 2.0 through 2.4 | Meridian | v2.0.0 |
+| 1.0.y through 1.4.y | Atlas | v1.0.5 |
+| 1.5.y | Compass | 1.5.0 |
+| 1.6.y | Galileo | 1.6.0 |
+| 1.7.y, including 1.7.0 and 1.7.5 | Navigator | 1.7.0 |
+| 1.8.y, including 1.8.0 and 1.8.5 | Meridian | 1.8.0 |
 
-v1.0.5 was the first release, code name Atlas. 1.4.8 is the last Atlas release. This tree is v1.5.1, code name Compass. Compass is the name of every 1.5.y through 1.9.y release. Meridian begins at v2.0.0 and is the name of every 2.0.y through 2.4.y release. The 2.5 half is not named yet.
+v1.0.5 was the first release, code name Atlas. 1.4.8 is the last Atlas release. This tree is v1.5.1, code name Compass. Compass is the name of every 1.5.y release. Galileo is every 1.6.y release. Navigator is every 1.7.y release, including 1.7.0 and 1.7.5. Meridian is every 1.8.y release, including 1.8.0 and 1.8.5. 1.9 and 2.0 are not named yet.
 
 Which number moves:
 
 - **Patch (`Z`).** A small fix. The code name stays, and only the third number changes.
-- **Minor (`Y`).** A larger change on the same major line. The second number increases and the third goes back to 0. The code name stays until the minor reaches 5, then it changes for the rest of that major.
-- **Major (`X`).** A new line. It starts at minor 0 with that major's `.0` name. v2.0.0 is Meridian.
+- **Minor (`Y`).** A larger change on the same major line. The second number increases and the third goes back to 0. The code name changes when that minor has its own entry in the map.
+- **Major (`X`).** A new line. It starts at minor 0. 2.0 is not named yet.
 
-The running app shows the version and the code name together. A 1.0.y through 1.4.y build is Atlas. A 1.5.y through 1.9.y build is Compass. A 2.0.y through 2.4.y build is Meridian. The `codenames` map in the root `package.json` is the source of truth (`"1.0"` is Atlas, `"1.5"` is Compass, `"2.0"` is Meridian). The key is the major and the half: `0` when the minor is less than 5, and `5` when the minor is 5 or greater. A release whose half has no entry fails `npm run version:check`. The 2.5 half has no entry yet. The GitHub Release title for a tag is `vX.Y.Z "Code name"`.
+The running app shows the version and the code name together. A 1.0.y through 1.4.y build is Atlas. A 1.5.y build is Compass. A 1.6.y build is Galileo. A 1.7.y build is Navigator. A 1.8.y build is Meridian. The `codenames` map in the root `package.json` is the source of truth (`"1.0"` is Atlas, `"1.5"` is Compass, `"1.6"` is Galileo, `"1.7"` is Navigator, `"1.8"` is Meridian). The key is the major and the minor where the name starts. A release whose minor has no entry fails `npm run version:check`. 1.9 and 2.0 have no entry yet. The GitHub Release title for a tag is `vX.Y.Z "Code name"`.
 
 ## Where the version is shown
 
@@ -42,7 +44,7 @@ The running app shows the version and the code name together. A 1.0.y through 1.
 - **About NerdGram1337** in the command palette opens the same panel: that same version line, commit when there is one, and the install kind (git clone, Docker, ZIP, or unknown). It also links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi in a new tab and is hidden during presentation.
 - `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`.
 - `GET /api/health` returns those fields plus `"ok": true` and `dataDir`.
-- When a newer release is available, the update banner and the release dialog show that release's code name, from the major and the half of the release tag. The update check still parses the tag for the version. It does not parse the release title as the version.
+- When a newer release is available, the update banner and the release dialog show that release's code name, from the milestone key for that tag. The update check still parses the tag for the version. It does not parse the release title as the version.
 
 `commit` is a SHA baked in with `NERDGRAM_COMMIT`, or the git `HEAD` of a git install. Docker does not run git to find one. A Compose build that omits `NERDGRAM_COMMIT` reports `commit` as null.
 
@@ -82,11 +84,11 @@ With the default settings the check asks GitHub for the latest full release and 
 
 ## Cutting a release
 
-This is the maintainer path. It is not part of installing the app. v1.0.5, code name Atlas, was the first release and is already tagged. A later release keeps the code name of its half and moves `Y` or `Z`. Crossing minor 5, or starting a new major, takes the name of that new half. Do not invent a second numbering scheme for the image. Do not mark the GitHub Release as a prerelease. The update check offers full releases and reads the version from the tag.
+This is the maintainer path. It is not part of installing the app. v1.0.5, code name Atlas, was the first release and is already tagged. A later release keeps the code name of its minor when that minor is already named, and moves `Y` or `Z`. A minor with its own map entry takes that name. Do not invent a second numbering scheme for the image. Do not mark the GitHub Release as a prerelease. The update check offers full releases and reads the version from the tag.
 
-1. Set the root `package.json` `version` to `X.Y.Z`. The `codenames` map in that file names each half (`"1.0"` is Atlas, `"1.5"` is Compass, `"2.0"` is Meridian). The current half has to have an entry. A half with no code name fails the check. The 2.5 half is not named yet.
+1. Set the root `package.json` `version` to `X.Y.Z`. The `codenames` map in that file names each milestone (`"1.0"` is Atlas, `"1.5"` is Compass, `"1.6"` is Galileo, `"1.7"` is Navigator, `"1.8"` is Meridian). The current minor has to have an entry, or be covered by an earlier key in that major until the next one. A minor with no code name fails the check. 1.9 and 2.0 are not named yet.
 2. Run `npm run version:sync`. That copies the version into `client/package.json`, `server/package.json`, `cli/package.json`, the root version fields of the three lockfiles, the `ARG NERDGRAM_VERSION` lines in the Dockerfile, and the published image tag in `compose.yaml`. It also cuts `CHANGELOG.md` as described in step 4. The local build args live in `compose.build.yaml`, tagged `nerdgram1337:local`. It also writes `ARG NERDGRAM_CODENAME` and the `NERDGRAM_CODENAME` build arg from the map. It does not rewrite this README. Update every real image tag in the README and the docs to the new version, including the Docker `pull` and `run` examples, the published image in [Data and backups](data-and-backups.md#data-and-backups), and the pin under [Pin a version or move to another](#pin-a-version-or-move-to-another). `npm run version:check` requires an image pin written out as `ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` with real numbers, or a `nerdgram1337@` example, to match `package.json`. The names v1.0.5, v1.0.6, and v2.0.0 are allowed in this section.
-3. Run `npm run version:check`. It fails when those files disagree, when the current half has no code name, when `CHANGELOG.md` has no section for this version, when `## Unreleased` is missing or blank, and when a link in the README or the docs does not resolve. It also fails when `cli/package.json` drifts from the root version, when that package is not the public package `nerdgram1337` with the `nerdgram` command, or when `cli/LICENSE` does not match [`LICENSE`](../LICENSE).
+3. Run `npm run version:check`. It fails when those files disagree, when the current minor has no code name, when `CHANGELOG.md` has no section for this version, when `## Unreleased` is missing or blank, and when a link in the README or the docs does not resolve. It also fails when `cli/package.json` drifts from the root version, when that package is not the public package `nerdgram1337` with the `nerdgram` command, or when `cli/LICENSE` does not match [`LICENSE`](../LICENSE).
 4. Keep pending notes under `## Unreleased`, above the numbered releases. When nothing is pending, that section is the line `_No unreleased items._`. A blank Unreleased heading is not allowed: it looks like the heading for the release below it, and `npm run version:check` fails. `npm run version:sync` is what cuts the release notes. If this version does not have a section yet and Unreleased has real notes, it moves those notes under `## X.Y.Z "Code name" - YYYY-MM-DD` (the date is the UTC day the command runs) and sets Unreleased back to `_No unreleased items._`. If the version section is already there, it does not copy the notes a second time. Notes that are still only under Unreleased stay there for the next release. You can edit the new section after that. The quoted code name has to match the map. The section body is the GitHub Release notes. `_No unreleased items._` is not part of that body. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date, but `version:check` requires the code name on the heading. The release title is not taken from the heading. It is `vX.Y.Z "Code name"` from the tag and the map.
 5. Commit and merge to `main`. Then, from `main`, tag the matching version and push the tag. `vX.Y.Z` is that version:
 

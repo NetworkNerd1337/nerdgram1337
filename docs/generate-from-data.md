@@ -8,7 +8,7 @@ A CSV, JSON, or network JSON file can build the diagram. **From data** on the da
 
 Two shapes are accepted. A links table has a local device, a local port, a remote device, and a remote port. A node list has an id and a label, and an optional second file of edges with source, target, and label. JSON can carry both lists in one object (`nodes` and `edges`) or a `links` array. Optional columns are group, type, style class, and a child diagram path. A group becomes a Mermaid `subgraph`. A type or style class becomes a `classDef` and a `class` line. A child diagram path becomes a `click` line such as `click Atlanta "nerdgram:Sites/Atlanta.mmd"`. The path has to be a `.mmd` file inside the workspace. `javascript:` and a path that leaves the workspace are rejected, and the error names the row.
 
-Sample files are [docs/samples/campus-links.csv](samples/campus-links.csv) and [docs/samples/campus.json](samples/campus.json). The CSV is a links table. The JSON is nodes, edges, and a link from Atlanta to `Sites/Atlanta.mmd`.
+Sample files are [docs/samples/campus-links.csv](samples/campus-links.csv) and [docs/samples/campus.json](samples/campus.json). The CSV is a links table. The JSON is nodes, edges, and a link from Atlanta to `Sites/Atlanta.mmd`. That JSON shape is [docs/schema/graph.schema.json](schema/graph.schema.json), served at `GET /api/v1/schema/graph.json`.
 
 The data file is saved next to the diagram (`Campus.mmd` and `Campus.csv`, `Core.mmd` and `Core.lldp`, or `Campus.mmd` and `Campus.network.json`). GitHub sync copies both. The diagram's front matter records the file, the column mapping, and the direction under `nerdgram.source`. CDP and LLDP also record `groupBy` and, when you typed one, the local device name. Network JSON records `view` (`l3` or `l2`) and the options used to build that view. That path is from the workspace root. Renaming, moving, or duplicating the diagram moves or copies a data file that sits in the same folder and updates that path. Duplicate can instead keep sharing the original file. Delete can move the data file to the trash with the diagram or leave it in place. Generated lines sit between `%% nerdgram:generated` and `%% nerdgram:generated end`. **Refresh from data** in the editor reads that file, shows nodes and edges added, removed, and changed, and writes the generated block only after you apply it. `nerdgram generate` does the same update when that path already exists: the first run creates the diagram, and the next run replaces the generated block and the data file. `--create-only` refuses when the path exists. Notes, the theme, and anything outside the markers stay, including a node you added by hand.
 
@@ -48,7 +48,7 @@ nerdgram generate --path Edge.mmd --data docs/samples/neighbors/lldpd.json --for
 
 CDP and LLDP draw physical neighbors. A Layer 3 or Layer 2 diagram needs addresses, VLANs, and bundles, and those commands are different on every platform. NerdGram does not parse that output and does not guess links. It reads one vendor-neutral JSON document, `format: "network"`, `schemaVersion: 1`, and draws the diagram from that document only. The same file always produces the same generated block. A later refresh replaces that block. It does not invent a link that is not in the file.
 
-You produce the JSON. NerdGram does not ship TextFSM, Genie, NAPALM, Batfish, Nautobot, or NetBox. The schema is [docs/schema/network.schema.json](schema/network.schema.json). The compatibility rule is [Schema compatibility](#schema-compatibility). A file is stored as `.network.json`.
+You produce the JSON. NerdGram does not ship TextFSM, Genie, NAPALM, Batfish, Nautobot, or NetBox. The schema file is [docs/schema/network.schema.json](schema/network.schema.json). The running server serves that same file at `GET /api/v1/schema/network.json`, and the generic nodes, edges, and links schema at `GET /api/v1/schema/graph.json`. Neither route needs a token. The OpenAPI document is `GET /api/v1/openapi.json`. On the default port those URLs are `http://127.0.0.1:8787/api/v1/schema/network.json`, `http://127.0.0.1:8787/api/v1/schema/graph.json`, and `http://127.0.0.1:8787/api/v1/openapi.json`. The compatibility rule is [Schema compatibility](#schema-compatibility). A file is stored as `.network.json`.
 
 | Field | Required | What it is |
 | --- | --- | --- |
@@ -75,6 +75,14 @@ nerdgram refresh Campus-L3.mmd
 ```
 
 `--include-down` draws shutdown and down interfaces. `--group-by vrf` is the Layer 3 grouping. `--group-by site`, `--group-by role`, and `--group-by platform` are the Layer 2 grouping. Refresh does not take `--view`. The view and the options are already in the diagram.
+
+A cron job can preview and upsert the campus sample in one script. [docs/samples/push-campus.sh](samples/push-campus.sh) posts `POST /api/v1/generate/preview`, then `POST /api/v1/generate/upsert`. The first run creates `Campus-L3.mmd`. The next run updates that diagram. It does not call create-only generate, and it does not fall back to refresh. It reads the served OpenAPI document and both JSON Schemas before the post. The copy-paste curl lines are in the script header. The crontab line is [docs/samples/push-campus.cron](samples/push-campus.cron).
+
+```bash
+NERDGRAM_TOKEN=ng_your_token sh docs/samples/push-campus.sh
+```
+
+Set `NERDGRAM_URL` when the server is not `http://127.0.0.1:8787`. Set `NERDGRAM_VIEW=l2` and `NERDGRAM_GROUP_BY=platform` to draw the Layer 2 view grouped by platform. `NERDGRAM_PATH` is the diagram path. The default is `Campus-L3.mmd`.
 
 **Producing the file.** Map whatever you already collect into the fields above. Nothing below is bundled, and NerdGram does not run it.
 

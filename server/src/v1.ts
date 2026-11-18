@@ -8,6 +8,7 @@ import { lintWorkspaceFiles } from "./workspaceLint.js";
 import * as store from "./fsStore.js";
 import { sendError } from "./httpError.js";
 import { buildOpenApiSpec, openApiPath, V1_ROUTES, type V1Route, type V1Scope } from "./openapi.js";
+import { GRAPH_SCHEMA_FILE, NETWORK_SCHEMA_FILE, readPublishedSchema } from "./publishedSchemas.js";
 import { createRateLimiter, defaultRenderRate, renderDiagram, type RateLimit, type RenderFormat } from "./renderDiagram.js";
 import * as search from "./search.js";
 import * as historyApi from "./historyApi.js";
@@ -60,6 +61,14 @@ function requireScope(scope: V1Scope): RequestHandler {
       sendError(res, err);
     }
   };
+}
+
+function sendSchema(res: Response, filePath: string): void {
+  const body = readPublishedSchema(filePath);
+  res.setHeader("Content-Type", "application/schema+json; charset=utf-8");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Cache-Control", "no-store");
+  res.status(200).send(body);
 }
 
 function asyncHandler(handler: (req: Request, res: Response, next: NextFunction) => Promise<void>): RequestHandler {
@@ -134,6 +143,12 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
   const handlers: Record<string, RequestHandler> = {
     getOpenApi: (_req, res) => {
       res.json(buildOpenApiSpec());
+    },
+    getNetworkSchema: (_req, res) => {
+      sendSchema(res, NETWORK_SCHEMA_FILE);
+    },
+    getGraphSchema: (_req, res) => {
+      sendSchema(res, GRAPH_SCHEMA_FILE);
     },
     listDiagrams: asyncHandler(async (req, res) => {
       const listing = await store.listFolder(String(req.query.path || ""));

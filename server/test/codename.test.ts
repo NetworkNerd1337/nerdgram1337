@@ -8,21 +8,37 @@ import {
 } from "../src/updates/codename.js";
 
 describe("code names", () => {
-  it("maps a half of each major and leaves an unknown half unnamed", () => {
+  it("maps each named milestone and leaves an unnamed minor unnamed", () => {
     const map = readCodenames();
-    expect(map).toEqual({ "1.0": "Atlas", "1.5": "Compass", "2.0": "Meridian" });
+    expect(map).toEqual({
+      "1.0": "Atlas",
+      "1.5": "Compass",
+      "1.6": "Galileo",
+      "1.7": "Navigator",
+      "1.8": "Meridian",
+    });
     expect(codenameForVersion("1.4.8", map)).toBe("Atlas");
     expect(codenameForVersion("1.0.5", map)).toBe("Atlas");
     expect(codenameForVersion("1.5.0", map)).toBe("Compass");
-    expect(codenameForVersion("1.9.3", map)).toBe("Compass");
-    expect(codenameForVersion("v2.0.0", map)).toBe("Meridian");
-    expect(codenameForVersion("2.4.9", map)).toBe("Meridian");
+    expect(codenameForVersion("1.5.1", map)).toBe("Compass");
+    expect(codenameForVersion("1.5.9", map)).toBe("Compass");
+    expect(codenameForVersion("1.6.0", map)).toBe("Galileo");
+    expect(codenameForVersion("1.6.4", map)).toBe("Galileo");
+    expect(codenameForVersion("1.7.0", map)).toBe("Navigator");
+    expect(codenameForVersion("1.7.5", map)).toBe("Navigator");
+    expect(codenameForVersion("1.8.0", map)).toBe("Meridian");
+    expect(codenameForVersion("1.8.5", map)).toBe("Meridian");
+    expect(codenameForVersion("1.9.3", map)).toBeNull();
+    expect(codenameForVersion("v2.0.0", map)).toBeNull();
+    expect(codenameForVersion("2.4.9", map)).toBeNull();
     expect(codenameForVersion("2.5.0", map)).toBeNull();
     expect(codenameForVersion("3.0.0", map)).toBeNull();
     expect(codenameForVersion("not-a-version", map)).toBeNull();
-    expect(releaseCodename("2.0.0", 'v2.0.0 "Nope"', map)).toBe("Meridian");
+    expect(releaseCodename("1.6.0", 'v1.6.0 "Nope"', map)).toBe("Galileo");
+    expect(releaseCodename("2.0.0", 'v2.0.0 "Nope"', map)).toBe("Nope");
+    expect(releaseCodename("2.0.0", 'v9.9.9 "Nope"', map)).toBeNull();
     expect(releaseCodename("2.5.0", 'v9.9.9 "Nope"', map)).toBeNull();
-    expect(formatVersionLabel("v2.0.0", "Meridian")).toBe('v2.0.0 "Meridian"');
+    expect(formatVersionLabel("v1.6.0", "Galileo")).toBe('v1.6.0 "Galileo"');
   });
 
   it("prefers the map and only accepts a title that is the version plus one quoted name", () => {

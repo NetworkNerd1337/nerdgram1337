@@ -125,6 +125,8 @@ Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` mea
 | Command | Route |
 | --- | --- |
 | none | `GET /api/v1/openapi.json` |
+| none | `GET /api/v1/schema/network.json` |
+| none | `GET /api/v1/schema/graph.json` |
 | `nerdgram list` | `GET /api/v1/diagrams` |
 | `nerdgram search` | `GET /api/v1/search` |
 | `nerdgram get` | `GET /api/v1/diagrams/content` |

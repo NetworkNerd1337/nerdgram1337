@@ -41,7 +41,7 @@ Set a variable in the same terminal before `npm run dev` or `npm start`, so the 
 | `NERDGRAM_UPDATE_INCLUDE_PRERELEASE` | off | `true`, `1`, `yes`, or `on` includes prereleases even when the About checkbox is clear. |
 | `NERDGRAM_BASELINE_CAP` | `20` | How many named baselines each diagram keeps. They are not dropped by the 20-revision limit. A whole number from 1 to 200. Anything else uses 20. |
 
-`NERDGRAM_VERSION` is a Docker build argument, not a runtime variable. It has to match the root `package.json`, and the image label `org.opencontainers.image.version` records it. `NERDGRAM_CODENAME` is the code name for that version's major line. The image sets it in the environment and as `org.opencontainers.image.codename`. The running app still reads the code name from the `codenames` map in `package.json`.
+`NERDGRAM_VERSION` is a Docker build argument, not a runtime variable. It has to match the root `package.json`, and the image label `org.opencontainers.image.version` records it. `NERDGRAM_CODENAME` is the code name for that version's milestone. The image sets it in the environment and as `org.opencontainers.image.codename`. The running app still reads the code name from the `codenames` map in `package.json`.
 
 The update tests also read `NERDGRAM_UPDATE_FIXTURE`, `NERDGRAM_UPDATE_SIMULATE`, `NERDGRAM_UPDATE_ALLOW_EXEC`, and `NERDGRAM_UPDATE_CHECK_IN_TEST`. Leave those unset.
 

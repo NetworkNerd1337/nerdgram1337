@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "http://127.0.0.1:8787/api/v1/schema/graph.json",
+  "title": "NerdGram generic graph data",
+  "description": "A flowchart table: an array of row objects, a links array, or a nodes array with an optional edges array. This is not network JSON. The properties below are the canonical names. An alias such as neighbor, hostname, site, role, or href is still accepted, and a key that does not map to a field is ignored. No field is added here that the importer does not already read.",
+  "oneOf": [
+    { "$ref": "#/$defs/rowArray" },
+    { "$ref": "#/$defs/linksDocument" },
+    { "$ref": "#/$defs/graphDocument" }
+  ],
+  "$defs": {
+    "linkRow": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "localDevice": { "type": "string" },
+        "localPort": { "type": "string" },
+        "remoteDevice": { "type": "string" },
+        "remotePort": { "type": "string" },
+        "localGroup": { "type": "string" },
+        "remoteGroup": { "type": "string" },
+        "localType": { "type": "string" },
+        "remoteType": { "type": "string" },
+        "localClass": { "type": "string" },
+        "remoteClass": { "type": "string" },
+        "localDiagram": { "type": "string" },
+        "remoteDiagram": { "type": "string" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "group": { "type": "string" },
+        "type": { "type": "string" },
+        "styleClass": { "type": "string" },
+        "diagram": { "type": "string" }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "label": { "type": "string" }
+      }
+    },
+    "rowArray": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "linksDocument": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["links"],
+      "not": { "required": ["nodes"] },
+      "properties": {
+        "links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/linkRow" }
+        }
+      }
+    },
+    "graphDocument": {
+      "type": "object",
+      "additionalProperties": true,
+      "anyOf": [
+        { "required": ["nodes"] },
+        { "required": ["edges"] }
+      ],
+      "not": { "required": ["links"] },
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/node" }
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/edge" }
+        }
+      }
+    }
+  }
+}
