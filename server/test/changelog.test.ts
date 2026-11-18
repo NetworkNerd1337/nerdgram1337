@@ -35,17 +35,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Compass title and the 1.5.0 section without the heading", () => {
-    const title = notes(["--title", "v1.5.0"]);
+  it("prints the Compass title and the 1.5.1 section without the heading", () => {
+    const title = notes(["--title", "v1.5.1"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.5.0 "Compass"\n');
-    const body = notes(["v1.5.0"]);
+    expect(title.stdout).toBe('v1.5.1 "Compass"\n');
+    const body = notes(["v1.5.1"]);
     expect(body.code).toBe(0);
-    expect(body.stdout.startsWith("Minor release.")).toBe(true);
-    expect(body.stdout).toContain("generate/upsert");
-    expect(body.stdout).toContain("device.platform");
-    expect(body.stdout).not.toContain('## 1.5.0 "Compass"');
-    expect(body.stdout).not.toContain("Patch on the Atlas line.");
+    expect(body.stdout.startsWith("Patch on the Compass line.")).toBe(true);
+    expect(body.stdout).toContain("wrappingWidth");
+    expect(body.stdout).toContain("from #144");
+    expect(body.stdout).not.toContain('## 1.5.1 "Compass"');
+    expect(body.stdout).not.toContain("Minor release.");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
 

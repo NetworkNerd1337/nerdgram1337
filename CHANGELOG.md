@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 1.5.1 "Compass" - 2026-11-17
+
+Patch on the Compass line. The code name stays Compass. Long flowchart labels keep their padding, a failed render reports a status, and a diagram can save and apply a named style preset.
+
 - Flowchart node labels keep inner padding in the preview, in presentation, and in SVG and PNG exports when a line is a long address such as `2001:db8::1/128`, in the light and dark themes. A label with a line break still shows every line. Edge-label padding is unchanged (from #144).
 - `nerdgram render --json` reports a status when a render fails. An SVG that would not parse exits 1 with `"status": 500` and the error, the same failure `POST /api/v1/render` returns as **500**. A failure with no HTTP status uses `"status": "error"` (from #143, #142).
 - Named style presets can be saved from Diagram info, applied to a diagram, and set as the default for new diagrams. Applying a preset copies its theme, look, layout, font, colors, and related options into that diagram's file, so the diagram still renders the same way without the preset. Custom fonts suggest families already used in the workspace, and theme color fields show swatches of colors the diagrams already use (from #116). A preset does not change `flowchart.wrappingWidth`.

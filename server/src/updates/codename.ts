@@ -77,7 +77,7 @@ export function releaseCodename(
   return codenameFromReleaseTitle(version, title);
 }
 
-/** `v1.5.0 "Compass"`, or `v1.5.0` when this half has no code name. */
+/** `v1.5.1 "Compass"`, or `v1.5.1` when this half has no code name. */
 export function formatVersionLabel(version: string, codename: string | null | undefined): string {
   const trimmed = version.trim();
   const base = trimmed.startsWith("v") ? trimmed : `v${trimmed}`;
