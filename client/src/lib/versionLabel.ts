@@ -1,4 +1,4 @@
-/** Same shape as the server label: `v1.6.1 "Galileo"`. */
+/** Same shape as the server label: `v1.7.5 "Navigator"`. */
 const CODENAME_RE = /^[A-Z][A-Za-z0-9]{1,31}$/;
 
 export function knownCodeName(codename: string | null | undefined): string | null {

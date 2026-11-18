@@ -30,7 +30,7 @@ This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas t
 
 | Fact | Value |
 | --- | --- |
-| Current release | 1.6.1 Galileo |
+| Current release | 1.7.5 Navigator |
 | Canonical network schema | `schemaVersion` 1, in [docs/schema/network.schema.json](schema/network.schema.json) |
 | Automation API | `GET /api/v1/openapi.json` already exists (OpenAPI 3.0.3, no token) |
 | Generate behavior | `POST /api/v1/generate` returns **409** if the path exists; refresh updates an existing diagram |
@@ -191,7 +191,7 @@ Add copy-paste curl and cron examples under `docs/samples` that preview and upse
 
 ## [1.7.0 Stateless translators](https://github.com/NetworkNerd1337/NerdGram1337/milestone/3)
 
-Code name Navigator. 1.7.5 stays on Navigator.
+Code name Navigator. Shipped in v1.7.5. There was no separate 1.7.0 release. 1.7.5 stays on Navigator.
 
 Do not add a NetBox pipeline or a LibreNMS pipeline as first-class NerdGram features. Add small, stateless translators that take a file or a JSON payload from those tools and write NerdGram's canonical network JSON. These mappers target the JSON shape settled in 1.5.0 and the schema and upsert published in 1.6.0, so they do not have to be rewritten when the contract changes. Translators hold no credentials and make no outbound calls. The always-on piece, and any tokens, stay in NetBox, LibreNMS, or a cron job the operator already runs.
 
@@ -229,7 +229,7 @@ One PR that adds a second mapping module, CLI source, and `/api/v1/convert/libre
 
 ## [1.7.5 Additional translators](https://github.com/NetworkNerd1337/NerdGram1337/milestone/4)
 
-Code name Navigator.
+Code name Navigator. Shipped in v1.7.5.
 
 **Gated on 1.7.0.** This milestone exists only if 1.7.0 proves the modular translator system works. If 1.7.0 shows that system will not work, 1.7.5 is simply dropped from the roadmap. Nothing in 1.5.0 or 1.6.0 depends on it.
 

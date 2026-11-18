@@ -13,6 +13,7 @@ Stop the app before you replace it.
 - [Network diagrams](#network-diagrams)
 - [Flowchart labels](#flowchart-labels)
 - [Public schema routes](#public-schema-routes)
+- [Translators](#translators)
 
 Paths in this document use two placeholders, always in code formatting so GitHub does not treat the angle brackets as HTML tags. `<data>` is the data directory: `NERDGRAM_DATA_DIR` when that variable is set, and `diagrams/` inside the project when it is not. `<repo>` is the project folder, the git clone or the extracted ZIP.
 
@@ -20,12 +21,12 @@ Stop the app before you replace it. Diagrams stay where they are when you keep t
 
 ## Update a Docker install
 
-The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v1.6.1`, the tag for this tree. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you are moving to a different release. If your names differ, keep the names you already use.
+The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v1.7.5`, the tag for this tree. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you are moving to a different release. If your names differ, keep the names you already use.
 
 1. Pull the new image.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v1.6.1
+docker pull ghcr.io/networknerd1337/nerdgram1337:v1.7.5
 ```
 
 2. Stop the old container. `docker stop` asks the process to finish the write it is in and any GitHub sync already running.
@@ -50,7 +51,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v1.6.1
+  ghcr.io/networknerd1337/nerdgram1337:v1.7.5
 ```
 
 5. Open [http://127.0.0.1:8787](http://127.0.0.1:8787) and choose **Check again** in About. The dialog says whether the running version matches that release.
@@ -96,7 +97,7 @@ There is no **Update now** for a ZIP. About shows the hand steps.
 
 ## In-app updates
 
-The running version is the **About** line at the bottom of the sidebar and **About NerdGram1337** in the command palette. Both show the version and its code name, for example `v1.6.1 "Galileo"`. The dialog also shows how this copy was installed, the commit when one is known, and links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi directly. `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`. `GET /api/health` returns those fields plus `"ok": true` and `dataDir`. `installKind` is `git`, `docker`, `zip`, or `unknown`. `commit` is a SHA when the build or the git checkout has one, and null otherwise. Docker never shells out to git to discover a commit. Set `NERDGRAM_COMMIT` at image build time when you want one. When a newer release is available, the banner and the release dialog show that release's code name. The version still comes from the tag. The code name comes from the milestone key for that tag. 1.5.y is Compass. Later minors use the name in the `codenames` map.
+The running version is the **About** line at the bottom of the sidebar and **About NerdGram1337** in the command palette. Both show the version and its code name, for example `v1.7.5 "Navigator"`. The dialog also shows how this copy was installed, the commit when one is known, and links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi directly. `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`. `GET /api/health` returns those fields plus `"ok": true` and `dataDir`. `installKind` is `git`, `docker`, `zip`, or `unknown`. `commit` is a SHA when the build or the git checkout has one, and null otherwise. Docker never shells out to git to discover a commit. Set `NERDGRAM_COMMIT` at image build time when you want one. When a newer release is available, the banner and the release dialog show that release's code name. The version still comes from the tag. The code name comes from the milestone key for that tag. 1.5.y is Compass. Later minors use the name in the `codenames` map.
 
 The server asks GitHub, with no token, whether `NetworkNerd1337/NerdGram1337` has a newer full release. That request uses the public Releases API for the latest stable release. It does not offer a prerelease. It does not use the GitHub sync token or `NERDGRAM_GITHUB_TOKEN`, and it does not send telemetry. The answer is cached for about 24 hours in `<data>/.meta/updates.json`. If GitHub is offline, rate-limits the check, or has not published a release yet, the automatic check stays quiet. **Check for updates** says which of those it was: GitHub could not be reached, GitHub rate-limited the check, or a proxy or TLS inspection on this network is likely intercepting HTTPS. The TLS message links to [Corporate TLS inspection](troubleshooting.md#corporate-tls-inspection). **Check for updates** has no keyboard shortcut. Every click shows that it is checking, then the result or the error, including when the error is the same as the last one. How a checkout of `main` differs from a checkout of a release tag is under [Pin a version or move to another](releases.md#pin-a-version-or-move-to-another).
 
@@ -130,9 +131,16 @@ A file that does not set `flowchart.wrappingWidth` now wraps node labels at 480p
 
 `GET /api/v1/openapi.json`, `GET /api/v1/schema/network.json`, and `GET /api/v1/schema/graph.json` do not require a token. Host checks still apply. The network route serves the same document as `docs/schema/network.schema.json`. The repository file keeps `$id` `http://127.0.0.1:8787/api/v1/schema/network.json`. The served copy sets `$id` from the request host and port. On the default port, with Host `127.0.0.1:8787`, the bytes still match. No network fields were added, so a file that validated on 1.5.1 still validates.
 
+## Translators
+
+1.7.5 is the first Navigator release. It includes the 1.7.0 translator framework. There was no separate 1.7.0 release. `nerdgram convert` and `POST /api/v1/convert/<source>` turn a saved export into canonical network JSON. The translators store no credentials and make no outbound calls. Diagrams you already have are left as they are.
+
+A link can set optional `inferred`. `true` draws a dashed edge. A file that omits `inferred` stays on `schemaVersion` 1 and draws the same solid edges as before. The translator list and the per-source notes are in [Translators](translators.md).
+
 ## See also
 
 - [Versioning and releases](releases.md)
+- [Translators](translators.md)
 - [Install](install.md)
 - [Data and backups](data-and-backups.md)
 - [Troubleshooting](troubleshooting.md)
