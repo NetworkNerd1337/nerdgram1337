@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 1.7.5 "Navigator" - 2026-11-18
+
+Milestone release. The code name for 1.7.y is Navigator. 1.6.y stays Galileo. This release includes the 1.7.0 translator framework. There was no separate 1.7.0 release.
+
 - `nerdgram convert <source>` and `POST /api/v1/convert/<source>` turn a saved export into canonical network JSON. Each translator is one file under `server/src/translators/` and is discovered from that directory. NetBox and LibreNMS are the first two. They store no credentials and make no outbound calls. `GET /api/v1/translators` lists the installed modules (from #165, #166).
 - More translators read a saved export from Nautobot, SolarWinds Orion, Observium, Netdisco, Zabbix, Cisco Catalyst Center, Meraki Dashboard, Cisco pyATS, PRTG, Terraform `show -json`, and Batfish question JSON. Each one is its own file. None of them store a credential or call the source. A link can set optional `inferred`. `true` draws a dashed edge. Files that omit it stay on `schemaVersion` 1 and draw solid edges. **From data** lists the installed translators, shows mapper warnings before save, and can hide the data-completeness note per translator (from #167, #168, #169, #170, #171, #172, #173, #174, #175, #176, #177, #178).
 
