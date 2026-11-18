@@ -1,6 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { invalidateDiagramLint } from "./diagramLintCache.js";
+import { reportUnreadable, type UnreadableDiagram } from "./readError.js";
+import { isSafeDataPath } from "./diagramData.js";
+import { siblingNetworkPath } from "./exporters/resolve.js";
 import {
   applyExternalDataRepairs,
   dataKeptMessage,
@@ -143,15 +146,42 @@ function flattenFiles(nodes: TreeNode[]): TreeNode[] {
   return files;
 }
 
-/** Parsed front matter for every diagram. `.meta` and other dot paths are not walked. */
-export async function listDiagramMeta(): Promise<DiagramMeta[]> {
+/** A read failure that a library listing can skip. A programming error still throws. */
+export function skippedUnreadable(filePath: string, err: unknown): UnreadableDiagram | null {
+  if (!err || typeof err !== "object") return null;
+  const status = "status" in err ? (err as { status?: unknown }).status : undefined;
+  const code = "code" in err ? String((err as { code?: unknown }).code ?? "") : "";
+  const errno = (err as NodeJS.ErrnoException).code;
+  const skip =
+    (status === 500 && code === "unreadable") ||
+    status === 404 ||
+    code === "not_found" ||
+    errno === "EACCES" ||
+    errno === "EPERM" ||
+    errno === "EIO" ||
+    errno === "EBUSY" ||
+    errno === "ETIMEDOUT" ||
+    errno === "ENOENT";
+  if (!skip) return null;
+  return reportUnreadable(filePath, err);
+}
+
+/** Parsed front matter for every diagram. An unreadable file is listed, not fatal. */
+export async function listDiagramMeta(): Promise<{ diagrams: DiagramMeta[]; unreadable: UnreadableDiagram[] }> {
   const files = flattenFiles(await buildTree());
   const diagrams: DiagramMeta[] = [];
+  const unreadable: UnreadableDiagram[] = [];
   for (const file of files) {
-    const content = await readFile(file.path);
-    diagrams.push(diagramMetaFrom(content.path, content.content));
+    try {
+      const content = await readFile(file.path);
+      diagrams.push(diagramMetaFrom(content.path, content.content));
+    } catch (err) {
+      const skipped = skippedUnreadable(file.path, err);
+      if (!skipped) throw err;
+      unreadable.push(skipped);
+    }
   }
-  return diagrams;
+  return { diagrams, unreadable };
 }
 
 export async function listFolder(relativePath = ""): Promise<{
@@ -226,6 +256,63 @@ export async function readFile(relativePath: string): Promise<{
     size: disk.size,
     hash: disk.hash,
   };
+}
+
+/**
+ * Read a workspace `.network.json` for design export.
+ * The path has to stay inside the data directory. Diagram routes still reject this extension.
+ */
+export async function readNetworkJson(relativePath: string): Promise<string> {
+  const normalized = relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!normalized.toLowerCase().endsWith(".network.json") || !isSafeDataPath(normalized)) {
+    throw httpFail(400, "Only a .network.json file inside the workspace can be read here.", "invalid");
+  }
+  const abs = resolveSafePath(normalized);
+  let stat: Awaited<ReturnType<typeof fs.lstat>>;
+  try {
+    stat = await fs.lstat(abs);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") throw httpFail(400, `Could not read ${normalized}.`, "invalid");
+    rethrowKnownReadError(normalized, err);
+    throw err;
+  }
+  if (stat.isSymbolicLink() || !stat.isFile()) {
+    throw httpFail(400, "Not a network JSON file.", "invalid");
+  }
+  try {
+    return await fs.readFile(abs, "utf8");
+  } catch (err) {
+    rethrowKnownReadError(normalized, err);
+    throw err;
+  }
+}
+
+/** Diagram text, or the sibling network JSON a design export is allowed to read. */
+export async function readExportInput(relativePath: string): Promise<string> {
+  if (relativePath.toLowerCase().endsWith(".network.json")) return readNetworkJson(relativePath);
+  return (await readFile(relativePath)).content;
+}
+
+export async function networkBesideDiagram(diagramPath: string): Promise<{ hasNetwork: boolean; path: string | null }> {
+  let content: string;
+  try {
+    content = (await readFile(diagramPath)).content;
+  } catch {
+    return { hasNetwork: false, path: null };
+  }
+  const sibling = siblingNetworkPath(diagramPath, content);
+  if (!sibling.path.toLowerCase().endsWith(".network.json") || !isSafeDataPath(sibling.path)) {
+    return { hasNetwork: false, path: null };
+  }
+  try {
+    const abs = resolveSafePath(sibling.path);
+    const stat = await fs.lstat(abs);
+    if (stat.isSymbolicLink() || !stat.isFile()) return { hasNetwork: false, path: sibling.path };
+    return { hasNetwork: true, path: sibling.path };
+  } catch {
+    return { hasNetwork: false, path: sibling.path };
+  }
 }
 
 export async function writeFile(
@@ -677,12 +764,18 @@ export async function deleteItem(relativePath: string, options: DeleteOptions = 
   return { path: rel, trashed: true, dataKept: kept, message: dataKeptMessage(kept) };
 }
 
-async function readDiagramSourcesWithHash(): Promise<{ path: string; content: string; hash: string }[]> {
+async function readDiagramSourcesWithHash(unreadable?: UnreadableDiagram[]): Promise<{ path: string; content: string; hash: string }[]> {
   const files = flattenFiles(await buildTree());
   const sources: { path: string; content: string; hash: string }[] = [];
   for (const file of files) {
-    const content = await readFile(file.path);
-    sources.push({ path: content.path, content: content.content, hash: content.hash });
+    try {
+      const content = await readFile(file.path);
+      sources.push({ path: content.path, content: content.content, hash: content.hash });
+    } catch (err) {
+      const skipped = unreadable ? skippedUnreadable(file.path, err) : null;
+      if (!skipped) throw err;
+      unreadable?.push(skipped);
+    }
   }
   return sources;
 }
@@ -787,7 +880,8 @@ function selectRepairs(
 export async function repairDiagramLinks(options: RepairOptions = {}): Promise<LinkRepairPlan> {
   const dryRun = options.dryRun !== false;
   const confirm = options.confirm === true;
-  const files = await readDiagramSourcesWithHash();
+  const unreadable: UnreadableDiagram[] = [];
+  const files = await readDiagramSourcesWithHash(unreadable);
   let pending = await observeDiagramSightings(files.map((file) => ({ path: file.path, hash: file.hash })));
   const broken = brokenDiagramTargets(files);
   pending = pending.filter((item) => broken.has(item.from));
@@ -802,7 +896,7 @@ export async function repairDiagramLinks(options: RepairOptions = {}): Promise<L
   const previewChanges = preview.map((item) => ({ path: item.path, links: item.links }));
   const dataFiles = await externalDataRepairs(files, applicableMoves);
   if (dryRun || !confirm) {
-    return { suggestions, changes: previewChanges, dataFiles, applied: false, saved: [] };
+    return { suggestions, changes: previewChanges, dataFiles, applied: false, saved: [], unreadable };
   }
 
   const selected = selectRepairs(options.choices, applicable);
@@ -843,6 +937,7 @@ export async function repairDiagramLinks(options: RepairOptions = {}): Promise<L
     dataFiles: selectedData,
     applied: true,
     saved,
+    unreadable,
   };
 }
 

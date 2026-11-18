@@ -246,6 +246,10 @@ export const api = {
     request<{
       exporters: { id: string; name: string; extension: string; mimeType: string; description: string }[];
     }>("/api/exporters"),
+  exportAvailable: (path: string) =>
+    request<{ hasNetwork: boolean; path: string | null }>(
+      `/api/export/available?path=${encodeURIComponent(path)}`,
+    ),
   exportDesign: (target: string, body: { path?: string; input?: unknown }) =>
     request<{
       target: string;
