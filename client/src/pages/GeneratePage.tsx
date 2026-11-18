@@ -1,4 +1,4 @@
-import { useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
@@ -14,7 +14,10 @@ import {
   initialWizardState,
   previewRequest,
   wizardReducer,
+  type MapperWarning,
+  type TranslatorChoice,
   type WizardInspection,
+  type WizardState,
 } from "../lib/generateWizard";
 import { contentWithStyle } from "../lib/stylePresets";
 
@@ -25,6 +28,22 @@ export function GeneratePage() {
   const [state, dispatch] = useReducer(wizardReducer, params.get("folder") ?? "", initialWizardState);
   const [busy, setBusy] = useState(false);
   const [preset, setPreset] = useState<PresetChoice>({ id: "", style: null });
+  const [translators, setTranslators] = useState<TranslatorChoice[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .listTranslators()
+      .then((body) => {
+        if (!cancelled) setTranslators(body.translators);
+      })
+      .catch(() => {
+        if (!cancelled) setTranslators([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useCommandHost({
     route: "new",
@@ -37,12 +56,24 @@ export function GeneratePage() {
     conflictOpen: false,
   });
 
-  const inspect = async (step: "map" | "preview") => {
+  const inspect = async (step: "map" | "preview", patch?: { documentText: string; mapperWarnings: MapperWarning[] }) => {
     setBusy(true);
     dispatch({ type: "fatal", message: "" });
     try {
-      const result = await api.previewGenerate(previewRequest(state));
-      dispatch({ type: "result", result: result as WizardInspection, step });
+      const current: WizardState = patch
+        ? { ...state, documentText: patch.documentText, mapperWarnings: patch.mapperWarnings }
+        : state;
+      const result = await api.previewGenerate(previewRequest(current));
+      const mapper = (patch?.mapperWarnings ?? current.mapperWarnings).map((warning) => ({
+        path: warning.path,
+        message: warning.message,
+        row: 0,
+      }));
+      dispatch({
+        type: "result",
+        result: { ...(result as WizardInspection), warnings: [...mapper, ...result.warnings] },
+        step,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not read that data.";
       const rows = err instanceof ApiError && err.errors?.length ? ` ${err.errors.map((item) => item.message).join(" ")}` : "";
@@ -98,9 +129,23 @@ export function GeneratePage() {
           state={state}
           dispatch={dispatch}
           busy={busy}
+          translators={translators}
           folderControl={<FolderPicker tree={tree} value={state.folder} onChange={(folder) => dispatch({ type: "meta", folder })} />}
           styleControl={<StylePresetChoice mode="create" onChange={setPreset} />}
-          onInspect={(step) => void inspect(step)}
+          onConvert={async (id, text) => {
+            let body: unknown;
+            try {
+              body = JSON.parse(text) as unknown;
+            } catch {
+              throw new Error("The export is not valid JSON.");
+            }
+            const converted = await api.convertTranslator(id, body);
+            return {
+              documentText: JSON.stringify(converted.document),
+              mapperWarnings: converted.warnings,
+            };
+          }}
+          onInspect={(step, patch) => void inspect(step, patch)}
           onCreate={() => void create()}
         />
         <div className="paste-actions">

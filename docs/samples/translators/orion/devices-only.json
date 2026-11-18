@@ -1,0 +1,5 @@
+{
+  "nodes": { "results": [{ "NodeID": 1, "Caption": "core-rtr", "IPAddress": "192.0.2.1" }] },
+  "interfaces": { "results": [] },
+  "topology": { "results": [] }
+}

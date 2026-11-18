@@ -1,0 +1,32 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.8",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "network_device.core",
+          "mode": "managed",
+          "type": "network_device",
+          "name": "core",
+          "values": { "name": "planned-rtr", "management_ip": "192.0.2.10", "site": "hq" }
+        }
+      ]
+    }
+  },
+  "prior_state": {
+    "values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "network_device.old",
+            "mode": "managed",
+            "type": "network_device",
+            "name": "old",
+            "values": { "name": "prior-rtr" }
+          }
+        ]
+      }
+    }
+  }
+}

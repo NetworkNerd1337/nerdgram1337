@@ -1,0 +1,5 @@
+{
+  "devices": { "status": "ok", "devices": [{ "device_id": "1", "hostname": "core-rtr", "os": "iosxe" }] },
+  "ports": { "ports": [] },
+  "neighbours": { "neighbours": [] }
+}

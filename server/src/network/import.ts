@@ -101,6 +101,7 @@ function toModel(nodes: BuiltNode[], edges: BuiltEdge[]): GraphModel {
       source: ids.get(edge.source) ?? edge.source,
       target: ids.get(edge.target) ?? edge.target,
       label: edge.label,
+      ...(edge.dashed ? { dashed: true } : {}),
     })),
   };
 }

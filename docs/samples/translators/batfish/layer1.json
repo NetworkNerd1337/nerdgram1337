@@ -1,0 +1,45 @@
+{
+  "interfaceProperties": [
+    {
+      "Interface": { "hostname": "core-rtr", "interface": "GigabitEthernet0/0/0" },
+      "Admin_Up": true,
+      "Active": true,
+      "Primary_Address": "10.1.0.1/30",
+      "Switchport_Mode": "NONE",
+      "VRF": "default"
+    },
+    {
+      "Interface": { "hostname": "dist-sw", "interface": "GigabitEthernet1/0/1" },
+      "Admin_Up": true,
+      "Active": true,
+      "Primary_Address": "10.1.0.2/30",
+      "Switchport_Mode": "TRUNK",
+      "Native_VLAN": 99,
+      "Allowed_VLANs": "10,20-21",
+      "VRF": "default"
+    }
+  ],
+  "layer3Edges": [
+    {
+      "Interface": "core-rtr[GigabitEthernet0/0/0]",
+      "IPs": ["10.1.0.1"],
+      "Remote_Interface": "dist-sw[GigabitEthernet1/0/1]",
+      "Remote_IPs": ["10.1.0.2"]
+    },
+    {
+      "Interface": "core-rtr[GigabitEthernet0/0/1]",
+      "IPs": ["10.2.0.1"],
+      "Remote_Interface": "wan-rtr[GigabitEthernet0/0]",
+      "Remote_IPs": ["10.2.0.2"]
+    }
+  ],
+  "switchedVlanProperties": [{ "Node": "dist-sw", "VLAN_ID": 10, "Name": "users", "Interfaces": ["GigabitEthernet1/0/1"] }],
+  "layer1_topology": {
+    "edges": [
+      {
+        "node1": { "hostname": "core-rtr", "interfaceName": "GigabitEthernet0/0/0" },
+        "node2": { "hostname": "dist-sw", "interfaceName": "GigabitEthernet1/0/1" }
+      }
+    ]
+  }
+}

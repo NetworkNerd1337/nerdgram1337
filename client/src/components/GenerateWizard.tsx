@@ -1,4 +1,4 @@
-import type { Dispatch, ReactNode } from "react";
+import { useState, type Dispatch, type ReactNode } from "react";
 import type { FlowDirection, NetworkView } from "../../../server/src/diagramData.ts";
 import {
   canCreate,
@@ -9,7 +9,11 @@ import {
   isNetworkSource,
   issueListTitle,
   listedIssueText,
+  noticeStorageKey,
   showEdgeFields,
+  translatorDocsHref,
+  type MapperWarning,
+  type TranslatorChoice,
   type WizardAction,
   type WizardGroupBy,
   type WizardState,
@@ -26,16 +30,56 @@ type GenerateWizardProps = {
   state: WizardState;
   dispatch: Dispatch<WizardAction>;
   busy: boolean;
+  translators?: readonly TranslatorChoice[];
   folderControl?: ReactNode;
   styleControl?: ReactNode;
-  onInspect: (step: "map" | "preview") => void;
+  onConvert?: (id: string, text: string) => Promise<{ documentText: string; mapperWarnings: MapperWarning[] }>;
+  onInspect: (step: "map" | "preview", patch?: { documentText: string; mapperWarnings: MapperWarning[] }) => void;
   onCreate: () => void;
 };
 
-export function GenerateWizard({ state, dispatch, busy, folderControl, styleControl, onInspect, onCreate }: GenerateWizardProps) {
+export function GenerateWizard({
+  state,
+  dispatch,
+  busy,
+  translators = [],
+  folderControl,
+  styleControl,
+  onConvert,
+  onInspect,
+  onCreate,
+}: GenerateWizardProps) {
   const fields = fieldsFor(state);
   const neighbor = isNeighborSource(state);
   const network = isNetworkSource(state);
+  const translator = translators.find((item) => item.id === state.translatorId) ?? null;
+  const [converting, setConverting] = useState(false);
+
+  const continueFromData = () => {
+    void (async () => {
+      let patch: { documentText: string; mapperWarnings: MapperWarning[] } | undefined;
+      if (translator && !state.documentText) {
+        if (!onConvert) {
+          dispatch({ type: "fatal", message: "Could not convert that export." });
+          return;
+        }
+        setConverting(true);
+        try {
+          const converted = await onConvert(translator.id, state.text);
+          dispatch({ type: "translatorResult", documentText: converted.documentText, mapperWarnings: converted.mapperWarnings });
+          patch = converted;
+        } catch (err) {
+          dispatch({ type: "fatal", message: err instanceof Error ? err.message : "Could not convert that export." });
+          return;
+        } finally {
+          setConverting(false);
+        }
+      } else if (translator && state.documentText) {
+        patch = { documentText: state.documentText, mapperWarnings: state.mapperWarnings };
+      }
+      onInspect("map", patch);
+    })();
+  };
   return (
     <div className="generate-wizard">
       <ol className="generate-steps" aria-label="Steps">
@@ -45,7 +89,7 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, styleCont
       </ol>
 
       {state.fatal ? <div className="error-banner">{state.fatal}</div> : null}
-      <IssueList title={issueListTitle(state.format, state.detectedFormat)} issues={state.errors} />
+      <IssueList title={issueListTitle(state.translatorId ? "network" : state.format, state.detectedFormat)} issues={state.errors} />
       {state.step !== "input" ? <IssueList title="Warnings" issues={state.warnings} /> : null}
 
       {state.step === "input" ? (
@@ -53,8 +97,12 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, styleCont
           <label htmlFor="generate-format">Source</label>
           <select
             id="generate-format"
-            value={state.format}
-            onChange={(event) => dispatch({ type: "format", format: event.target.value as WizardState["format"] })}
+            value={state.translatorId ? `translator:${state.translatorId}` : state.format}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value.startsWith("translator:")) dispatch({ type: "translator", id: value.slice("translator:".length) });
+              else dispatch({ type: "format", format: value as WizardState["format"] });
+            }}
           >
             <option value="auto">CSV or JSON</option>
             <option value="csv">CSV</option>
@@ -62,15 +110,22 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, styleCont
             <option value="network">Network data (JSON)</option>
             <option value="cdp">Cisco CDP</option>
             <option value="lldp">LLDP neighbors</option>
+            {translators.map((item) => (
+              <option key={item.id} value={`translator:${item.id}`}>
+                {item.name}
+              </option>
+            ))}
           </select>
-          <label htmlFor="generate-data">{dataLabel(state.format)}</label>
+          {translator ? <DataNotice translator={translator} /> : null}
+          {translator ? <p className="generate-hint">{translator.formatHint}</p> : null}
+          <label htmlFor="generate-data">{translator ? translator.name : dataLabel(state.format)}</label>
           <textarea
             id="generate-data"
             value={state.text}
             onChange={(event) => dispatch({ type: "text", text: event.target.value })}
             spellCheck={false}
             rows={12}
-            placeholder={dataPlaceholder(state.format)}
+            placeholder={translator ? translator.placeholder : dataPlaceholder(state.format)}
           />
           <label className="generate-file">
             Upload a file
@@ -86,7 +141,8 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, styleCont
               }}
             />
           </label>
-          {state.format === "cdp" || state.format === "lldp" || state.format === "network" ? (
+          {translator ? <NetworkOptions state={state} dispatch={dispatch} /> : null}
+          {!translator && (state.format === "cdp" || state.format === "lldp" || state.format === "network") ? (
             <label htmlFor="generate-local-device">
               Local device name
               <input
@@ -101,8 +157,8 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, styleCont
               />
             </label>
           ) : null}
-          {state.format === "network" ? <NetworkOptions state={state} dispatch={dispatch} /> : null}
-          {state.format === "cdp" || state.format === "lldp" || state.format === "network" ? null : (
+          {!translator && state.format === "network" ? <NetworkOptions state={state} dispatch={dispatch} /> : null}
+          {translator || state.format === "cdp" || state.format === "lldp" || state.format === "network" ? null : (
             <>
               <label htmlFor="generate-edges">Edges file, if the first file is only nodes</label>
               <textarea
@@ -116,8 +172,8 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, styleCont
             </>
           )}
           <div className="generate-actions">
-            <button type="button" className="btn btn-primary" disabled={!canInspect(state) || busy} onClick={() => onInspect("map")}>
-              {busy ? "Reading…" : "Continue"}
+            <button type="button" className="btn btn-primary" disabled={!canInspect(state) || busy || converting} onClick={continueFromData}>
+              {busy || converting ? "Reading…" : "Continue"}
             </button>
           </div>
         </div>
@@ -350,6 +406,56 @@ function NetworkOptions({ state, dispatch }: { state: WizardState; dispatch: Dis
         </label>
       )}
     </>
+  );
+}
+
+function readDismissed(id: string): boolean {
+  try {
+    return localStorage.getItem(noticeStorageKey(id)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function DataNotice({ translator }: { translator: TranslatorChoice }) {
+  const [dismissedId, setDismissedId] = useState("");
+  if (readDismissed(translator.id) || dismissedId === translator.id) return null;
+  const source = translator.name;
+  return (
+    <aside className="data-notice" role="note">
+      <div className="data-notice-title">
+        <svg className="data-notice-icon" viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M10 9.2v5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="10" cy="6.2" r="0.9" fill="currentColor" />
+        </svg>
+        <strong>Your diagram reflects your data</strong>
+      </div>
+      <p>
+        NerdGram draws exactly what this {source} export describes. Devices or links the source doesn't know about won't
+        appear. For a fuller topology, enrich the data in {source} first, for example by adding LLDP or CDP links to a
+        Batfish snapshot.
+      </p>
+      <div className="data-notice-actions">
+        <a href={translatorDocsHref(source)} target="_blank" rel="noopener noreferrer">
+          Translator tips
+        </a>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => {
+            try {
+              localStorage.setItem(noticeStorageKey(translator.id), "1");
+            } catch {
+              // Dismissal still applies for this view when storage is blocked.
+            }
+            setDismissedId(translator.id);
+          }}
+        >
+          Don't show again
+        </button>
+      </div>
+    </aside>
   );
 }
 

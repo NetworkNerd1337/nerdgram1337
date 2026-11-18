@@ -36,6 +36,8 @@ export type BuiltEdge = {
   source: string;
   target: string;
   label: string;
+  /** Drawn as a dashed Mermaid edge when true. */
+  dashed?: boolean;
 };
 
 type DeviceRecord = NetworkDevice & { key: string };
@@ -91,7 +93,7 @@ export function buildNetwork(
   }
 
   if (options.view === "l3") {
-    const layer3 = buildLayer3(devices, interfaces, options, warnings);
+    const layer3 = buildLayer3(devices, interfaces, options, warnings, inferredPairs(document));
     return { nodes: layer3.nodes, edges: layer3.edges, errors, warnings };
   }
   const links = collectLinks(document, devices, interfaces, options, errors, warnings);
@@ -164,11 +166,31 @@ function indexInterfaces(
   return interfaces;
 }
 
+function pairKey(left: string, right: string): string {
+  const a = left.toLowerCase();
+  const b = right.toLowerCase();
+  return a < b ? `${a}\0${b}` : `${b}\0${a}`;
+}
+
+/** Device pairs whose links are all marked inferred. Pairs with any solid link are left out. */
+function inferredPairs(document: NetworkDocument): Set<string> {
+  const inferred = new Set<string>();
+  const solid = new Set<string>();
+  for (const link of document.links) {
+    const key = pairKey(link.a.device, link.b.device);
+    if (link.inferred) inferred.add(key);
+    else solid.add(key);
+  }
+  for (const key of solid) inferred.delete(key);
+  return inferred;
+}
+
 function buildLayer3(
   devices: Map<string, DeviceRecord>,
   interfaces: Map<string, IfaceRecord>,
   options: NetworkGenerateOptions,
   warnings: NetIssue[],
+  inferred: Set<string>,
 ): { nodes: BuiltNode[]; edges: BuiltEdge[] } {
   type Member = {
     deviceKey: string;
@@ -250,10 +272,12 @@ function buildLayer3(
     }
     if (pointToPoint) {
       const [left, right] = orderPair(sorted[0]!, sorted[1]!);
+      const dashed = inferred.has(pairKey(left.deviceKey, right.deviceKey));
       edges.push({
         source: left.deviceKey,
         target: right.deviceKey,
         label: p2pLabel(left, right, network),
+        ...(dashed ? { dashed: true } : {}),
       });
       touchVrf(vrfsByDevice, left.deviceKey, left.vrf);
       touchVrf(vrfsByDevice, right.deviceKey, right.vrf);
@@ -319,7 +343,13 @@ function buildLayer2(
     if (options.vlan != null && !bundleCarries(sorted, interfaces, options.vlan)) continue;
     const first = sorted[0];
     if (!first) continue;
-    edges.push({ source: first.a.deviceKey, target: first.b.deviceKey, label });
+    const dashed = sorted.every((member) => member.inferred);
+    edges.push({
+      source: first.a.deviceKey,
+      target: first.b.deviceKey,
+      label,
+      ...(dashed ? { dashed: true } : {}),
+    });
   }
 
   const nodes = deviceNodes(devices, new Map(), (device) => {
@@ -330,7 +360,7 @@ function buildLayer2(
   return { nodes, edges: sortEdges(edges), warnings };
 }
 
-type LinkEnd = { a: Endpoint; b: Endpoint; path: string; label: string };
+type LinkEnd = { a: Endpoint; b: Endpoint; path: string; label: string; inferred: boolean };
 
 function collectLinks(
   document: NetworkDocument,
@@ -369,7 +399,7 @@ function collectLinks(
       continue;
     }
     seen.add(id);
-    links.push({ a: left, b: right, path: item.path, label: item.link.label.trim() });
+    links.push({ a: left, b: right, path: item.path, label: item.link.label.trim(), inferred: item.link.inferred });
   }
   if (duplicates > 0) {
     warnings.push({
@@ -423,6 +453,7 @@ function appendNeighborLinks(
           a: { device: link.localDevice, interface: link.localPort },
           b: { device: link.remoteDevice, interface: link.remotePort },
           label: "",
+          inferred: false,
         },
         path: `/neighbors/${kind}`,
       });

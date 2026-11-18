@@ -11,6 +11,18 @@ A translator turns a saved export into canonical network JSON.
 - [Limits and warnings](#limits-and-warnings)
 - [NetBox](#netbox)
 - [LibreNMS](#librenms)
+- [Nautobot](#nautobot)
+- [SolarWinds Orion](#solarwinds-orion)
+- [Observium](#observium)
+- [Netdisco](#netdisco)
+- [Zabbix](#zabbix)
+- [Cisco Catalyst Center](#cisco-catalyst-center)
+- [Meraki Dashboard](#meraki-dashboard)
+- [Cisco pyATS](#cisco-pyats)
+- [PRTG](#prtg)
+- [Terraform](#terraform)
+- [Batfish](#batfish)
+- [Picker](#picker)
 - [Add a translator](#add-a-translator)
 
 A translator reads a file someone else already saved. It writes a `schemaVersion` 1 network document. NerdGram then draws that document with one upsert. The translator does not log in, store a token, poll, or call the source tool. It does not parse a vendor device config. NerdGram still has no accounts and still binds to `127.0.0.1` and `::1` unless Host is opened.
@@ -30,7 +42,7 @@ nerdgram generate --path Campus-L3.mmd --data campus.network.json --format netwo
 nerdgram generate --path Campus-L2.mmd --data campus.network.json --format network --view l2
 ```
 
-Omit the file, or pass `-`, to read stdin. Without `-o`, stdout is the document and nothing else. Warnings go to stderr. `-o` writes the document and prints the path. `--json` prints one object. With no `-o` that object has `source`, `document`, and `warnings`. With `-o` it has `source`, `output`, `warnings`, and `bytes`, and the file is still only the document. An unknown id, a file that is not JSON, and a file larger than 4 MiB exit 1. Warnings do not.
+Omit the file, or pass `-`, to read stdin. Without `-o`, stdout is the document and nothing else. Warnings go to stderr. `-o` writes the document and prints the path. `--json` prints one object. With no `-o` that object has `source`, `document`, and `warnings`. With `-o` it has `source`, `output`, `warnings`, and `bytes`, and the file is still only the document. An unknown id, a file that is not JSON or YAML, and a file larger than 4 MiB exit 1. Warnings do not. The API body stays JSON. YAML is for a file passed to `nerdgram convert`, such as a pyATS testbed.
 
 The samples are under [docs/samples/translators](samples/translators). `campus.json` is the full export. `devices-only.json` has no links. Both still convert.
 
@@ -130,6 +142,159 @@ The device name is `hostname`. `sysName` is used only when `hostname` is empty, 
 A remote that is not in the devices list, but has `remote_hostname` and `remote_port`, becomes a device and an interface with those names. `remote_platform` is that device's `platform`. A row with no usable remote is skipped and warned. A row with `active` `0`, `"0"`, `false`, or `"false"` is skipped. A pair that appears from both ends becomes one link. `ifVrf` of `0` is the default VRF and is omitted. A numeric `ifVrf` is an id, not a name, so `vrf` is left empty and warned. `protocol` and `remote_version` are ignored, with a warning.
 
 Samples: [campus.json](samples/translators/librenms/campus.json) and [devices-only.json](samples/translators/librenms/devices-only.json).
+
+## Nautobot
+
+Id `nautobot`. Display name Nautobot. This is its own module. It is not a flag on NetBox. The input is a saved REST export of devices, interfaces, cables, and optional address and VLAN lists. Each section is a `results` envelope or a raw array. `next` is not fetched. Object ids are UUIDs.
+
+`device.site` is `location.name`. An older export that still has `site` and no `location` uses `site.name` and warns. `device.model` is `device_type.model`. `device.platform` is `platform.name`. `device.role` is `role.name`. `device.managementIp` is the host half of `primary_ip4.address`, then `primary_ip.address`.
+
+Interface `speed` is treated as kilobits per second, the same unit NetBox documents. The Nautobot interface pages checked for this mapper did not restate that unit. 10000000 becomes `10G`. `enabled` true is `adminStatus` `up`. Mode `access`, `tagged`, and `tagged-all` follow the NetBox mapping. `q-in-q` is left empty and warned.
+
+Addresses come from `ip-address-to-interface` (or `ip-addresses`) when the address string is present on `ip_address.address` or `address`. A bare id is skipped and warned. The current IPAddressToInterface record nests `ip_address` and `interface`. A legacy `assigned_object` is accepted when the address is expanded.
+
+A cable becomes one link when each side is exactly one `dcim.interface`. The mapper accepts `terminations.a` / `terminations.b` (connector slots, including the Nautobot 3.2 shape), `termination_a` / `termination_b`, and `a_terminations` / `b_terminations`. Console, power, and circuit ends are ignored. A side with more than one interface is ignored.
+
+Samples: [campus.json](samples/translators/nautobot/campus.json) and [devices-only.json](samples/translators/nautobot/devices-only.json).
+
+## SolarWinds Orion
+
+Id `orion`. Display name SolarWinds Orion. The input is saved SWIS Query JSON. The response envelope is `{ "results": [ ... ] }`, which is what the [SWIS REST query](https://solarwinds.github.io/OrionSDK/docs/rest/) returns. A raw array is also accepted. Keys are `nodes`, `interfaces`, and `topology` (or `topologyConnections`).
+
+Run these in SWQL Studio, or `GET /SolarWinds/InformationService/v3/Json/Query`, and save the three result sets:
+
+```sql
+SELECT NodeID, Caption, DisplayName, IPAddress, MachineType, Vendor, Location
+FROM Orion.Nodes
+
+SELECT NodeID, InterfaceID, IfName, InterfaceName, Caption, Name, InterfaceCaption,
+       Alias, InterfaceAlias, Speed, InterfaceSpeed, AdminStatus, OperStatus
+FROM Orion.NPM.Interfaces
+
+SELECT SrcNodeID, SrcInterfaceID, DestNodeID, DestInterfaceID, SrcType, DestType, LayerType
+FROM Orion.TopologyConnections
+```
+
+`device.name` is `Caption`, or `DisplayName` when Caption is empty. `device.managementIp` is `IPAddress` (`IP_Address` and `IP` are the documented aliases). `device.model` is `MachineType`. `device.platform` is `Vendor`. `device.site` is `Location`. Those names are on the Orion.Nodes schema for 2024.4.
+
+Interface name prefers `IfName`, then `InterfaceName`, then `Caption`, `InterfaceCaption`, or `Name`. Description is `Alias` or `InterfaceAlias`. `Speed` and `InterfaceSpeed` are bits per second on the 2024.4 interface schema. `AdminStatus` 1 is Up and 2 is Down. `OperStatus` uses the same 1 and 2. Other documented values (Testing, Dormant, and the rest) are left empty and warned.
+
+A topology row becomes a link when both interface ids resolve. A row whose `SrcType` or `DestType` is `Orion.ShadowNodes` is skipped. NerdGram does not draw a mesh.
+
+Samples: [campus.json](samples/translators/orion/campus.json) and [devices-only.json](samples/translators/orion/devices-only.json).
+
+## Observium
+
+Id `observium`. Display name Observium. This is its own module. It is not a flag on LibreNMS. The official API is a Subscription Edition feature at `/api/v0/`. NerdGram only reads a file you already saved.
+
+The device example on the API page is an object keyed by id under `devices`, not only an array. Both shapes are accepted, and the same for `ports` and `neighbours`. `address` or `addresses` is optional.
+
+`device.name` is `hostname`, then `sysName`. `device.model` is `hardware`. `device.platform` is `os`. `device.site` is `location` or `location_text`. The device example truncates the object, so a management address is taken from `ip`, `ipv4_address`, or `address` only when that value is an IP. Those keys are not spelled out on the truncated example.
+
+Interface name prefers `ifName`, then `port_short_label`, then `ifDescr` or `port_label`. Description is `ifAlias`. `ifSpeed` is bits per second. `ifVlan` fills `accessVlan` when it is a VLAN id. Trunk sets are not guessed.
+
+Neighbour filters on the API page are `device_id`, `port_id`, `device_b`, `port_b`, `remote_port_id`, `protocol`, `platform`, `version`, and `active`. The page does not publish every row key, so `remote_hostname` and `remote_port` are also accepted. An inactive row is skipped. A remote name that is not in the device list becomes a placeholder. A pair seen from both ends is one link.
+
+Samples: [campus.json](samples/translators/observium/campus.json) and [devices-only.json](samples/translators/observium/devices-only.json).
+
+## Netdisco
+
+Id `netdisco`. Display name Netdisco. The input is a saved JSON bundle of devices, ports, and neighbors from `/api/v1/`. The wiki documents `GET /api/v1/object/device/{ip}` and `GET /api/v1/object/device/{ip}/nodes`. Neighbors are `GET /api/v1/object/device/{ip}/neighbors`, and ports are `GET /api/v1/object/device/{ip}/ports`. The public demo swagger did not load while this mapper was written, so the field names are the device and device_port columns the neighbor worker stores: `ip`, `dns`, `model`, `vendor`, `os`, `location`, `port`, `descr`, `speed`, `vlan`, `remote_ip`, `remote_port`, `remote_name`. A `nodes` section is a MAC or ARP table and is not turned into links.
+
+`device.name` is `dns`, then `name`, then the device IP. `device.managementIp` is `ip`. A neighbor that names a remote device that is not in the device list becomes a placeholder. A pair seen from both ends is one link. NerdGram does not call Netdisco.
+
+Samples: [campus.json](samples/translators/netdisco/campus.json) and [devices-only.json](samples/translators/netdisco/devices-only.json).
+
+## Zabbix
+
+Id `zabbix`. Display name Zabbix. The input is a saved `host.get` result, with `selectInterfaces` and `selectInventory`, or a wrapper with `hosts` and optional `maps`. The JSON-RPC envelope (`jsonrpc`, `result`, `id`) or the bare `result` is accepted.
+
+`device.name` is the visible `name` when it is set, otherwise the technical `host`. `device.managementIp` is the `ip` of the main interface, preferring SNMP (type 2) over the agent (type 1). Inventory `os`, `model`, `type`, and `location` (or `site_city`) map to platform, model, role, and site. Those names are on the host inventory field list.
+
+A Zabbix host interface is an agent, SNMP, IPMI, or JMX endpoint, not a switch port. The interface name is the type plus `ip` and `port`, for example `snmp 192.0.2.1:161`.
+
+Links come only from a bundled `map.get` document: `selements` whose `elementtype` is 0 (host), joined by `links` `selementid1` and `selementid2`. Host groups are not a mesh. If the file has no map, there are no links. The core host API is inventory, not CDP or LLDP.
+
+Samples: [campus.json](samples/translators/zabbix/campus.json) and [devices-only.json](samples/translators/zabbix/devices-only.json).
+
+## Cisco Catalyst Center
+
+Id `catalyst-center`. Display name Cisco Catalyst Center. The input is a saved topology export. `GET /dna/intent/api/v1/topology/physical-topology` returns `{ "response": { "nodes": [], "links": [] } }`. The inner `response`, or a `{ "nodes", "links" }` object, is accepted. The published guide shows `node.id`, `node.label`, `link.source`, `link.target`, `link.startPortName`, `link.endPortName`, and `link.linkStatus`. Links are one direction in the file, so the reverse edge is not invented.
+
+`device.name` is `label`. Interfaces are the port names on the links. `linkStatus` is the link `label` when it is set.
+
+A bundled `sites` list (`name`, and `id` when present) fills `device.site` when a node has `siteId`. The topology guide sample does not show `siteId`. It is used only when the saved node has it. A bundled `network-device` list can fill `managementIpAddress`, `platformId` (model), `softwareType` (platform), and `role`, joined on `id` or `hostname`. Those inventory names are the network-device fields operators export beside the topology. The topology guide itself does not define them. A node property that is not in this list is warned and dropped.
+
+Samples: [campus.json](samples/translators/catalyst-center/campus.json) and [nodes-only.json](samples/translators/catalyst-center/nodes-only.json).
+
+## Meraki Dashboard
+
+Id `meraki`. Display name Meraki Dashboard. The input is a saved `GET /organizations/{organizationId}/devices` list plus `GET /devices/{serial}/lldpCdp` payloads under `lldpCdp`, keyed by serial. NerdGram does not hold an API key and does not call `api.meraki.com`.
+
+`device.name` is `name`, or `serial` when the name is empty. `device.model` is `model`. `device.managementIp` is `lanIp`. `device.site` is a network `name` when a `networks` list is bundled and matches `networkId`. `networkId` alone is not used as a site name.
+
+`lldpCdp.ports` is an object keyed by local port. The published example's `sourcePort` does not match that key, so the key is the local interface. A port with `lldp` or `cdp` becomes one link. LLDP `systemName` and `portId` are preferred. CDP `deviceId` and `portId` are used when LLDP is absent. Both on the same port stay one link. A `systemName` that is not in the device list becomes a placeholder. A port with no neighbor object is not a link.
+
+Samples: [campus.json](samples/translators/meraki/campus.json) and [devices-only.json](samples/translators/meraki/devices-only.json).
+
+## Cisco pyATS
+
+Id `pyats`. Display name Cisco pyATS. The input is a saved testbed or Genie learn document. NerdGram does not run pyATS and does not connect to a device. The CLI accepts JSON or YAML. The page and `POST /api/v1/convert/pyats` take JSON.
+
+A testbed has `devices` keyed by hostname, with `os`, `type`, and `connections` (for example `connections.cli.ip`). That IP is `managementIp`. `os` is `platform`. `credentials` on the testbed or the device are ignored. They are not copied into the document, the warnings, or a log line. A testbed has no cables, so there are no links.
+
+Interface learn output is an `info` object keyed by interface name, under `learn.<device>.interface` or a top-level `info` with a `device` name. `enabled` true is `adminStatus` `up`. `oper_status` `up` or `down` is `operStatus`. `bandwidth` is treated as kilobits per second, which is the IOS bandwidth value Genie copies. The Genie docs checked for this mapper describe the field and not a second unit. `ipv4` is a map of CIDR to `{ ip, prefix_length }`. `vrf` `default` is omitted.
+
+LLDP and CDP learn output use `interfaces.<local>.port_id.<remote port>.neighbors.<remote device>`. A remote device that is not in the learn set becomes a placeholder. A testbed-only file does not invent those links.
+
+Samples: [testbed.json](samples/translators/pyats/testbed.json) and [learn.json](samples/translators/pyats/learn.json).
+
+## PRTG
+
+Id `prtg`. Display name PRTG. The input is a saved `/api/table.json` export. `content=devices` returns a `devices` array. Columns used here are `objid`, `group`, `device`, and `host`, which the table API lists. `device` is the name. `host` is `managementIp` when it is an address. `group` is `site`.
+
+PRTG does not publish a device-adjacency or cable export. Sensors are checks. A sensor becomes an interface only when the row has an `interface` or `port` column. A ping sensor does not become a switch port. Group membership is not a link. `links` are written only when the file already names both devices and ports. A devices-only file warns and draws no edges.
+
+Samples: [campus.json](samples/translators/prtg/campus.json) and [devices-only.json](samples/translators/prtg/devices-only.json).
+
+## Terraform
+
+Id `terraform`. Display name Terraform. The input is a saved `terraform show -json` document. NerdGram does not run Terraform and does not call a provider. It does not read HCL.
+
+A state uses `values.root_module`. A plan uses `planned_values` when that object is present, and `prior_state.values` only when `planned_values` is missing. `format_version` with a major version other than 1 is not mapped. The walker visits `root_module.resources` and every `child_modules` entry. `mode` `data` is skipped. `depends_on` is not a cable. An attribute marked in `sensitive_values` is dropped and is not written into the document or the warning text.
+
+Provider attribute names were not frozen to one vendor schema. The module maps these type names, and that table in `server/src/translators/terraform.ts` is how you add another type after you have checked that provider's docs:
+
+| Type | What it becomes |
+| --- | --- |
+| `network_device` | `name` or `hostname`, `management_ip`, `model`, `platform` or `os`, `role`, `site` or `location` |
+| `network_interface` | `device`, `name`, `description`, `enabled` or `shutdown`, `speed` in bits per second, `ipv4` |
+| `network_link` | `a_device`, `a_interface`, `b_device`, `b_interface`, optional `label` |
+| `network_vlan` | `vid` or `id`, `name` |
+
+Any other `type` is skipped and warned. A state that only has compute resources becomes an empty device list.
+
+Samples: [state.json](samples/translators/terraform/state.json), [plan.json](samples/translators/terraform/plan.json), and [empty.json](samples/translators/terraform/empty.json).
+
+## Batfish
+
+Id `batfish`. Display name Batfish. The input is saved question JSON. NerdGram does not run Batfish, does not parse a device config, and does not build a snapshot.
+
+Accepted shapes for a question are a records array (pandas `to_json(orient="records")`), a column-oriented object (`orient="columns"` or `"index"`), a split object (`columns` and `data`), or `answerElements[].rows`. Interface cells are `{ "hostname", "interface" }` or the string `hostname[interface]`.
+
+`interfaceProperties` fills interfaces. `Admin_Up` and `Active` are status. `All_Prefixes` and `Primary_Address` are addresses. `Bandwidth` is formatted as bits per second when the number is at least 1000000, and as kilobits per second otherwise. The notebooks show the column and not a single unit, and one saved row uses `100000` on a tunnel, which matches the IOS kilobit bandwidth. `layer3Edges` become links. `switchedVlanProperties` fills `vlans` from `VLAN_ID` and `Name` when that column is present.
+
+`layer1_topology` is the official `layer1_topology.json` object: `{ "edges": [ { "node1": { "hostname", "interfaceName" }, "node2": { "hostname", "interfaceName" } } ] }`. Put that file in the snapshot at `<snapshot>/batfish/layer1_topology.json` before you export the questions. NerdGram does not create it. A layer 3 edge with no matching layer 1 edge is `inferred: true`. The generator draws that as a dashed edge. A neighbor named on an edge and missing from the interface inventory is a placeholder device. A link that is not in the file is not created.
+
+To build `layer1_topology.json` upstream, export CDP or LLDP neighbors, write one edge per neighbor with `hostname` and `interfaceName` on `node1` and `node2`, and save that object under the name and folder above. Then init the snapshot and export `interfaceProperties`, `layer3Edges`, and `switchedVlanProperties`.
+
+Samples: [config-only.json](samples/translators/batfish/config-only.json) and [layer1.json](samples/translators/batfish/layer1.json).
+
+## Picker
+
+**From data** (`/generate`) lists the installed translators from `GET /api/translators`. That route needs no token. Adding or deleting a module file changes the list. The page does not keep its own copy of the ids. Paste and upload call `POST /api/convert/<source>`, the tokenless twin of `POST /api/v1/convert/<source>`, then the existing preview. Mapper warnings are on that preview before the diagram is saved. CSV, JSON, network JSON, CDP, and LLDP stay on the same screen. There is no new sidebar entry.
+
+When a translator is selected, a note above the input says the diagram reflects that export. **Don't show again** stores that choice for that translator in this browser and nothing else. **Translator tips** opens this page at that translator's section. The note follows Light, Dark, and Match system.
 
 ## Add a translator
 

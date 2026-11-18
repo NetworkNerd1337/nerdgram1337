@@ -1,0 +1,21 @@
+{
+  "networks": [{ "id": "N_1", "name": "HQ" }],
+  "devices": [
+    { "serial": "Q2XX-CORE-0001", "name": "core-sw", "model": "MS250-24", "networkId": "N_1", "lanIp": "192.0.2.1", "firmware": "ms-15" },
+    { "serial": "Q2XX-DIST-0002", "name": "dist-sw", "model": "MS250-48", "networkId": "N_1", "lanIp": "192.0.2.2" }
+  ],
+  "lldpCdp": {
+    "Q2XX-CORE-0001": {
+      "sourceMac": "00:11:22:33:44:55",
+      "ports": {
+        "10": {
+          "lldp": { "systemName": "dist-sw", "portId": "24", "sourcePort": "9" },
+          "cdp": { "deviceId": "dist-sw", "portId": "24", "sourcePort": "8", "platform": "MS250" }
+        },
+        "11": {
+          "lldp": { "systemName": "unknown-ap", "portId": "eth0", "sourcePort": "11" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "interfaceProperties": [
+    {
+      "Interface": { "hostname": "core-rtr", "interface": "GigabitEthernet0/0/0" },
+      "Admin_Up": true,
+      "Active": true,
+      "All_Prefixes": ["10.1.0.1/30"],
+      "Primary_Address": "10.1.0.1/30",
+      "Description": "to dist",
+      "VRF": "default",
+      "Bandwidth": 10000000000
+    },
+    {
+      "Interface": "dist-sw[GigabitEthernet1/0/1]",
+      "Admin_Up": true,
+      "Active": true,
+      "All_Prefixes": ["10.1.0.2/30"],
+      "Primary_Address": "10.1.0.2/30",
+      "VRF": "default"
+    }
+  ],
+  "layer3Edges": [
+    {
+      "Interface": { "hostname": "core-rtr", "interface": "GigabitEthernet0/0/0" },
+      "IPs": ["10.1.0.1"],
+      "Remote_Interface": { "hostname": "dist-sw", "interface": "GigabitEthernet1/0/1" },
+      "Remote_IPs": ["10.1.0.2"]
+    }
+  ]
+}

@@ -31,7 +31,7 @@ The number on a file names the meanings of the fields in that file. Version 1 is
 
 Leave the number at 1 when older files still validate without edits, and every field those files already use still means the same thing.
 
-Add the new optional field to [network.schema.json](network.schema.json) and to `validateNetwork()` in the same change. A file that omits the field is still valid version 1. `device.model`, `device.diagram`, `interface.speed`, and a link `label` are this kind of field.
+Add the new optional field to [network.schema.json](network.schema.json) and to `validateNetwork()` in the same change. A file that omits the field is still valid version 1. `device.model`, `device.diagram`, `interface.speed`, a link `label`, and a link `inferred` flag are this kind of field. `inferred` true draws a dashed edge. Omitted and false keep the solid edge.
 
 A new allowed value on a field that already exists stays on 1 when older files never have to send it, and the values they already send still mean what they mean today. The `$id` stays the version-1 route.
 

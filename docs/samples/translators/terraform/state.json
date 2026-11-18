@@ -1,0 +1,83 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.8",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "network_device.core",
+          "mode": "managed",
+          "type": "network_device",
+          "name": "core",
+          "provider_name": "registry.terraform.io/example/network",
+          "values": {
+            "name": "core-rtr",
+            "management_ip": "192.0.2.1",
+            "model": "ISR4451",
+            "platform": "iosxe",
+            "role": "core",
+            "site": "hq",
+            "password": "s3cret-state"
+          },
+          "sensitive_values": { "password": true }
+        },
+        {
+          "address": "aws_instance.web",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web",
+          "values": { "ami": "ami-123", "instance_type": "t3.micro" }
+        },
+        {
+          "address": "data.network_device.lookup",
+          "mode": "data",
+          "type": "network_device",
+          "name": "lookup",
+          "values": { "name": "should-not-appear" }
+        }
+      ],
+      "child_modules": [
+        {
+          "address": "module.edge",
+          "resources": [
+            {
+              "address": "module.edge.network_interface.uplink",
+              "mode": "managed",
+              "type": "network_interface",
+              "name": "uplink",
+              "values": { "device": "core-rtr", "name": "Gi0/0/0", "description": "to dist", "ipv4": "10.1.0.1/30", "speed": 10000000000 }
+            },
+            {
+              "address": "module.edge.network_device.dist",
+              "mode": "managed",
+              "type": "network_device",
+              "name": "dist",
+              "values": { "hostname": "dist-sw", "site": "hq" }
+            },
+            {
+              "address": "module.edge.network_link.uplink",
+              "mode": "managed",
+              "type": "network_link",
+              "name": "uplink",
+              "depends_on": ["network_device.core"],
+              "values": {
+                "a_device": "core-rtr",
+                "a_interface": "Gi0/0/0",
+                "b_device": "dist-sw",
+                "b_interface": "Gi1/0/1",
+                "label": "uplink"
+              }
+            },
+            {
+              "address": "module.edge.network_vlan.users",
+              "mode": "managed",
+              "type": "network_vlan",
+              "name": "users",
+              "values": { "vid": 10, "name": "users" }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

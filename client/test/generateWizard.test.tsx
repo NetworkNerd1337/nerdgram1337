@@ -5,6 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { GenerateWizard } from "../src/components/GenerateWizard";
+import { applyAppearance } from "../src/lib/appearance";
 import {
   canCreate,
   diagramFilePath,
@@ -327,6 +328,162 @@ describe("generate wizard flow", () => {
     },
     30_000,
   );
+});
+
+describe("translator picker", () => {
+  let root: Root | null = null;
+
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+    document.body.innerHTML = "";
+    localStorage.clear();
+    document.documentElement.dataset.theme = "";
+    document.documentElement.dataset.appearance = "";
+  });
+
+  const installed = [
+    { id: "nautobot", name: "Nautobot", formatHint: "Saved Nautobot REST export", placeholder: "{\n  \"devices\": []\n}" },
+    { id: "orion", name: "SolarWinds Orion", formatHint: "Saved SWIS Query JSON", placeholder: "{\n  \"nodes\": []\n}" },
+  ];
+
+  function harness(translators = installed) {
+    let state = initialWizardState("");
+    const converted: string[] = [];
+    const created: string[] = [];
+    const dispatch = (action: Parameters<typeof wizardReducer>[1]) => {
+      state = wizardReducer(state, action);
+    };
+    function render() {
+      act(() => {
+        if (!root) {
+          const host = document.createElement("div");
+          document.body.appendChild(host);
+          root = createRoot(host);
+        }
+        root?.render(
+          <GenerateWizard
+            state={state}
+            dispatch={dispatch}
+            busy={false}
+            translators={translators}
+            onConvert={async (id, text) => {
+              converted.push(`${id}:${text}`);
+              return {
+                documentText: JSON.stringify({
+                  schemaVersion: 1,
+                  format: "network",
+                  devices: [{ name: "core-rtr" }],
+                  interfaces: [],
+                  links: [],
+                  vlans: [],
+                }),
+                mapperWarnings: [{ path: "/cables", message: "No cables in this export." }],
+              };
+            }}
+            onInspect={(step, patch) => {
+              const warnings = (patch?.mapperWarnings ?? []).map((warning) => ({ ...warning, row: 0 }));
+              dispatch({
+                type: "result",
+                step,
+                result: {
+                  ...inspection({ ...state, text: patch?.documentText ?? state.text, format: "network" }, step),
+                  warnings,
+                },
+              });
+            }}
+            onCreate={() => created.push("create")}
+          />,
+        );
+      });
+    }
+    return { get state() { return state; }, render, converted, created };
+  }
+
+  it("lists installed modules and drops one when it is removed, with no client list of ids", () => {
+    const page = harness();
+    page.render();
+    const options = [...document.querySelectorAll<HTMLOptionElement>("#generate-format option")].map((item) => item.textContent);
+    expect(options).toContain("Nautobot");
+    expect(options).toContain("SolarWinds Orion");
+    expect(options).toContain("CSV");
+    act(() => root?.unmount());
+    root = null;
+    document.body.innerHTML = "";
+    const smaller = harness(installed.slice(0, 1));
+    smaller.render();
+    const next = [...document.querySelectorAll<HTMLOptionElement>("#generate-format option")].map((item) => item.textContent);
+    expect(next).toContain("Nautobot");
+    expect(next).not.toContain("SolarWinds Orion");
+    expect(next).toContain("Network data (JSON)");
+  });
+
+  it("converts paste and upload, and shows mapper warnings before save", async () => {
+    const page = harness();
+    page.render();
+    setValue(document.querySelector<HTMLSelectElement>("#generate-format")!, "translator:nautobot");
+    page.render();
+    expect(document.body.textContent).toContain("Your diagram reflects your data");
+    expect(document.body.textContent).toContain("this Nautobot export");
+    expect(document.querySelector("a")?.textContent).toContain("Translator tips");
+    setValue(document.querySelector<HTMLTextAreaElement>("#generate-data")!, "{\"devices\":[]}");
+    page.render();
+    await act(async () => {
+      (document.querySelector("button.btn-primary") as HTMLButtonElement).click();
+    });
+    page.render();
+    expect(page.converted).toEqual(["nautobot:{\"devices\":[]}"]);
+    expect(document.body.textContent).toContain("No cables in this export.");
+    expect(page.created).toEqual([]);
+  });
+
+  it("converts an uploaded file through the same convert callback", async () => {
+    const page = harness();
+    page.render();
+    setValue(document.querySelector<HTMLSelectElement>("#generate-format")!, "translator:orion");
+    page.render();
+    const upload = new File(["{\"nodes\":[]}"], "edge.json", { type: "application/json" });
+    const input = document.querySelector<HTMLInputElement>("input[type=file]")!;
+    Object.defineProperty(input, "files", { configurable: true, value: [upload] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    page.render();
+    await act(async () => {
+      (document.querySelector("button.btn-primary") as HTMLButtonElement).click();
+    });
+    page.render();
+    expect(page.converted[0]).toContain("orion:");
+    expect(page.converted[0]).toContain("nodes");
+    expect(page.created).toEqual([]);
+    expect(document.body.textContent).toContain("No cables in this export.");
+  });
+
+  it("dismisses the callout per translator in light, dark, and system appearance", () => {
+    const page = harness();
+    for (const theme of ["light", "dark", "system"] as const) {
+      applyAppearance(theme, theme === "system" ? true : theme === "dark");
+      page.render();
+      setValue(document.querySelector<HTMLSelectElement>("#generate-format")!, "translator:nautobot");
+      page.render();
+      const notice = document.querySelector(".data-notice");
+      expect(notice?.textContent).toContain("Your diagram reflects your data");
+      expect(notice?.textContent).toContain("Nautobot");
+      expect(document.documentElement.dataset.theme).toBe(theme === "system" ? "dark" : theme);
+    }
+    (document.querySelector(".data-notice button") as HTMLButtonElement).click();
+    page.render();
+    expect(document.querySelector(".data-notice")).toBeNull();
+    expect(localStorage.getItem("nerdgram.generate.notice.nautobot")).toBe("1");
+    setValue(document.querySelector<HTMLSelectElement>("#generate-format")!, "translator:orion");
+    page.render();
+    expect(document.querySelector(".data-notice")?.textContent).toContain("SolarWinds Orion");
+    expect(localStorage.getItem("nerdgram.generate.notice.orion")).toBeNull();
+    setValue(document.querySelector<HTMLSelectElement>("#generate-format")!, "translator:nautobot");
+    page.render();
+    expect(document.querySelector(".data-notice")).toBeNull();
+  });
 });
 
 function setValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string) {

@@ -192,12 +192,52 @@ export function blankInterface(device: string, name: string, extra: Partial<Netw
   };
 }
 
-export function blankLink(aDevice: string, aInterface: string, bDevice: string, bInterface: string, label = ""): NetworkLink {
+export function blankLink(
+  aDevice: string,
+  aInterface: string,
+  bDevice: string,
+  bInterface: string,
+  label = "",
+  inferred = false,
+): NetworkLink {
   return {
     a: { device: aDevice, interface: aInterface },
     b: { device: bDevice, interface: bInterface },
     label,
+    inferred,
   };
+}
+
+/** Add a device when the export names it and the inventory list does not. Returns the stored name. */
+export function ensureDevice(devices: NetworkDevice[], name: string, extra: Partial<NetworkDevice> = {}): string {
+  const trimmed = name.trim();
+  const found = devices.find((device) => device.name.toLowerCase() === trimmed.toLowerCase());
+  if (found) return found.name;
+  devices.push(blankDevice(trimmed, extra));
+  return trimmed;
+}
+
+/** Make sure both ends of every link exist as interface rows. */
+export function ensureLinkEnds(devices: NetworkDevice[], interfaces: NetworkInterface[], links: NetworkLink[]): void {
+  const known = new Set(devices.map((device) => device.name.toLowerCase()));
+  for (const link of links) {
+    for (const end of [link.a, link.b]) {
+      if (!known.has(end.device.toLowerCase())) continue;
+      ensureInterface(interfaces, end.device, end.interface);
+    }
+  }
+}
+
+/** Add an interface row when a link names a port that the export did not list. */
+export function ensureInterface(
+  interfaces: NetworkInterface[],
+  device: string,
+  name: string,
+  extra: Partial<NetworkInterface> = {},
+): void {
+  if (!device || !name) return;
+  if (interfaces.some((item) => item.device.toLowerCase() === device.toLowerCase() && item.name === name)) return;
+  interfaces.push(blankInterface(device, name, extra));
 }
 
 function cmp(a: string, b: string): number {
@@ -250,6 +290,7 @@ function publishLink(link: NetworkLink): CanonicalLink {
     b: { device: link.b.device, interface: link.b.interface },
   };
   if (link.label) out.label = link.label;
+  if (link.inferred) out.inferred = true;
   return out;
 }
 
@@ -291,15 +332,20 @@ export function linkKey(link: NetworkLink): string {
 }
 
 export function dedupeLinks(links: NetworkLink[]): NetworkLink[] {
-  const seen = new Set<string>();
+  const seen = new Map<string, number>();
   const out: NetworkLink[] = [];
   for (const link of links) {
     if (!link.a.device || !link.a.interface || !link.b.device || !link.b.interface) continue;
     if (link.a.device.toLowerCase() === link.b.device.toLowerCase() && link.a.interface === link.b.interface) continue;
     const key = linkKey(link);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(link);
+    const index = seen.get(key);
+    if (index == null) {
+      seen.set(key, out.length);
+      out.push(link);
+      continue;
+    }
+    const kept = out[index];
+    if (kept?.inferred && !link.inferred) out[index] = link;
   }
   return out;
 }

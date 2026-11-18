@@ -33,10 +33,24 @@ export type WizardInspection = {
   grouping: boolean;
 };
 
+export type MapperWarning = { path: string; message: string };
+
+export type TranslatorChoice = {
+  id: string;
+  name: string;
+  formatHint: string;
+  placeholder: string;
+};
+
 export type WizardState = {
   step: WizardStep;
   text: string;
   fileName: string;
+  /** Installed translator id. Empty for CSV, JSON, network JSON, CDP, and LLDP. */
+  translatorId: string;
+  /** Canonical network JSON from the last convert. Empty until convert succeeds. */
+  documentText: string;
+  mapperWarnings: MapperWarning[];
   edgesText: string;
   edgesFileName: string;
   format: WizardFormat;
@@ -68,6 +82,8 @@ export type WizardAction =
   | { type: "text"; text: string; fileName?: string }
   | { type: "edges"; text: string; fileName?: string }
   | { type: "format"; format: WizardState["format"] }
+  | { type: "translator"; id: string }
+  | { type: "translatorResult"; documentText: string; mapperWarnings: MapperWarning[] }
   | { type: "localDevice"; localDevice: string }
   | { type: "groupBy"; groupBy: WizardGroupBy }
   | { type: "view"; view: NetworkView }
@@ -88,6 +104,9 @@ export function initialWizardState(folder = ""): WizardState {
     step: "input",
     text: "",
     fileName: "",
+    translatorId: "",
+    documentText: "",
+    mapperWarnings: [],
     edgesText: "",
     edgesFileName: "",
     format: "auto",
@@ -127,6 +146,8 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
         ...state,
         text: action.text,
         fileName: action.fileName ?? state.fileName,
+        documentText: "",
+        mapperWarnings: [],
         format,
         groupBy: guessed ? groupForFormat({ ...state, format }, guessed) : state.groupBy,
         diagramName: action.fileName && untouched && stem ? stem : state.diagramName,
@@ -142,7 +163,30 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
         fatal: null,
       };
     case "format":
-      return { ...state, format: action.format, groupBy: groupForFormat(state, action.format), fatal: null };
+      return {
+        ...state,
+        format: action.format,
+        translatorId: "",
+        documentText: "",
+        mapperWarnings: [],
+        groupBy: groupForFormat(state, action.format),
+        fatal: null,
+      };
+    case "translator":
+      return {
+        ...state,
+        translatorId: action.id,
+        documentText: "",
+        mapperWarnings: [],
+        fatal: null,
+      };
+    case "translatorResult":
+      return {
+        ...state,
+        documentText: action.documentText,
+        mapperWarnings: action.mapperWarnings,
+        fatal: null,
+      };
     case "localDevice":
       return { ...state, localDevice: action.localDevice, fatal: null };
     case "groupBy":
@@ -277,11 +321,12 @@ export function previewRequest(state: WizardState): {
   title: string;
   sourceFile: string;
 } {
+  const translated = Boolean(state.translatorId && state.documentText);
   const network = isNetworkSource(state);
   const vlan = network && state.view === "l2" && /^\d+$/.test(state.vlan.trim()) ? Number(state.vlan.trim()) : undefined;
   return {
-    text: state.text,
-    format: state.format,
+    text: translated ? state.documentText : state.text,
+    format: translated ? "network" : state.format,
     shape: isNeighborSource(state) || network ? "links" : state.shape,
     mapping: state.mapping,
     edgesText: isNeighborSource(state) || network || !state.edgesText.trim() ? undefined : state.edgesText,
@@ -299,12 +344,14 @@ export function previewRequest(state: WizardState): {
 }
 
 export function isNeighborSource(state: WizardState): boolean {
+  if (state.translatorId) return false;
   if (state.format === "cdp" || state.format === "lldp") return true;
   if (state.format === "auto") return state.detectedFormat === "cdp" || state.detectedFormat === "lldp";
   return false;
 }
 
 export function isNetworkSource(state: WizardState): boolean {
+  if (state.translatorId) return true;
   if (state.format === "network") return true;
   if (state.format === "auto") return state.detectedFormat === "network";
   return false;
@@ -314,7 +361,24 @@ export function diagramFilePath(state: WizardState): string {
   return joinPath(state.folder.trim(), ensureMmd(state.diagramName));
 }
 
+export function noticeStorageKey(id: string): string {
+  return `nerdgram.generate.notice.${id}`;
+}
+
+export function translatorDocsHref(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/translators.md#${slug}`;
+}
+
 export function dataFilePath(state: WizardState): string {
+  if (state.translatorId) {
+    const stem = (state.diagramName.trim() || "data").replace(/\.mmd$/i, "");
+    return joinPath(state.folder.trim(), `${stem}.network.json`);
+  }
   const selected = state.format === "auto" ? state.detectedFormat : state.format;
   const ext =
     selected === "network"

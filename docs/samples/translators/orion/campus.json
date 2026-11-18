@@ -1,0 +1,22 @@
+{
+  "nodes": {
+    "results": [
+      { "NodeID": 1, "Caption": "core-rtr", "IPAddress": "192.0.2.1", "MachineType": "ISR4451", "Vendor": "Cisco", "Location": "hq", "Uri": "swis://orion/Orion/Orion.Nodes/NodeID=1" },
+      { "NodeID": 2, "DisplayName": "dist-sw", "Caption": "", "IPAddress": "192.0.2.2", "Vendor": "Cisco" },
+      { "NodeID": 9, "Caption": "shadow-core", "IPAddress": "192.0.2.9" }
+    ]
+  },
+  "interfaces": {
+    "results": [
+      { "NodeID": 1, "InterfaceID": 11, "IfName": "Gi0/0/0", "Alias": "to dist", "Speed": 10000000000, "AdminStatus": 1, "OperStatus": 1 },
+      { "NodeID": 2, "InterfaceID": 21, "InterfaceName": "Gi1/0/1", "InterfaceSpeed": 1000000000, "AdminStatus": 2, "OperStatus": 2 },
+      { "NodeID": 9, "InterfaceID": 91, "Caption": "shadow0", "AdminStatus": 1, "OperStatus": 1 }
+    ]
+  },
+  "topology": {
+    "results": [
+      { "SrcNodeID": 1, "SrcInterfaceID": 11, "DestNodeID": 2, "DestInterfaceID": 21, "SrcType": "Orion.Nodes", "DestType": "Orion.Nodes", "LayerType": 2 },
+      { "SrcNodeID": 1, "SrcInterfaceID": 11, "DestNodeID": 9, "DestInterfaceID": 91, "SrcType": "Orion.Nodes", "DestType": "Orion.ShadowNodes" }
+    ]
+  }
+}

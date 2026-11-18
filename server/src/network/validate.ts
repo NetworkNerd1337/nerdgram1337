@@ -29,7 +29,7 @@ const INTERFACE_FIELDS = new Set([
   "lag",
 ]);
 const ADDRESS_FIELDS = new Set(["address", "prefix"]);
-const LINK_FIELDS = new Set(["a", "b", "label"]);
+const LINK_FIELDS = new Set(["a", "b", "label", "inferred"]);
 const ENDPOINT_FIELDS = new Set(["device", "interface"]);
 const VLAN_FIELDS = new Set(["id", "name"]);
 const ROOT_FIELDS = new Set(["schemaVersion", "format", "devices", "interfaces", "links", "vlans", "neighbors"]);
@@ -245,10 +245,16 @@ function readLinks(value: unknown, issues: SchemaIssue[]): NetworkLink[] | null 
       ok = false;
       return;
     }
+    const inferred = optionalFlag(item.inferred, `${path}/inferred`, "inferred", issues);
+    if (inferred == null) {
+      ok = false;
+      return;
+    }
     links.push({
       a,
       b,
       label: optionalString(item.label, `${path}/label`, "label", issues),
+      inferred,
     });
   });
   return ok ? links : null;
@@ -369,6 +375,13 @@ function childDiagram(value: unknown, path: string, issues: SchemaIssue[]): stri
     return null;
   }
   return resolved.path;
+}
+
+function optionalFlag(value: unknown, path: string, label: string, issues: SchemaIssue[]): boolean | null {
+  if (value == null) return false;
+  if (typeof value === "boolean") return value;
+  issues.push({ path, message: `${label} must be a boolean.` });
+  return null;
 }
 
 function optionalString(value: unknown, path: string, label: string, issues: SchemaIssue[]): string {

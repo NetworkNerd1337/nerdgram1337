@@ -405,7 +405,7 @@ describe("optional network fields", () => {
     expect(Object.keys(schema.$defs.interface.properties)).toEqual(
       expect.arrayContaining(["speed", "description"]),
     );
-    expect(Object.keys(schema.$defs.link.properties).sort()).toEqual(["a", "b", "label"]);
+    expect(Object.keys(schema.$defs.link.properties).sort()).toEqual(["a", "b", "inferred", "label"]);
 
     const campus = extractGenerated(importDiagramData({ text: sampleText, format: "network", view: "l2" }).mermaid) ?? "";
     expect(campus).not.toContain("click ");

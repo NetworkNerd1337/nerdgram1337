@@ -40,12 +40,23 @@ describe("convert API", () => {
     const listed = await request(server).get("/api/v1/translators").set(json).set("Authorization", `Bearer ${read}`);
     expect(listed.status).toBe(200);
     const ids = (listed.body.translators as { id: string; name: string; formatHint: string; placeholder: string }[]).map((item) => item.id);
-    expect(ids).toEqual(["librenms", "netbox"]);
+    const installed = (await loadTranslators()).map((item) => item.id);
+    expect(ids).toEqual(installed);
+    expect(ids).toContain("netbox");
+    expect(ids).toContain("librenms");
     for (const item of listed.body.translators as { formatHint: string; placeholder: string; name: string }[]) {
       expect(item.name).toBeTruthy();
       expect(item.formatHint).toBeTruthy();
       expect(item.placeholder).toContain("{");
     }
+
+    const browserConvert = await request(server)
+      .post("/api/convert/netbox")
+      .set(json)
+      .send(translatorFixture("netbox", "devices-only.json"));
+    expect(browserConvert.status).toBe(200);
+    expect(browserConvert.body.source).toBe("netbox");
+    expect(browserConvert.body.document.links).toEqual([]);
 
     const browser = await request(server).get("/api/translators").set("Host", HOST);
     expect(browser.status).toBe(200);
@@ -115,6 +126,6 @@ describe("convert API", () => {
       paths: Record<string, { post?: { parameters?: { name: string; schema?: { enum?: string[] } }[] } }>;
     };
     const parameter = spec.paths["/api/v1/convert/{source}"]?.post?.parameters?.find((item) => item.name === "source");
-    expect(parameter?.schema?.enum).toEqual(["librenms", "netbox"]);
+    expect(parameter?.schema?.enum).toEqual((await loadTranslators()).map((item) => item.id));
   });
 });
