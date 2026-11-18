@@ -19,7 +19,7 @@ Guides for installing NerdGram1337, using it, and working on it.
 - [Data and backups](data-and-backups.md). By default, diagrams live in `diagrams/` inside the project.
 - [Upgrading](upgrading.md). Stop the app before you replace it.
 - [Versioning and releases](releases.md). Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix.
-- [Roadmap](roadmap.md). Planned work after v1.5.0, on the Compass half of the 1.x line, with future ideas at the end that are not committed.
+- [Roadmap](roadmap.md). Planned work after v1.5.1, on the Compass half of the 1.x line, with future ideas at the end that are not committed.
 - [Troubleshooting](troubleshooting.md). If the API port is taken, the server exits and prints the listen error.
 - [Developing](developing.md). The project folders, the npm scripts, and what CI runs.
 
