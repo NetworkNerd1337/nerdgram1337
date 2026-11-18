@@ -104,6 +104,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Diagram checks](docs/features.md#diagram-checks).** The code pane checks the diagram while you type. Mute warnings for one diagram from the editor. Errors stay. A link to a subgraph id is not reported as a typo.
 - **[Linked diagrams](docs/features.md#linked-diagrams).** A node can open another diagram.
 - **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, or network JSON file can build the diagram.
+- **[Translators](docs/translators.md).** `nerdgram convert` turns a saved NetBox or LibreNMS export into network JSON. It does not log in or call out.
 - **[Thumbnails, find, and shortcuts](docs/features.md#thumbnails-find-and-shortcuts).** Dashboard cards keep a thumbnail of each diagram.
 - **[Search](docs/features.md#search).** The sidebar search box matches file names and paths, titles, tags, descriptions, notes, and the visible text in a diagram: node and edge labels, subgraph titles, sequence messages, and similar labels.
 - **[Presentation](docs/features.md#presentation).** **Present** shows the diagram on its own, using the theme, look, and layout stored in the file.
@@ -120,6 +121,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Install](docs/install.md).** Run NerdGram with Docker, or with Node.js on the machine.
 - **[Features](docs/features.md).** The dashboard lists folders and diagrams in a tree, with search and grid or list view.
 - **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, or network JSON file can build the diagram.
+- **[Translators](docs/translators.md).** A saved NetBox or LibreNMS export becomes network JSON. The command does not log in.
 - **[Schema compatibility](docs/schema/README.md).** Network JSON stays on schemaVersion 1 when a change only adds optional fields, and moves to 2 when a field's meaning changes.
 - **[GitHub sync](docs/github-sync.md).** GitHub sync is optional.
 - **[Configuration](docs/configuration.md).** Set a variable in the same terminal before `npm run dev` or `npm start`, so the process inherits it.

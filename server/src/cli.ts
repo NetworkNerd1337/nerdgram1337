@@ -7,7 +7,8 @@ import type { RenderFormat } from "./renderDiagram.js";
 
 /**
  * `nerdgram` talks to a local NerdGram server, except `render` and `lint`
- * of a file that is already on disk. Those run in this process.
+ * of a file that is already on disk, and `convert` of a saved export.
+ * Those run in this process.
  *
  * NERDGRAM_URL defaults to http://127.0.0.1:8787. NERDGRAM_TOKEN is the
  * automation token from Settings. Flags win over the environment.
@@ -17,6 +18,8 @@ type Io = {
   stdout: (chunk: string) => void;
   stderr: (chunk: string) => void;
   env: NodeJS.ProcessEnv;
+  /** When set, `convert` reads this instead of stdin. */
+  stdin?: string;
 };
 
 type Parsed = {
@@ -69,13 +72,15 @@ Usage
   nerdgram generate --path Diagram.mmd --data neighbors.lldp --format lldp --local-device edge-sw
   nerdgram generate --path Campus-L3.mmd --data campus.network.json --format network --view l3
   nerdgram generate --path Campus-L2.mmd --data campus.network.json --format network --view l2 --group-by site
+  nerdgram convert <source> [file] [-o out.network.json]
   nerdgram refresh <path> [--data data.csv]
   nerdgram diff <path> --from <id|name|current> [--to <id|name|current>] [--format md|json|svg]
   nerdgram baseline <path> --name "…" [--note "…"] [--id <revision>]
   nerdgram replace <find> <replace> [--folder path] [--regex] [--whole-word] [--match-case] [--front-matter] [--no-recursive] [--dry-run] [--yes]
   nerdgram replace --undo <id>
 
-A local .mmd file is rendered and linted in this process. Anything else uses
+A local .mmd file is rendered and linted in this process. convert reads a
+saved export and writes canonical network JSON in this process. Anything else uses
 NERDGRAM_URL (default http://127.0.0.1:8787) and NERDGRAM_TOKEN.
 --url and --token override those. --server forces render to use a workspace
 path on the API, not a file on this computer. Exit status is 1 on errors.
@@ -886,11 +891,55 @@ async function refreshCommand(parsed: Parsed, io: Io): Promise<void> {
   writeOut(io, isJson(parsed.flags), body, `Refreshed ${body.path}`);
 }
 
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function convertCommand(parsed: Parsed, io: Io): Promise<void> {
+  const translators = await import("./translators/index.js");
+  const source = parsed.positionals[0] ?? "";
+  if (!source) {
+    const installed = await translators.installedTranslators();
+    const ids = installed.map((item) => item.id).join(", ") || "(none)";
+    throw new CliError(`Usage: nerdgram convert <source> [file] [-o out.network.json]\nInstalled translators: ${ids}`);
+  }
+  const file = parsed.positionals[1];
+  let text: string;
+  if (file && file !== "-") text = await fs.readFile(file, "utf8");
+  else if (io.stdin != null) text = io.stdin;
+  else if (process.stdin.isTTY) throw new CliError("convert needs a file or stdin.");
+  else text = await readStdin();
+  translators.assertConvertInputSize(Buffer.byteLength(text));
+  const converted = await translators.convertExport(source, translators.parseExport(text));
+  const pretty = `${JSON.stringify(converted.document, null, 2)}\n`;
+  const output = flagString(parsed.flags, "output");
+  if (output) await fs.writeFile(output, pretty, "utf8");
+  const warningLines = converted.warnings.map((item) => (item.path ? `${item.path}: ${item.message}` : item.message));
+  if (!isJson(parsed.flags) && warningLines.length > 0) io.stderr(`${warningLines.join("\n")}\n`);
+  if (isJson(parsed.flags)) {
+    const payload = output
+      ? { source: converted.source, output, warnings: converted.warnings, bytes: Buffer.byteLength(pretty) }
+      : { source: converted.source, document: converted.document, warnings: converted.warnings };
+    writeOut(io, true, payload, "");
+    return;
+  }
+  if (output) {
+    io.stdout(`Wrote ${output}\n`);
+    return;
+  }
+  io.stdout(pretty);
+}
+
 export async function main(argv: string[], io: Partial<Io> = {}): Promise<number> {
   const streams: Io = {
     stdout: io.stdout ?? ((chunk) => process.stdout.write(chunk)),
     stderr: io.stderr ?? ((chunk) => process.stderr.write(chunk)),
     env: io.env ?? process.env,
+    stdin: io.stdin,
   };
   let parsed: Parsed;
   try {
@@ -947,6 +996,9 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
         return 0;
       case "generate":
         await generateCommand(parsed, streams);
+        return 0;
+      case "convert":
+        await convertCommand(parsed, streams);
         return 0;
       case "refresh":
         await refreshCommand(parsed, streams);

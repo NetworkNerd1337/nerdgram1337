@@ -21,6 +21,7 @@ import * as historyApi from "./historyApi.js";
 import { applyReplace, previewReplace, undoReplace } from "./replace.js";
 import { httpFail } from "./storage.js";
 import { authenticateToken, bearerValue, type AuthenticatedToken } from "./tokens.js";
+import { installedTranslators, loadTranslators, prepareConvert } from "./translators/index.js";
 
 export type MountV1Options = {
   renderRate?: RateLimit;
@@ -150,9 +151,10 @@ const MAX_EXPORT_CHARS = 8_000_000;
 export function mountAutomationApi(app: Express, options: MountV1Options = {}): void {
   const limiter = createRateLimiter(options.renderRate ?? defaultRenderRate());
   const handlers: Record<string, RequestHandler> = {
-    getOpenApi: (_req, res) => {
+    getOpenApi: asyncHandler(async (_req, res) => {
+      await loadTranslators();
       res.json(buildOpenApiSpec());
-    },
+    }),
     getNetworkSchema: (req, res) => {
       sendSchema(req, res, NETWORK_SCHEMA_FILE, "network");
     },
@@ -349,6 +351,29 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
         format: readFormat(req.body.format),
         background: optionalString(req.body.background, "background"),
       });
+    }),
+    listTranslators: asyncHandler(async (_req, res) => {
+      res.json({ translators: await installedTranslators() });
+    }),
+    convertSource: asyncHandler(async (req, res) => {
+      if (!jsonObject(req, res)) return;
+      const token = (req as AuthedRequest).apiToken;
+      const header = req.header("content-length");
+      const declared = header && /^\d+$/.test(header) ? Number(header) : 0;
+      const actual = Buffer.byteLength(JSON.stringify(req.body ?? null));
+      const prepared = await prepareConvert({
+        source: String(req.params.source ?? ""),
+        body: req.body,
+        query: req.query as Record<string, unknown>,
+        bytes: Math.max(declared, actual),
+        canWrite: token?.scope === "read-write",
+      });
+      if (!prepared.upsert) {
+        res.json(prepared.body);
+        return;
+      }
+      const saved = await upsertGeneratedDiagram(prepared.upsert);
+      res.status(saved.created ? 201 : 200).json({ ...prepared.body, upsert: saved });
     }),
     previewGenerate: asyncHandler(async (req, res) => {
       if (!jsonObject(req, res)) return;

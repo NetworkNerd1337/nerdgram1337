@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- `nerdgram convert <source>` and `POST /api/v1/convert/<source>` turn a saved export into canonical network JSON. Each translator is one file under `server/src/translators/` and is discovered from that directory. NetBox and LibreNMS are the first two. They store no credentials and make no outbound calls. `GET /api/v1/translators` lists the installed modules (from #165, #166).
 
 ## 1.6.1 "Galileo" - 2026-11-18
 

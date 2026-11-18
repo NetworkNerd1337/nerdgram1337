@@ -379,9 +379,47 @@ export const RESPONSE_SCHEMAS: Record<string, Record<string, unknown>> = {
     },
     required: ["id", "restored", "skipped", "errors"],
   },
+  listTranslators: {
+    type: "object",
+    properties: {
+      translators: { type: "array", items: { $ref: "#/components/schemas/TranslatorDescriptor" } },
+    },
+    required: ["translators"],
+  },
+  convertSource: {
+    type: "object",
+    properties: {
+      source: { type: "string" },
+      document: { $ref: "#/components/schemas/NetworkDocument" },
+      warnings: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            path: { type: "string" },
+            message: { type: "string" },
+          },
+          required: ["path", "message"],
+        },
+      },
+      upsert: { type: "object", description: "Present when path and view upserted the document." },
+    },
+    required: ["source", "document", "warnings"],
+  },
 };
 
 export const SHARED_SCHEMAS: Record<string, unknown> = {
+  TranslatorDescriptor: {
+    type: "object",
+    description: "One installed translator. id is the convert path segment. name, formatHint, and placeholder are for a picker.",
+    properties: {
+      id: { type: "string" },
+      name: { type: "string" },
+      formatHint: { type: "string" },
+      placeholder: { type: "string" },
+    },
+    required: ["id", "name", "formatHint", "placeholder"],
+  },
   LinkRepairPlan: {
     type: "object",
     properties: {

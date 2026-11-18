@@ -12,7 +12,7 @@
 - [Command to route map](#command-to-route-map)
 - [Continuous integration](#continuous-integration)
 
-`nerdgram` is the command-line client for NerdGram1337. The npm package name is `nerdgram1337`. The command it installs is `nerdgram`. This page is the install and the commands you run against a server that is already up. `nerdgram` is the client for that API. It talks to a NerdGram server on this machine, or on another machine that can reach the tool port. `lint` and `render` of a `.mmd` file that is already on disk do not need the server. `generate` and `refresh` follow the [one-call model](api.md#one-call-builds-the-whole-diagram): each call sends the complete data, and the path is the id. Every command and the route it calls is in [Command to route map](#command-to-route-map).
+`nerdgram` is the command-line client for NerdGram1337. The npm package name is `nerdgram1337`. The command it installs is `nerdgram`. This page is the install and the commands you run against a server that is already up. `nerdgram` is the client for that API. It talks to a NerdGram server on this machine, or on another machine that can reach the tool port. `lint` and `render` of a `.mmd` file that is already on disk do not need the server. `convert` of a saved export does not need the server either. `generate` and `refresh` follow the [one-call model](api.md#one-call-builds-the-whole-diagram): each call sends the complete data, and the path is the id. Every command and the route it calls is in [Command to route map](#command-to-route-map).
 
 ## Install
 
@@ -78,6 +78,8 @@ nerdgram generate --path Core.mmd --data docs/samples/neighbors/cisco-ios-lldp.l
 nerdgram generate --path Edge.mmd --data docs/samples/neighbors/lldpd.json --format lldp --local-device edge
 nerdgram generate --path Campus-L3.mmd --data docs/samples/network/campus.network.json --format network --view l3
 nerdgram generate --path Campus-L2.mmd --data docs/samples/network/campus.network.json --format network --view l2 --group-by site
+nerdgram convert netbox docs/samples/translators/netbox/campus.json -o campus.network.json
+nerdgram convert librenms docs/samples/translators/librenms/campus.json -o campus.network.json
 nerdgram refresh Campus.mmd
 nerdgram diff Campus.mmd --from "Baseline - pre-change" --to current --format md
 nerdgram diff Campus.mmd --from "Baseline - pre-change" --format svg -o campus-diff.svg
@@ -90,7 +92,7 @@ nerdgram render Welcome.mmd -o Welcome.svg
 nerdgram render Welcome.mmd -o Welcome.png
 ```
 
-`render` writes `.svg` or `.png`. Another extension stops with `The output file must end in .svg or .png.` `--server` posts that format to the API, which accepts `svg` or `png` only. `jpg` and `pdf` are browser exports. `render` and `lint` of a `.mmd` file on disk do not need a server. `--server` sends `render` to the API instead. A file with the line `%% nerdgram: warnings=muted`, after any YAML front matter, omits warnings from `lint`. Errors are still reported, and `--strict` still exits 1 for a warning on a diagram that is not muted. `nerdgram lint Welcome.mmd` is a workspace path: it needs a running server and `NERDGRAM_TOKEN` unless a file named `Welcome.mmd` is already in the current directory. In a checkout the sample is `diagrams/Welcome.mmd`, and `nerdgram lint diagrams/Welcome.mmd` (or `node server/dist/cli.js lint diagrams/Welcome.mmd` after `npm run build`) does not need a server. `lint` exits `1` when a diagnostic is an error. `--strict` also exits `1` for warnings.
+`render` writes `.svg` or `.png`. Another extension stops with `The output file must end in .svg or .png.` `--server` posts that format to the API, which accepts `svg` or `png` only. `jpg` and `pdf` are browser exports. `render` and `lint` of a `.mmd` file on disk do not need a server. `convert` does not need a server. `--server` sends `render` to the API instead. A file with the line `%% nerdgram: warnings=muted`, after any YAML front matter, omits warnings from `lint`. Errors are still reported, and `--strict` still exits 1 for a warning on a diagram that is not muted. `nerdgram lint Welcome.mmd` is a workspace path: it needs a running server and `NERDGRAM_TOKEN` unless a file named `Welcome.mmd` is already in the current directory. In a checkout the sample is `diagrams/Welcome.mmd`, and `nerdgram lint diagrams/Welcome.mmd` (or `node server/dist/cli.js lint diagrams/Welcome.mmd` after `npm run build`) does not need a server. `lint` exits `1` when a diagnostic is an error. `--strict` also exits `1` for warnings.
 
 `rename`, `move`, `duplicate`, and `delete` need the server and a read-write token. `rename` and `move` also move a sibling CSV, JSON, network JSON, CDP, or LLDP file and update `nerdgram.source`. `duplicate --copy-data` copies that file onto the new diagram. `duplicate --share-data` keeps both diagrams on the original file. `delete --with-data` moves the file to the trash with the diagram. `delete --keep-data` leaves it in the workspace. When a data file is present and the flag is omitted, `duplicate` and `delete` stop and list the file.
 
@@ -102,7 +104,17 @@ nerdgram render Welcome.mmd -o Welcome.png
 
 `nerdgram replace <find> <replace> [--folder path] [--regex] [--whole-word] [--match-case] [--front-matter] [--no-recursive] [--dry-run] [--yes]` previews a replace across diagrams. The default prints the preview and writes nothing. `--dry-run` is that default. `--yes` applies the preview, skipping a diagram that would not parse, a diagram open in an editor, and a file that changed after the preview. Each saved diagram gets a revision first. `--folder` limits the scope. `--no-recursive` does not enter subfolders. The body is searched unless `--front-matter` is set. Hidden files, `.meta`, trash, and templates are not changed. `nerdgram replace --undo <id>` restores that operation and skips a file edited since. Preview is `POST /api/v1/replace/preview` and needs a read token. Apply is `POST /api/v1/replace/apply` and undo is `POST /api/v1/replace/undo`. Both need a read-write token. The same three paths exist under `/api`. Mutating calls need `Content-Type: application/json`.
 
-The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. Every command other than offline `lint` and `render` needs the server and a token.
+The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. `convert` is run from the repository root when the sample path is `docs/samples`, and it does not need the server or a token. Every command other than offline `lint`, `render`, and `convert` needs the server and a token.
+
+### Convert an export
+
+`nerdgram convert <source> [file] [-o out.network.json]` reads a saved export and writes canonical network JSON. `<source>` is a translator id. `nerdgram convert` with no source prints the installed ids. Omit the file, or pass `-`, to read stdin. `-o` writes the document to that file. Without `-o`, the document is the only thing on stdout, so it can be piped. Warnings go to stderr. `--json` prints one object with `source`, `document`, and `warnings` when there is no `-o`. With `-o`, `--json` prints `source`, `output`, `warnings`, and `bytes`, and the file is the document. The file is valid network JSON. An unknown source, a file that is not JSON, and a file larger than 4 MiB exit 1. The command does not log in and does not call out. The same mapping is `POST /api/v1/convert/<source>`. Field tables are in [Translators](translators.md).
+
+```bash
+nerdgram convert netbox docs/samples/translators/netbox/campus.json -o campus.network.json
+nerdgram convert librenms docs/samples/translators/librenms/devices-only.json
+nerdgram generate --path Campus-L3.mmd --data campus.network.json --format network --view l3
+```
 
 ### One call builds the whole diagram
 
@@ -119,7 +131,7 @@ The default URL is loopback. Point `NERDGRAM_URL` at another machine only when t
 
 ### Command to route map
 
-Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` means the route has no command. Offline `lint` and `render` of a `.mmd` file on disk do not call the API. `lint` of a workspace path uses the GET route. `render --server` uses the POST route.
+Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` means the route has no command. Offline `lint` and `render` of a `.mmd` file on disk do not call the API. Offline `convert` does not call the API. `lint` of a workspace path uses the GET route. `render --server` uses the POST route.
 
 <!-- cli-route-map -->
 | Command | Route |
@@ -148,6 +160,9 @@ Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` mea
 | `nerdgram generate` | `POST /api/v1/generate/upsert` |
 | `nerdgram generate --create-only` | `POST /api/v1/generate` |
 | `nerdgram refresh` | `POST /api/v1/generate/refresh` |
+| `nerdgram convert` | none |
+| none | `GET /api/v1/translators` |
+| none | `POST /api/v1/convert/{source}` |
 | none | `GET /api/v1/history` |
 | `nerdgram diff` | `GET /api/v1/history/diff` |
 | `nerdgram baseline` | `POST /api/v1/history/baseline` |
