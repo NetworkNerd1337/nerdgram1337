@@ -85,8 +85,14 @@ describe("changelog notes", () => {
     expect(longer.stderr).toMatch(/no section for 1\.0\.5/);
   });
 
-  it("refuses an unmapped half and a heading that names the wrong code name", () => {
-    const unmapped = notes(["--title", "v2.0.0"], "## 2.0.0 - 2026-12-01\n\nNext line.\n");
+  it("titles 2.0 through 2.4 Meridian and refuses the unmapped 2.5 half", () => {
+    const meridian = notes(["--title", "v2.0.0"], '## 2.0.0 "Meridian" - 2026-12-01\n\nNext line.\n');
+    expect(meridian.code).toBe(0);
+    expect(meridian.stdout).toBe('v2.0.0 "Meridian"\n');
+    const still = notes(["--title", "v2.4.9"], '## 2.4.9 "Meridian" - 2026-12-01\n\nStill that half.\n');
+    expect(still.code).toBe(0);
+    expect(still.stdout).toBe('v2.4.9 "Meridian"\n');
+    const unmapped = notes(["--title", "v2.5.0"], "## 2.5.0 - 2026-12-01\n\nNext line.\n");
     expect(unmapped.code).toBe(2);
     expect(unmapped.stderr).toMatch(/no entry/);
     const wrong = notes(["--title", "v1.0.5"], '## 1.0.5 "Wrong" - 2026-11-13\n\nBody.\n');

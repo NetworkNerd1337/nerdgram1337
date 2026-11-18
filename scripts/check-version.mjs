@@ -221,7 +221,7 @@ function assertReadmeVersions(markdown, version, label = "README.md") {
   }
   if (bad.size > 0) {
     console.error(`${label} version examples must match package.json ${version}, or use the vX.Y.Z placeholder.`);
-    console.error("Prose may also name v1.0.5, v1.0.6, and v2.0.0.");
+    console.error("Prose may also name v1.0.5, v1.0.6, and v2.0.0 (Meridian).");
     for (const item of bad) console.error(`  ${item}`);
     process.exit(1);
   }
