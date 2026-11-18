@@ -6,7 +6,8 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- Flowchart node labels keep inner padding in the preview, in presentation, and in SVG and PNG exports when a line is a long address such as `2001:db8::1/128`, in the light and dark themes. A label with a line break still shows every line. Edge-label padding is unchanged (from #144).
+- `nerdgram render --json` reports a status when a render fails. An SVG that would not parse exits 1 with `"status": 500` and the error, the same failure `POST /api/v1/render` returns as **500**. A failure with no HTTP status uses `"status": "error"` (from #143, #142).
 
 ## 1.5.0 "Compass" - 2026-11-17
 

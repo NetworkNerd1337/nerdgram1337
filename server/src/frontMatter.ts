@@ -581,6 +581,26 @@ export function diagramInitConfig(
   return init;
 }
 
+/**
+ * Mermaid wraps flowchart labels at 120px. A longer line that cannot break,
+ * such as `Lo0 2001:db8::1/128`, is still drawn at full width, so the glyphs
+ * sit on the node border. A wider limit lets Mermaid size the node to that
+ * line and keep the same inner padding as a short label. Explicit line breaks
+ * stay. A file that sets `flowchart.wrappingWidth` keeps its own value.
+ * Edge labels do not use this width.
+ */
+export const NODE_LABEL_WRAP_WIDTH = 480;
+
+export function withNodeLabelRoom(config: Record<string, unknown>): Record<string, unknown> {
+  const current = config.flowchart;
+  const block =
+    current && typeof current === "object" && !Array.isArray(current)
+      ? { ...(current as Record<string, unknown>) }
+      : {};
+  if (block.wrappingWidth != null) return config;
+  return { ...config, flowchart: { ...block, wrappingWidth: NODE_LABEL_WRAP_WIDTH } };
+}
+
 function newlineOf(source: string): "\n" | "\r\n" {
   return source.includes("\r\n") ? "\r\n" : "\n";
 }

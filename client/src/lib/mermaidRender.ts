@@ -1,7 +1,7 @@
 import mermaid from "mermaid";
 import { padEdgeLabelSvg } from "../../../server/src/edgeLabelPadding.ts";
 import { withSvgTextLabels } from "./exportSvg";
-import { diagramInitConfig, FALLBACK_THEME } from "./frontMatter";
+import { diagramInitConfig, FALLBACK_THEME, withNodeLabelRoom } from "./frontMatter";
 
 let renderSeq = 0;
 let chain: Promise<unknown> = Promise.resolve();
@@ -28,7 +28,7 @@ function padRenderedSvg(svg: string): string {
 }
 
 function initializeFor(code: string, fallbackTheme: string): void {
-  const config = diagramInitConfig(code, fallbackTheme);
+  const config = withNodeLabelRoom(diagramInitConfig(code, fallbackTheme));
   mermaid.initialize(config as Parameters<typeof mermaid.initialize>[0]);
 }
 
@@ -83,7 +83,7 @@ export async function renderForExport(
   return enqueue(async () => {
     const trimmed = code.trim();
     if (!trimmed) throw new Error("Nothing to export yet.");
-    const config = withSvgTextLabels(diagramInitConfig(trimmed, fallbackTheme));
+    const config = withSvgTextLabels(withNodeLabelRoom(diagramInitConfig(trimmed, fallbackTheme)));
     mermaid.initialize(config as Parameters<typeof mermaid.initialize>[0]);
     const id = `nerdgram-export-${++renderSeq}`;
     try {
