@@ -95,13 +95,15 @@ node --input-type=module -e '
 import { readFileSync } from "node:fs";
 const health = JSON.parse(process.env.HEALTH);
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-const major = String(pkg.version).split(".")[0];
+const parts = String(pkg.version).split(".");
+const half = Number(parts[1]) < 5 ? "0" : "5";
+const key = parts[0] + "." + half;
 if (health.ok !== true) throw new Error("health ok");
 if (health.installKind !== "docker") throw new Error("installKind " + health.installKind);
 if (health.dataDir !== "/data") throw new Error("dataDir " + health.dataDir);
 if (health.name !== "NerdGram1337") throw new Error("name");
 if (health.version !== pkg.version) throw new Error("version " + health.version);
-if (health.codename !== pkg.codenames[major]) throw new Error("codename " + health.codename);
+if (health.codename !== pkg.codenames[key]) throw new Error("codename " + health.codename);
 const expected = process.env.NERDGRAM_EXPECT_COMMIT || "";
 if (expected && health.commit !== expected) throw new Error("commit " + health.commit);
 '
