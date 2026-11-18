@@ -8,6 +8,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 _No unreleased items._
 
+## 1.8.6 "Meridian" - 2026-11-18
+
+Patch on the Meridian line. The code name stays Meridian.
+
+- The roadmap ends with one Future ideas section. That section adds network snapshot diff, failure what-if, and design rules as code (from #182). The See also list at the end of the roadmap is removed.
+
 ## 1.8.5 "Meridian" - 2026-11-18
 
 Milestone release. The code name for 1.8.y is Meridian. 1.7.y stays Navigator. This release includes the 1.8.0 export framework and the 1.8.5 export targets. There was no separate 1.8.0 release.
