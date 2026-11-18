@@ -104,7 +104,7 @@ nerdgram render Welcome.mmd -o Welcome.png
 
 `nerdgram replace <find> <replace> [--folder path] [--regex] [--whole-word] [--match-case] [--front-matter] [--no-recursive] [--dry-run] [--yes]` previews a replace across diagrams. The default prints the preview and writes nothing. `--dry-run` is that default. `--yes` applies the preview, skipping a diagram that would not parse, a diagram open in an editor, and a file that changed after the preview. Each saved diagram gets a revision first. `--folder` limits the scope. `--no-recursive` does not enter subfolders. The body is searched unless `--front-matter` is set. Hidden files, `.meta`, trash, and templates are not changed. `nerdgram replace --undo <id>` restores that operation and skips a file edited since. Preview is `POST /api/v1/replace/preview` and needs a read token. Apply is `POST /api/v1/replace/apply` and undo is `POST /api/v1/replace/undo`. Both need a read-write token. The same three paths exist under `/api`. Mutating calls need `Content-Type: application/json`.
 
-The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. `convert` is run from the repository root when the sample path is `docs/samples`, and it does not need the server or a token. Every command other than offline `lint`, `render`, and `convert` needs the server and a token.
+The `generate` lines that pass `docs/samples` are run from the repository root, and they need the server and token. `convert` is run from the repository root when the sample path is `docs/samples`, and it does not need the server or a token. `export <target>` is the same: it reads a file on this computer and does not need the server. `export <folder>` still needs the server. Every command other than offline `lint`, `render`, `convert`, and design `export` needs the server and a token.
 
 ### Convert an export
 
@@ -114,6 +114,15 @@ The `generate` lines that pass `docs/samples` are run from the repository root, 
 nerdgram convert netbox docs/samples/translators/netbox/campus.json -o campus.network.json
 nerdgram convert librenms docs/samples/translators/librenms/devices-only.json
 nerdgram generate --path Campus-L3.mmd --data campus.network.json --format network --view l3
+```
+
+### Export a design
+
+`nerdgram export <target> <diagram.mmd|file.network.json> [-o file]` writes a file for another tool. `<target>` is an exporter id. `nerdgram export` with no arguments prints both usage forms and the installed ids. A diagram needs a sibling `.network.json`. `-o` writes the file. Several files, such as a Nornir inventory, need `-o` to be a directory. Without `-o`, one file is the only thing on stdout. Warnings go to stderr. `--map file.yml` overrides the built-in mapping table. The command does not log in. `nerdgram export <folder> -o dir/` is still the folder export and still needs the server. Field tables are in [Design exports](exports.md).
+
+```bash
+nerdgram export pyats docs/samples/network/campus.network.json -o campus.yml
+nerdgram export containerlab docs/samples/network/campus.network.json -o campus.clab.yml
 ```
 
 ### One call builds the whole diagram
@@ -150,6 +159,9 @@ Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` mea
 | `nerdgram delete` | `DELETE /api/v1/diagrams` |
 | none | `POST /api/v1/folders` |
 | `nerdgram export` | `GET /api/v1/export` |
+| `nerdgram export <target>` | none |
+| none | `GET /api/v1/exporters` |
+| none | `POST /api/v1/export/{target}` |
 | `nerdgram repair-links` | `GET /api/v1/link-repairs` |
 | `nerdgram repair-links --apply` | `POST /api/v1/link-repairs` |
 | `nerdgram lint` | `GET /api/v1/lint` |

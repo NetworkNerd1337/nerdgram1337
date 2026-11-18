@@ -39,6 +39,7 @@ vi.mock("../src/api", async () => {
       pollLock,
       writeFile,
       takeoverLock,
+      listExporters: vi.fn(async () => ({ exporters: [] })),
     },
   };
 });

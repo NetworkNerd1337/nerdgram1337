@@ -105,6 +105,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Linked diagrams](docs/features.md#linked-diagrams).** A node can open another diagram.
 - **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, or network JSON file can build the diagram.
 - **[Translators](docs/translators.md).** `nerdgram convert` turns a saved export into network JSON. It does not log in or call out.
+- **[Design exports](docs/exports.md).** **Export as** can write a pyATS testbed, a containerlab or CML or GNS3 or EVE-NG lab, or an Ansible or Nornir inventory. Passwords and images are placeholders. NerdGram does not connect.
 - **[Thumbnails, find, and shortcuts](docs/features.md#thumbnails-find-and-shortcuts).** Dashboard cards keep a thumbnail of each diagram.
 - **[Search](docs/features.md#search).** The sidebar search box matches file names and paths, titles, tags, descriptions, notes, and the visible text in a diagram: node and edge labels, subgraph titles, sequence messages, and similar labels.
 - **[Presentation](docs/features.md#presentation).** **Present** shows the diagram on its own, using the theme, look, and layout stored in the file.
@@ -122,6 +123,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Features](docs/features.md).** The dashboard lists folders and diagrams in a tree, with search and grid or list view.
 - **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, or network JSON file can build the diagram.
 - **[Translators](docs/translators.md).** A saved export becomes network JSON. The command does not log in.
+- **[Design exports](docs/exports.md).** A diagram and its network JSON can be written as a pyATS testbed, a lab file, or an inventory. Credentials are placeholders.
 - **[Schema compatibility](docs/schema/README.md).** Network JSON stays on schemaVersion 1 when a change only adds optional fields, and moves to 2 when a field's meaning changes.
 - **[GitHub sync](docs/github-sync.md).** GitHub sync is optional.
 - **[Configuration](docs/configuration.md).** Set a variable in the same terminal before `npm run dev` or `npm start`, so the process inherits it.

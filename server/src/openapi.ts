@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { jsonSuccess, REQUEST_EXAMPLES, RESPONSE_SCHEMAS, SHARED_SCHEMAS } from "./openapiShapes.js";
 import { graphOpenApiSchemas, networkOpenApiSchemas } from "./publishedSchemas.js";
 import { loadedTranslatorIds } from "./translators/registry.js";
+import { loadedExporterIds } from "./exporters/registry.js";
 
 const require = createRequire(import.meta.url);
 const serverPackage = require("../package.json") as { version: string };
@@ -135,6 +136,23 @@ export const V1_ROUTES: readonly V1Route[] = [
     operationId: "exportDiagrams",
     summary: "Read every diagram under a folder.",
     tag: "Diagrams",
+  },
+  {
+    method: "get",
+    path: "/exporters",
+    scope: "read",
+    operationId: "listExporters",
+    summary: "List installed design exporters. Each entry has an id, a display name, an extension, a MIME type, and a description.",
+    tag: "Exporters",
+  },
+  {
+    method: "post",
+    path: "/export/:target",
+    scope: "read",
+    operationId: "exportTarget",
+    summary:
+      "Write a design-export file from canonical network JSON. target is an exporter id. The body is the document, or input, or a workspace path. Credentials in the result are placeholders. Nothing is contacted.",
+    tag: "Exporters",
   },
   {
     method: "get",
@@ -569,6 +587,17 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
         },
         [],
       );
+    case "exportTarget":
+      return jsonBody(
+        "The network document, or a wrapper. input is the document. path loads a workspace diagram or a .network.json file. mapping is optional rows or a mapping document. The body is at most 512 KB.",
+        {
+          input: { description: "Canonical network document. Use this, or send the document as the body." },
+          path: { type: "string", description: "Workspace path of a .mmd diagram or a .network.json file." },
+          label: { type: "string", description: "Name used in the file. Defaults to the diagram stem, or nerdgram." },
+          mapping: { description: "Optional mapping rows for this target, or a document keyed by exporter id." },
+        },
+        [],
+      );
     default:
       return undefined;
   }
@@ -607,6 +636,15 @@ function operationParameters(operationId: string): Record<string, unknown>[] {
       };
       if (ids.length > 0) schema.enum = ids;
       return [{ name: "source", in: "path", required: true, schema }];
+    }
+    case "exportTarget": {
+      const ids = loadedExporterIds();
+      const schema: Record<string, unknown> = {
+        type: "string",
+        description: "Exporter id. GET /api/v1/exporters lists the installed ids.",
+      };
+      if (ids.length > 0) schema.enum = ids;
+      return [{ name: "target", in: "path", required: true, schema }];
     }
     case "diffHistory":
       return [
@@ -661,6 +699,16 @@ export function buildOpenApiSpec(): Record<string, unknown> {
       };
       responses["413"] = {
         description: "The export is larger than 4 MiB.",
+        content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+      };
+    }
+    if (route.operationId === "exportTarget") {
+      responses["404"] = {
+        description: "Unknown exporter id.",
+        content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+      };
+      responses["413"] = {
+        description: "The network document is larger than 512 KB, or it has too many devices or links.",
         content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
       };
     }
@@ -720,6 +768,7 @@ export function buildOpenApiSpec(): Record<string, unknown> {
       { name: "Render" },
       { name: "Generate" },
       { name: "Translators" },
+      { name: "Exporters" },
       { name: "History" },
       { name: "Replace" },
     ],

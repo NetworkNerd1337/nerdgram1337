@@ -70,3 +70,8 @@ export function expandAncestors(collapsed: Set<string>, path: string): Set<strin
 export function collapseAllFolders(nodes: TreeNode[], activePath: string): Set<string> {
   return expandAncestors(new Set(foldersWithSubfolders(nodes)), activePath);
 }
+
+/** Open every folder. The empty set is what gets stored. */
+export function expandAllFolders(): Set<string> {
+  return new Set();
+}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import type { DragPayload } from "../lib/drag";
 import {
   collapseAllFolders,
+  expandAllFolders,
   expandAncestors,
   hasSubfolders,
   readCollapsedFolders,
@@ -35,18 +36,38 @@ export function FolderTree({
   }, [collapsed]);
 
   const nested = nodes.some((node) => node.type === "folder" && hasSubfolders(node));
+  const expandDisabled = collapsed.size === 0;
+  const fullyCollapsed = collapseAllFolders(nodes, currentPath);
+  const collapseDisabled = fullyCollapsed.size === collapsed.size && [...fullyCollapsed].every((path) => collapsed.has(path));
 
   return (
     <div className="tree">
       {nested ? (
         <div className="tree-toolbar">
-          <button
-            type="button"
-            className="tree-collapse-all"
-            onClick={() => setStored(collapseAllFolders(nodes, currentPath))}
-          >
-            Collapse all
-          </button>
+          <div className="tree-fold-control" role="group" aria-label="Folder tree">
+            <button
+              type="button"
+              className="tree-fold-button"
+              aria-disabled={expandDisabled}
+              onClick={() => {
+                if (expandDisabled) return;
+                setStored(expandAllFolders());
+              }}
+            >
+              Expand all
+            </button>
+            <button
+              type="button"
+              className="tree-fold-button"
+              aria-disabled={collapseDisabled}
+              onClick={() => {
+                if (collapseDisabled) return;
+                setStored(collapseAllFolders(nodes, currentPath));
+              }}
+            >
+              Collapse all
+            </button>
+          </div>
         </div>
       ) : null}
       <FolderLevel

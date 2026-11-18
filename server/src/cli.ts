@@ -7,8 +7,8 @@ import type { RenderFormat } from "./renderDiagram.js";
 
 /**
  * `nerdgram` talks to a local NerdGram server, except `render` and `lint`
- * of a file that is already on disk, and `convert` of a saved export.
- * Those run in this process.
+ * of a file that is already on disk, `convert` of a saved export, and
+ * `export <target>` of a network document. Those run in this process.
  *
  * NERDGRAM_URL defaults to http://127.0.0.1:8787. NERDGRAM_TOKEN is the
  * automation token from Settings. Flags win over the environment.
@@ -61,6 +61,7 @@ Usage
   nerdgram search <query>
   nerdgram get <path> [-o file]
   nerdgram put <path> <file>
+  nerdgram export <target> <diagram|network.json> [-o file]
   nerdgram export <folder> -o dir/
   nerdgram lint [path|file] [--strict]
   nerdgram rename <from> <to>
@@ -80,7 +81,9 @@ Usage
   nerdgram replace --undo <id>
 
 A local .mmd file is rendered and linted in this process. convert reads a
-saved export and writes canonical network JSON in this process. Anything else uses
+saved export and writes canonical network JSON in this process. export of a
+registered target reads network JSON in this process. export of a folder
+talks to the server. Anything else uses
 NERDGRAM_URL (default http://127.0.0.1:8787) and NERDGRAM_TOKEN.
 --url and --token override those. --server forces render to use a workspace
 path on the API, not a file on this computer. Exit status is 1 on errors.
@@ -454,7 +457,24 @@ async function putCommand(parsed: Parsed, io: Io): Promise<void> {
 }
 
 async function exportCommand(parsed: Parsed, io: Io): Promise<void> {
-  const folder = parsed.positionals[0] ?? "";
+  const exporters = await import("./exporters/index.js");
+  const first = parsed.positionals[0] ?? "";
+  const installed = await exporters.installedExporters();
+  const ids = installed.map((item) => item.id).join(", ") || "(none)";
+  const usage = [
+    "Usage:",
+    "  nerdgram export <target> <diagram|network.json> [-o file]",
+    "  nerdgram export <folder> -o dir/",
+    `Installed exporters: ${ids}`,
+  ].join("\n");
+  if (parsed.positionals.length === 0) throw new CliError(usage);
+  const known = installed.find((item) => item.id === first.trim().toLowerCase());
+  if (known) {
+    await designExportCommand(parsed, io, known.id);
+    return;
+  }
+  if (parsed.positionals.length > 1) throw new CliError(`Unknown exporter "${first}".\n${usage}`);
+  const folder = first;
   const output = flagString(parsed.flags, "output");
   if (!output) throw new CliError("export needs -o directory.");
   const { base, token } = configOf(parsed.flags, io.env);
@@ -472,6 +492,118 @@ async function exportCommand(parsed: Parsed, io: Io): Promise<void> {
     count += 1;
   }
   writeOut(io, isJson(parsed.flags), { path: folder, output, count }, `Exported ${count} diagram${count === 1 ? "" : "s"} to ${output}`);
+}
+
+async function designExportCommand(parsed: Parsed, io: Io, target: string): Promise<void> {
+  const { readMappingFile, siblingNetworkPath, readNetworkFile, parseNetworkDocument, labelFromPath } = await import("./exporters/resolve.js");
+  const { runExport } = await import("./exporters/run.js");
+  const file = parsed.positionals[1];
+  let document;
+  let label = "nerdgram";
+  let mapBeside: string | null = null;
+  if (file && file !== "-") {
+    const resolved = path.resolve(file);
+    mapBeside = path.join(path.dirname(resolved), "nerdgram-export-map.yml");
+    if (file.toLowerCase().endsWith(".mmd")) {
+      const content = await fs.readFile(resolved, "utf8");
+      const sibling = siblingNetworkPath(resolved, content);
+      const candidates = path.isAbsolute(sibling.path)
+        ? [sibling.path]
+        : [path.resolve(path.dirname(resolved), sibling.path), path.resolve(sibling.path)];
+      let text: string | null = null;
+      for (const candidate of candidates) {
+        try {
+          text = await fs.readFile(candidate, "utf8");
+          break;
+        } catch {
+          text = null;
+        }
+      }
+      if (text == null) {
+        throw new CliError(
+          sibling.kind === "recorded"
+            ? `The diagram records network JSON at ${sibling.path}, and that file is not there.`
+            : "This diagram has no network JSON.",
+        );
+      }
+      document = parseNetworkDocument(text);
+      label = labelFromPath(resolved);
+    } else if (file.toLowerCase().endsWith(".network.json")) {
+      const loaded = await readNetworkFile(resolved);
+      document = loaded.document;
+      label = loaded.label;
+    } else {
+      throw new CliError("The design export needs a .mmd diagram or a .network.json file.");
+    }
+  } else if (io.stdin != null) {
+    document = parseNetworkDocument(io.stdin);
+    label = "nerdgram";
+  } else if (process.stdin.isTTY) {
+    throw new CliError("export needs a file or stdin.");
+  } else {
+    document = parseNetworkDocument(await readStdin());
+  }
+  const mapFlag = flagString(parsed.flags, "map");
+  let mappingDocument: unknown = null;
+  if (mapFlag) mappingDocument = await readMappingFile(mapFlag);
+  else {
+    for (const candidate of [mapBeside, path.resolve("nerdgram-export-map.yml")]) {
+      if (!candidate) continue;
+      try {
+        mappingDocument = await readMappingFile(candidate);
+        break;
+      } catch {
+        mappingDocument = null;
+      }
+    }
+  }
+  const exported = await runExport(target, document, { label, mapping: null }, mappingDocument);
+  const output = flagString(parsed.flags, "output");
+  const warningLines = exported.warnings.map((item) => (item.path ? `${item.path}: ${item.message}` : item.message));
+  if (!isJson(parsed.flags) && warningLines.length > 0) io.stderr(`${warningLines.join("\n")}\n`);
+  if (exported.files.length > 1) {
+    if (!output) throw new CliError("This export writes multiple files. Pass -o directory.");
+    if (output.toLowerCase().endsWith(".zip")) {
+      const bytes = Buffer.from(exported.archive?.base64 ?? "", "base64");
+      await fs.mkdir(path.dirname(path.resolve(output)), { recursive: true });
+      await fs.writeFile(output, bytes);
+      writeOut(io, isJson(parsed.flags), { target, output, warnings: exported.warnings, bytes: bytes.length }, `Wrote ${output}`);
+      return;
+    }
+    const root = path.resolve(output);
+    await fs.mkdir(root, { recursive: true });
+    for (const item of exported.files) {
+      const destination = path.resolve(root, item.name);
+      const relative = path.relative(root, destination);
+      if (relative.startsWith("..") || path.isAbsolute(relative)) throw new CliError(`Refusing to write ${item.name}`);
+      await fs.mkdir(path.dirname(destination), { recursive: true });
+      await fs.writeFile(destination, item.text, "utf8");
+    }
+    writeOut(
+      io,
+      isJson(parsed.flags),
+      { target, output, warnings: exported.warnings, bytes: exported.bytes, files: exported.files.map((item) => ({ name: item.name, bytes: Buffer.byteLength(item.text) })) },
+      `Wrote ${exported.files.length} files to ${output}`,
+    );
+    return;
+  }
+  const text = exported.text.endsWith("\n") ? exported.text : `${exported.text}\n`;
+  if (output) {
+    await fs.mkdir(path.dirname(path.resolve(output)), { recursive: true });
+    await fs.writeFile(output, text, "utf8");
+  }
+  if (isJson(parsed.flags)) {
+    const payload = output
+      ? { target, output, warnings: exported.warnings, bytes: Buffer.byteLength(text) }
+      : { target, text, warnings: exported.warnings, bytes: Buffer.byteLength(text) };
+    writeOut(io, true, payload, "");
+    return;
+  }
+  if (output) {
+    io.stdout(`Wrote ${output}\n`);
+    return;
+  }
+  io.stdout(text);
 }
 
 async function lintCommand(parsed: Parsed, io: Io): Promise<number> {

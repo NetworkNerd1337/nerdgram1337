@@ -265,6 +265,9 @@ export const RESPONSE_SCHEMAS: Record<string, Record<string, unknown>> = {
       path: { type: "string" },
       diagnostics: { type: "array", items: lintDiagnostic },
       checked: { type: "integer" },
+      relinted: { type: "integer", description: "Files whose content was parsed on this pass." },
+      durationMs: { type: "integer" },
+      cachedAt: { type: "string", description: "ISO time the pass finished." },
       diagrams: {
         type: "array",
         items: {
@@ -406,6 +409,50 @@ export const RESPONSE_SCHEMAS: Record<string, Record<string, unknown>> = {
     },
     required: ["source", "document", "warnings"],
   },
+  listExporters: {
+    type: "object",
+    properties: {
+      exporters: { type: "array", items: { $ref: "#/components/schemas/ExporterDescriptor" } },
+    },
+    required: ["exporters"],
+  },
+  exportTarget: {
+    type: "object",
+    properties: {
+      target: { type: "string" },
+      filename: { type: "string" },
+      text: { type: "string", description: "Primary file text." },
+      files: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { name: { type: "string" }, text: { type: "string" } },
+          required: ["name", "text"],
+        },
+      },
+      warnings: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { path: { type: "string" }, message: { type: "string" } },
+          required: ["path", "message"],
+        },
+      },
+      mimeType: { type: "string" },
+      extension: { type: "string" },
+      bytes: { type: "integer" },
+      archive: {
+        type: "object",
+        description: "Present when the target writes more than one file.",
+        properties: {
+          filename: { type: "string" },
+          mimeType: { type: "string" },
+          base64: { type: "string" },
+        },
+      },
+    },
+    required: ["target", "filename", "text", "files", "warnings", "mimeType", "bytes"],
+  },
 };
 
 export const SHARED_SCHEMAS: Record<string, unknown> = {
@@ -419,6 +466,18 @@ export const SHARED_SCHEMAS: Record<string, unknown> = {
       placeholder: { type: "string" },
     },
     required: ["id", "name", "formatHint", "placeholder"],
+  },
+  ExporterDescriptor: {
+    type: "object",
+    description: "One installed design exporter. id is the export path segment.",
+    properties: {
+      id: { type: "string" },
+      name: { type: "string" },
+      extension: { type: "string" },
+      mimeType: { type: "string" },
+      description: { type: "string" },
+    },
+    required: ["id", "name", "extension", "mimeType", "description"],
   },
   LinkRepairPlan: {
     type: "object",

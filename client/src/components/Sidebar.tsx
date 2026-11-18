@@ -37,6 +37,7 @@ type SidebarProps = {
   onFolderDrop?: (path: string, event: DragPayload) => void;
   onTrashDragOver?: (event: DragPayload) => void;
   onTrashDrop?: (event: DragPayload) => void;
+  healthActive?: boolean;
 };
 
 function browserStorage(): Storage | null {
@@ -71,6 +72,7 @@ export function Sidebar({
   onFolderDrop,
   onTrashDragOver,
   onTrashDrop,
+  healthActive = false,
 }: SidebarProps) {
   const updates = useUpdate();
   const version = updates.status
@@ -118,13 +120,16 @@ export function Sidebar({
         <div className="nav-label">Your space</div>
         <button
           type="button"
-          className={`nav-link${currentFolder === "" && !trashActive && !attentionActive ? " active" : ""}${rootDrop}`}
+          className={`nav-link${currentFolder === "" && !trashActive && !attentionActive && !healthActive ? " active" : ""}${rootDrop}`}
           onClick={() => onSelectFolder("")}
           onDragOver={onFolderDragOver ? (event) => onFolderDragOver("", event) : undefined}
           onDrop={onFolderDrop ? (event) => onFolderDrop("", event) : undefined}
         >
           Dashboard
         </button>
+        <Link className={`nav-link${healthActive ? " active" : ""}`} to="/health">
+          Diagram health
+        </Link>
         <section className="sidebar-block" aria-label="Recent">
           <div className="sidebar-block-head">
             <button
@@ -224,7 +229,7 @@ export function Sidebar({
           Automation tokens
         </Link>
         <Link className="nav-link" to="/settings#diagram-checks">
-          Diagram checks
+          Check rules
         </Link>
         <Link className="nav-link" to="/settings#bookmarks">
           Bookmarks

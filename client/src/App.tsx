@@ -9,6 +9,7 @@ import { NewDiagramPage } from "./pages/NewDiagramPage";
 import { PresentPage } from "./pages/PresentPage";
 import { ReferencePage } from "./pages/ReferencePage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { HealthPage } from "./pages/HealthPage";
 import { TemplatePresentPage } from "./pages/TemplatePresentPage";
 import { TemplatesPage } from "./pages/TemplatesPage";
 
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/present/*" element={<PresentPage />} />
         <Route path="/reference" element={<ReferencePage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/health" element={<HealthPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </UpdateHost>

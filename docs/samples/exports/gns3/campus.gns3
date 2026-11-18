@@ -1,0 +1,172 @@
+{
+  "project_id": "ae80b5e3-7be0-42e2-a5d3-ddbb98297e31",
+  "type": "topology",
+  "revision": 9,
+  "version": "2.2.0",
+  "name": "campus",
+  "topology": {
+    "nodes": [
+      {
+        "compute_id": "local",
+        "node_id": "f7a02d42-ce55-4828-a546-ccf00dfdea19",
+        "node_type": "qemu",
+        "name": "core-rtr",
+        "x": 0,
+        "y": 0,
+        "properties": {}
+      },
+      {
+        "compute_id": "local",
+        "node_id": "a87d7232-b1d7-41f0-a122-c31a8e565e44",
+        "node_type": "qemu",
+        "name": "dist-sw",
+        "x": 160,
+        "y": 0,
+        "properties": {}
+      },
+      {
+        "compute_id": "local",
+        "node_id": "158ddd70-498b-4468-abfc-c141feea12b2",
+        "node_type": "qemu",
+        "name": "access-a",
+        "x": 320,
+        "y": 0,
+        "properties": {}
+      },
+      {
+        "compute_id": "local",
+        "node_id": "8f2bb5eb-b5f0-4c46-afe1-311191e10935",
+        "node_type": "qemu",
+        "name": "access-b",
+        "x": 480,
+        "y": 0,
+        "properties": {}
+      },
+      {
+        "compute_id": "local",
+        "node_id": "4fdee88f-e62a-4d61-a832-af9f20454c39",
+        "node_type": "qemu",
+        "name": "wan-rtr",
+        "x": 640,
+        "y": 0,
+        "properties": {}
+      }
+    ],
+    "links": [
+      {
+        "link_id": "c24e7dc7-b2a3-48dc-a703-692f579aa303",
+        "link_type": "ethernet",
+        "nodes": [
+          {
+            "node_id": "a87d7232-b1d7-41f0-a122-c31a8e565e44",
+            "adapter_number": 0,
+            "port_number": 0
+          },
+          {
+            "node_id": "158ddd70-498b-4468-abfc-c141feea12b2",
+            "adapter_number": 0,
+            "port_number": 0
+          }
+        ]
+      },
+      {
+        "link_id": "a36f6081-0f96-4659-a9ea-543c301938e5",
+        "link_type": "ethernet",
+        "nodes": [
+          {
+            "node_id": "158ddd70-498b-4468-abfc-c141feea12b2",
+            "adapter_number": 0,
+            "port_number": 1
+          },
+          {
+            "node_id": "a87d7232-b1d7-41f0-a122-c31a8e565e44",
+            "adapter_number": 0,
+            "port_number": 1
+          }
+        ]
+      },
+      {
+        "link_id": "8b4ca990-a165-4565-afbf-2ba9d65aeb2f",
+        "link_type": "ethernet",
+        "nodes": [
+          {
+            "node_id": "158ddd70-498b-4468-abfc-c141feea12b2",
+            "adapter_number": 0,
+            "port_number": 2
+          },
+          {
+            "node_id": "8f2bb5eb-b5f0-4c46-afe1-311191e10935",
+            "adapter_number": 0,
+            "port_number": 0
+          }
+        ]
+      },
+      {
+        "link_id": "fbf0442f-a772-42b7-a215-0f123c0ee9a1",
+        "link_type": "ethernet",
+        "nodes": [
+          {
+            "node_id": "a87d7232-b1d7-41f0-a122-c31a8e565e44",
+            "adapter_number": 0,
+            "port_number": 2
+          },
+          {
+            "node_id": "8f2bb5eb-b5f0-4c46-afe1-311191e10935",
+            "adapter_number": 0,
+            "port_number": 1
+          }
+        ]
+      },
+      {
+        "link_id": "a4d32dd2-2ccd-4f05-afad-f34ffb00773c",
+        "link_type": "ethernet",
+        "nodes": [
+          {
+            "node_id": "8f2bb5eb-b5f0-4c46-afe1-311191e10935",
+            "adapter_number": 0,
+            "port_number": 2
+          },
+          {
+            "node_id": "158ddd70-498b-4468-abfc-c141feea12b2",
+            "adapter_number": 0,
+            "port_number": 3
+          }
+        ]
+      },
+      {
+        "link_id": "117c9bc2-b801-4fe0-a101-a382d37e498c",
+        "link_type": "ethernet",
+        "nodes": [
+          {
+            "node_id": "f7a02d42-ce55-4828-a546-ccf00dfdea19",
+            "adapter_number": 0,
+            "port_number": 0
+          },
+          {
+            "node_id": "a87d7232-b1d7-41f0-a122-c31a8e565e44",
+            "adapter_number": 0,
+            "port_number": 3
+          }
+        ]
+      },
+      {
+        "link_id": "a1cc0361-93e9-4a1b-a7f6-276651e56be1",
+        "link_type": "ethernet",
+        "nodes": [
+          {
+            "node_id": "4fdee88f-e62a-4d61-a832-af9f20454c39",
+            "adapter_number": 0,
+            "port_number": 0
+          },
+          {
+            "node_id": "f7a02d42-ce55-4828-a546-ccf00dfdea19",
+            "adapter_number": 0,
+            "port_number": 1
+          }
+        ]
+      }
+    ],
+    "drawings": [],
+    "computes": []
+  }
+}

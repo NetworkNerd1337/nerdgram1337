@@ -8,8 +8,6 @@ import { HighlightedText } from "../components/HighlightedText";
 import { MermaidThumbnail } from "../components/MermaidThumbnail";
 import { AffectedLinksDialog } from "../components/AffectedLinksDialog";
 import { DataFileDialog } from "../components/DataFileDialog";
-import { DiagramChecks } from "../components/DiagramChecks";
-import { DiagramLintProvider, useSharedDiagramLint } from "../components/DiagramLintProvider";
 import { FileNameField } from "../components/FileNameField";
 import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
 import { TagCombobox } from "../components/TagCombobox";
@@ -44,8 +42,6 @@ import { openWorkspaceReplace, setWorkspaceReplaceFolder } from "../lib/workspac
 import { diagramCardLabel, folderCountLabel } from "../lib/diagramLabel";
 import { contentWithStyle } from "../lib/stylePresets";
 import { nearestExistingFolder } from "../lib/editorBreadcrumb";
-import { attentionRows } from "../lib/attention";
-import { mutedWarningNote } from "../lib/diagramChecks";
 import type { TagCount } from "../lib/tagSuggestions";
 import { fileNameIssue, sanitizeFileStem } from "../lib/fileName";
 import {
@@ -145,7 +141,7 @@ export function DashboardPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showAttention, setShowAttention] = useState(false);
-  const [attentionCount, setAttentionCount] = useState(0);
+  const [summary, setSummary] = useState<Awaited<ReturnType<typeof api.diagramLintSummary>> | null>(null);
   const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent(browserStore()));
   const [trash, setTrash] = useState<TrashItem[]>([]);
   const [collision, setCollision] = useState<{
@@ -164,6 +160,26 @@ export function DashboardPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedFolder = searchParams.get("folder") ?? "";
+  useEffect(() => {
+    if (searchParams.get("attention") === "1") {
+      setShowAttention(true);
+      setShowTrash(false);
+    }
+  }, [searchParams]);
+  useEffect(() => {
+    let cancelled = false;
+    void api.diagramLintSummary().then(
+      (result) => {
+        if (!cancelled) setSummary(result);
+      },
+      () => {
+        if (!cancelled) setSummary(null);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [revision]);
   const folder = loading ? requestedFolder : nearestExistingFolder(tree, requestedFolder);
   const setFolder = (value: string | ((current: string) => string)) => {
     const next = typeof value === "function" ? value(folder) : value;
@@ -818,9 +834,12 @@ export function DashboardPage() {
   const folderNames = files.map((file) => file.name);
   const diagramNameIssue = modal?.type === "diagram" ? fileNameIssue(nameValue, folderNames) : null;
 
+  const problemCount =
+    summary?.status === "ready" && summary.checked != null
+      ? (summary.errors ?? 0) + (summary.warnings ?? 0) + (summary.unreadable ?? 0)
+      : 0;
+
   return (
-    <DiagramLintProvider revision={revision}>
-    <AttentionBridge onCount={setAttentionCount} />
     <div
       className="app-shell"
       style={{ "--sidebar-width": `${sidebar.width}px` } as CSSProperties}
@@ -835,7 +854,7 @@ export function DashboardPage() {
           writeRecent(browserStore(), []);
           setRecent([]);
         }}
-        attentionCount={attentionCount}
+        attentionCount={problemCount}
         attentionActive={showAttention}
         onOpenAttention={() => {
           setShowAttention(true);
@@ -1020,17 +1039,9 @@ export function DashboardPage() {
         {dragPath ? (
           <p className="drop-hint">Drop on a folder to move. A highlighted folder can take the item.</p>
         ) : null}
-        {!showTrash && !showAttention ? (
-          <DiagramChecks
-            onViewAll={() => {
-              setShowAttention(true);
-              setShowTrash(false);
-            }}
-          />
-        ) : null}
 
         {showAttention ? (
-          <AttentionView />
+          <AttentionView summary={summary} />
         ) : showTrash ? (
           <TrashList
             items={trash}
@@ -1367,29 +1378,38 @@ export function DashboardPage() {
         />
       ) : null}
     </div>
-    </DiagramLintProvider>
   );
 }
 
-function AttentionBridge({ onCount }: { onCount: (count: number) => void }) {
-  const lint = useSharedDiagramLint();
-  const count = attentionRows(lint?.findings ?? null, lint?.unreadable ?? []).length;
-  useEffect(() => {
-    onCount(count);
-  }, [count, onCount]);
-  return null;
-}
-
-function AttentionView() {
-  const lint = useSharedDiagramLint();
-  const rows = attentionRows(lint?.findings ?? null, lint?.unreadable ?? []);
-  const muted = lint?.muted ?? [];
-  if (lint?.error) return <div className="error-banner">{lint.error}</div>;
-  if (lint?.findings == null) return <p>Checking diagrams…</p>;
+function AttentionView({
+  summary,
+}: {
+  summary: Awaited<ReturnType<typeof api.diagramLintSummary>> | null;
+}) {
+  if (!summary || summary.status === "not-checked" || summary.checked == null) {
+    return (
+      <div className="empty-state">
+        <p>Not checked yet. Open Diagram health.</p>
+        <Link className="btn btn-primary" to="/health">
+          Diagram health
+        </Link>
+      </div>
+    );
+  }
+  const when = summary.checkedAt ? new Date(summary.checkedAt).toLocaleString() : "";
+  const rows = (summary.diagrams ?? []).filter((item) => item.errors > 0 || item.warnings > 0);
   return (
     <div>
-      {muted.length > 0 ? <MutedWarningsNote paths={muted} /> : null}
-      {rows.length === 0 ? (
+      <p className="health-stale">
+        Last checked {when || "earlier"}.
+        {summary.stale ? " Diagrams have changed since then." : ""} <Link to="/health">Open Diagram health</Link>
+      </p>
+      {summary.unreadable ? (
+        <p>
+          {summary.unreadable} file{summary.unreadable === 1 ? "" : "s"} could not be read.
+        </p>
+      ) : null}
+      {rows.length === 0 && !summary.unreadable ? (
         <div className="empty-state attention-clear">
           <span className="attention-check" aria-hidden="true">
             ✓
@@ -1400,31 +1420,17 @@ function AttentionView() {
         <ul className="attention-list">
           {rows.map((row) => (
             <li key={row.path}>
-              <Link className="attention-row" to={editorHref(row.path, row.line, "")}>
+              <Link className="attention-row" to={`/health?path=${encodeURIComponent(row.path)}`}>
                 <strong>{displayName(row.path)}</strong>
                 <span>
-                  {row.count} {row.count === 1 ? "problem" : "problems"}
+                  {row.errors + row.warnings} {row.errors + row.warnings === 1 ? "problem" : "problems"}
                 </span>
-                <span>{row.message}</span>
               </Link>
             </li>
           ))}
         </ul>
       )}
     </div>
-  );
-}
-
-function MutedWarningsNote({ paths }: { paths: readonly string[] }) {
-  return (
-    <p className="muted-warnings-note">
-      {mutedWarningNote(paths.length)}{" "}
-      {paths.map((path) => (
-        <Link key={path} to={editorHref(path, 1, "")} title={path}>
-          {displayName(path)}
-        </Link>
-      ))}
-    </p>
   );
 }
 

@@ -789,6 +789,8 @@ async function applyPlan(actions: MergeAction[]): Promise<void> {
 }
 
 async function invalidateDiagram(relativePath: string): Promise<void> {
+  const { invalidateDiagramLint } = await import("../diagramLintCache.js");
+  invalidateDiagramLint([relativePath]);
   await dropThumbnail(relativePath);
   const search = await import("../search.js");
   await search.removeSearchEntries(relativePath, false);
