@@ -3,8 +3,7 @@
   "version": "1.5.0",
   "codenames": {
     "1.0": "Atlas",
-    "1.5": "Compass",
-    "2.0": "Meridian"
+    "1.5": "Compass"
   },
   "private": true,
   "description": "Local-first Mermaid diagramming app by NetworkNerd1337",

@@ -18,7 +18,7 @@ export function parseCodenames(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {
       ok: false,
-      error: 'Root package.json needs a codenames map, for example { "1.0": "Atlas", "1.5": "Compass", "2.0": "Meridian" }.',
+      error: 'Root package.json needs a codenames map, for example { "1.0": "Atlas", "1.5": "Compass" }.',
     };
   }
   /** @type {Record<string, string>} */

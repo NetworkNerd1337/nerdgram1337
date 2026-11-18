@@ -433,7 +433,7 @@ GitHub sync is optional (#14). NerdGram does not ship a client ID. You register 
 About and the bottom of the sidebar show the running version and its code name, for example `v1.0.5 "Atlas"`. `GET /api/version` and `GET /api/health` return the same version, `codename`, commit when there is one, and how this copy was installed (#19).
 
 - The update check calls the public GitHub Releases API for this repository. It sends no token and no telemetry. It reads the version from the release tag. The release title is not the version.
-- When a newer stable release exists, the banner and the release dialog show that release's code name. The name comes from the major number (1 is Atlas, 2 is Meridian). A major that is not in the map is taken from a release title shaped like `vX.Y.Z "Name"`, and only when that title is that one safe phrase.
+- When a newer stable release exists, the banner and the release dialog show that release's code name. The name comes from the code-name map for that version. A version that is not in the map is taken from a release title shaped like `vX.Y.Z "Name"`, and only when that title is that one safe phrase.
 - On a clean git clone of this repository, on `main` or a detached release tag, Update now fetches the tag and fast-forwards only (`git merge --ff-only` on `main`). A tag that is not a fast-forward is refused. The check's "ahead" state means `package.json` is newer than the latest stable tag. It is not a count of extra commits.
 - A Docker install is not changed from inside the container. About shows copyable pull, stop, remove, and run steps that keep the `nerdgram-data` volume and `127.0.0.1:8787:8787`.
 - The root `package.json` version is the only version. `npm run version:sync` copies it into the client, the server, the lockfiles, the Dockerfile, and `compose.yaml`, and it copies the code name into the image build arg. Pushing the `vX.Y.Z` tag runs the release workflow and the image workflow.
@@ -450,7 +450,7 @@ The container image runs the production server as uid 1001, user `nerdgram`, wit
 
 ### Docs
 
-The README is the install, security, and release-lifecycle guide (#11). Version numbers, the Atlas and Meridian code names, how to pin a release, and the steps to cut a tag are in Versioning and releases.
+The README is the install, security, and release-lifecycle guide (#11). Version numbers, the code names, how to pin a release, and the steps to cut a tag are in Versioning and releases.
 
 ### Known limitations
 

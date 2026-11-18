@@ -571,7 +571,7 @@ describe("update check API", () => {
     expect(same.docker?.tag).toBe("v1.5.0");
     expect(same.docker?.steps.map((step) => step.command).join("\n")).toContain("127.0.0.1:8787:8787");
     expect(same.docker?.persistNote).toContain(".nerdgram-git");
-    mockFetch(() => jsonResponse(200, releaseBody("v2.0.0", "Meridian notes", { name: 'v9.9.9 "Nope"' })));
+    mockFetch(() => jsonResponse(200, releaseBody("v2.0.0", "Later notes", { name: 'v9.9.9 "Nope"' })));
     const behind = await manualCheck();
     expect(behind.matchesLatest).toBe(false);
     expect(behind.updateAvailable).toBe(true);
@@ -579,7 +579,7 @@ describe("update check API", () => {
     expect(behind.codename).toBe("Compass");
     expect(behind.latest?.version).toBe("2.0.0");
     expect(behind.latest?.tag).toBe("v2.0.0");
-    expect(behind.latest?.codename).toBe("Meridian");
+    expect(behind.latest?.codename).toBeNull();
   });
 
   it("derives an unmapped code name only from a safe release title", async () => {

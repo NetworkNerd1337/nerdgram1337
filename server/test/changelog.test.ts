@@ -85,10 +85,10 @@ describe("changelog notes", () => {
     expect(longer.stderr).toMatch(/no section for 1\.0\.5/);
   });
 
-  it("titles a later major from the map and refuses a heading that names the wrong code name", () => {
-    const meridian = notes(["--title", "v2.0.0"], '## 2.0.0 "Meridian" - 2026-12-01\n\nNext line.\n');
-    expect(meridian.code).toBe(0);
-    expect(meridian.stdout).toBe('v2.0.0 "Meridian"\n');
+  it("refuses an unmapped half and a heading that names the wrong code name", () => {
+    const unmapped = notes(["--title", "v2.0.0"], "## 2.0.0 - 2026-12-01\n\nNext line.\n");
+    expect(unmapped.code).toBe(2);
+    expect(unmapped.stderr).toMatch(/no entry/);
     const wrong = notes(["--title", "v1.0.5"], '## 1.0.5 "Wrong" - 2026-11-13\n\nBody.\n');
     expect(wrong.code).toBe(2);
     expect(wrong.stderr).toMatch(/does not match package.json Atlas/);
