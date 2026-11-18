@@ -1,4 +1,6 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import request from "supertest";
@@ -11,6 +13,7 @@ import {
   NETWORK_SCHEMA_FILE,
   NETWORK_SCHEMA_ID,
 } from "../src/publishedSchemas.js";
+import { REPO_ROOT } from "../src/paths.js";
 import { makeTempDataDir } from "./helpers.js";
 
 const require = createRequire(import.meta.url);
@@ -101,4 +104,71 @@ describe("published schemas", () => {
     };
     expect(validate(links), ajv.errorsText()).toBe(true);
   });
+
+  it("passes the Redocly recommended ruleset with no errors and no unused schemas", () => {
+    const spec = buildOpenApiSpec();
+    const file = path.join(os.tmpdir(), `nerdgram-openapi-${process.pid}.json`);
+    fs.writeFileSync(file, JSON.stringify(spec));
+    const lint = spawnSync(path.join(REPO_ROOT, "server/node_modules/.bin/redocly"), ["lint", file], {
+      encoding: "utf8",
+    });
+    fs.rmSync(file, { force: true });
+    const output = `${lint.stdout ?? ""}\n${lint.stderr ?? ""}`;
+    expect(lint.status, output).toBe(0);
+    expect(output).not.toMatch(/\berror\b/i);
+    expect(output).not.toContain("is never used");
+
+    const emptyRequired: string[] = [];
+    const nullableWithoutType: string[] = [];
+    const refs = new Set<string>();
+    walk(spec, "", (value, pointer) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return;
+      const record = value as Record<string, unknown>;
+      if (Array.isArray(record.required) && record.required.length === 0) emptyRequired.push(pointer);
+      if (record.nullable === true && record.type == null && record.$ref == null && record.allOf == null && record.oneOf == null && record.anyOf == null) {
+        nullableWithoutType.push(pointer);
+      }
+      if (typeof record.$ref === "string" && record.$ref.startsWith("#/components/schemas/")) refs.add(record.$ref);
+    });
+    expect(emptyRequired).toEqual([]);
+    expect(nullableWithoutType).toEqual([]);
+    const schemas = (spec.components as { schemas: Record<string, object> }).schemas;
+    const unused = Object.keys(schemas).filter((name) => !refs.has(`#/components/schemas/${name}`));
+    expect(unused).toEqual([]);
+    const repairs = at(spec, ["paths", "/api/v1/link-repairs", "post", "requestBody", "content", "application/json", "schema"]);
+    expect(repairs.required).toBeUndefined();
+    const baseline = at(spec, [
+      "paths",
+      "/api/v1/history/baseline",
+      "delete",
+      "responses",
+      "200",
+      "content",
+      "application/json",
+      "schema",
+      "properties",
+      "revision",
+    ]);
+    expect(baseline.type).toBe("object");
+    expect(baseline.nullable).toBe(true);
+  });
 });
+
+function at(root: Record<string, unknown>, keys: string[]): Record<string, unknown> {
+  let current: unknown = root;
+  for (const key of keys) {
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current as Record<string, unknown>;
+}
+
+function walk(value: unknown, pointer: string, visit: (value: unknown, pointer: string) => void): void {
+  visit(value, pointer);
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => walk(item, `${pointer}/${index}`, visit));
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value)) walk(child, `${pointer}/${key}`, visit);
+  }
+}
