@@ -14,7 +14,7 @@ import {
   ensureAccessToken,
   refreshAfterUnauthorized,
 } from "./github.js";
-import { isBoilerplate, isSyncedFile, listUserFiles } from "./layout.js";
+import { isBoilerplate, isSyncedFile, listUserFilesDetailed } from "./layout.js";
 import { rememberSecret, scrubError } from "./redact.js";
 
 const nodeFs = fs;
@@ -148,7 +148,9 @@ export async function ensureBoilerplate(dir: string): Promise<void> {
 
 /** Copy user diagrams into the mirror and delete mirror diagrams that are gone locally. */
 export async function copyDataToMirror(dataRoot: string, dir: string): Promise<string[]> {
-  const desired = await listUserFiles(dataRoot);
+  const listed = await listUserFilesDetailed(dataRoot);
+  const desired = listed.files;
+  const preserve = new Set(listed.unreadable.map((item) => item.path));
   await ensureBoilerplate(dir);
   const changed: string[] = [];
   for (const [rel, content] of desired) {
@@ -159,7 +161,7 @@ export async function copyDataToMirror(dataRoot: string, dir: string): Promise<s
     await fsp.writeFile(abs, content, "utf8");
     changed.push(rel);
   }
-  await deleteExtra(dir, dir, desired);
+  await deleteExtra(dir, dir, desired, preserve);
   return changed;
 }
 
@@ -384,7 +386,12 @@ async function writeIfChanged(file: string, content: string): Promise<void> {
   await fsp.writeFile(file, content, "utf8");
 }
 
-async function deleteExtra(mirror: string, dir: string, desired: Map<string, string>): Promise<void> {
+async function deleteExtra(
+  mirror: string,
+  dir: string,
+  desired: Map<string, string>,
+  preserve: ReadonlySet<string>,
+): Promise<void> {
   let entries: fs.Dirent[];
   try {
     entries = await fsp.readdir(dir, { withFileTypes: true });
@@ -402,12 +409,12 @@ async function deleteExtra(mirror: string, dir: string, desired: Map<string, str
         await fsp.rm(abs, { recursive: true, force: true });
         continue;
       }
-      await deleteExtra(mirror, abs, desired);
+      await deleteExtra(mirror, abs, desired, preserve);
       const left = await fsp.readdir(abs).catch(() => ["keep"]);
       if (left.length === 0) await fsp.rmdir(abs).catch(() => undefined);
       continue;
     }
-    if (isBoilerplate(rel)) continue;
+    if (isBoilerplate(rel) || preserve.has(rel)) continue;
     if (entry.name.startsWith(".") || !isSyncedFile(rel) || !desired.has(rel)) {
       await fsp.rm(abs, { force: true });
     }

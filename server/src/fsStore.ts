@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { invalidateDiagramLint } from "./diagramLintCache.js";
-import { reportUnreadable, type UnreadableDiagram } from "./readError.js";
+import { reportUnreadable, warnUnreadable, type UnreadableDiagram } from "./readError.js";
 import { isSafeDataPath } from "./diagramData.js";
 import { siblingNetworkPath } from "./exporters/resolve.js";
 import {
@@ -440,13 +440,10 @@ export type RenameOptions = {
 };
 
 async function readDiagramSources(): Promise<{ path: string; content: string }[]> {
-  const files = flattenFiles(await buildTree());
-  const sources: { path: string; content: string }[] = [];
-  for (const file of files) {
-    const content = await readFile(file.path);
-    sources.push({ path: content.path, content: content.content });
-  }
-  return sources;
+  const unreadable: UnreadableDiagram[] = [];
+  const files = await readDiagramSourcesWithHash(unreadable);
+  warnUnreadable(unreadable);
+  return files.map((file) => ({ path: file.path, content: file.content }));
 }
 
 export async function diagramLinks(relativePath: string): Promise<DiagramLinkEnds & { path: string }> {
@@ -782,8 +779,13 @@ async function readDiagramSourcesWithHash(unreadable?: UnreadableDiagram[]): Pro
 
 /** Remember the diagrams on disk. A sync pull calls this before and after it applies the remote tree. */
 export async function captureDiagramSightings(): Promise<void> {
-  const files = await readDiagramSourcesWithHash();
-  await observeDiagramSightings(files.map((file) => ({ path: file.path, hash: file.hash })));
+  const unreadable: UnreadableDiagram[] = [];
+  const files = await readDiagramSourcesWithHash(unreadable);
+  warnUnreadable(unreadable);
+  await observeDiagramSightings(
+    files.map((file) => ({ path: file.path, hash: file.hash })),
+    unreadable.map((item) => item.path),
+  );
 }
 
 export type RepairOptions = {
@@ -882,7 +884,10 @@ export async function repairDiagramLinks(options: RepairOptions = {}): Promise<L
   const confirm = options.confirm === true;
   const unreadable: UnreadableDiagram[] = [];
   const files = await readDiagramSourcesWithHash(unreadable);
-  let pending = await observeDiagramSightings(files.map((file) => ({ path: file.path, hash: file.hash })));
+  let pending = await observeDiagramSightings(
+    files.map((file) => ({ path: file.path, hash: file.hash })),
+    unreadable.map((item) => item.path),
+  );
   const broken = brokenDiagramTargets(files);
   pending = pending.filter((item) => broken.has(item.from));
   await setPendingRepairs(pending);

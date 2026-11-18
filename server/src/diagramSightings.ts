@@ -284,11 +284,20 @@ function refreshPending(pending: readonly PendingRename[], currentPaths: Readonl
  * The first catalog is only a baseline. Returns the renames still waiting,
  * including ones noticed on an earlier look.
  */
-export async function observeDiagramSightings(current: readonly DiagramSnapshot[]): Promise<PendingRename[]> {
+export async function observeDiagramSightings(
+  current: readonly DiagramSnapshot[],
+  keepPaths: readonly string[] = [],
+): Promise<PendingRename[]> {
   return exclusive(async () => {
     const now = Date.now();
     const catalog = await load();
     const snaps = current.map((item) => ({ path: normalizeRelative(item.path), hash: item.hash })).filter((item) => item.path);
+    const keep = new Set(keepPaths.map((item) => normalizeRelative(item)).filter((item) => item.length > 0));
+    for (const old of catalog.files) {
+      if (old.missingAt != null || !keep.has(old.path)) continue;
+      if (snaps.some((item) => item.path === old.path)) continue;
+      snaps.push({ path: old.path, hash: old.hash });
+    }
     if (catalog.updatedAt === 0 && catalog.files.length === 0 && catalog.pending.length === 0) {
       await save(seedCatalog(snaps, now));
       return [];

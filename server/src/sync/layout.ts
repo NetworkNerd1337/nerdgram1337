@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { ensureDataRoot, getMetaPath } from "../paths.js";
 import { isDataFileName } from "../dataFiles.js";
+import { warnUnreadable } from "../readError.js";
 import { httpFail } from "../storage.js";
 import {
   BOILERPLATE,
@@ -83,12 +84,34 @@ export function isBoilerplate(relativePath: string): boolean {
 
 /** Diagrams and their data files, skipping dot paths, symlinks, and other files. */
 export async function listUserFiles(root: string): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  await walkUserFiles(root, root, out);
-  return out;
+  return (await listUserFilesDetailed(root)).files;
 }
 
-async function walkUserFiles(root: string, dir: string, out: Map<string, string>): Promise<void> {
+export type UnreadableUserFile = { path: string; code: string };
+
+/**
+ * Same listing as `listUserFiles`. A file that cannot be read is named in
+ * `unreadable` and left out of `files`, so a sync does not treat it as deleted.
+ */
+export async function listUserFilesDetailed(root: string): Promise<{
+  files: Map<string, string>;
+  unreadable: UnreadableUserFile[];
+}> {
+  const files = new Map<string, string>();
+  const unreadable: UnreadableUserFile[] = [];
+  await walkUserFiles(root, root, files, unreadable);
+  warnUnreadable(unreadable);
+  return { files, unreadable };
+}
+
+const READ_SKIP = new Set(["EACCES", "EPERM", "EIO", "EBUSY", "ETIMEDOUT", "ENOENT"]);
+
+async function walkUserFiles(
+  root: string,
+  dir: string,
+  out: Map<string, string>,
+  unreadable: UnreadableUserFile[],
+): Promise<void> {
   let entries: import("node:fs").Dirent[];
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
@@ -101,13 +124,19 @@ async function walkUserFiles(root: string, dir: string, out: Map<string, string>
     if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
     const abs = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      await walkUserFiles(root, abs, out);
+      await walkUserFiles(root, abs, out, unreadable);
       continue;
     }
     if (!entry.isFile()) continue;
     const rel = path.relative(root, abs).split(path.sep).join("/");
     if (!isSyncedFile(rel)) continue;
-    out.set(rel, await fs.readFile(abs, "utf8"));
+    try {
+      out.set(rel, await fs.readFile(abs, "utf8"));
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? "";
+      if (!READ_SKIP.has(code)) throw err;
+      unreadable.push({ path: rel, code });
+    }
   }
 }
 

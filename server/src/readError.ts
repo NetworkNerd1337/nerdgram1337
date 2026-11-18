@@ -35,6 +35,16 @@ export function fileLabel(filePath: string): string {
   return name || filePath;
 }
 
+/** One log line for a library walk that is continuing without this file. */
+export function unreadableWarning(filePath: string, code: string): string {
+  const suffix = code ? ` (${code})` : "";
+  return `Couldn't read ${fileLabel(filePath)}${suffix}.`;
+}
+
+export function warnUnreadable(items: readonly { path: string; code: string }[]): void {
+  for (const item of items) console.warn(unreadableWarning(item.path, item.code));
+}
+
 /** One sentence. The errno, when there is one, sits in parentheses. Never the raw errno text alone. */
 export function unreadableMessage(filePath: string, code: string): string {
   const reason = READ_REASONS[code] ?? "The file could not be read";
