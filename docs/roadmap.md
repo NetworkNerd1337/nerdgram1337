@@ -18,7 +18,6 @@ The planned work after 1.4.8. 1.5.x is Compass. Later milestones use the code na
 - [1.8.0 Design exports](#180-design-exports)
 - [1.8.5 Additional exports](#185-additional-exports)
 - [2.0](#20)
-- [Later ideas](#later-ideas)
 - [Future ideas (not committed)](#future-ideas-not-committed)
 
 Progress is tracked in [GitHub milestones](https://github.com/NetworkNerd1337/NerdGram1337/milestones).
@@ -392,29 +391,70 @@ Code name not decided.
 
 This is the next milestone after 1.8.5. It is not scheduled in detail, and it has no entry in the `codenames` map.
 
-## Later ideas
-
-These are not scheduled and are not part of 1.5.0 through 1.8.5. They are suggestions.
-
-- Once convert exists, a docs page of "produce this file" examples can also show NAPALM or Genie snippets as caller-side scripts, still not bundled, the same way [Generate from data](generate-from-data.md) already describes those tools today.
-- A `convert --source auto` that detects NetBox vs LibreNMS vs canonical JSON would be useful, but it is not required for 1.7.0. Detection can wait until two mappers are solid.
-
 ## Future ideas (not committed)
 
-These are possibilities being floated for after the planned milestones. They are not scheduled or promised, and they may never happen.
+These are possibilities for after the planned milestones. They are unscheduled and unpromised, and every idea must stay inside the [Guardrails](#guardrails): local files only, no discovery or polling, no stored credentials, and no outbound calls.
 
-### Mobile companion app with GitHub sync
+Ideas are grouped by theme and listed roughly in the order they would be worth doing.
 
-A separate mobile app, for a phone or a tablet, connects directly to a user's GitHub repository of Mermaid diagrams. It lets them view and lightly edit those diagrams there: code-first editing with a live preview, pinch zoom, and present. It works with diagrams made by NerdGram or by any other Mermaid editor.
+### Working with network data
 
-GitHub is the sync layer. There is no NerdGram cloud service, no on-prem-to-mobile sync, and no change to NerdGram's local, `127.0.0.1`, no-auth model. The desktop app stays exactly as it is. A standalone mobile app without file sync would create drift between copies. GitHub already provides the shared copy.
+#### Network snapshot diff for change windows
 
-This is only after the current roadmap is done and the product is mature.
+`nerdgram diff before.network.json after.network.json`, and the same view in the app, compares two canonical network JSON documents by their fields. It reports devices, interfaces, links, VLANs, and subnets that were added, removed, or changed. It does not compare the Mermaid text.
 
-## See also
+- For example, `Gi1/0/1` on dist-sw went from trunk 10,20 to access 20, the link from core-rtr to dist-sw is gone, or `10.1.20.0/24` moved from VRF A to VRF B.
+- The output is a Markdown or JSON report that can be pasted into a change ticket, and an optional overlay diagram that uses the green, red, and amber compare colours from [History](features.md#trash-and-history).
+- One flow is to export before the change, export after, convert both files with any translator, and diff. NerdGram does not collect the files.
+- The picture reuses History compare, and the field comparison uses the network JSON model. The intended surface is one CLI command and `POST /api/v1/diff/network` with a read token.
+- The command and the route read a local file, or a payload the user posts to the local API. They store no credentials and make no outbound call.
 
-- [Generate from data](generate-from-data.md)
-- [Automation API](api.md)
-- [Command-line tool](cli.md)
-- [Security model](security.md)
-- [Versioning and releases](releases.md)
+#### Failure what-if (blast radius)
+
+In the preview, pick one or more devices or links and mark them failed. NerdGram works out which devices, subnets, and VLANs can no longer reach the rest of the topology, dims and highlights them, and lists the impact in words. The same check is `nerdgram whatif <diagram> --fail core-rtr`, and it can list single points of failure: any device or link whose loss splits the graph. This is graph math on the links the document already has. It is not a simulator.
+
+- There is no routing protocol, no traffic model, and no convergence. The result follows the links in the file, and the check reuses the 1.7.5 notice [Your diagram reflects your data](generate-from-data.md#translators-on-this-page).
+- Nothing is written to the diagram unless the user exports the what-if picture.
+- The check reads the open diagram and its network JSON on this computer. It stores no credentials and makes no outbound call.
+
+#### Design rules as code
+
+An optional `nerdgram.rules.yaml` next to the diagrams states design intent. `nerdgram check --rules` checks canonical network JSON against that file. A non-zero exit code lets a Git pre-commit hook or a CI job fail on a violation. This comes only after snapshot diff and failure what-if prove useful.
+
+- Example rules: every device with role `access` has at least two uplinks to role `distribution`; both ends of a trunk carry the same allowed VLANs and the same native VLAN; no duplicate IP addresses, and no overlapping subnets in one VRF; every device has a `site` and a `managementIp`; no single point of failure between named roles, reusing the what-if graph.
+- Violations appear on the [Diagram health](features.md#diagram-checks) page, which replaced the Diagram checks panel in 1.8.x, and the same devices or links are highlighted on the diagram.
+- Each rule kind is one module, the same pattern as a translator or an export. The set of kinds is small, closed, and documented. There is no general-purpose policy language.
+- The rules file is plain text in the user's repository, so GitHub sync versions it with the diagrams. The check reads that file and the network JSON. It stores no credentials and makes no outbound call.
+
+### Convert and translator follow-ups
+
+#### Produce-this-file examples
+
+A docs page of "produce this file" examples shows how to build the file `nerdgram convert` reads, including NAPALM or Genie caller-side scripts. Those scripts are not bundled. [Generate from data](generate-from-data.md) already describes those tools.
+
+- The page is documentation. NerdGram does not ship NAPALM, Genie, or TextFSM, and it does not run them.
+- A caller-side script writes a file on this computer. Convert reads that file. It does not log in, store a credential, or call the tool.
+
+#### Auto-detect the translator
+
+`nerdgram convert --source auto` reads a file and detects which translator that file came from, then runs that translator. `convert` and the 13 translators have existed since 1.7.5, so auto-detect has enough mappers to be practical.
+
+- Detection reads the file the user passes. It does not contact the source tool, store a credential, or make an outbound call.
+- A file that matches none of the installed translators is reported, and no devices or links are added.
+
+### Beyond the desktop app
+
+#### Mobile companion app with GitHub sync
+
+A separate mobile app, for a phone or a tablet, connects directly to a user's GitHub repository of Mermaid diagrams. It lets them view and lightly edit those diagrams: code-first editing with a live preview, pinch zoom, and present. It works with diagrams made by NerdGram or by any other Mermaid editor. This comes only after the current roadmap is done and the product is mature.
+
+- GitHub is the sync layer. There is no NerdGram cloud service, no on-prem-to-mobile sync, and no change to NerdGram's local, `127.0.0.1`, no-auth model. The desktop app stays as it is.
+- A standalone mobile app without file sync would create drift between copies. GitHub already provides the shared copy.
+
+### Considered and left out
+
+These were considered with the ideas above and left out.
+
+- Cloud storage connectors are not added; point the data folder at a folder the operating system already syncs, such as iCloud Drive, OneDrive, Nextcloud, or rclone.
+- Routing, traffic, and convergence simulation are not added; failure what-if is graph math on the links already in the file.
+- A general-purpose policy or query language is not added; design rules stay a small, closed, documented set.
