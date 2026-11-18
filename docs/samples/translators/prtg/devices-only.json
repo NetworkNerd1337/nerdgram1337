@@ -1,0 +1,3 @@
+{
+  "devices": [{ "objid": 2001, "group": "HQ", "device": "core-rtr", "host": "192.0.2.1" }]
+}

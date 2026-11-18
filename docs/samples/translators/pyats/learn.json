@@ -1,0 +1,36 @@
+{
+  "learn": {
+    "core-rtr": {
+      "interface": {
+        "info": {
+          "GigabitEthernet0/0/0": {
+            "enabled": true,
+            "oper_status": "up",
+            "description": "to dist",
+            "bandwidth": 10000000,
+            "vrf": "default",
+            "ipv4": { "10.1.0.1/30": { "ip": "10.1.0.1", "prefix_length": "30" } }
+          }
+        }
+      },
+      "lldp": {
+        "info": {
+          "interfaces": {
+            "GigabitEthernet0/0/0": {
+              "port_id": {
+                "Gi1/0/1": { "neighbors": { "dist-sw": { "hold_time": 120 } } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "dist-sw": {
+      "interface": {
+        "info": {
+          "Gi1/0/1": { "enabled": false, "oper_status": "down", "description": "to core" }
+        }
+      }
+    }
+  }
+}

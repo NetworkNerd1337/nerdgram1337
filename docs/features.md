@@ -20,6 +20,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - [Presentation](#presentation)
 - [Template gallery](#template-gallery)
 - [Syntax reference](#syntax-reference)
+- [Generate from data](#generate-from-data)
 
 The dashboard lists folders and diagrams in a tree, with search and grid or list view. You can create, rename, and delete folders and diagrams. Delete moves them to trash. Bookmarks are stored in `<data>/.meta/favorites.json` and return when you restore a diagram from trash. An older favorites list in that same file is kept. The paste flow is `/new`, and it uses the same folder picker as move and import.
 
@@ -323,6 +324,10 @@ npm run sync:reference --prefix server
 ```
 
 Mirrored content is from the Mermaid documentation (MIT License). Each page keeps attribution and a link back to its source on [mermaid.js.org](https://mermaid.js.org/).
+
+## Generate from data
+
+**From data** on the dashboard, and **Generate diagram from data** in the command palette, open `/generate`. The source list adds each installed translator beside CSV, JSON, network JSON, CDP, and LLDP. The list is loaded from the server. A note above the input says the diagram reflects that export, and **Don't show again** hides it for that translator. The steps are in [Generate from data](generate-from-data.md). The field tables are in [Translators](translators.md).
 
 ## See also
 

@@ -1,3 +1,4 @@
+import { parse as parseYaml } from "yaml";
 import { validateNetwork } from "../network/validate.js";
 import { publishDocument, sortWarnings } from "./helpers.js";
 import { translatorFail } from "./limits.js";
@@ -16,8 +17,15 @@ export function parseExport(text: string): unknown {
   try {
     return JSON.parse(trimmed) as unknown;
   } catch {
-    throw translatorFail(400, "The export is not valid JSON.");
+    // A saved testbed can be YAML. The API body is still JSON.
   }
+  try {
+    const parsed = parseYaml(trimmed) as unknown;
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch {
+    // Fall through to the same error a non-JSON file already gets.
+  }
+  throw translatorFail(400, "The export is not valid JSON.");
 }
 
 export async function convertExport(id: string, input: unknown): Promise<ConvertedExport> {

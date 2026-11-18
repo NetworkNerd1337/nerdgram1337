@@ -1,0 +1,6 @@
+{
+  "response": {
+    "nodes": [{ "id": "n1", "label": "core-rtr" }, { "id": "n2", "label": "dist-sw" }],
+    "links": []
+  }
+}

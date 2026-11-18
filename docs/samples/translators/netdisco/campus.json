@@ -1,0 +1,15 @@
+{
+  "devices": [
+    { "ip": "192.0.2.1", "dns": "core-rtr", "model": "ISR4451", "vendor": "cisco", "location": "hq" },
+    { "ip": "192.0.2.2", "dns": "dist-sw", "os": "iosxe" }
+  ],
+  "ports": [
+    { "ip": "192.0.2.1", "port": "GigabitEthernet1/0/1", "descr": "to dist", "speed": 10000000000 },
+    { "ip": "192.0.2.2", "port": "GigabitEthernet1/0/24", "vlan": "10" }
+  ],
+  "neighbors": [
+    { "ip": "192.0.2.1", "port": "GigabitEthernet1/0/1", "remote_ip": "192.0.2.2", "remote_port": "GigabitEthernet1/0/24" },
+    { "ip": "192.0.2.1", "port": "GigabitEthernet1/0/2", "remote_name": "unknown-ap", "remote_port": "eth0" }
+  ],
+  "nodes": [{ "switch": "192.0.2.1", "port": "GigabitEthernet1/0/3", "mac": "00:11:22:33:44:55" }]
+}

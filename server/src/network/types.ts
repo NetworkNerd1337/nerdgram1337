@@ -45,6 +45,11 @@ export type NetworkLink = {
   b: NetworkEndpoint;
   /** Optional name written on the Layer 2 edge. */
   label: string;
+  /**
+   * True when the export marked the edge as inferred.
+   * False when the field is omitted. A true value is drawn as a dashed edge.
+   */
+  inferred: boolean;
 };
 
 export type NetworkVlan = {

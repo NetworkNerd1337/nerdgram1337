@@ -1,0 +1,27 @@
+{
+  "devices": {
+    "status": "ok",
+    "count": 2,
+    "devices": {
+      "1": { "device_id": "1", "hostname": "core-rtr", "hardware": "ISR4451", "os": "iosxe", "location": "hq", "ip": "192.0.2.1", "sysDescr": "ignored" },
+      "2": { "device_id": "2", "hostname": "dist-sw", "os": "iosxe", "location_text": "hq" }
+    }
+  },
+  "ports": {
+    "status": "ok",
+    "ports": [
+      { "port_id": "10", "device_id": "1", "ifName": "Gi0/0/0", "ifAlias": "to dist", "ifSpeed": "10000000000" },
+      { "port_id": "20", "device_id": "2", "port_short_label": "Gi1/0/1", "ifSpeed": 1000000000, "ifVlan": "10" }
+    ]
+  },
+  "neighbours": {
+    "neighbours": [
+      { "device_id": "1", "port_id": "10", "remote_hostname": "dist-sw", "remote_port": "Gi1/0/1", "protocol": "lldp", "active": "1", "platform": "iosxe" },
+      { "device_id": "1", "port_id": "10", "remote_hostname": "unknown-ap", "remote_port": "eth0", "active": 1 },
+      { "device_id": "2", "port_id": "20", "device_b": "1", "remote_port_id": "10", "active": "0" }
+    ]
+  },
+  "address": {
+    "addresses": [{ "device_id": "1", "port_id": "10", "af": "ipv4", "address": "10.1.0.1/30" }]
+  }
+}

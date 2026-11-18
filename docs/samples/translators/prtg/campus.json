@@ -1,0 +1,12 @@
+{
+  "prtg-version": "24.4.96.1344",
+  "treesize": 2,
+  "devices": [
+    { "objid": 2001, "probe": "Local Probe", "group": "HQ", "device": "core-rtr", "host": "192.0.2.1" },
+    { "objid": 2002, "group": "HQ", "device": "dist-sw", "host": "192.0.2.2" }
+  ],
+  "sensors": [
+    { "objid": 3001, "device": "core-rtr", "sensor": "Ping", "status": "Up", "lastvalue": "1 msec" },
+    { "objid": 3002, "device": "core-rtr", "sensor": "Traffic", "interface": "Gi0/0/0", "status": "Up" }
+  ]
+}

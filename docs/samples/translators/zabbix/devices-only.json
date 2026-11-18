@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "result": [
+    {
+      "hostid": "100",
+      "host": "core-rtr.lab",
+      "name": "core-rtr",
+      "interfaces": [{ "interfaceid": "1", "ip": "192.0.2.1", "port": "10050", "main": "1", "type": "1" }],
+      "inventory": { "os": "linux", "location": "hq" }
+    }
+  ],
+  "id": 1
+}

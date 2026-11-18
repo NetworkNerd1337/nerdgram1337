@@ -1,0 +1,3 @@
+{
+  "devices": [{ "serial": "Q2XX-CORE-0001", "name": "core-sw", "model": "MS250-24", "lanIp": "192.0.2.1" }]
+}

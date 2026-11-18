@@ -103,6 +103,10 @@
         "label": {
           "type": "string",
           "description": "Optional name written on the Layer 2 edge."
+        },
+        "inferred": {
+          "type": "boolean",
+          "description": "Optional. Omitted and false draw a solid edge. true draws a dashed Mermaid edge. Older files that omit it stay valid. schemaVersion stays 1."
         }
       }
     },

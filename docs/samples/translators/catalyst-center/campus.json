@@ -1,0 +1,28 @@
+{
+  "response": {
+    "nodes": [
+      { "id": "n1", "label": "core-rtr", "ip": "192.0.2.1", "siteId": "s1" },
+      { "id": "n2", "label": "dist-sw" }
+    ],
+    "links": [
+      {
+        "source": "n1",
+        "target": "n2",
+        "startPortName": "GigabitEthernet0/0/0",
+        "endPortName": "GigabitEthernet1/0/1",
+        "linkStatus": "up"
+      }
+    ]
+  },
+  "sites": [{ "id": "s1", "name": "hq", "groupNameHierarchy": "Global/hq" }],
+  "network-device": [
+    {
+      "id": "n1",
+      "hostname": "core-rtr",
+      "managementIpAddress": "192.0.2.1",
+      "platformId": "ISR4451",
+      "softwareType": "IOS-XE",
+      "role": "CORE"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "testbed": { "name": "lab", "credentials": { "default": { "username": "admin", "password": "s3cret-testbed" } } },
+  "devices": {
+    "core-rtr": {
+      "os": "iosxe",
+      "type": "router",
+      "connections": { "cli": { "protocol": "ssh", "ip": "192.0.2.1" } },
+      "credentials": { "default": { "username": "admin", "password": "s3cret-device" } }
+    }
+  }
+}

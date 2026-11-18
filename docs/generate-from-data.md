@@ -54,7 +54,7 @@ You produce the JSON. NerdGram does not ship TextFSM, Genie, NAPALM, Batfish, Na
 | --- | --- | --- |
 | `devices` | yes | `name`, plus optional `platform`, `model`, `role`, `site`, `managementIp`, and `diagram`. `platform` and `model` are written under the device name when they are set. `model` is the hardware model, separate from `platform` and `role`. `diagram` is a workspace `.mmd` path and becomes a `click` line. |
 | `interfaces` | yes | `device` and `name`. Optional description (written on the Layer 2 link when it is set), `speed` (text such as `10G`, written on the link when it is set), `adminStatus` and `operStatus` (`up` or `down`), `ipv4` and `ipv6` as `{ "address", "prefix" }`, `vrf`, `switchportMode` (`access` or `trunk`), `accessVlan`, `trunkVlans`, `nativeVlan`, and `lag`. |
-| `links` | no | Undirected pairs `{ "a": { "device", "interface" }, "b": { "device", "interface" } }`, usually from CDP, LLDP, or a source of truth. Optional `label`, written on the Layer 2 edge when it is set. |
+| `links` | no | Undirected pairs `{ "a": { "device", "interface" }, "b": { "device", "interface" } }`, usually from CDP, LLDP, or a source of truth. Optional `label`, written on the Layer 2 edge when it is set. Optional `inferred`. Omitted and false draw a solid edge. `true` draws a dashed edge (`-.->`) on the Layer 2 view, and on a Layer 3 point-to-point edge between those two devices when every link between them is inferred. |
 | `vlans` | no | `id` and optional `name`. An access VLAN and a native VLAN other than 1 are labeled with the name when one is set (`access 20 servers`, `native 99 native`). |
 | `neighbors` | no | Optional `cdp` or `lldp` text. The existing CDP and LLDP parsers add those pairs to the Layer 2 view. `localDevice` is the hostname when the paste has no prompt. |
 
@@ -94,6 +94,12 @@ TextFSM, including ntc-templates, parses one command into rows. A `show ip inter
 
 CDP and LLDP links can be copied from a diagram you already imported, or from the parser you trust, into `links`. You can also paste the raw `show cdp neighbors detail` or `show lldp neighbors detail` into `neighbors.cdp` or `neighbors.lldp`. That text is parsed by the existing CDP and LLDP parsers. NerdGram does not add a parser for any other command.
 
+## Translators on this page
+
+The source list on **From data** includes the installed translators. The list comes from `GET /api/translators`, which needs no token. Paste or upload calls `POST /api/convert/<source>` and then the same preview you use for network JSON. You still pick Layer 3 or Layer 2. Warnings from the mapper are on the preview before the diagram is saved. CSV, JSON, network JSON, CDP, and LLDP stay in the same list. There is no new item in the sidebar.
+
+When a translator is selected, a note above the input is titled **Your diagram reflects your data**. The body names that translator. **Don't show again** remembers that translator in this browser. **Translator tips** opens the section on [Translators](translators.md). The note uses the Light, Dark, and Match system themes.
+
 ## Schema compatibility
 
 `schemaVersion` is 1. An additive optional field stays on 1. A change to a field's meaning bumps `schemaVersion` to 2. The schema stays closed, so an unexpected property is still an error. A file that uses a key added in NerdGram 1.5 needs NerdGram 1.5 or later. A file that omits that key keeps working. The same rule is in [Schema compatibility](schema/README.md) and in the description of [network.schema.json](schema/network.schema.json).
@@ -107,7 +113,7 @@ CDP and LLDP links can be copied from a diagram you already imported, or from th
 
 `additionalProperties` is false on the document and on every object in `$defs`. `validateNetwork()` reports `unexpected property "<name>".` at that path. A `schemaVersion` other than 1 fails with `schemaVersion must be 1.` Version 2 is the number for a later meaning change. This tree still accepts only 1.
 
-A key added in NerdGram 1.5 is rejected by an earlier release, because that release's schema is closed. Leaving the key out keeps the file on version 1, and the generated diagram stays the one that file already produced. `device.model`, `device.diagram`, `interface.speed`, and a link `label` stay on 1. A file that omits them stays valid. Renaming `platform`, or making `managementIp` required, is a bump to 2.
+A key added in NerdGram 1.5 is rejected by an earlier release, because that release's schema is closed. Leaving the key out keeps the file on version 1, and the generated diagram stays the one that file already produced. `device.model`, `device.diagram`, `interface.speed`, a link `label`, and a link `inferred` flag stay on 1. A file that omits them stays valid. `inferred` true draws a dashed edge. Omitted and false keep the solid edge. Renaming `platform`, or making `managementIp` required, is a bump to 2.
 
 ## See also
 

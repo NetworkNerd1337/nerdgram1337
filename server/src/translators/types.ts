@@ -50,6 +50,8 @@ export type CanonicalLink = {
   a: CanonicalEndpoint;
   b: CanonicalEndpoint;
   label?: string;
+  /** Present only when the export marked the edge as inferred. Drawn as a dashed edge. */
+  inferred?: boolean;
 };
 
 export type CanonicalVlan = {

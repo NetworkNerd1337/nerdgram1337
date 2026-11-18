@@ -95,6 +95,8 @@ export type GraphEdge = {
   source: string;
   target: string;
   label: string;
+  /** Dashed Mermaid edge. Omitted on a solid edge so older diagrams stay the same. */
+  dashed?: boolean;
 };
 
 export type GraphModel = {
@@ -467,8 +469,9 @@ export function generateBody(model: GraphModel, options: { direction: FlowDirect
   }
   for (const node of loose) lines.push(`  ${node.id}["${escapeLabel(node.label)}"]`);
   for (const edge of model.edges) {
-    if (edge.label) lines.push(`  ${edge.source} -->|"${escapeLabel(edge.label)}"| ${edge.target}`);
-    else lines.push(`  ${edge.source} --> ${edge.target}`);
+    const arrow = edge.dashed ? "-.->" : "-->";
+    if (edge.label) lines.push(`  ${edge.source} ${arrow}|"${escapeLabel(edge.label)}"| ${edge.target}`);
+    else lines.push(`  ${edge.source} ${arrow} ${edge.target}`);
   }
   const byClass = new Map<string, string[]>();
   for (const node of model.nodes) {
@@ -552,14 +555,24 @@ export function readGeneratedModel(source: string): GraphModel | null {
       });
       continue;
     }
-    const labeled = /^\s*([A-Za-z_][\w-]*)\s+-->\|"(.*)"\|\s+([A-Za-z_][\w-]*)\s*$/.exec(text);
-    if (labeled?.[1] && labeled[3]) {
-      edges.push({ source: labeled[1], target: labeled[3], label: unescapeLabel(labeled[2] ?? "") });
+    const labeled = /^\s*([A-Za-z_][\w-]*)\s+(-->|-\.->)\|"([\s\S]*)"\|\s+([A-Za-z_][\w-]*)\s*$/.exec(text);
+    if (labeled?.[1] && labeled[4]) {
+      edges.push({
+        source: labeled[1],
+        target: labeled[4],
+        label: unescapeLabel(labeled[3] ?? ""),
+        ...(labeled[2] === "-.->" ? { dashed: true } : {}),
+      });
       continue;
     }
-    const plain = /^\s*([A-Za-z_][\w-]*)\s+-->\s+([A-Za-z_][\w-]*)\s*$/.exec(text);
-    if (plain?.[1] && plain[2]) {
-      edges.push({ source: plain[1], target: plain[2], label: "" });
+    const plain = /^\s*([A-Za-z_][\w-]*)\s+(-->|-\.->)\s+([A-Za-z_][\w-]*)\s*$/.exec(text);
+    if (plain?.[1] && plain[3]) {
+      edges.push({
+        source: plain[1],
+        target: plain[3],
+        label: "",
+        ...(plain[2] === "-.->" ? { dashed: true } : {}),
+      });
       continue;
     }
     const classLine = /^\s*class\s+(.+?)\s+([A-Za-z_][\w-]*)\s*$/.exec(text);
@@ -677,7 +690,7 @@ export function diffModels(before: GraphModel, after: GraphModel): GraphDiff {
     const right = [...(afterGroups.get(key) ?? [])];
     const still: GraphEdge[] = [];
     for (const edge of right) {
-      const match = left.findIndex((item) => item.label === edge.label);
+      const match = left.findIndex((item) => item.label === edge.label && Boolean(item.dashed) === Boolean(edge.dashed));
       if (match >= 0) {
         left.splice(match, 1);
         still.push(edge);

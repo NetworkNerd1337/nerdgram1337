@@ -286,6 +286,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ path, ...(copyData == null ? {} : { copyData }) }),
     }),
+  listTranslators: () =>
+    request<{ translators: { id: string; name: string; formatHint: string; placeholder: string }[] }>("/api/translators"),
+  convertTranslator: (source: string, body: unknown) =>
+    request<{ source: string; document: unknown; warnings: { path: string; message: string }[] }>(
+      `/api/convert/${encodeURIComponent(source)}`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
   previewGenerate: (body: {
     text: string;
     format?: string;

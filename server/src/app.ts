@@ -44,6 +44,8 @@ import {
 import { listWorkspaceColors, listWorkspaceFonts } from "./workspaceValues.js";
 import { registerTokenRoutes } from "./tokens.js";
 import { installedTranslators } from "./translators/index.js";
+import { assertConvertInputSize } from "./translators/limits.js";
+import { convertExport } from "./translators/run.js";
 import { mountAutomationApi } from "./v1.js";
 import type { RateLimit } from "./renderDiagram.js";
 import {
@@ -1282,6 +1284,24 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.get("/api/translators", async (_req, res) => {
     try {
       res.json({ translators: await installedTranslators() });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  // Tokenless twin of POST /api/v1/convert/:source. The page stores no token.
+  // Upsert stays on the existing generate routes.
+  app.post("/api/convert/:source", async (req, res) => {
+    try {
+      if (req.body == null || typeof req.body !== "object") {
+        res.status(400).json({ error: "JSON object required", code: "invalid" });
+        return;
+      }
+      const header = req.header("content-length");
+      const declared = header && /^\d+$/.test(header) ? Number(header) : 0;
+      const actual = Buffer.byteLength(JSON.stringify(req.body));
+      assertConvertInputSize(Math.max(declared, actual));
+      res.json(await convertExport(String(req.params.source ?? ""), req.body));
     } catch (err) {
       sendError(res, err);
     }

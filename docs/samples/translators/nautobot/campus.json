@@ -1,0 +1,77 @@
+{
+  "devices": {
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "name": "core-rtr",
+        "device_type": { "model": "ISR4451" },
+        "platform": { "name": "IOS-XE" },
+        "role": { "name": "core" },
+        "location": { "name": "hq" },
+        "primary_ip4": { "address": "192.0.2.1/32" },
+        "serial": "FTX0001"
+      },
+      {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "name": "dist-sw",
+        "device_type": { "model": "C9300" },
+        "role": { "name": "distribution" },
+        "site": { "name": "old-site" },
+        "location": { "name": "hq" }
+      }
+    ]
+  },
+  "interfaces": {
+    "results": [
+      {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+        "device": { "name": "core-rtr" },
+        "name": "Gi0/0/0",
+        "description": "to dist",
+        "enabled": true,
+        "speed": 10000000
+      },
+      {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+        "device": { "name": "dist-sw" },
+        "name": "Gi1/0/1",
+        "enabled": true,
+        "speed": 1000000,
+        "mode": "tagged",
+        "untagged_vlan": { "vid": 99 },
+        "tagged_vlans": [{ "vid": 10 }, { "vid": 20 }]
+      }
+    ]
+  },
+  "cables": {
+    "results": [
+      {
+        "id": "cccccccc-cccc-4ccc-8ccc-ccccccccccc1",
+        "label": "core-dist",
+        "terminations": {
+          "a": { "1": { "object_type": "dcim.interface", "object_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1" } },
+          "b": { "1": { "object_type": "dcim.interface", "object": { "device": { "name": "dist-sw" }, "name": "Gi1/0/1" } } }
+        }
+      },
+      {
+        "label": "console",
+        "termination_a_type": "dcim.consoleport",
+        "termination_a": { "name": "con0" },
+        "termination_b_type": "dcim.consoleserverport",
+        "termination_b": { "name": "port1" }
+      }
+    ]
+  },
+  "ip-address-to-interface": {
+    "results": [
+      {
+        "ip_address": { "address": "10.1.0.1/30" },
+        "interface": { "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1" }
+      }
+    ]
+  },
+  "vlans": { "results": [{ "vid": 10, "name": "users" }, { "vid": 99, "name": "native" }] }
+}
