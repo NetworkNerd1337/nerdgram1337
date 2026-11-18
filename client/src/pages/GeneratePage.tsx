@@ -6,6 +6,7 @@ import { CommandsButton } from "../components/CommandPalette";
 import { SupportLink } from "../components/SupportLink";
 import { FolderPicker } from "../components/FolderPicker";
 import { GenerateWizard } from "../components/GenerateWizard";
+import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { useWorkspace } from "../hooks/useWorkspace";
 import {
@@ -15,6 +16,7 @@ import {
   wizardReducer,
   type WizardInspection,
 } from "../lib/generateWizard";
+import { contentWithStyle } from "../lib/stylePresets";
 
 export function GeneratePage() {
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ export function GeneratePage() {
   const { tree } = useWorkspace();
   const [state, dispatch] = useReducer(wizardReducer, params.get("folder") ?? "", initialWizardState);
   const [busy, setBusy] = useState(false);
+  const [preset, setPreset] = useState<PresetChoice>({ id: "", style: null });
 
   useCommandHost({
     route: "new",
@@ -59,6 +62,10 @@ export function GeneratePage() {
         storeData: true,
         dataName: request.sourceFile,
       });
+      if (preset.style) {
+        const next = contentWithStyle(created.mermaid, preset.style);
+        if (next !== created.mermaid) await api.writeFile(created.path, next, { force: true });
+      }
       navigate(`/edit/${created.path}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not create the diagram.";
@@ -92,6 +99,7 @@ export function GeneratePage() {
           dispatch={dispatch}
           busy={busy}
           folderControl={<FolderPicker tree={tree} value={state.folder} onChange={(folder) => dispatch({ type: "meta", folder })} />}
+          styleControl={<StylePresetChoice mode="create" onChange={setPreset} />}
           onInspect={(step) => void inspect(step)}
           onCreate={() => void create()}
         />

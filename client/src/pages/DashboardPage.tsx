@@ -11,6 +11,7 @@ import { DataFileDialog } from "../components/DataFileDialog";
 import { DiagramChecks } from "../components/DiagramChecks";
 import { DiagramLintProvider, useSharedDiagramLint } from "../components/DiagramLintProvider";
 import { FileNameField } from "../components/FileNameField";
+import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
 import { TagCombobox } from "../components/TagCombobox";
 import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
@@ -38,6 +39,7 @@ import type { WorkspaceItem } from "../lib/commands";
 import { editorHref, searchDiagrams } from "../lib/diagramSearch";
 import { openWorkspaceReplace, setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
 import { diagramCardLabel, folderCountLabel } from "../lib/diagramLabel";
+import { contentWithStyle } from "../lib/stylePresets";
 import { nearestExistingFolder } from "../lib/editorBreadcrumb";
 import { attentionRows } from "../lib/attention";
 import type { TagCount } from "../lib/tagSuggestions";
@@ -115,6 +117,7 @@ export function DashboardPage() {
     | { type: "rename"; path: string; isFolder: boolean }
   >(null);
   const [nameValue, setNameValue] = useState("");
+  const [preset, setPreset] = useState<PresetChoice>({ id: "", style: null });
   const [actionError, setActionError] = useState<string | null>(null);
   const [linkPrompt, setLinkPrompt] = useState<{
     title: string;
@@ -344,6 +347,7 @@ export function DashboardPage() {
 
   const openCreateDiagram = () => {
     setNameValue("");
+    setPreset({ id: "", style: null });
     setModal({ type: "diagram" });
   };
 
@@ -380,7 +384,7 @@ export function DashboardPage() {
         if (!stem) throw new Error("File name is required");
         const filename = ensureMmd(stem);
         const path = joinPath(folder, filename);
-        await api.writeFile(path, "flowchart TD\n  A[Start] --> B[Edit me]\n");
+        await api.writeFile(path, contentWithStyle("flowchart TD\n  A[Start] --> B[Edit me]\n", preset.style));
         await refresh();
         navigate(`/edit/${path}`);
         return;
@@ -1234,7 +1238,10 @@ export function DashboardPage() {
             </>
           ) : null}
           {modal.type === "diagram" ? (
-            <FileNameField id="name-input" value={nameValue} taken={folderNames} autoFocus onChange={setNameValue} />
+            <>
+              <FileNameField id="name-input" value={nameValue} taken={folderNames} autoFocus onChange={setNameValue} />
+              <StylePresetChoice mode="create" onChange={setPreset} />
+            </>
           ) : (
             <>
               <label htmlFor="name-input">{modal.type === "folder" ? "Folder name" : "File name"}</label>

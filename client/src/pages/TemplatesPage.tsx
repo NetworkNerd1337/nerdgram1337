@@ -10,6 +10,7 @@ import { SourceThumbnail } from "../components/MermaidThumbnail";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { FileNameField } from "../components/FileNameField";
+import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
 import { fileNameIssue } from "../lib/fileName";
 import {
   TEMPLATE_CATEGORIES,
@@ -20,6 +21,7 @@ import {
   uniqueSorted,
 } from "../lib/templateGallery";
 import type { TemplateSummary } from "../types";
+import { contentWithStyle } from "../lib/stylePresets";
 
 export function TemplatesPage() {
   const navigate = useNavigate();
@@ -38,6 +40,7 @@ export function TemplatesPage() {
   const [folderChoice, setFolderChoice] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [preset, setPreset] = useState<PresetChoice>({ id: "", style: null });
   const [reloadKey, setReloadKey] = useState(0);
   const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>({});
   const [renameTarget, setRenameTarget] = useState<TemplateSummary | null>(null);
@@ -102,6 +105,7 @@ export function TemplatesPage() {
   }
 
   const openUse = (template: TemplateSummary) => {
+    setPreset({ id: "", style: null });
     setPickedId(template.id);
   };
 
@@ -126,6 +130,11 @@ export function TemplatesPage() {
     setDialogError(null);
     try {
       const result = await api.createFromTemplate(selected.id, { name, folder });
+      if (preset.style) {
+        const file = await api.readFile(result.path);
+        const next = contentWithStyle(file.content, preset.style);
+        if (next !== file.content) await api.writeFile(result.path, next, { force: true });
+      }
       navigate(`/edit/${result.path}`);
     } catch (err) {
       setDialogError(err instanceof Error ? err.message : "Could not create the diagram");
@@ -358,6 +367,7 @@ export function TemplatesPage() {
           <FileNameField id="template-name" value={name} autoFocus onChange={setName} />
           <div className="template-folder-label">Folder</div>
           <FolderPicker tree={tree} value={folder} onChange={setFolderChoice} />
+          <StylePresetChoice mode="template" onChange={setPreset} />
         </Modal>
       ) : null}
       {renameTarget ? (

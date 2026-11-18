@@ -53,6 +53,10 @@ export type CommandActions = {
   trashItem?: (path: string) => void;
   restoreTrash?: (id: string) => void;
   editDiagramInfo?: () => void;
+  /** Open Diagram info and focus the style preset picker. */
+  applyStylePreset?: () => void;
+  /** Open Diagram info and focus Save as preset. */
+  saveStylePreset?: () => void;
   /** Insert a Mermaid click link from a node to another diagram. */
   linkNode?: () => void;
   /** Regenerate the open diagram from its stored data file. */

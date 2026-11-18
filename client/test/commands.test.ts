@@ -99,11 +99,15 @@ describe("command palette registry", () => {
         exportAs: () => undefined,
         setTheme: () => undefined,
         editDiagramInfo: () => undefined,
+        applyStylePreset: () => undefined,
+        saveStylePreset: () => undefined,
         openHistory: () => undefined,
         toggleAutoUpdate: () => undefined,
       },
     });
     const idle = collectCommands(editor).map((command) => command.id);
+    expect(idle).toContain("editor.applyStylePreset");
+    expect(idle).toContain("editor.saveStylePreset");
     expect(idle).toContain("editor.find");
     expect(idle).toContain("editor.replace");
     expect(idle).toContain("editor.gotoLine");

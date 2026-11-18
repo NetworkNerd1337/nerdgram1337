@@ -88,6 +88,7 @@ export function toRelativePath(absolutePath: string): string {
 
 export const META_DIR_NAME = ".meta";
 export const FAVORITES_FILE = "favorites.json";
+export const STYLE_PRESETS_FILE = "style-presets.json";
 
 export function getMetaPath(): string {
   return path.join(ensureDataRoot(), META_DIR_NAME);
@@ -95,4 +96,8 @@ export function getMetaPath(): string {
 
 export function getFavoritesPath(): string {
   return path.join(getMetaPath(), FAVORITES_FILE);
+}
+
+export function getStylePresetsPath(): string {
+  return path.join(getMetaPath(), STYLE_PRESETS_FILE);
 }

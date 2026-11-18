@@ -19,13 +19,14 @@ import { getMetaPath } from "./paths.js";
  * - `.meta/replace/operations.json` — ids for workspace replace undo, pointing at revision ids
  * - `.meta/diagram-sightings.json` — path and content hash of diagrams already seen, used to repair click links after a rename outside the app
  * - `.meta/listen-host.json` — older Host setting. A valid value is copied once into the instance config (`~/.nerdgram/instance.json` or `NERDGRAM_INSTANCE_FILE`) when that config has no Host yet. The file is left in place and then ignored. New saves do not write it. HOST still overrides the saved Host. Git sync does not copy `.meta`
+ * - `.meta/style-presets.json` — named style presets and the optional default for new diagrams. Applying a preset copies values into the `.mmd` file. The preset file is not part of a diagram.
  *
  * Move, duplicate, and import (#9) should reuse `atomicWriteText`,
  * `evaluateWrite`, and `resolveAvailablePath` instead of calling
  * `fs.writeFile` on a diagram directly. Creating a diagram from a bundled
  * template (#17) uses the same helpers. GitHub sync (#14) copies `.mmd`
  * files and the `.csv`, `.json`, `.network.json`, `.cdp`, and `.lldp` data files stored next to a generated
- * diagram. It does not copy `.meta` (favorites, syntax overrides, trash,
+ * diagram. It does not copy `.meta` (favorites, style presets, syntax overrides, trash,
  * revisions, locks, thumbnails, the search index, or tokens). Bundled
  * templates live outside this directory, in the repo `templates/` folder,
  * and are not part of the mirror. User templates live in `.templates/`

@@ -7,6 +7,7 @@ import { SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { Modal } from "../components/Modal";
 import { AppearanceSettings } from "../components/AppearanceSettings";
+import { StylePresetsSettings } from "../components/StylePresetsSettings";
 import { DiagramFolderSettings } from "../components/DiagramFolderSettings";
 import { HostSettings } from "../components/HostSettings";
 import { InstanceSettings } from "../components/InstanceSettings";
@@ -109,10 +110,11 @@ export function SettingsPage() {
           <div>
             <h1>Settings</h1>
             <p className="reference-meta">
-              Appearance, GitHub sync, the listen host, the diagram folder, the instance name, automation tokens, and diagram checks.
+              Appearance, style presets, GitHub sync, the listen host, the diagram folder, the instance name, automation tokens, and diagram checks.
             </p>
             <nav className="settings-nav" aria-label="Settings sections">
               <a href="#appearance">Appearance</a>
+              <a href="#style-presets">Style presets</a>
               <a href="#github-sync">GitHub sync</a>
               <a href="#host">Host</a>
               <a href="#diagram-folder">Diagram folder</a>
@@ -135,6 +137,7 @@ export function SettingsPage() {
 
       <main className="sync-page">
         <AppearanceSettings />
+        <StylePresetsSettings />
         <section className="sync-card" id="github-sync">
           <h2>GitHub sync</h2>
           <p>

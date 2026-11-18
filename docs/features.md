@@ -11,6 +11,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - [Files](#files)
 - [Trash and history](#trash-and-history)
 - [Titles, themes, and notes](#titles-themes-and-notes)
+- [Style presets](#style-presets)
 - [Appearance](#appearance)
 - [Diagram checks](#diagram-checks)
 - [Linked diagrams](#linked-diagrams)
@@ -95,6 +96,7 @@ The file you edit stays a plain `.mmd` file. Bookkeeping lives under the data di
 - `.meta/trash/items/<id>/` — one soft-deleted file or folder, plus the bookmarks and revisions that belonged to it
 - `.meta/versions/p_<encoded-path>/` — the previous contents of one diagram
 - `.meta/locks/p_<encoded-path>.json` — the editor lock for one path
+- `.meta/style-presets.json` — named style presets and the optional default for new diagrams. The values are copied into each diagram. The preset file is not a diagram.
 
 ## Titles, themes, and notes
 
@@ -120,17 +122,35 @@ flowchart LR
 
 **Diagram info** in the editor edits the title, description, notes, and tags, and sets the theme, look, layout, and font. The tag field is a combobox. As you type, it suggests tags already used in the workspace, up to about eight. A prefix match comes before a match later in the word, and a more-used tag comes before a rarer one. Matching ignores case, and the matching letters are underlined. An empty field, once focused, lists the most-used tags. Tags already on this diagram are left out. Up and Down move through the list. Enter or Tab uses the highlighted tag. Escape closes the list. Enter or a comma with nothing highlighted adds the text you typed. When that text is not an existing spelling, the last row is **Create** followed by the text. If you type a different case of a tag that already exists, that existing spelling is the first suggestion, so `Firewall` offers `firewall` before a new variant. `GET /api/tags` returns each stored spelling and how many diagrams use it. Trash is not included. The same spelling on one diagram counts once, and `firewall` and `Firewall` stay two tags. The dashboard tag row uses the same suggestions to filter. The chips stay. The editor header has the same theme, look, and layout controls on the preview toolbar. **Diagram info** itself is the header button, not a second button on that toolbar. The preview, dashboard thumbnails, and the editor's SVG, PNG, JPG, and PDF export use the theme in the file. If the file does not set one, they use **dark**. [Appearance](#appearance) changes the app around the diagram. It does not change this theme.
 
-Font family is a list: **Default**, **System UI**, **Sans-serif**, **Serif**, **Monospace**, and **Custom…**. Default clears `config.fontFamily` and the diagram uses the engine font. Custom is a CSS font list. It is saved when you leave the box or press Enter, and spaces between words stay. The fonts have to be installed on the computer that views or renders the diagram. Separate fallbacks with commas. A file that already names one of the presets opens on that preset. Any other value opens as Custom.
+Font family is a list: **Default**, **System UI**, **Sans-serif**, **Serif**, **Monospace**, and **Custom…**. Default clears `config.fontFamily` and the diagram uses the engine font. Custom is a CSS font list. It is saved when you leave the box or press Enter, and spaces between words stay. The fonts have to be installed on the computer that views or renders the diagram. Separate fallbacks with commas. A file that already names one of the presets opens on that preset. Any other value opens as Custom. Custom suggests families already stored on diagrams in this workspace. Theme variable color fields show swatches of colors those diagrams already use. **Save as preset** and **Apply preset** are in the same panel. [Style presets](#style-presets) describes both.
 
 The built-in Mermaid themes are `default`, `neutral`, `dark`, `forest`, `base`, `neo`, `neo-dark`, `redux`, `redux-dark`, `redux-color`, and `redux-dark-color`. Looks are `classic`, `handDrawn`, and `neo`. Layouts are `dagre` and `elk`.
 
-**New diagram**, **Paste Mermaid**, **From data**, and **Use template** ask for a **File name** before the `.mmd` file is written. The field starts empty. Paste Mermaid fills it from the front matter title, then a leading `%%` comment, then the first node label, and stops filling it once you type. An empty name is not saved as `Untitled.mmd`. If the folder already has that name, the page says so and offers the next free name, such as `Name 2`.
+**New diagram**, **Paste Mermaid**, **From data**, and **Use template** ask for a **File name** before the `.mmd` file is written. The field starts empty. Paste Mermaid fills it from the front matter title, then a leading `%%` comment, then the first node label, and stops filling it once you type. An empty name is not saved as `Untitled.mmd`. If the folder already has that name, the page says so and offers the next free name, such as `Name 2`. Those screens also offer a style preset. New diagram, Paste Mermaid, and From data start on the default preset when one is set, and can choose **No preset**. Use template starts on **Keep template style**.
 
 The editor header and the dashboard show the file name, without `.mmd`. A front matter title does not replace that name. When a title is set and it is not the same as the file name, the card shows it on a smaller second line. A title that matches the file name does not repeat. The rendered diagram and **Present** still use the title, as Mermaid does. A description is shown under the name. Tags are chips. Click a chip, or use the tag row, to filter the dashboard. Search matches the file name and the title, and also the description, notes, and tags. A file name match is listed before a title, tag, description, note, or label match.
 
 Description, notes, and tags live under `nerdgram:` because Mermaid has no field for them. Mermaid still reads `title` and `config` from the same header. A diagram with no front matter previews the same way as before. An older `%%{init: ...}%%` line still renders. The editor can move that config into the front matter. If the header is not valid YAML, the editor shows the error and leaves the file text alone.
 
 `%%` at the start of a line is a Mermaid comment. In the code pane, Ctrl+/ (Cmd+/ on a Mac) comments or uncomments the selected lines.
+
+## Style presets
+
+A style preset is a named copy of the style fields in Diagram info: theme, look, hand-drawn seed, layout, font family, theme variables, theme CSS, flowchart curve, ELK options (`mergeEdges` and node placement), and Gantt display. Title, description, notes, and tags stay on the diagram and are not part of a preset.
+
+**Save as preset** in Diagram info stores the style of the diagram that is open. **Apply preset** lists what will change. **Apply** copies those values into the file's front matter. **Undo** puts that file text back. The file does not store the preset name or id, so editing or deleting a preset does not change diagrams that already used it. The diagram still renders the same way in GitHub or any other Mermaid tool. `config.flowchart.wrappingWidth` is not part of a preset. Applying one leaves that width as it is. A file that does not set it still uses the 480px default when the diagram is drawn. A file that sets its own width keeps that width.
+
+Presets are stored in `<data>/.meta/style-presets.json`. That file is not a diagram. The folder tree, search, diagram checks, and trash skip it. GitHub sync does not copy it. **Style presets** on the settings page (`/settings#style-presets`), and in the sidebar, renames, duplicates, edits, and deletes a preset, and chooses the default for new diagrams. **Export JSON** downloads the list. **Import JSON** adds the presets in a file. Check **Replace the presets on this computer** to use the file as the whole list instead. Diagrams are not changed either way. The file is version 1. A field it does not recognize is rejected.
+
+**New diagram**, **Paste Mermaid**, and **From data** start on the default preset when one is set. Each of those screens can choose another preset or **No preset**. **Use template** starts on **Keep template style**. Choosing a preset copies it into the new file and leaves the template itself alone.
+
+`GET /api/style-presets` returns `version`, `defaultId`, and `presets`. `POST /api/style-presets` creates one from `name` and `style`. `default: true` makes it the default. `PUT /api/style-presets/<id>` changes `name`, `style`, or `default`. `DELETE /api/style-presets/<id>` removes it and, if it was the default, clears the default. `POST /api/style-presets/import` reads a version 1 document. `mode` is `add` or `replace`. Unknown fields are rejected. These routes are for this computer. They are not under `/api/v1`.
+
+The command palette commands **Apply style preset** and **Save style as preset** open Diagram info on those controls.
+
+When Font family is **Custom…**, the box suggests font families already stored in the workspace, with how many diagrams use each one. The list works like the tag field. A prefix match comes before a match later in the text, a more-used family comes first, and the matching letters are underlined. An empty box, once focused, lists the most-used families. Up and Down move. Enter or Tab uses the highlighted family. Enter with nothing highlighted saves the text you typed. Escape closes the list. A comma stays in the value, because a font list uses commas between fallbacks. `GET /api/fonts` returns each stored spelling and the count. Trash is not included. The same spelling on one diagram counts once. `IBM Plex Sans` and `ibm plex sans` stay two families.
+
+Color fields under Theme variables show a row of swatches. Workspace colors come first, most-used first, then colors picked in this browser that are not already in that row. A swatch is a button. Arrow keys move between them. Enter or Space uses the focused swatch. `GET /api/colors` returns each color and how many diagrams use it. A color counts once per diagram. Trash is not included. `#fff` and `#ffffff` are the same swatch. Recent picks stay in this browser, not on the server.
 
 ## Appearance
 
@@ -148,7 +168,7 @@ The code pane checks the diagram while you type. The check waits about **400 ms*
 
 The problems list can also offer a fix. **Rename** gives a duplicate id, or a class defined again with a different label, a new name. **Remove unused class** deletes a `classDef` nothing uses. **Create class** inserts a `classDef` for a name you already applied. **Declare class** and **Declare entity** insert the missing name. **Remove duplicate attribute** deletes the extra attribute line. **Remove duplicate** and **Remove empty node** delete a repeated or blank mindmap node, or a repeated or blank timeline event, when that line has no children. **Jump to definition** moves the cursor to the first definition of a duplicate id or class. Each of those can be undone with Ctrl+Z (Cmd+Z on a Mac). **Repair links** on a broken diagram link opens a preview of the rewrites. Confirming it saves the diagrams. Nothing is written before that confirmation.
 
-Turn a warning off under **Diagram checks** on the settings page (`/settings#diagram-checks`). The sidebar links there on its own, next to Appearance, Host, Diagram folder, Instance name, GitHub sync, and automation tokens. The switches are saved in this browser. A diagram Mermaid cannot parse is always marked. **Repair links** stays disabled when no renamed diagram matches a broken link.
+Turn a warning off under **Diagram checks** on the settings page (`/settings#diagram-checks`). The sidebar links there on its own, next to Appearance, Style presets, Host, Diagram folder, Instance name, GitHub sync, and automation tokens. The switches are saved in this browser. A diagram Mermaid cannot parse is always marked. **Repair links** stays disabled when no renamed diagram matches a broken link.
 
 | Rule | What it warns about |
 | --- | --- |
@@ -216,7 +236,7 @@ The find panel can match case, whole words, or a regular expression, and it can 
 
 On Windows, AltGr is reported as Ctrl+Alt. On a layout where AltGr+G types a character, Ctrl+Alt+G can type that character instead of opening Go to line. Use **Go to line** in the command palette.
 
-The palette lists the actions already in the app: new diagram, paste, folder, import, generate from data, refresh from data, search, replace across diagrams, open, rename, move, duplicate, trash, restore, diagram info, link node to diagram, history, theme, export, present, find, go to line, templates, GitHub sync, About, and check for updates. Template, sync, and update commands do not add a shortcut. The app also leaves Ctrl+D for the browser bookmark and does not bind F11.
+The palette lists the actions already in the app: new diagram, paste, folder, import, generate from data, refresh from data, search, replace across diagrams, open, rename, move, duplicate, trash, restore, diagram info, apply style preset, save style as preset, link node to diagram, history, theme, export, present, find, go to line, templates, GitHub sync, About, and check for updates. Template, sync, and update commands do not add a shortcut. The app also leaves Ctrl+D for the browser bookmark and does not bind F11.
 
 ## Search
 

@@ -1,4 +1,5 @@
 import type { LinkRepairPlan } from "../../server/src/diagramLinks.ts";
+import type { StylePreset, StylePresetDocument, StyleSnapshot } from "./lib/stylePresets";
 import type { ReplaceApplyResult, ReplacePreview, ReplaceUndoResult } from "./lib/workspaceReplace";
 import type { LintDiagnostic } from "../../server/src/diagramLint.ts";
 import type { UnreadableDiagram } from "../../server/src/readError.ts";
@@ -180,6 +181,34 @@ export const api = {
     }),
   diagramMeta: () => request<{ diagrams: DiagramMeta[] }>("/api/diagram-meta"),
   tags: () => request<{ tags: { tag: string; count: number }[] }>("/api/tags"),
+  fonts: () => request<{ fonts: { fontFamily: string; count: number }[] }>("/api/fonts"),
+  colors: () => request<{ colors: { color: string; count: number }[] }>("/api/colors"),
+  stylePresets: () => request<StylePresetDocument>("/api/style-presets"),
+  createStylePreset: (body: { name: string; style: StyleSnapshot; default?: boolean }) =>
+    request<StylePresetDocument & { preset: StylePreset }>("/api/style-presets", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateStylePreset: (id: string, body: { name?: string; style?: StyleSnapshot; default?: boolean }) =>
+    request<StylePresetDocument & { preset: StylePreset }>(`/api/style-presets/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteStylePreset: (id: string) =>
+    request<StylePresetDocument>(`/api/style-presets/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      body: "{}",
+    }),
+  importStylePresets: (body: {
+    version: unknown;
+    defaultId?: unknown;
+    presets: unknown;
+    mode?: "add" | "replace";
+  }) =>
+    request<StylePresetDocument>("/api/style-presets/import", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   lintSource: (source: string, diagramPaths?: string[], sourcePath?: string) =>
     request<{ diagnostics: LintDiagnostic[] }>("/api/lint", {
       method: "POST",
