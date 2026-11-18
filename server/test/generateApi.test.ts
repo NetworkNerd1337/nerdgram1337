@@ -276,4 +276,39 @@ Enabled Capabilities: B
     expect(hand.body.code).toBe("not_generated");
     expect(await fs.readFile(path.join(dir, "Hand.mmd"), "utf8")).toBe("flowchart LR\n  A --> B\n");
   });
+
+  it("names network JSON fields and keeps row numbers for CSV", async () => {
+    const server = app();
+    const network = JSON.stringify({
+      schemaVersion: 1,
+      devices: [{ name: "core", serial: "ABC" }],
+      interfaces: [],
+    });
+    const preview = await request(server)
+      .post("/api/generate/preview")
+      .set(json)
+      .send({ text: network, format: "network", view: "l3" });
+    expect(preview.status).toBe(200);
+    expect(preview.body.errors).toContainEqual({
+      path: "/devices/0/serial",
+      message: '/devices/0/serial: unexpected property "serial".',
+    });
+    expect(JSON.stringify(preview.body.errors)).not.toContain('"row"');
+
+    const created = await request(server)
+      .post("/api/generate")
+      .set(json)
+      .send({ text: network, format: "network", view: "l3", path: "Bad.mmd" });
+    expect(created.status).toBe(400);
+    expect(created.body.error).toBe("Fix the fields listed before creating the diagram.");
+    expect(created.body.errors[0].path).toBe("/devices/0/serial");
+    expect(created.body.errors[0].row).toBeUndefined();
+
+    const csv = "Local Device,Local Port,Remote Device,Remote Port\n,Gi0/1,Atlanta,Gi0/2\n";
+    const rows = await request(server).post("/api/generate").set(json).send({ text: csv, path: "Rows.mmd" });
+    expect(rows.status).toBe(400);
+    expect(rows.body.error).toBe("Fix the rows listed before creating the diagram.");
+    expect(rows.body.errors[0].row).toBeGreaterThan(0);
+    expect(String(rows.body.errors[0].message)).toMatch(/Row /);
+  });
 });

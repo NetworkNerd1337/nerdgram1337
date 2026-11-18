@@ -9,6 +9,8 @@ import {
   canCreate,
   diagramFilePath,
   initialWizardState,
+  issueListTitle,
+  listedIssueText,
   previewRequest,
   wizardReducer,
   type WizardInspection,
@@ -266,7 +268,41 @@ describe("generate wizard flow", () => {
     const result = inspection(state, "preview");
     state = wizardReducer(state, { type: "result", result, step: "preview" });
     expect(state.errors.some((issue) => issue.message.includes("Row 2"))).toBe(true);
+    expect(issueListTitle(state.format, state.detectedFormat)).toBe("Rows to fix");
     expect(canCreate(state)).toBe(false);
+  });
+
+  it("shows a network JSON path instead of a row number", () => {
+    let state = wizardReducer(initialWizardState(), { type: "format", format: "network" });
+    state = wizardReducer(state, {
+      type: "text",
+      text: JSON.stringify({ schemaVersion: 1, devices: [{ name: "core", serial: "ABC" }], interfaces: [] }),
+    });
+    const result = inspection(state, "preview");
+    state = wizardReducer(state, { type: "result", result, step: "preview" });
+    expect(state.errors[0]?.path).toBe("/devices/0/serial");
+    expect(state.errors[0]?.row).toBeUndefined();
+    expect(listedIssueText(state.errors[0]!)).toContain("/devices/0/serial");
+    expect(listedIssueText(state.errors[0]!)).not.toMatch(/row 0/i);
+    expect(issueListTitle(state.format, state.detectedFormat)).toBe("Fields to fix");
+
+    function render() {
+      act(() => {
+        if (!root) {
+          const host = document.createElement("div");
+          document.body.appendChild(host);
+          root = createRoot(host);
+        }
+        root?.render(
+          <GenerateWizard state={state} dispatch={() => undefined} busy={false} onInspect={() => undefined} onCreate={() => undefined} />,
+        );
+      });
+    }
+    render();
+    expect(document.body.textContent).toContain("Fields to fix");
+    expect(document.body.textContent).toContain("/devices/0/serial");
+    expect(document.body.textContent).not.toContain("Rows to fix");
+    expect(document.body.textContent).not.toContain("Row 0");
   });
 
   it(

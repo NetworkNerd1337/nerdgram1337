@@ -79,7 +79,7 @@ export class ApiError extends Error {
   readonly path?: string;
   readonly suggestedPath?: string;
   readonly files?: string[];
-  readonly errors?: { row: number; message: string }[];
+  readonly errors?: { row?: number; path?: string; message: string }[];
   readonly current?: {
     path?: string;
     content: string;
@@ -103,10 +103,14 @@ export class ApiError extends Error {
     this.errors = Array.isArray(body.errors)
       ? body.errors.flatMap((item) => {
           if (!item || typeof item !== "object") return [];
-          const row = (item as { row?: unknown }).row;
           const message = (item as { message?: unknown }).message;
-          if (typeof row !== "number" || typeof message !== "string") return [];
-          return [{ row, message }];
+          if (typeof message !== "string" || !message.trim()) return [];
+          const row = (item as { row?: unknown }).row;
+          const path = (item as { path?: unknown }).path;
+          const issue: { row?: number; path?: string; message: string } = { message };
+          if (typeof row === "number" && row > 0) issue.row = row;
+          if (typeof path === "string" && path.trim()) issue.path = path.trim();
+          return [issue];
         })
       : undefined;
     if (body.current && typeof body.current === "object") {
@@ -278,8 +282,8 @@ export const api = {
       edgesHeaders: string[];
       mapping: Record<string, string>;
       edgesMapping: Record<string, string>;
-      errors: { row: number; message: string }[];
-      warnings: { row: number; message: string }[];
+      errors: { row?: number; path?: string; message: string }[];
+      warnings: { row?: number; path?: string; message: string }[];
       mermaid: string;
       counts: { nodes: number; edges: number; groups: number };
       direction: "TD" | "TB" | "LR" | "RL" | "BT";
@@ -324,7 +328,7 @@ export const api = {
       path: string;
       dataPath: string;
       mermaid: string;
-      warnings: { row: number; message: string }[];
+      warnings: { row?: number; path?: string; message: string }[];
       counts: { nodes: number; edges: number; groups: number };
       diff: {
         nodes: {

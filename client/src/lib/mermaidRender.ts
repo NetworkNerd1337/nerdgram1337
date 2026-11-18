@@ -1,4 +1,5 @@
 import mermaid from "mermaid";
+import { padEdgeLabelBoxes } from "../../../server/src/edgeLabelPadding.ts";
 import { withSvgTextLabels } from "./exportSvg";
 import { diagramInitConfig, FALLBACK_THEME } from "./frontMatter";
 
@@ -20,6 +21,14 @@ function removeMermaidTemp(id: string): void {
   for (const elementId of [id, `d${id}`, `i${id}`]) {
     document.getElementById(elementId)?.remove();
   }
+}
+
+function padRenderedSvg(svg: string): string {
+  if (!svg.includes("edgeLabel") || typeof DOMParser === "undefined") return svg;
+  const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+  if (doc.querySelector("parsererror")) return svg;
+  padEdgeLabelBoxes(doc);
+  return new XMLSerializer().serializeToString(doc.documentElement);
 }
 
 function initializeFor(code: string, fallbackTheme: string): void {
@@ -83,7 +92,7 @@ export async function renderForExport(
     const id = `nerdgram-export-${++renderSeq}`;
     try {
       const { svg } = await mermaid.render(id, trimmed);
-      return svg;
+      return padRenderedSvg(svg);
     } finally {
       removeMermaidTemp(id);
     }
@@ -103,7 +112,7 @@ export async function renderMermaid(
     const id = `nerdgram-${++renderSeq}`;
     try {
       const { svg } = await mermaid.render(id, trimmed);
-      return { svg, id };
+      return { svg: padRenderedSvg(svg), id };
     } finally {
       removeMermaidTemp(id);
     }

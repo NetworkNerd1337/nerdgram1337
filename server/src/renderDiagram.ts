@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import type { Browser, Page } from "puppeteer";
 import puppeteer from "puppeteer";
+import { padEdgeLabelBoxes } from "./edgeLabelPadding.js";
 import { diagramInitConfig } from "./frontMatter.js";
 import { locateParseError } from "./parseError.js";
 import { httpFail } from "./storage.js";
@@ -143,14 +144,25 @@ async function draw(page: Page, source: string, background: string): Promise<str
   );
   await page.addScriptTag({ path: mermaidScript() });
   const drawn = await page.evaluate(
-    async (code: string, mermaidConfig: Record<string, unknown>, fill: string) => {
+    async (code: string, mermaidConfig: Record<string, unknown>, fill: string, padSource: string) => {
+      const padBoxes = new Function("root", `return (${padSource})(root);`) as (root: unknown) => void;
+      const dom = globalThis as unknown as {
+        DOMParser: new () => { parseFromString(xml: string, type: string): { documentElement: unknown } };
+        XMLSerializer: new () => { serializeToString(node: unknown): string };
+      };
+      const padSvg = (svg: string): string => {
+        if (!svg.includes("edgeLabel")) return svg;
+        const doc = new dom.DOMParser().parseFromString(svg, "image/svg+xml");
+        padBoxes(doc);
+        return new dom.XMLSerializer().serializeToString(doc.documentElement);
+      };
       const api = (window as unknown as { mermaid?: { initialize: (config: unknown) => void; render: (id: string, text: string) => Promise<{ svg: string }> } }).mermaid;
       if (!api) return { ok: false as const, message: "Mermaid did not load", loc: null, token: undefined };
       document.body.style.background = fill;
       api.initialize(mermaidConfig);
       try {
         const rendered = await api.render("nerdgram-render", code);
-        return { ok: true as const, svg: rendered.svg };
+        return { ok: true as const, svg: padSvg(rendered.svg) };
       } catch (err) {
         const hash =
           err && typeof err === "object" && "hash" in err
@@ -176,6 +188,7 @@ async function draw(page: Page, source: string, background: string): Promise<str
     source,
     config,
     background,
+    padEdgeLabelBoxes.toString(),
   );
   if (!drawn.ok) {
     const parsed = drawn.loc != null || /parse error on line/i.test(drawn.message);

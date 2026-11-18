@@ -87,6 +87,16 @@ describe("network schema", () => {
     vlan.vlans[0]!.id = 0;
     expect(validateNetwork(vlan).issues[0]?.path).toBe("/vlans/0/id");
 
+    const extraFile = clone(sample) as { devices: Record<string, unknown>[] };
+    extraFile.devices[0]!.serial = "ABC";
+    const imported = importDiagramData({ text: JSON.stringify(extraFile), format: "network", view: "l3" });
+    expect(imported.errors).toContainEqual({
+      path: "/devices/0/serial",
+      message: '/devices/0/serial: unexpected property "serial".',
+    });
+    expect(imported.errors.every((issue) => issue.row == null)).toBe(true);
+    expect(JSON.stringify(imported.errors)).not.toContain('"row"');
+
     expect(() => importDiagramData({ text: "{", format: "network", view: "l3" })).toThrow(/not valid JSON/);
     expect(() => importDiagramData({ text: sampleText, format: "network" })).toThrow(/view must be l3 or l2/);
     expect(() => importDiagramData({ text: sampleText, format: "network", view: "l3", vlan: 10 })).toThrow(/Layer 2/);

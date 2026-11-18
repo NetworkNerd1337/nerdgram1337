@@ -217,6 +217,21 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
   }
 }
 
+/** Network JSON lists fields. CSV, JSON tables, CDP, and LLDP list rows. */
+export function issueListTitle(format: string, detectedFormat = ""): string {
+  return format === "network" || detectedFormat === "network" ? "Fields to fix" : "Rows to fix";
+}
+
+/** Show a JSON path, or a real row number. A missing row is not "row 0". */
+export function listedIssueText(issue: { row?: number; path?: string; message: string }): string {
+  const message = issue.message.trim();
+  const field = issue.path?.trim() ?? "";
+  if (field && !message.includes(field)) return `${field}: ${message}`;
+  const row = issue.row ?? 0;
+  if (row > 0 && !new RegExp(`\\brow ${row}\\b`, "i").test(message)) return `Row ${row}: ${message}`;
+  return message;
+}
+
 export function canInspect(state: WizardState): boolean {
   return state.text.trim().length > 0;
 }
