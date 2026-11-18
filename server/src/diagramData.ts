@@ -63,11 +63,24 @@ export type NetworkView = "l3" | "l2";
 export type NetworkGroupBy = "vrf" | "site" | "role" | "platform";
 
 export type RowIssue = {
-  row: number;
+  /**
+   * 1-based source row for a CSV, JSON table, CDP, or LLDP problem.
+   * Omitted for a network JSON field, which has no row.
+   */
+  row?: number;
   message: string;
-  /** JSON pointer for a network-data field, when the error is a schema error. */
+  /** JSON pointer for a network JSON field, such as `/devices/0/serial`. */
   path?: string;
 };
+
+/** Drop a meaningless `row: 0` and keep a real row or a JSON path. */
+export function presentedIssue(issue: { row?: number; path?: string; message: string }): RowIssue {
+  const next: RowIssue = { message: issue.message };
+  const path = issue.path?.trim() ?? "";
+  if (path) next.path = path;
+  if (typeof issue.row === "number" && issue.row > 0) next.row = issue.row;
+  return next;
+}
 
 export type GraphNode = {
   id: string;

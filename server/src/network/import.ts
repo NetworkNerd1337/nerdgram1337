@@ -1,6 +1,7 @@
 import {
   dataFail,
   graphNodeId,
+  presentedIssue,
   renderNewDiagram,
   type DataSourceConfig,
   type FlowDirection,
@@ -43,12 +44,12 @@ export function importNetworkFormat(input: ImportInput, text: string): ImportRes
       grouping,
       localDevice: cleanLocalDevice(input.localDevice),
     });
-    errors.push(...built.errors);
-    warnings.push(...built.warnings);
+    errors.push(...built.errors.map(presentedIssue));
+    warnings.push(...built.warnings.map(presentedIssue));
     if (errors.length === 0) model = toModel(built.nodes, built.edges);
   }
   if (errors.length === 0 && model.nodes.length === 0 && model.edges.length === 0) {
-    errors.push({ row: 0, message: "No devices were found." });
+    errors.push({ message: "No devices were found." });
   }
   const usable = errors.length === 0 ? model : { nodes: [], edges: [] };
   const source = networkSource(input, { view, direction, grouping, groupBy, includeDown, vlan, localDevice: cleanLocalDevice(input.localDevice) });
@@ -179,11 +180,12 @@ function cleanStoredName(value: string | undefined): string {
 }
 
 function issues(items: { path: string; message: string }[]): RowIssue[] {
-  return items.map((item) => ({
-    row: 0,
-    path: item.path,
-    message: item.path ? `${item.path}: ${item.message}` : item.message,
-  }));
+  return items.map((item) =>
+    presentedIssue({
+      path: item.path,
+      message: item.path ? `${item.path}: ${item.message}` : item.message,
+    }),
+  );
 }
 
 function clipTitle(value: string | undefined): string | undefined {

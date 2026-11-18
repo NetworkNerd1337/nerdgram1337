@@ -175,17 +175,25 @@ describe("nerdgram CLI", () => {
     try {
       expect(await main(args, io)).toBe(1);
       const text = stderr.join("");
-      expect(text).toContain("Fix the rows listed before creating the diagram.");
+      expect(text).toContain("Fix the fields listed before creating the diagram.");
+      expect(text).not.toMatch(/row 0/i);
       expect(text).toContain("duplicate device");
       expect(text).toContain("/devices/");
 
       stdout.length = 0;
       stderr.length = 0;
       expect(await main([...args, "--json"], io)).toBe(1);
-      const body = JSON.parse(stdout.join("")) as { ok: boolean; error: string; errors: { path?: string; message: string }[] };
+      const body = JSON.parse(stdout.join("")) as {
+        ok: boolean;
+        error: string;
+        errors: { row?: number; path?: string; message: string }[];
+      };
       expect(body.ok).toBe(false);
-      expect(body.error).toContain("duplicate device");
-      expect(body.errors.some((item) => item.message.includes("duplicate device"))).toBe(true);
+      expect(body.error).toContain("Fix the fields listed before creating the diagram.");
+      const field = body.errors.find((item) => item.message.includes("duplicate device"));
+      expect(field?.path).toMatch(/^\/devices\/\d+\/name$/);
+      expect(field?.row).toBeUndefined();
+      expect(JSON.stringify(field)).not.toContain('"row"');
     } finally {
       await running.close();
     }

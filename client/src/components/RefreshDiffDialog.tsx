@@ -1,3 +1,7 @@
+import { listedIssueText } from "../lib/generateWizard";
+
+type ListedIssue = { row?: number; path?: string; message: string };
+
 type DiffNode = { id: string; label: string };
 type DiffChange = { id: string; label: string; before: string; after: string; fields: string[] };
 type DiffEdge = { source: string; target: string; label: string };
@@ -11,9 +15,9 @@ export type RefreshDiff = {
 type RefreshDiffDialogProps = {
   dataPath: string;
   diff: RefreshDiff;
-  warnings: { row: number; message: string }[];
+  warnings: ListedIssue[];
   error: string | null;
-  rowErrors: { row: number; message: string }[];
+  rowErrors: ListedIssue[];
   onApply: () => void;
   onClose: () => void;
 };
@@ -56,9 +60,10 @@ export function RefreshDiffDialog({
         {rowErrors.length > 0 ? (
           <div className="error-banner" role="alert">
             <ul>
-              {rowErrors.map((issue) => (
-                <li key={`${issue.row}-${issue.message}`}>{issue.message}</li>
-              ))}
+              {rowErrors.map((issue) => {
+                const text = listedIssueText(issue);
+                return <li key={`${issue.path ?? ""}-${issue.row ?? ""}-${text}`}>{text}</li>;
+              })}
             </ul>
           </div>
         ) : null}
@@ -78,9 +83,10 @@ export function RefreshDiffDialog({
         {warnings.length > 0 ? (
           <div className="status-banner">
             <ul>
-              {warnings.map((issue) => (
-                <li key={`${issue.row}-${issue.message}`}>{issue.message}</li>
-              ))}
+              {warnings.map((issue) => {
+                const text = listedIssueText(issue);
+                return <li key={`${issue.path ?? ""}-${issue.row ?? ""}-${text}`}>{text}</li>;
+              })}
             </ul>
           </div>
         ) : null}

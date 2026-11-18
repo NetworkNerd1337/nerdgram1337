@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { readDataSource } from "../../../server/src/diagramData.ts";
 import { indexDiagramLinks, insertDiagramLink, linksFor } from "../../../server/src/diagramLinks.ts";
@@ -20,6 +20,8 @@ import { ProblemsPanel } from "../components/ProblemsPanel";
 import { RepairLinksDialog } from "../components/RepairLinksDialog";
 import { PresentationView } from "../components/PresentationView";
 import { actionForClickTarget, clickTargetOnElement, openExternalLink } from "../lib/diagramClicks";
+import { EditorDivider } from "../components/EditorDivider";
+import { useEditorSplit } from "../hooks/useEditorSplit";
 import { usePreviewViewport } from "../hooks/usePreviewViewport";
 import { anchorsFromElement, sourceLocationForElement } from "../lib/sourceJump";
 import { drillForward, drillIndex, trailFromState, withCrumbTitle } from "../lib/drillTrail";
@@ -180,9 +182,9 @@ export function EditorPage() {
     dataPath: string;
     diff: RefreshDiff;
     mermaid: string;
-    warnings: { row: number; message: string }[];
+    warnings: { row?: number; path?: string; message: string }[];
     error: string | null;
-    rowErrors: { row: number; message: string }[];
+    rowErrors: { row?: number; path?: string; message: string }[];
   } | null>(null);
   const [linkNodeOpen, setLinkNodeOpen] = useState(false);
   const [linkedFrom, setLinkedFrom] = useState<{ path: string; target: string; line: number }[]>([]);
@@ -195,6 +197,8 @@ export function EditorPage() {
   const [lockToken, setLockToken] = useState<string | null>(null);
 
   const preview = usePreviewViewport(svgHtml);
+  const editorPanelsRef = useRef<HTMLDivElement>(null);
+  const split = useEditorSplit(editorPanelsRef, infoOpen);
   const previewStageRef = preview.stageRef;
   const previewCanvasRef = preview.canvasRef;
   const previewGestures = preview.gestures;
@@ -1304,7 +1308,15 @@ export function EditorPage() {
       )}
       </div>
 
-      <div className={`editor-panels${infoOpen ? " with-info" : ""}`}>
+      <div
+        ref={editorPanelsRef}
+        className={`editor-panels${infoOpen ? " with-info" : ""}`}
+        style={
+          split.codeWidth != null
+            ? ({ "--editor-code-width": `${split.codeWidth}px` } as CSSProperties)
+            : undefined
+        }
+      >
         <section className="panel code-panel">
           <div className="panel-header">
             <h2>Code</h2>
@@ -1367,6 +1379,19 @@ export function EditorPage() {
             onOpenDiagram={(path) => openDiagram(path)}
             onChange={setCode}
             onClose={() => setInfoOpen(false)}
+          />
+        )}
+
+        {split.stacked ? null : (
+          <EditorDivider
+            value={split.percent}
+            min={split.bounds.min}
+            max={split.bounds.max}
+            onChange={split.onChange}
+            onReset={split.onReset}
+            onPointerDown={split.onPointerDown}
+            onPointerMove={split.onPointerMove}
+            onPointerUp={split.onPointerUp}
           />
         )}
 

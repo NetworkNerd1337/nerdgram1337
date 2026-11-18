@@ -7,6 +7,8 @@ import {
   fieldsFor,
   isNeighborSource,
   isNetworkSource,
+  issueListTitle,
+  listedIssueText,
   showEdgeFields,
   type WizardAction,
   type WizardGroupBy,
@@ -42,7 +44,7 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, onInspect
       </ol>
 
       {state.fatal ? <div className="error-banner">{state.fatal}</div> : null}
-      <IssueList title="Rows to fix" issues={state.errors} />
+      <IssueList title={issueListTitle(state.format, state.detectedFormat)} issues={state.errors} />
       {state.step !== "input" ? <IssueList title="Warnings" issues={state.warnings} /> : null}
 
       {state.step === "input" ? (
@@ -371,15 +373,16 @@ function dataPlaceholder(format: WizardState["format"]): string {
   return "Local Device,Local Port,Remote Device,Remote Port\nCore,Gi0/0,Atlanta,Gi0/1";
 }
 
-function IssueList({ title, issues }: { title: string; issues: { row: number; message: string }[] }) {
+function IssueList({ title, issues }: { title: string; issues: { row?: number; path?: string; message: string }[] }) {
   if (issues.length === 0) return null;
   return (
     <div className="error-banner" role="alert">
       <strong>{title}</strong>
       <ul>
-        {issues.map((issue) => (
-          <li key={`${issue.row}-${issue.message}`}>{issue.message}</li>
-        ))}
+        {issues.map((issue) => {
+          const text = listedIssueText(issue);
+          return <li key={`${issue.path ?? ""}-${issue.row ?? ""}-${text}`}>{text}</li>;
+        })}
       </ul>
     </div>
   );

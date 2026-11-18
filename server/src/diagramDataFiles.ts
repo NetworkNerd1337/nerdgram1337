@@ -178,7 +178,7 @@ export async function createGeneratedDiagram(input: CreateGeneratedInput): Promi
   }
   const preview = importDiagramData(input);
   if (preview.errors.length > 0) {
-    throw dataFail(400, "Fix the rows listed before creating the diagram.", "invalid", { errors: preview.errors });
+    throw dataFail(400, fixListedMessage(preview.format, "creating the diagram"), "invalid", { errors: preview.errors });
   }
 
   let dataPath = "";
@@ -250,7 +250,7 @@ export async function upsertGeneratedDiagram(input: CreateGeneratedInput): Promi
 
   const preview = importDiagramData(input);
   if (preview.errors.length > 0) {
-    throw dataFail(400, "Fix the rows listed before updating the diagram.", "invalid", { errors: preview.errors });
+    throw dataFail(400, fixListedMessage(preview.format, "updating the diagram"), "invalid", { errors: preview.errors });
   }
 
   const existing = readDataSource(current);
@@ -326,7 +326,7 @@ export async function refreshGeneratedDiagram(input: RefreshGeneratedInput): Pro
     vlan: config.vlan,
   });
   if (imported.errors.length > 0) {
-    throw dataFail(400, "Fix the rows listed before refreshing.", "invalid", { errors: imported.errors });
+    throw dataFail(400, fixListedMessage(imported.format, "refreshing"), "invalid", { errors: imported.errors });
   }
 
   const before = readGeneratedModel(current) ?? { nodes: [], edges: [] };
@@ -413,6 +413,12 @@ function clipPlain(value: string | undefined): string {
 function titleFromPath(diagramPath: string): string {
   const base = diagramPath.split("/").pop() ?? diagramPath;
   return base.replace(/\.mmd$/i, "") || "Diagram";
+}
+
+/** Network JSON names fields. CSV, JSON tables, CDP, and LLDP name rows. */
+function fixListedMessage(format: string, action: string): string {
+  const noun = format === "network" ? "fields" : "rows";
+  return `Fix the ${noun} listed before ${action}.`;
 }
 
 function detectEdgesFormat(text: string): DataFormat | null {
