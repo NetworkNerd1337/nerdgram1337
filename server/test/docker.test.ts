@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { codenameForVersion, readCodenames } from "../src/updates/codename.js";
 import { isDockerIgnored } from "../src/dockerContext.js";
 import { bundledSampleFiles } from "../src/seed.js";
 import { REPO_ROOT } from "../src/paths.js";
@@ -19,7 +20,7 @@ describe("docker packaging", () => {
     const ci = await read(".github/workflows/ci.yml");
     const release = await read(".github/workflows/release.yml");
 
-    const codename = JSON.parse(await read("package.json")).codenames["1"] as string;
+    const codename = codenameForVersion(version, readCodenames());
     expect(dockerfile).toContain(`ARG NERDGRAM_VERSION=${version}`);
     expect(dockerfile).toContain(`ARG NERDGRAM_CODENAME=${codename}`);
     expect(dockerfile).toContain('org.opencontainers.image.codename="${NERDGRAM_CODENAME}"');

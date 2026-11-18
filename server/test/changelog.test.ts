@@ -35,18 +35,40 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Atlas title and the 1.4.8 section without the heading", () => {
-    const title = notes(["--title", "v1.4.8"]);
+  it("prints the Compass title and the 1.5.0 section without the heading", () => {
+    const title = notes(["--title", "v1.5.0"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.4.8 "Atlas"\n');
-    const body = notes(["v1.4.8"]);
+    expect(title.stdout).toBe('v1.5.0 "Compass"\n');
+    const body = notes(["v1.5.0"]);
     expect(body.code).toBe(0);
-    expect(body.stdout.startsWith("Patch on the Atlas line.")).toBe(true);
-    expect(body.stdout).toContain("Device Flow");
-    expect(body.stdout).toContain("x-access-token");
-    expect(body.stdout).not.toContain('## 1.4.8 "Atlas"');
-    expect(body.stdout).not.toContain("Your space");
+    expect(body.stdout.startsWith("Minor release.")).toBe(true);
+    expect(body.stdout).toContain("generate/upsert");
+    expect(body.stdout).toContain("device.platform");
+    expect(body.stdout).not.toContain('## 1.5.0 "Compass"');
+    expect(body.stdout).not.toContain("Patch on the Atlas line.");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
+  });
+
+  it("keeps Atlas through 1.4 and uses Compass from 1.5 through 1.9", () => {
+    const changelog = [
+      '## 1.4.8 "Atlas" - 2026-11-17',
+      "",
+      "Atlas body.",
+      "",
+      '## 1.5.0 "Compass" - 2026-11-17',
+      "",
+      "Compass body.",
+      "",
+      '## 1.9.3 "Compass" - 2026-11-17',
+      "",
+      "Later body.",
+      "",
+    ].join("\n");
+    expect(notes(["--title", "v1.4.8"], changelog).stdout).toBe('v1.4.8 "Atlas"\n');
+    expect(notes(["--title", "v1.5.0"], changelog).stdout).toBe('v1.5.0 "Compass"\n');
+    expect(notes(["--title", "v1.9.3"], changelog).stdout).toBe('v1.9.3 "Compass"\n');
+    expect(notes(["v1.4.8"], changelog).stdout).toBe("Atlas body.\n");
+    expect(notes(["v1.9.3"], changelog).stdout).toBe("Later body.\n");
   });
 
   it("matches a quoted heading and a bracket heading, and not a longer patch", () => {
@@ -63,10 +85,16 @@ describe("changelog notes", () => {
     expect(longer.stderr).toMatch(/no section for 1\.0\.5/);
   });
 
-  it("titles a later major from the map and refuses a heading that names the wrong code name", () => {
+  it("titles 2.0 through 2.4 Meridian and refuses the unmapped 2.5 half", () => {
     const meridian = notes(["--title", "v2.0.0"], '## 2.0.0 "Meridian" - 2026-12-01\n\nNext line.\n');
     expect(meridian.code).toBe(0);
     expect(meridian.stdout).toBe('v2.0.0 "Meridian"\n');
+    const still = notes(["--title", "v2.4.9"], '## 2.4.9 "Meridian" - 2026-12-01\n\nStill that half.\n');
+    expect(still.code).toBe(0);
+    expect(still.stdout).toBe('v2.4.9 "Meridian"\n');
+    const unmapped = notes(["--title", "v2.5.0"], "## 2.5.0 - 2026-12-01\n\nNext line.\n");
+    expect(unmapped.code).toBe(2);
+    expect(unmapped.stderr).toMatch(/no entry/);
     const wrong = notes(["--title", "v1.0.5"], '## 1.0.5 "Wrong" - 2026-11-13\n\nBody.\n');
     expect(wrong.code).toBe(2);
     expect(wrong.stderr).toMatch(/does not match package.json Atlas/);

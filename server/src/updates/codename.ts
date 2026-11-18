@@ -28,24 +28,31 @@ export function sanitizeCodenames(value: unknown): CodenameMap {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const map: CodenameMap = {};
   for (const [key, name] of Object.entries(value)) {
-    if (!/^[1-9]\d*$/.test(key)) continue;
+    if (!/^[1-9]\d*\.(0|5)$/.test(key)) continue;
     if (typeof name !== "string" || !CODENAME_RE.test(name)) continue;
     map[key] = name;
   }
   return map;
 }
 
-export function codenameForVersion(version: string, map: CodenameMap = readCodenames()): string | null {
+/** Minor 0–4 uses `major.0`. Minor 5–9 uses `major.5`. */
+export function codenameHalfKey(version: string): string | null {
   const parsed = parseSemver(version);
   if (!parsed) return null;
-  const name = map[String(parsed.major)];
+  return `${parsed.major}.${parsed.minor < 5 ? 0 : 5}`;
+}
+
+export function codenameForVersion(version: string, map: CodenameMap = readCodenames()): string | null {
+  const key = codenameHalfKey(version);
+  if (!key) return null;
+  const name = map[key];
   if (!name || !CODENAME_RE.test(name)) return null;
   return name;
 }
 
 /**
  * A release title may supply a code name only when the map has no entry for
- * that major, and only when the title is exactly `vX.Y.Z "Name"` for the
+ * that half, and only when the title is exactly `vX.Y.Z "Name"` for the
  * same version the tag already parsed.
  */
 export function codenameFromReleaseTitle(version: string, title: string): string | null {
@@ -70,7 +77,7 @@ export function releaseCodename(
   return codenameFromReleaseTitle(version, title);
 }
 
-/** `v1.0.5 "Atlas"`, or `v1.0.5` when this major has no code name. */
+/** `v1.5.0 "Compass"`, or `v1.5.0` when this half has no code name. */
 export function formatVersionLabel(version: string, codename: string | null | undefined): string {
   const trimmed = version.trim();
   const base = trimmed.startsWith("v") ? trimmed : `v${trimmed}`;
