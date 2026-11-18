@@ -17,12 +17,13 @@ The planned work after 1.4.8. 1.5.x is Compass. Later milestones use the code na
 - [1.7.5 Additional translators](#175-additional-translators)
 - [1.8.0 Design exports](#180-design-exports)
 - [1.8.5 Additional exports](#185-additional-exports)
+- [2.0](#20)
 - [Later ideas](#later-ideas)
 - [Future ideas (not committed)](#future-ideas-not-committed)
 
 Progress is tracked in [GitHub milestones](https://github.com/NetworkNerd1337/NerdGram1337/milestones).
 
-This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas tree. 1.5.x is Compass. 1.6.x is Galileo. 1.7.0 through 1.7.5, and the other 1.7.y patches, are Navigator. 1.8.0 through 1.8.5, and the other 1.8.y patches, are Meridian. 2.0 is not named yet. The code-name rule is in [Versioning and releases](releases.md#version-numbers-and-code-names).
+This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas tree. 1.5.x is Compass. 1.6.x is Galileo. 1.7.0 through 1.7.5, and the other 1.7.y patches, are Navigator. 1.8.0 through 1.8.5, and the other 1.8.y patches, are Meridian. 2.0 is the next milestone, and it is not named yet. The code-name rule is in [Versioning and releases](releases.md#version-numbers-and-code-names).
 
 ## Where we are
 
@@ -30,7 +31,7 @@ This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas t
 
 | Fact | Value |
 | --- | --- |
-| Current release | 1.7.5 Navigator |
+| Current release | 1.8.5 Meridian |
 | Canonical network schema | `schemaVersion` 1, in [docs/schema/network.schema.json](schema/network.schema.json) |
 | Automation API | `GET /api/v1/openapi.json` already exists (OpenAPI 3.0.3, no token) |
 | Generate behavior | `POST /api/v1/generate` returns **409** if the path exists; refresh updates an existing diagram |
@@ -191,7 +192,7 @@ Add copy-paste curl and cron examples under `docs/samples` that preview and upse
 
 ## [1.7.0 Stateless translators](https://github.com/NetworkNerd1337/NerdGram1337/milestone/3)
 
-Code name Navigator. Shipped in v1.7.5. There was no separate 1.7.0 release. 1.7.5 stays on Navigator.
+Code name Navigator. Shipped in 1.7.5. There was no separate 1.7.0 release. 1.7.5 stays on Navigator.
 
 Do not add a NetBox pipeline or a LibreNMS pipeline as first-class NerdGram features. Add small, stateless translators that take a file or a JSON payload from those tools and write NerdGram's canonical network JSON. These mappers target the JSON shape settled in 1.5.0 and the schema and upsert published in 1.6.0, so they do not have to be rewritten when the contract changes. Translators hold no credentials and make no outbound calls. The always-on piece, and any tokens, stay in NetBox, LibreNMS, or a cron job the operator already runs.
 
@@ -229,7 +230,7 @@ One PR that adds a second mapping module, CLI source, and `/api/v1/convert/libre
 
 ## [1.7.5 Additional translators](https://github.com/NetworkNerd1337/NerdGram1337/milestone/4)
 
-Code name Navigator. Shipped in v1.7.5.
+Code name Navigator. Shipped in 1.7.5.
 
 **Gated on 1.7.0.** This milestone exists only if 1.7.0 proves the modular translator system works. If 1.7.0 shows that system will not work, 1.7.5 is simply dropped from the roadmap. Nothing in 1.5.0 or 1.6.0 depends on it.
 
@@ -327,7 +328,7 @@ When a translator is selected on that paste screen, a soft info callout sits abo
 
 ## [1.8.0 Design exports](https://github.com/NetworkNerd1337/NerdGram1337/milestone/5)
 
-Code name Meridian. 1.8.5 stays on Meridian.
+Code name Meridian. Shipped in v1.8.5. There was no separate 1.8.0 release. 1.8.5 stays on Meridian.
 
 Export a diagram, Mermaid plus its network JSON, to text files that outside test and lab tools can open. NerdGram never connects to devices, and it never stores credentials. Any password or token field in an exported file is a placeholder for the tool, or the operator, to fill in. The workflow assumption, especially for pyATS, is that the user makes sure the node names and IPs in the diagram match the real environment they test with.
 
@@ -355,7 +356,7 @@ A CML lab YAML from the same document.
 
 ## [1.8.5 Additional exports](https://github.com/NetworkNerd1337/NerdGram1337/milestone/6)
 
-Code name Meridian.
+Code name Meridian. Shipped in v1.8.5.
 
 **Gated on 1.8.0.** This milestone exists only if 1.8.0 proves the modular export system works. If 1.8.0 shows that system will not work, 1.8.5 is simply dropped from the roadmap. It does not depend on 1.7.5, and nothing in 1.5.0 or 1.6.0 depends on it.
 
@@ -384,6 +385,12 @@ A GNS3 project or topology file the operator can open in GNS3.
 An EVE-NG lab file from the diagram.
 
 **Success.** One module, no stored EVE-NG credentials and no connection to the emulator. Verify the current lab format when the issue is written.
+
+## 2.0
+
+Code name not decided.
+
+This is the next milestone after 1.8.5. It is not scheduled in detail, and it has no entry in the `codenames` map.
 
 ## Later ideas
 
