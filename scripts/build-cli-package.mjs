@@ -5,33 +5,57 @@ import { fileURLToPath } from "node:url";
 /** Keep this list equal to TRANSLATOR_INFRA in server/src/translators/infra.ts. */
 const TRANSLATOR_INFRA = ["bundled", "helpers", "index", "infra", "limits", "registry", "request", "run", "types"];
 
-function translatorBundlePlugin(repoRoot) {
-  const dir = join(repoRoot, "server/src/translators");
+/** Keep this list equal to EXPORTER_INFRA in server/src/exporters/infra.ts. */
+const EXPORTER_INFRA = ["bundled", "helpers", "index", "infra", "limits", "registry", "request", "resolve", "run", "types"];
+
+function moduleBundlePlugin(repoRoot, folder, infra, exportName, predicate) {
+  const dir = join(repoRoot, folder);
+  const filePattern = new RegExp(`[\\\\/]${folder.split("/").pop()}[\\\\/]bundled\\.ts$`);
   return {
-    name: "nerdgram-translators",
+    name: `nerdgram-${folder.split("/").pop()}`,
     setup(build) {
-      build.onLoad({ filter: /[\\/]translators[\\/]bundled\.ts$/ }, () => {
+      build.onLoad({ filter: filePattern }, () => {
         const bases = readdirSync(dir)
           .filter((name) => name.endsWith(".ts") && !name.endsWith(".d.ts"))
           .map((name) => name.slice(0, -".ts".length))
-          .filter((base) => !TRANSLATOR_INFRA.includes(base))
+          .filter((base) => !infra.includes(base))
           .sort();
         const imports = bases.map((base, index) => `import * as m${index} from ${JSON.stringify(`./${base}.ts`)};`);
         const taken = bases.map((base, index) => `take(m${index}, ${JSON.stringify(`${base}.ts`)})`);
         const contents = `${imports.join("\n")}
 function take(mod, file) {
   const value = mod.default;
-  if (!value || typeof value !== "object" || typeof value.convert !== "function" || typeof value.id !== "string") {
-    throw new Error(file + " must default-export a translator.");
+  if (!value || typeof value !== "object" || !(${predicate}) || typeof value.id !== "string") {
+    throw new Error(file + " must default-export a module.");
   }
   return value;
 }
-export const bundledTranslators = [${taken.join(", ")}];
+export const ${exportName} = [${taken.join(", ")}];
 `;
         return { contents, loader: "js", resolveDir: dir };
       });
     },
   };
+}
+
+function translatorBundlePlugin(repoRoot) {
+  return moduleBundlePlugin(
+    repoRoot,
+    "server/src/translators",
+    TRANSLATOR_INFRA,
+    "bundledTranslators",
+    "typeof value.convert === \"function\"",
+  );
+}
+
+function exporterBundlePlugin(repoRoot) {
+  return moduleBundlePlugin(
+    repoRoot,
+    "server/src/exporters",
+    EXPORTER_INFRA,
+    "bundledExporters",
+    "typeof value.export === \"function\"",
+  );
 }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,7 +74,7 @@ rmSync(outdir, { recursive: true, force: true });
 await esbuild.build({
   absWorkingDir: root,
   entryPoints: { cli: "server/src/cli.ts" },
-  plugins: [translatorBundlePlugin(root)],
+  plugins: [translatorBundlePlugin(root), exporterBundlePlugin(root)],
   bundle: true,
   splitting: true,
   format: "esm",

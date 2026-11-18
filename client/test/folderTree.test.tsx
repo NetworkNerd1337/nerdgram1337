@@ -108,7 +108,7 @@ describe("sidebar folder tree", () => {
     expect(document.querySelector('[data-testid="folder-link-Field Sites/MTJ"]')).not.toBeNull();
   });
 
-  it("auto-expands ancestors of the active folder and collapse all keeps that path visible", async () => {
+  it("collapse all keeps the active path open and expand all opens every folder", async () => {
     localStorage.setItem(COLLAPSED_FOLDERS_KEY, JSON.stringify(["Field Sites", "Field Sites/MTJ"]));
     await render("Field Sites/MTJ/Racks");
     expect(toggle("Field Sites").getAttribute("aria-expanded")).toBe("true");
@@ -128,5 +128,16 @@ describe("sidebar folder tree", () => {
     expect(document.querySelector('[data-testid="folder-link-Field Sites/MTJ/Racks"]')).not.toBeNull();
     expect(toggle("Field Sites").getAttribute("aria-expanded")).toBe("true");
     expect(toggle("Sites").getAttribute("aria-expanded")).toBe("false");
+
+    const expand = [...document.querySelectorAll("button")].find((button) => button.textContent === "Expand all");
+    if (!(expand instanceof HTMLButtonElement)) throw new Error("Expand all missing");
+    expect(expand.getAttribute("aria-disabled")).not.toBe("true");
+    await act(async () => {
+      expand.click();
+    });
+    expect(toggle("Sites").getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelector('[data-testid="folder-link-Sites/Atlanta"]')).not.toBeNull();
+    expect(JSON.parse(localStorage.getItem(COLLAPSED_FOLDERS_KEY) ?? "[]")).toEqual([]);
+    expect(expand.getAttribute("aria-disabled")).toBe("true");
   });
 });

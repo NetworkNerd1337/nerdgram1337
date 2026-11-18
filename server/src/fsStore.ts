@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { invalidateDiagramLint } from "./diagramLintCache.js";
 import {
   applyExternalDataRepairs,
   dataKeptMessage,
@@ -295,6 +296,7 @@ export async function writeFile(
   await search.rememberSearchEntry(relative, content, stat.mtimeMs, stat.size);
   await noteDiagramSighting({ path: relative, hash: hashContent(content) });
   noteSync({ kind: "content", summary: `Update ${relative}` });
+  invalidateDiagramLint([relative]);
   return {
     path: relative,
     mtimeMs: stat.mtimeMs,
@@ -447,6 +449,7 @@ export async function renameItem(
     pending.set(update.path, update.apply(base));
   }
   noteSync({ kind: "structural", summary: `Rename ${fromRel} to ${toRel}` });
+  invalidateDiagramLint(fromStat.isDirectory() ? undefined : [fromRel, toRel]);
   const updated: string[] = [];
   for (const rewrite of rewrites) {
     const content = pending.get(rewrite.nextPath) ?? rewrite.content;
@@ -670,6 +673,7 @@ export async function deleteItem(relativePath: string, options: DeleteOptions = 
   }
   await forgetDiagramSighting(rel, stat.isDirectory());
   noteSync({ kind: "structural", summary: `Delete ${normalizeRelative(relativePath)}` });
+  invalidateDiagramLint(stat.isDirectory() ? undefined : [rel]);
   return { path: rel, trashed: true, dataKept: kept, message: dataKeptMessage(kept) };
 }
 

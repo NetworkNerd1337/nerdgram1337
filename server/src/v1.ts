@@ -4,7 +4,9 @@ import { importDiagramData } from "./diagramData.js";
 import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram, upsertGeneratedDiagram } from "./diagramDataFiles.js";
 import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
-import { lintWorkspaceFiles } from "./workspaceLint.js";
+import { lintWorkspaceCached } from "./diagramLintCache.js";
+import fs from "node:fs/promises";
+import { resolveSafePath } from "./paths.js";
 import * as store from "./fsStore.js";
 import { sendError } from "./httpError.js";
 import { buildOpenApiSpec, openApiPath, V1_ROUTES, type V1Route, type V1Scope } from "./openapi.js";
@@ -22,6 +24,19 @@ import { applyReplace, previewReplace, undoReplace } from "./replace.js";
 import { httpFail } from "./storage.js";
 import { authenticateToken, bearerValue, type AuthenticatedToken } from "./tokens.js";
 import { installedTranslators, loadTranslators, prepareConvert } from "./translators/index.js";
+import { installedExporters, prepareExport } from "./exporters/index.js";
+
+async function statWorkspaceFile(filePath: string): Promise<{ size: number; mtimeMs: number } | null> {
+  try {
+    const stat = await fs.stat(resolveSafePath(filePath));
+    if (!stat.isFile()) return null;
+    return { size: stat.size, mtimeMs: stat.mtimeMs };
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return null;
+    throw err;
+  }
+}
 
 export type MountV1Options = {
   renderRate?: RateLimit;
@@ -307,10 +322,11 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
         return;
       }
       res.json(
-        await lintWorkspaceFiles(
-          paths.map((filePath) => ({ path: filePath })),
-          (filePath) => store.readFile(filePath),
-        ),
+        await lintWorkspaceCached({
+          files: paths.map((filePath) => ({ path: filePath })),
+          stat: (filePath) => statWorkspaceFile(filePath),
+          read: async (filePath) => store.readFile(filePath),
+        }),
       );
     }),
     lintSource: asyncHandler(async (req, res) => {
@@ -354,6 +370,22 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
     }),
     listTranslators: asyncHandler(async (_req, res) => {
       res.json({ translators: await installedTranslators() });
+    }),
+    listExporters: asyncHandler(async (_req, res) => {
+      res.json({ exporters: await installedExporters() });
+    }),
+    exportTarget: asyncHandler(async (req, res) => {
+      if (!jsonObject(req, res)) return;
+      const header = req.header("content-length");
+      const declared = header && /^\d+$/.test(header) ? Number(header) : 0;
+      const actual = Buffer.byteLength(JSON.stringify(req.body ?? null));
+      const prepared = await prepareExport({
+        target: String(req.params.target ?? ""),
+        body: req.body,
+        bytes: Math.max(declared, actual),
+        readText: async (filePath) => (await store.readFile(filePath)).content,
+      });
+      res.json(prepared);
     }),
     convertSource: asyncHandler(async (req, res) => {
       if (!jsonObject(req, res)) return;

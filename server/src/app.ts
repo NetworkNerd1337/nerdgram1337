@@ -31,7 +31,7 @@ import { importDiagramData } from "./diagramData.js";
 import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram } from "./diagramDataFiles.js";
 import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
-import { lintWorkspaceFiles } from "./workspaceLint.js";
+import { lintWorkspaceCached, diagramLintSummary } from "./diagramLintCache.js";
 import { listWorkspaceTags } from "./tags.js";
 import {
   createStylePreset,
@@ -46,6 +46,8 @@ import { registerTokenRoutes } from "./tokens.js";
 import { installedTranslators } from "./translators/index.js";
 import { assertConvertInputSize } from "./translators/limits.js";
 import { convertExport } from "./translators/run.js";
+import { installedExporters, prepareExport } from "./exporters/index.js";
+import { assertExportInputSize } from "./exporters/limits.js";
 import { mountAutomationApi } from "./v1.js";
 import type { RateLimit } from "./renderDiagram.js";
 import {
@@ -133,6 +135,18 @@ function readLintRulesBody(value: unknown): Partial<Record<LintRuleId, boolean>>
 }
 
 type DiagramFile = { type: string; path: string; children?: DiagramFile[] };
+
+async function statDiagram(filePath: string): Promise<{ size: number; mtimeMs: number } | null> {
+  try {
+    const stat = await fs.promises.stat(resolveSafePath(filePath));
+    if (!stat.isFile()) return null;
+    return { size: stat.size, mtimeMs: stat.mtimeMs };
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return null;
+    throw err;
+  }
+}
 
 function walkDiagramFiles(nodes: DiagramFile[]): DiagramFile[] {
   const files: DiagramFile[] = [];
@@ -454,10 +468,20 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     }
   });
 
+  app.get("/api/diagram-lint/summary", async (_req, res) => {
+    res.json(diagramLintSummary());
+  });
+
   app.get("/api/diagram-lint", async (_req, res) => {
     try {
       const files = walkDiagramFiles(await store.buildTree());
-      res.json(await lintWorkspaceFiles(files, (filePath) => store.readFile(filePath)));
+      res.json(
+        await lintWorkspaceCached({
+          files,
+          stat: (filePath) => statDiagram(filePath),
+          read: (filePath) => store.readFile(filePath),
+        }),
+      );
     } catch (err) {
       sendError(res, err);
     }
@@ -1284,6 +1308,38 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.get("/api/translators", async (_req, res) => {
     try {
       res.json({ translators: await installedTranslators() });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.get("/api/exporters", async (_req, res) => {
+    try {
+      res.json({ exporters: await installedExporters() });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  // Tokenless twin of POST /api/v1/export/:target. The page stores no token.
+  app.post("/api/export/:target", async (req, res) => {
+    try {
+      if (req.body == null || typeof req.body !== "object" || Array.isArray(req.body)) {
+        res.status(400).json({ error: "JSON object required", code: "invalid" });
+        return;
+      }
+      const header = req.header("content-length");
+      const declared = header && /^\d+$/.test(header) ? Number(header) : 0;
+      const actual = Buffer.byteLength(JSON.stringify(req.body));
+      assertExportInputSize(Math.max(declared, actual));
+      res.json(
+        await prepareExport({
+          target: String(req.params.target ?? ""),
+          body: req.body,
+          bytes: Math.max(declared, actual),
+          readText: async (filePath) => (await store.readFile(filePath)).content,
+        }),
+      );
     } catch (err) {
       sendError(res, err);
     }

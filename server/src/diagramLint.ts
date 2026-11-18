@@ -236,8 +236,16 @@ export function applyEdits(source: string, edits: readonly LintEdit[]): string {
   return next;
 }
 
-/** Lint one diagram. Mermaid syntax errors are added by `lintDiagramSource`. */
-export function lintDiagram(source: string, options: LintOptions = {}): LintDiagnostic[] {
+export type ClickRef = {
+  target: string;
+  from: number;
+  to: number;
+  line: number;
+  column: number;
+};
+
+/** Content rules only. Click targets are returned so link checks can be re-run without parsing again. */
+export function lintDiagramContent(source: string, options: LintOptions = {}): { diagnostics: LintDiagnostic[]; clicks: ClickRef[] } {
   const enabled = normalizeLintRules(options.rules);
   const diagnostics: LintDiagnostic[] = [];
   if (enabled["front-matter"]) diagnostics.push(...lintFrontMatter(source));
@@ -248,9 +256,6 @@ export function lintDiagram(source: string, options: LintOptions = {}): LintDiag
   if (enabled["unlabeled-endpoint"]) diagnostics.push(...unlabeledEndpoints(model));
   if (enabled["unused-class"]) diagnostics.push(...unusedClasses(model));
   if (enabled["undefined-class"]) diagnostics.push(...undefinedClasses(source, model));
-  if (enabled["broken-click"] && options.diagramPaths) {
-    diagnostics.push(...brokenClicks(model, options.diagramPaths, options.sourcePath ?? ""));
-  }
   if (model.kind === "class" && (enabled["duplicate-class"] || enabled["undeclared-class"])) {
     const classDiagram = scanClassDiagram(source);
     if (enabled["duplicate-class"]) diagnostics.push(...duplicateClasses(classDiagram));
@@ -271,7 +276,20 @@ export function lintDiagram(source: string, options: LintOptions = {}): LintDiag
     if (enabled["duplicate-sibling"]) diagnostics.push(...outline.duplicates);
     if (enabled["empty-node"]) diagnostics.push(...outline.empties);
   }
+  return { diagnostics, clicks: model.clicks };
+}
 
+export function brokenClickFindings(clicks: readonly ClickRef[], paths: readonly string[], sourcePath: string): LintDiagnostic[] {
+  return brokenClicks(clicks, paths, sourcePath);
+}
+
+/** Lint one diagram. Mermaid syntax errors are added by `lintDiagramSource`. */
+export function lintDiagram(source: string, options: LintOptions = {}): LintDiagnostic[] {
+  const enabled = normalizeLintRules(options.rules);
+  const { diagnostics, clicks } = lintDiagramContent(source, options);
+  if (enabled["broken-click"] && options.diagramPaths) {
+    diagnostics.push(...brokenClickFindings(clicks, options.diagramPaths, options.sourcePath ?? ""));
+  }
   diagnostics.sort((a, b) => a.from - b.from || a.line - b.line || a.ruleId.localeCompare(b.ruleId));
   return diagnostics;
 }
@@ -602,9 +620,9 @@ function undefinedClasses(source: string, model: Model): LintDiagnostic[] {
   return diagnostics;
 }
 
-function brokenClicks(model: Model, paths: readonly string[], sourcePath: string): LintDiagnostic[] {
+function brokenClicks(clicks: readonly (Span & { target: string })[], paths: readonly string[], sourcePath: string): LintDiagnostic[] {
   const diagnostics: LintDiagnostic[] = [];
-  for (const click of model.clicks) {
+  for (const click of clicks) {
     if (diagramTargetExists(click.target, paths, sourcePath)) continue;
     const resolved = resolveDiagramTarget(click.target, sourcePath);
     const message =

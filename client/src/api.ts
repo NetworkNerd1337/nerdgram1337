@@ -223,10 +223,41 @@ export const api = {
   diagramLint: () =>
     request<{
       checked: number;
+      relinted?: number;
+      durationMs?: number;
+      cachedAt?: string;
       diagrams: { path: string; diagnostics: LintDiagnostic[] }[];
       unreadable?: UnreadableDiagram[];
       muted?: string[];
     }>("/api/diagram-lint"),
+  diagramLintSummary: () =>
+    request<{
+      status: "not-checked" | "ready";
+      checkedAt: string | null;
+      stale: boolean;
+      checked: number | null;
+      errors: number | null;
+      warnings: number | null;
+      unreadable: number | null;
+      muted: number | null;
+      diagrams: { path: string; errors: number; warnings: number }[] | null;
+    }>("/api/diagram-lint/summary"),
+  listExporters: () =>
+    request<{
+      exporters: { id: string; name: string; extension: string; mimeType: string; description: string }[];
+    }>("/api/exporters"),
+  exportDesign: (target: string, body: { path?: string; input?: unknown }) =>
+    request<{
+      target: string;
+      filename: string;
+      text: string;
+      mimeType: string;
+      warnings: { path: string; message: string }[];
+      archive?: { filename: string; mimeType: string; base64: string };
+    }>(`/api/export/${encodeURIComponent(target)}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   previewLinkRepairs: () => request<LinkRepairPlan>("/api/link-repairs"),
   applyLinkRepairs: (body: { lockToken?: string | null; choices: { from: string; to: string }[] }) =>
     request<LinkRepairPlan>("/api/link-repairs", {

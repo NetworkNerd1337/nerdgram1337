@@ -147,8 +147,75 @@ export function EditorPage() {
   const infoOpen = searchParams.get("info") === "1";
   const [presetFocus, setPresetFocus] = useState<"apply" | "save" | null>(null);
   const handledPresetFocus = useCallback(() => setPresetFocus(null), []);
-
   const [code, setCode] = useState("");
+  const [exporters, setExporters] = useState<{ id: string; name: string; description: string }[]>([]);
+  const [hasNetwork, setHasNetwork] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.listExporters().then(
+      (result) => {
+        if (!cancelled) setExporters(result.exporters);
+      },
+      () => {
+        if (!cancelled) setExporters([]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!filePath || templateId || !code.trim()) {
+      setHasNetwork(false);
+      return;
+    }
+    const recorded = readDataSource(code);
+    const fromSource = recorded?.file?.toLowerCase().endsWith(".network.json") ? recorded.file : "";
+    const stem = filePath.replace(/\.mmd$/i, "");
+    const beside = stem ? `${stem}.network.json` : "";
+    const candidate = fromSource || beside;
+    if (!candidate) {
+      setHasNetwork(false);
+      return;
+    }
+    let cancelled = false;
+    void fetch(`/api/file?path=${encodeURIComponent(candidate)}`)
+      .then((response) => {
+        if (!cancelled) setHasNetwork(response.ok);
+      })
+      .catch(() => {
+        if (!cancelled) setHasNetwork(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [code, filePath, templateId]);
+
+  const downloadExport = (filename: string, body: Blob) => {
+    const url = URL.createObjectURL(body);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLabExport = async (target: string) => {
+    try {
+      const result = await api.exportDesign(target, { path: filePath });
+      if (result.archive) {
+        const bytes = Uint8Array.from(atob(result.archive.base64), (char) => char.charCodeAt(0));
+        downloadExport(result.archive.filename, new Blob([bytes], { type: result.archive.mimeType }));
+        return;
+      }
+      downloadExport(result.filename, new Blob([result.text], { type: result.mimeType }));
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed");
+    }
+  };
+
   const [loaded, setLoaded] = useState(false);
   const [access, setAccess] = useState<Access>("loading");
   const [autoUpdate, setAutoUpdate] = useState(true);
@@ -1192,6 +1259,8 @@ export function EditorPage() {
                   void handleExport("png", true);
                 } else if (value === "svg" || value === "png" || value === "jpg" || value === "pdf") {
                   void handleExport(value);
+                } else if (value.startsWith("lab:")) {
+                  void handleLabExport(value.slice(4));
                 }
               }}
             >
@@ -1203,6 +1272,15 @@ export function EditorPage() {
               <option value="png-transparent">PNG (transparent)</option>
               <option value="jpg">JPG</option>
               <option value="pdf">PDF</option>
+              {hasNetwork && exporters.length > 0 ? (
+                <optgroup label="Lab and automation">
+                  {exporters.map((item) => (
+                    <option key={item.id} value={`lab:${item.id}`} title={item.description}>
+                      {item.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </select>
           </label>
         </div>

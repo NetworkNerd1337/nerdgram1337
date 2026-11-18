@@ -6,7 +6,9 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Export as** can write a lab or inventory file from a diagram that has network JSON beside it. `nerdgram export <target>` does the same with the server down. Targets are one file each under `server/src/exporters/`. pyATS, containerlab, CML, Ansible, Nornir, GNS3, and EVE-NG are included. Passwords and images are `CHANGE_ME`. Nothing is contacted. `nerdgram export <folder> -o dir/` is unchanged (from #184, #185, #186, #187, #188, #189, #190).
+- The folder tree has **Expand all** beside **Collapse all**, as one control. A disabled action stays in place (from #183).
+- **Diagram health** is a page at `/health`, linked under Dashboard. The library-wide check runs when that page opens or when **Check again** is clicked. The dashboard does not call it. Needs attention reads `GET /api/diagram-lint/summary` and says when the library was last checked, or that it has not been checked. A second check of an unchanged library does not re-parse the files (from #191).
 
 ## 1.7.5 "Navigator" - 2026-11-18
 

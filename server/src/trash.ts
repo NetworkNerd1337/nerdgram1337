@@ -7,6 +7,7 @@ import { archiveHistory, unarchiveHistory } from "./history.js";
 import { archiveThumbnails, unarchiveThumbnails } from "./thumbnails.js";
 import { assertUnlocked, discardLocks } from "./locks.js";
 import { ensureDataRoot, resolveSafePath, toRelativePath } from "./paths.js";
+import { invalidateDiagramLint } from "./diagramLintCache.js";
 import {
   assertSafeId,
   atomicWriteJson,
@@ -316,6 +317,7 @@ export async function restoreTrashItem(
   await fs.rm(itemDir(id), { recursive: true, force: true });
   const restored = toRelativePath(destAbs);
   noteSync({ kind: "structural", summary: `Restore ${restored}` });
+  invalidateDiagramLint(manifest.type === "folder" ? undefined : [restored]);
   return { path: restored, type: manifest.type };
 }
 
