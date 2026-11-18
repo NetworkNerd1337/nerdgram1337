@@ -95,6 +95,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Files](docs/features.md#files).** **Your space** lists Recent, Bookmarks, and Needs attention above the folder tree. **Move to…** is on every diagram and folder, next to Rename and Delete.
 - **[Trash and history](docs/features.md#trash-and-history).** Delete moves a diagram or a folder into the trash.
 - **[Titles, themes, and notes](docs/features.md#titles-themes-and-notes).** A diagram can start with [Mermaid's YAML front matter](https://mermaid.js.org/config/configuration.html). Cards show the file name, and a different title on a second line.
+- **[Style presets](docs/features.md#style-presets).** Save a diagram's theme, colors, and font as a named preset, and copy it onto another diagram or a new one.
 - **[Appearance](docs/features.md#appearance).** Light, Dark, or Match system. The choice stays in this browser. It does not change a diagram's theme.
 - **[Diagram checks](docs/features.md#diagram-checks).** The code pane checks the diagram while you type. A link to a subgraph id is not reported as a typo.
 - **[Linked diagrams](docs/features.md#linked-diagrams).** A node can open another diagram.

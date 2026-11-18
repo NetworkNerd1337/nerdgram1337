@@ -27,11 +27,12 @@ type GenerateWizardProps = {
   dispatch: Dispatch<WizardAction>;
   busy: boolean;
   folderControl?: ReactNode;
+  styleControl?: ReactNode;
   onInspect: (step: "map" | "preview") => void;
   onCreate: () => void;
 };
 
-export function GenerateWizard({ state, dispatch, busy, folderControl, onInspect, onCreate }: GenerateWizardProps) {
+export function GenerateWizard({ state, dispatch, busy, folderControl, styleControl, onInspect, onCreate }: GenerateWizardProps) {
   const fields = fieldsFor(state);
   const neighbor = isNeighborSource(state);
   const network = isNetworkSource(state);
@@ -280,6 +281,7 @@ export function GenerateWizard({ state, dispatch, busy, folderControl, onInspect
               )}
             </div>
           </div>
+          {styleControl}
           <p className="generate-counts">
             {state.counts.nodes} nodes, {state.counts.edges} edges
             {state.counts.groups > 0 ? `, ${state.counts.groups} groups` : ""}

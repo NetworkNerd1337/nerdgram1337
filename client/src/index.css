@@ -412,6 +412,136 @@ a {
   border-color: var(--line);
 }
 
+.style-preset-bar,
+.style-preset-choice,
+.style-preset-card {
+  margin-top: 0.9rem;
+}
+
+.style-preset-bar h3,
+.style-preset-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+}
+
+.style-preset-preview {
+  margin-top: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-muted);
+}
+
+.style-preset-preview ul {
+  margin: 0.35rem 0 0.55rem;
+  padding-left: 1.1rem;
+}
+
+.style-preset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-top: 0.45rem;
+}
+
+.style-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  align-items: center;
+}
+
+.style-preset-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.style-preset-card {
+  border-top: 1px solid var(--line);
+  padding-top: 0.75rem;
+}
+
+.style-preset-badge {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+}
+
+.style-preset-notice {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.style-preset-import {
+  position: relative;
+  overflow: hidden;
+}
+
+.style-preset-import input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.style-preset-choice select,
+.style-fields select,
+.style-fields input,
+.style-fields textarea,
+.style-preset-bar select,
+.style-preset-bar input,
+.style-preset-editor input,
+.style-preset-editor select,
+.style-preset-editor textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.font-family-field {
+  position: relative;
+}
+
+.font-combobox {
+  margin-top: 0.45rem;
+}
+
+.font-suggestions {
+  right: 0;
+}
+
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.color-swatch {
+  width: 1.55rem;
+  height: 1.55rem;
+  min-width: 1.55rem;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
+  cursor: pointer;
+}
+
+.color-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.color-swatch[aria-selected="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .font-family-help {
   margin: 0.35rem 0 0;
   color: var(--ink-soft);

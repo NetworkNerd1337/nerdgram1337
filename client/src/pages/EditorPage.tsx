@@ -128,6 +128,8 @@ export function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const infoOpen = searchParams.get("info") === "1";
+  const [presetFocus, setPresetFocus] = useState<"apply" | "save" | null>(null);
+  const handledPresetFocus = useCallback(() => setPresetFocus(null), []);
 
   const [code, setCode] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -1027,6 +1029,18 @@ export function EditorPage() {
     route: "editor",
     actions: {
       editDiagramInfo: () => setInfoOpen(true),
+      applyStylePreset: readOnly
+        ? undefined
+        : () => {
+            setInfoOpen(true);
+            setPresetFocus("apply");
+          },
+      saveStylePreset: readOnly
+        ? undefined
+        : () => {
+            setInfoOpen(true);
+            setPresetFocus("save");
+          },
       renameFile: access === "edit" ? startRename : undefined,
       createTemplate: loaded && !templateId ? openCreateTemplate : undefined,
       goHome: () => navigate(exitHref),
@@ -1379,6 +1393,8 @@ export function EditorPage() {
             onOpenDiagram={(path) => openDiagram(path)}
             onChange={setCode}
             onClose={() => setInfoOpen(false)}
+            presetFocus={presetFocus}
+            onPresetFocusHandled={handledPresetFocus}
           />
         )}
 

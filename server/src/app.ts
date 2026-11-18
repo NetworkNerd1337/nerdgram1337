@@ -33,6 +33,15 @@ import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
 import { lintWorkspaceFiles } from "./workspaceLint.js";
 import { listWorkspaceTags } from "./tags.js";
+import {
+  createStylePreset,
+  deleteStylePreset,
+  importStylePresets,
+  listStylePresets,
+  publicDocument,
+  updateStylePreset,
+} from "./stylePresets.js";
+import { listWorkspaceColors, listWorkspaceFonts } from "./workspaceValues.js";
 import { registerTokenRoutes } from "./tokens.js";
 import { mountAutomationApi } from "./v1.js";
 import type { RateLimit } from "./renderDiagram.js";
@@ -353,6 +362,69 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     try {
       const tags = await listWorkspaceTags();
       res.json({ tags });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.get("/api/fonts", async (_req, res) => {
+    try {
+      const fonts = await listWorkspaceFonts();
+      res.json({ fonts });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.get("/api/colors", async (_req, res) => {
+    try {
+      const colors = await listWorkspaceColors();
+      res.json({ colors });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.get("/api/style-presets", async (_req, res) => {
+    try {
+      res.json(publicDocument(await listStylePresets()));
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/style-presets", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      const created = await createStylePreset(req.body);
+      res.status(201).json({ ...publicDocument(created), preset: created.preset });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/style-presets/import", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      res.json(publicDocument(await importStylePresets(req.body)));
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.put("/api/style-presets/:id", async (req, res) => {
+    try {
+      if (!jsonObject(req, res)) return;
+      const updated = await updateStylePreset(String(req.params.id || ""), req.body);
+      res.json({ ...publicDocument(updated), preset: updated.preset });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.delete("/api/style-presets/:id", async (req, res) => {
+    try {
+      res.json(publicDocument(await deleteStylePreset(String(req.params.id || ""))));
     } catch (err) {
       sendError(res, err);
     }

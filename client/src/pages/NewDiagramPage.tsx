@@ -8,8 +8,10 @@ import { FolderPicker } from "../components/FolderPicker";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { FileNameField } from "../components/FileNameField";
+import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
 import { fileNameIssue, suggestFileStem } from "../lib/fileName";
 import { ensureMmd, flattenFiles, joinPath } from "../lib/paths";
+import { contentWithStyle } from "../lib/stylePresets";
 
 const PLACEHOLDER = `%% Paste your Mermaid code
 %% We'll render it with mermaid.js
@@ -28,6 +30,7 @@ export function NewDiagramPage() {
   const [nameHint, setNameHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [preset, setPreset] = useState<PresetChoice>({ id: "", style: null });
 
   useCommandHost({
     route: "new",
@@ -70,9 +73,8 @@ export function NewDiagramPage() {
     setNameHint(null);
     setSaving(true);
     try {
-      const content = code.trim()
-        ? code
-        : "flowchart TD\n  A[Start] --> B[Edit me]\n";
+      let content = code.trim() ? code : "flowchart TD\n  A[Start] --> B[Edit me]\n";
+      content = contentWithStyle(content, preset.style);
       const filename = ensureMmd(issue.suggestion);
       const path = joinPath(folder.trim(), filename);
       await api.writeFile(path, content);
@@ -125,6 +127,7 @@ export function NewDiagramPage() {
             <FolderPicker tree={tree} value={folder} onChange={setFolder} />
           </div>
         </div>
+        <StylePresetChoice mode="create" onChange={setPreset} />
 
         <div className="paste-box">
           <div className="line-gutter">

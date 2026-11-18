@@ -201,6 +201,9 @@ export function Sidebar({
         <Link className="nav-link" to="/settings#appearance">
           Appearance
         </Link>
+        <Link className="nav-link" to="/settings#style-presets">
+          Style presets
+        </Link>
         <Link className="nav-link" to="/settings#host">
           Host
         </Link>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   applyDiagramPatch,
   diagramConfigKey,
@@ -13,10 +13,14 @@ import {
   type DiagramPatch,
   type Scalar,
 } from "../lib/frontMatter";
-import { FONT_PRESETS, fontSelection } from "../lib/fontFamily";
 import { api } from "../api";
 import { TagCombobox } from "./TagCombobox";
+import { FontFamilyField } from "./FontFamilyField";
+import { ColorSwatches } from "./ColorSwatches";
+import { StylePresetBar } from "./StylePresetBar";
 import type { TagCount } from "../lib/tagSuggestions";
+import { canonicalColor, isColorField, type WorkspaceColor } from "../lib/stylePresets";
+import { readRecentColors, rememberColor, writeRecentColors } from "../lib/recentColors";
 
 const THEME_FIELDS: [string, string][] = [
   ["primaryColor", "Primary"],
@@ -44,6 +48,8 @@ type DiagramInfoPanelProps = {
   onOpenDiagram?: (path: string) => void;
   onChange: (source: string) => void;
   onClose: () => void;
+  presetFocus?: "apply" | "save" | null;
+  onPresetFocusHandled?: () => void;
 };
 
 export function DiagramInfoPanel({
@@ -55,11 +61,15 @@ export function DiagramInfoPanel({
   onOpenDiagram,
   onChange,
   onClose,
+  presetFocus = null,
+  onPresetFocusHandled,
 }: DiagramInfoPanelProps) {
   const info = useMemo(() => parseDiagram(source), [source]);
   const diagramKey = useMemo(() => diagramConfigKey(info.body), [info.body]);
   const [patchError, setPatchError] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<TagCount[]>([]);
+  const [colors, setColors] = useState<WorkspaceColor[]>([]);
+  const [recentColors, setRecentColors] = useState<string[]>(() => readRecentColors());
   const locked = readOnly || info.malformed;
 
   function commit(patch: DiagramPatch) {
@@ -98,6 +108,29 @@ export function DiagramInfoPanel({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.colors().then(
+      (result) => {
+        if (!cancelled) setColors(result.colors);
+      },
+      () => {
+        if (!cancelled) setColors([]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function remember(value: string) {
+    const color = canonicalColor(value);
+    if (!color) return;
+    const next = rememberColor(readRecentColors(), color);
+    writeRecentColors(next);
+    setRecentColors(next);
+  }
 
   function addTag(tag: string) {
     const text = tag.trim();
@@ -231,6 +264,15 @@ export function DiagramInfoPanel({
         <TagCombobox catalog={catalog} exclude={info.tags} disabled={locked} onAdd={addTag} />
       </div>
 
+      <StylePresetBar
+        source={source}
+        info={info}
+        locked={locked}
+        focus={presetFocus}
+        onFocusHandled={onPresetFocusHandled ?? (() => undefined)}
+        onChange={onChange}
+      />
+
       <SelectField
         label="Theme"
         value={info.theme ?? ""}
@@ -309,7 +351,21 @@ export function DiagramInfoPanel({
                 onChange={(event) =>
                   commit({ themeVariables: { [key]: event.target.value as Scalar } })
                 }
+                onBlur={(event) => remember(event.target.value)}
               />
+              {isColorField(key, current) ? (
+                <ColorSwatches
+                  label={label}
+                  colors={colors}
+                  recent={recentColors}
+                  current={current == null ? "" : String(current)}
+                  disabled={locked}
+                  onPick={(color) => {
+                    commit({ themeVariables: { [key]: color } });
+                    remember(color);
+                  }}
+                />
+              ) : null}
             </label>
           );
         })}
@@ -347,100 +403,6 @@ export function DiagramInfoPanel({
         </fieldset>
       )}
     </aside>
-  );
-}
-
-function FontFamilyField({
-  value,
-  disabled,
-  onCommit,
-}: {
-  value: string | null;
-  disabled: boolean;
-  onCommit: (fontFamily: string | null) => void;
-}) {
-  const selection = fontSelection(value);
-  const valueKey = value?.trim() ?? "";
-  const [customMode, setCustomMode] = useState(selection.preset === "custom");
-  const [draft, setDraft] = useState(selection.custom);
-  const focused = useRef(false);
-  const seen = useRef(valueKey);
-  const mode = customMode ? "custom" : selection.preset;
-
-  useEffect(() => {
-    if (focused.current || seen.current === valueKey) return;
-    seen.current = valueKey;
-    const next = fontSelection(value);
-    setCustomMode(next.preset === "custom");
-    setDraft(next.custom);
-  }, [value, valueKey]);
-
-  const choose = (next: string) => {
-    if (next === "custom") {
-      setCustomMode(true);
-      const starting = selection.preset === "custom" ? selection.custom : selection.preset;
-      setDraft(starting);
-      return;
-    }
-    setCustomMode(false);
-    onCommit(next || null);
-  };
-
-  const saveDraft = () => {
-    focused.current = false;
-    const trimmed = draft.trim();
-    const next = fontSelection(trimmed);
-    setCustomMode(next.preset === "custom");
-    setDraft(next.custom);
-    seen.current = trimmed;
-    onCommit(trimmed || null);
-  };
-
-  return (
-    <div className="font-family-field">
-      <label>
-        Font family
-        <select
-          aria-label="Font family"
-          value={mode}
-          disabled={disabled}
-          onChange={(event) => choose(event.target.value)}
-        >
-          <option value="">Default</option>
-          {FONT_PRESETS.map((preset) => (
-            <option key={preset.id} value={preset.value}>
-              {preset.label}
-            </option>
-          ))}
-          <option value="custom">Custom…</option>
-        </select>
-      </label>
-      {mode === "custom" ? (
-        <label>
-          Custom font family
-          <input
-            aria-label="Custom font family"
-            value={draft}
-            disabled={disabled}
-            spellCheck={false}
-            placeholder="IBM Plex Sans, system-ui, sans-serif"
-            onFocus={() => {
-              focused.current = true;
-            }}
-            onChange={(event) => setDraft(event.target.value)}
-            onBlur={saveDraft}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              event.currentTarget.blur();
-            }}
-          />
-        </label>
-      ) : null}
-      <p className="font-family-help">
-        Fonts must be installed on the computer that views or renders the diagram. Separate fallbacks with commas.
-      </p>
-    </div>
   );
 }
 
