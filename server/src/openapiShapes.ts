@@ -344,7 +344,11 @@ export const RESPONSE_SCHEMAS: Record<string, Record<string, unknown>> = {
       path: { type: "string" },
       id: { type: "string" },
       pruned: { type: "boolean" },
-      revision: { nullable: true },
+      revision: {
+        ...revision,
+        nullable: true,
+        description: "The revision after the baseline name is removed. Null when that revision was pruned.",
+      },
     },
     required: ["path", "id", "pruned"],
   },

@@ -323,9 +323,9 @@ function jsonBody(
   required: string[],
   examples?: Record<string, { summary: string; value: unknown }>,
 ): Record<string, unknown> {
-  const media: Record<string, unknown> = {
-    schema: { type: "object", description, properties, required },
-  };
+  const schema: Record<string, unknown> = { type: "object", description, properties };
+  if (required.length > 0) schema.required = required;
+  const media: Record<string, unknown> = { schema };
   if (examples) media.examples = examples;
   return {
     required: true,
@@ -400,9 +400,19 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
           text: {
             type: "string",
             description:
-              "The whole file. When format is network, parse this string as NetworkDocument. When format is json, parse it as GraphDocument. The canonical JSON Schemas are GET /api/v1/schema/network.json and GET /api/v1/schema/graph.json.",
-            "x-networkDocument": { $ref: "#/components/schemas/NetworkDocument" },
-            "x-graphDocument": { $ref: "#/components/schemas/GraphDocument" },
+              "The whole file as text. CSV, CDP, and LLDP are plain text. When format is network, this string is the JSON encoding of NetworkDocument. When format is json, this string is the JSON encoding of GraphDocument.",
+          },
+          networkDocument: {
+            readOnly: true,
+            description:
+              "The network document encoded in text when format is network. Send that JSON in text. This field is the type of that document.",
+            allOf: [{ $ref: "#/components/schemas/NetworkDocument" }],
+          },
+          graphDocument: {
+            readOnly: true,
+            description:
+              "The generic nodes, edges, or links document encoded in text when format is json. Send that JSON in text. This field is the type of that document.",
+            allOf: [{ $ref: "#/components/schemas/GraphDocument" }],
           },
           path: { type: "string", description: "Required for generate and upsert. Diagram path ending in .mmd." },
           format: { type: "string", enum: ["csv", "json", "cdp", "lldp", "network"] },
@@ -444,7 +454,21 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
     case "refreshDiagram":
       return jsonBody("Refresh.", {
         path: { type: "string" },
-        text: { type: "string", description: "Replacement data. Omitted reads the file named in the front matter." },
+        text: {
+          type: "string",
+          description:
+            "Replacement data. Omitted reads the file named in the front matter. When the file is network JSON, the string is a NetworkDocument. When it is generic JSON, the string is a GraphDocument.",
+        },
+        networkDocument: {
+          readOnly: true,
+          description: "The network document encoded in text when the stored format is network. Send that JSON in text.",
+          allOf: [{ $ref: "#/components/schemas/NetworkDocument" }],
+        },
+        graphDocument: {
+          readOnly: true,
+          description: "The generic graph document encoded in text when the stored format is json. Send that JSON in text.",
+          allOf: [{ $ref: "#/components/schemas/GraphDocument" }],
+        },
         save: { type: "boolean", description: "Write the refreshed diagram. Defaults to false." },
         writeData: { type: "boolean" },
       }, ["path"]);
@@ -578,7 +602,7 @@ export function buildOpenApiSpec(): Record<string, unknown> {
             },
           }
         : jsonSuccess(successSchema, route.operationId === "upsertDiagram" ? "Updated an existing generated diagram." : "Success."),
-      "400": { description: "The request was rejected.", content: { "application/json": { schema: errorSchema } } },
+      "400": { description: "The request was rejected.", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
     };
     if (route.operationId === "upsertDiagram" || route.operationId === "generateDiagram" || route.operationId === "createDiagram" || route.operationId === "duplicateDiagram" || route.operationId === "createFolder" || route.operationId === "createBaseline") {
       responses["201"] = jsonSuccess(
@@ -587,18 +611,18 @@ export function buildOpenApiSpec(): Record<string, unknown> {
       );
     }
     if (route.scope !== "public") {
-      responses["401"] = { description: "Missing, unknown, or revoked token.", content: { "application/json": { schema: errorSchema } } };
+      responses["401"] = { description: "Missing, unknown, or revoked token.", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } };
     }
     if (route.scope === "write") {
-      responses["403"] = { description: "The token is read-only.", content: { "application/json": { schema: errorSchema } } };
+      responses["403"] = { description: "The token is read-only.", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } };
       responses["423"] = {
         description:
           "An editor lock is held. The body names the holding instance (instanceName, hostname, acquiredAt, heartbeatAt) when the lock has one.",
-        content: { "application/json": { schema: errorSchema } },
+        content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
       };
     }
     if (route.tag === "Render") {
-      responses["429"] = { description: "Render rate limit.", content: { "application/json": { schema: errorSchema } } };
+      responses["429"] = { description: "Render rate limit.", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } };
     }
     const operation: Record<string, unknown> = {
       operationId: route.operationId,
