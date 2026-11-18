@@ -1,0 +1,16 @@
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "name": "core-rtr",
+      "device_type": { "model": "ISR4451" },
+      "platform": { "name": "IOS-XE" },
+      "role": { "name": "core" },
+      "site": { "name": "hq" },
+      "primary_ip4": { "address": "192.0.2.1/32" }
+    }
+  ]
+}

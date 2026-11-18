@@ -2,7 +2,7 @@
 
 `nerdgram` is the command-line client for [NerdGram1337](https://github.com/NetworkNerd1337/NerdGram1337), a local app for [Mermaid](https://mermaid.js.org/) diagrams. The npm package name is `nerdgram1337`. The command it installs is `nerdgram`.
 
-List, search, and edit diagrams on a NerdGram server that is already running. `lint` and `render` of a `.mmd` file that is already on disk do not need the server.
+List, search, and edit diagrams on a NerdGram server that is already running. `lint` and `render` of a `.mmd` file that is already on disk do not need the server. `convert` of a saved export does not need the server.
 
 ## Install
 
@@ -34,6 +34,7 @@ nerdgram search Atlanta
 nerdgram get Welcome.mmd -o Welcome.mmd
 nerdgram put Notes.mmd ./Notes.mmd
 nerdgram lint Welcome.mmd
+nerdgram convert netbox export.json -o campus.network.json
 nerdgram diff Welcome.mmd --from current --to current --format md
 nerdgram baseline Welcome.mmd --name "Baseline"
 nerdgram replace CORE-SW1 ATL-CORE-01 --dry-run

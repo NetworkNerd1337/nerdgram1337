@@ -1,0 +1,151 @@
+{
+  "devices": {
+    "status": "ok",
+    "count": 2,
+    "devices": [
+      {
+        "device_id": 1,
+        "hostname": "core-rtr",
+        "sysName": "core-rtr.lab",
+        "hardware": "ISR4451",
+        "os": "iosxe",
+        "location": "HQ",
+        "ip": "192.0.2.1",
+        "serial": "FXS001"
+      },
+      {
+        "device_id": "2",
+        "hostname": "dist-sw",
+        "sysName": "dist-sw.lab",
+        "hardware": "C9300",
+        "os": "iosxe",
+        "location": "HQ",
+        "ip": "192.0.2.2"
+      }
+    ]
+  },
+  "ports": {
+    "status": "ok",
+    "ports": [
+      {
+        "port_id": 10,
+        "device_id": 1,
+        "ifName": "Gi0/0/0",
+        "ifAlias": "to dist",
+        "ifDescr": "GigabitEthernet0/0/0",
+        "ifSpeed": "10000000000",
+        "ifAdminStatus": "up",
+        "ifOperStatus": "up",
+        "ifVrf": "0"
+      },
+      {
+        "port_id": 11,
+        "device_id": "2",
+        "ifName": "Gi1/0/1",
+        "ifAlias": "to core",
+        "ifSpeed": "10000000000",
+        "ifAdminStatus": 1,
+        "ifOperStatus": "1"
+      },
+      {
+        "port_id": 12,
+        "device_id": 2,
+        "ifName": "Gi1/0/24",
+        "ifAlias": "to access",
+        "ifSpeed": "1000000000",
+        "ifAdminStatus": "up",
+        "ifOperStatus": "up",
+        "vlans": [
+          { "vlan": 99, "untagged": 1 },
+          { "vlan": 10, "untagged": 0 },
+          { "vlan": 20, "untagged": 0 }
+        ]
+      },
+      {
+        "port_id": 13,
+        "device_id": 1,
+        "ifName": "Gi0/0/1",
+        "ifAlias": "spare",
+        "ifSpeed": "1000000000",
+        "ifAdminStatus": "down",
+        "ifOperStatus": "down"
+      },
+      {
+        "port_id": 14,
+        "device_id": 2,
+        "ifName": "Gi1/0/2",
+        "ifAlias": "printer",
+        "ifAdminStatus": "up",
+        "ifOperStatus": "up",
+        "vlans": [{ "vlan": 10, "untagged": 1 }]
+      }
+    ]
+  },
+  "links": {
+    "status": "ok",
+    "links": [
+      {
+        "id": 1,
+        "local_port_id": 10,
+        "local_device_id": 1,
+        "remote_port_id": 11,
+        "remote_device_id": 2,
+        "remote_hostname": "dist-sw",
+        "remote_port": "Gi1/0/1",
+        "protocol": "lldp",
+        "active": 1,
+        "remote_platform": null,
+        "remote_version": "ignored"
+      },
+      {
+        "id": 2,
+        "local_port_id": 11,
+        "local_device_id": 2,
+        "remote_port_id": 10,
+        "remote_device_id": 1,
+        "remote_hostname": "core-rtr",
+        "remote_port": "Gi0/0/0",
+        "protocol": "lldp",
+        "active": 1
+      },
+      {
+        "id": 3,
+        "local_port_id": 12,
+        "local_device_id": 2,
+        "remote_device_id": 99,
+        "remote_hostname": "access-a",
+        "remote_port": "Gi1/0/1",
+        "protocol": "cdp",
+        "active": 1,
+        "remote_platform": "C9200"
+      },
+      {
+        "id": 4,
+        "local_port_id": 13,
+        "local_device_id": 1,
+        "remote_device_id": null,
+        "remote_hostname": "",
+        "remote_port": "",
+        "protocol": "lldp",
+        "active": 1
+      },
+      {
+        "id": 5,
+        "local_port_id": 14,
+        "local_device_id": 2,
+        "remote_hostname": "ghost",
+        "remote_port": "Gi0/1",
+        "protocol": "lldp",
+        "active": 0
+      }
+    ]
+  },
+  "ips": {
+    "status": "ok",
+    "addresses": [
+      { "port_id": "10", "ipv4_address": "10.1.0.1", "ipv4_prefixlen": "30" },
+      { "port_id": 10, "ipv6_address": "2001:db8:1::1", "ipv6_prefixlen": "64" },
+      { "port_id": 11, "ipv4_address": "10.1.0.2", "ipv4_prefixlen": 30 }
+    ]
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "devices": {
+    "count": 3,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "id": 1,
+        "name": "core-rtr",
+        "serial": "FXS001",
+        "device_type": { "model": "ISR4451" },
+        "platform": { "name": "IOS-XE" },
+        "role": { "name": "core" },
+        "site": { "name": "hq" },
+        "primary_ip4": { "address": "192.0.2.1/32" }
+      },
+      {
+        "id": 2,
+        "name": "dist-sw",
+        "device_type": { "model": "C9300" },
+        "platform": { "name": "IOS-XE" },
+        "device_role": { "name": "distribution" },
+        "site": { "name": "hq" },
+        "primary_ip4": { "address": "192.0.2.2/32" }
+      },
+      {
+        "id": 3,
+        "name": "access-a",
+        "device_type": { "model": "C9200" },
+        "platform": { "name": "IOS-XE" },
+        "role": { "name": "access" },
+        "site": { "name": "branch" },
+        "primary_ip4": { "address": "192.0.2.3/32" }
+      }
+    ]
+  },
+  "interfaces": {
+    "count": 9,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "id": 10,
+        "device": { "id": 1, "name": "core-rtr" },
+        "name": "Gi0/0/0",
+        "description": "to dist",
+        "enabled": true,
+        "speed": 10000000
+      },
+      {
+        "id": 11,
+        "device": { "id": 2, "name": "dist-sw" },
+        "name": "Gi1/0/1",
+        "description": "to core",
+        "enabled": true,
+        "speed": 10000000
+      },
+      {
+        "id": 12,
+        "device": { "id": 2, "name": "dist-sw" },
+        "name": "Gi1/0/24",
+        "description": "to access",
+        "enabled": true,
+        "speed": 1000000,
+        "mode": "tagged",
+        "untagged_vlan": { "vid": 99 },
+        "tagged_vlans": [{ "vid": 10 }, { "vid": 20 }]
+      },
+      {
+        "id": 13,
+        "device": { "id": 3, "name": "access-a" },
+        "name": "Gi1/0/1",
+        "description": "to dist",
+        "enabled": true,
+        "speed": 1000000,
+        "mode": "tagged",
+        "untagged_vlan": { "vid": 99 },
+        "tagged_vlans": [{ "vid": 10 }, { "vid": 20 }]
+      },
+      {
+        "id": 14,
+        "device": { "id": 3, "name": "access-a" },
+        "name": "Gi1/0/2",
+        "description": "printer",
+        "enabled": true,
+        "speed": 100000,
+        "mode": "access",
+        "untagged_vlan": { "vid": 10 }
+      },
+      {
+        "id": 15,
+        "device": { "id": 3, "name": "access-a" },
+        "name": "Gi1/0/3",
+        "description": "bundle member",
+        "enabled": true,
+        "lag": { "name": "Po1" }
+      },
+      {
+        "id": 16,
+        "device": { "id": 2, "name": "dist-sw" },
+        "name": "Vlan10",
+        "description": "users",
+        "enabled": true
+      },
+      {
+        "id": 17,
+        "device": { "id": 3, "name": "access-a" },
+        "name": "Vlan10",
+        "description": "users",
+        "enabled": true
+      },
+      {
+        "id": 18,
+        "device": { "id": 1, "name": "core-rtr" },
+        "name": "Gi0/0/1",
+        "description": "spare",
+        "enabled": false,
+        "speed": 1000000
+      }
+    ]
+  },
+  "cables": {
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "id": 100,
+        "label": "core-dist",
+        "a_terminations": [
+          {
+            "object_type": "dcim.interface",
+            "object_id": 10,
+            "object": { "device": { "name": "core-rtr" }, "name": "Gi0/0/0" }
+          }
+        ],
+        "b_terminations": [
+          {
+            "object_type": "dcim.interface",
+            "object_id": 11,
+            "object": { "device": { "name": "dist-sw" }, "name": "Gi1/0/1" }
+          }
+        ]
+      },
+      {
+        "id": 101,
+        "label": "dist-access",
+        "a_terminations": [
+          {
+            "object_type": "dcim.interface",
+            "object_id": 12,
+            "object": { "device": { "name": "dist-sw" }, "name": "Gi1/0/24" }
+          }
+        ],
+        "b_terminations": [
+          {
+            "object_type": "dcim.interface",
+            "object_id": 13,
+            "object": { "device": { "name": "access-a" }, "name": "Gi1/0/1" }
+          }
+        ]
+      }
+    ]
+  },
+  "ip-addresses": {
+    "count": 5,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "address": "10.1.0.1/30",
+        "assigned_object_type": "dcim.interface",
+        "assigned_object_id": 10
+      },
+      {
+        "address": "2001:db8:1::1/64",
+        "assigned_object_type": "dcim.interface",
+        "assigned_object_id": 10
+      },
+      {
+        "address": "10.1.0.2/30",
+        "assigned_object_type": "dcim.interface",
+        "assigned_object_id": 11
+      },
+      {
+        "address": "10.1.10.1/24",
+        "assigned_object_type": "dcim.interface",
+        "assigned_object_id": 16
+      },
+      {
+        "address": "10.1.10.2/24",
+        "assigned_object_type": "dcim.interface",
+        "assigned_object_id": 17
+      }
+    ]
+  },
+  "vlans": {
+    "count": 3,
+    "next": null,
+    "previous": null,
+    "results": [
+      { "vid": 10, "name": "users" },
+      { "vid": 20, "name": "servers" },
+      { "vid": 99, "name": "native" }
+    ]
+  }
+}

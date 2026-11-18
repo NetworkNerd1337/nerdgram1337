@@ -43,6 +43,7 @@ import {
 } from "./stylePresets.js";
 import { listWorkspaceColors, listWorkspaceFonts } from "./workspaceValues.js";
 import { registerTokenRoutes } from "./tokens.js";
+import { installedTranslators } from "./translators/index.js";
 import { mountAutomationApi } from "./v1.js";
 import type { RateLimit } from "./renderDiagram.js";
 import {
@@ -1273,6 +1274,14 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         return;
       }
       res.json(await sync.disableSync(req.body?.confirm === true));
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.get("/api/translators", async (_req, res) => {
+    try {
+      res.json({ translators: await installedTranslators() });
     } catch (err) {
       sendError(res, err);
     }

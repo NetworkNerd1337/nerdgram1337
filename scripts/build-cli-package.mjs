@@ -1,6 +1,38 @@
-import { readFileSync, rmSync } from "node:fs";
+import { readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+/** Keep this list equal to TRANSLATOR_INFRA in server/src/translators/infra.ts. */
+const TRANSLATOR_INFRA = ["bundled", "helpers", "index", "infra", "limits", "registry", "request", "run", "types"];
+
+function translatorBundlePlugin(repoRoot) {
+  const dir = join(repoRoot, "server/src/translators");
+  return {
+    name: "nerdgram-translators",
+    setup(build) {
+      build.onLoad({ filter: /[\\/]translators[\\/]bundled\.ts$/ }, () => {
+        const bases = readdirSync(dir)
+          .filter((name) => name.endsWith(".ts") && !name.endsWith(".d.ts"))
+          .map((name) => name.slice(0, -".ts".length))
+          .filter((base) => !TRANSLATOR_INFRA.includes(base))
+          .sort();
+        const imports = bases.map((base, index) => `import * as m${index} from ${JSON.stringify(`./${base}.ts`)};`);
+        const taken = bases.map((base, index) => `take(m${index}, ${JSON.stringify(`${base}.ts`)})`);
+        const contents = `${imports.join("\n")}
+function take(mod, file) {
+  const value = mod.default;
+  if (!value || typeof value !== "object" || typeof value.convert !== "function" || typeof value.id !== "string") {
+    throw new Error(file + " must default-export a translator.");
+  }
+  return value;
+}
+export const bundledTranslators = [${taken.join(", ")}];
+`;
+        return { contents, loader: "js", resolveDir: dir };
+      });
+    },
+  };
+}
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outdir = join(root, "cli", "dist");
@@ -18,6 +50,7 @@ rmSync(outdir, { recursive: true, force: true });
 await esbuild.build({
   absWorkingDir: root,
   entryPoints: { cli: "server/src/cli.ts" },
+  plugins: [translatorBundlePlugin(root)],
   bundle: true,
   splitting: true,
   format: "esm",
@@ -28,6 +61,7 @@ await esbuild.build({
   packages: "external",
   sourcemap: false,
   legalComments: "none",
+  logOverride: { "empty-glob": "silent" },
 });
 
 const entry = readFileSync(join(outdir, "cli.js"), "utf8");

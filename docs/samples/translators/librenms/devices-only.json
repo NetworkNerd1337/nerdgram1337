@@ -1,0 +1,14 @@
+{
+  "status": "ok",
+  "count": 1,
+  "devices": [
+    {
+      "device_id": "1",
+      "hostname": "core-rtr",
+      "hardware": "ISR4451",
+      "os": "iosxe",
+      "location": "HQ",
+      "ip": "192.0.2.1"
+    }
+  ]
+}

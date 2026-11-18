@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
-import { graphOpenApiSchemas, networkOpenApiSchemas } from "./publishedSchemas.js";
 import { jsonSuccess, REQUEST_EXAMPLES, RESPONSE_SCHEMAS, SHARED_SCHEMAS } from "./openapiShapes.js";
+import { graphOpenApiSchemas, networkOpenApiSchemas } from "./publishedSchemas.js";
+import { loadedTranslatorIds } from "./translators/registry.js";
 
 const require = createRequire(import.meta.url);
 const serverPackage = require("../package.json") as { version: string };
@@ -218,6 +219,23 @@ export const V1_ROUTES: readonly V1Route[] = [
   },
   {
     method: "get",
+    path: "/translators",
+    scope: "read",
+    operationId: "listTranslators",
+    summary: "List installed translators. Each entry has an id, a display name, a format hint, and a placeholder.",
+    tag: "Translators",
+  },
+  {
+    method: "post",
+    path: "/convert/:source",
+    scope: "read",
+    operationId: "convertSource",
+    summary:
+      "Convert a saved export to canonical network JSON. source is a translator id. A read token can convert. path and view upsert the diagram and need a read-write token. The body is at most 4 MiB. Nothing is fetched from the source tool.",
+    tag: "Translators",
+  },
+  {
+    method: "get",
     path: "/history",
     scope: "read",
     operationId: "listHistory",
@@ -283,7 +301,7 @@ export const V1_ROUTES: readonly V1Route[] = [
 ];
 
 export function openApiPath(route: V1Route): string {
-  return `/api/v1${route.path}`;
+  return `/api/v1${route.path.replace(/:([A-Za-z0-9_]+)/g, "{$1}")}`;
 }
 
 const errorSchema = {
@@ -533,6 +551,24 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
       return jsonBody("Undo a replace operation id returned by apply. A file edited since the replace is skipped.", {
         id: { type: "string" },
       }, ["id"]);
+    case "convertSource":
+      return jsonBody(
+        "The saved export, or a wrapper when path or view is set. A wrapper puts the export in input, or a JSON string in text. Query path and view also upsert a raw export body. The body is at most 4 MiB.",
+        {
+          input: { description: "The export object. Use this when path or view is set." },
+          text: { type: "string", description: "The export as a JSON string. Use this with path and view." },
+          path: { type: "string", description: "Diagram path ending in .mmd. Upserts the converted document. Needs a read-write token." },
+          view: { type: "string", enum: ["l3", "l2"], description: "Required with path. l3 is subnets. l2 is VLANs, trunks, and LAGs." },
+          includeDown: { type: "boolean" },
+          vlan: { type: "integer" },
+          groupBy: { type: "string", enum: ["platform", "capability", "vrf", "site", "role"] },
+          direction: { type: "string", enum: ["TD", "TB", "LR", "RL", "BT"] },
+          title: { type: "string" },
+          storeData: { type: "boolean" },
+          dataName: { type: "string" },
+        },
+        [],
+      );
     default:
       return undefined;
   }
@@ -563,6 +599,15 @@ function operationParameters(operationId: string): Record<string, unknown>[] {
       return [{ ...pathQuery, required: false, description: "Path, if not sent in the JSON body." }];
     case "listHistory":
       return [{ ...pathQuery, required: true, description: "Diagram path ending in .mmd." }];
+    case "convertSource": {
+      const ids = loadedTranslatorIds();
+      const schema: Record<string, unknown> = {
+        type: "string",
+        description: "Translator id. GET /api/v1/translators lists the installed ids.",
+      };
+      if (ids.length > 0) schema.enum = ids;
+      return [{ name: "source", in: "path", required: true, schema }];
+    }
     case "diffHistory":
       return [
         { ...pathQuery, required: true, description: "Diagram path ending in .mmd." },
@@ -604,6 +649,21 @@ export function buildOpenApiSpec(): Record<string, unknown> {
         : jsonSuccess(successSchema, route.operationId === "upsertDiagram" ? "Updated an existing generated diagram." : "Success."),
       "400": { description: "The request was rejected.", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
     };
+    if (route.operationId === "convertSource") {
+      responses["201"] = jsonSuccess(successSchema, "Created the diagram from the converted document.");
+      responses["403"] = {
+        description: "A read token cannot upsert. Convert without path is allowed.",
+        content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+      };
+      responses["404"] = {
+        description: "Unknown translator id.",
+        content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+      };
+      responses["413"] = {
+        description: "The export is larger than 4 MiB.",
+        content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+      };
+    }
     if (route.operationId === "upsertDiagram" || route.operationId === "generateDiagram" || route.operationId === "createDiagram" || route.operationId === "duplicateDiagram" || route.operationId === "createFolder" || route.operationId === "createBaseline") {
       responses["201"] = jsonSuccess(
         successSchema,
@@ -659,6 +719,7 @@ export function buildOpenApiSpec(): Record<string, unknown> {
       { name: "Lint" },
       { name: "Render" },
       { name: "Generate" },
+      { name: "Translators" },
       { name: "History" },
       { name: "Replace" },
     ],
