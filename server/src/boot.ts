@@ -1,3 +1,4 @@
+import { startDiagramLintScan } from "./diagramLintCache.js";
 import { startSyncLoopsIfEnabled, stopSyncForShutdown } from "./sync/engine.js";
 import { drainUpdateWork, startUpdateChecker } from "./updates/service.js";
 
@@ -9,6 +10,14 @@ import { drainUpdateWork, startUpdateChecker } from "./updates/service.js";
  */
 export async function bootBackgroundTasks(): Promise<void> {
   await startSyncLoopsIfEnabled();
+  // Tests start and stop servers against a data dir that the next test replaces.
+  // A scan still running would read that next directory. Production runs it.
+  if (!process.env.VITEST) {
+    void startDiagramLintScan().catch((err) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Diagram health startup scan failed: ${message}`);
+    });
+  }
   if (process.env.VITEST && process.env.NERDGRAM_UPDATE_CHECK_IN_TEST !== "1") return;
   startUpdateChecker();
 }

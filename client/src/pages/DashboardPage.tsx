@@ -1039,6 +1039,9 @@ export function DashboardPage() {
         {dragPath ? (
           <p className="drop-hint">Drop on a folder to move. A highlighted folder can take the item.</p>
         ) : null}
+        {!showTrash && !showAttention && summary?.status === "ready" && summary.stale ? (
+          <p className="health-stale">Diagrams have changed since the last check.</p>
+        ) : null}
 
         {showAttention ? (
           <AttentionView summary={summary} />

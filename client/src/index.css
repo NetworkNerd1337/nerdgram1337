@@ -2154,6 +2154,12 @@ body.is-col-resizing * {
   margin-bottom: 1rem;
 }
 
+.health-stale {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
 .reference-layout {
   min-height: 100vh;
   display: flex;

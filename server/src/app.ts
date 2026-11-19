@@ -31,7 +31,7 @@ import { importDiagramData } from "./diagramData.js";
 import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram } from "./diagramDataFiles.js";
 import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
-import { lintWorkspaceCached, diagramLintSummary } from "./diagramLintCache.js";
+import { lintWorkspaceCached, diagramLintSummaryFresh } from "./diagramLintCache.js";
 import { listWorkspaceTags } from "./tags.js";
 import {
   createStylePreset,
@@ -468,7 +468,17 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   });
 
   app.get("/api/diagram-lint/summary", async (_req, res) => {
-    res.json(diagramLintSummary());
+    try {
+      res.json(
+        await diagramLintSummaryFresh(async () => ({
+          files: walkDiagramFiles(await store.buildTree()),
+          stat: (filePath) => statDiagram(filePath),
+          read: (filePath) => store.readFile(filePath),
+        })),
+      );
+    } catch (err) {
+      sendError(res, err);
+    }
   });
 
   app.get("/api/diagram-lint", async (_req, res) => {
