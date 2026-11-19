@@ -40,7 +40,7 @@ import type { WorkspaceItem } from "../lib/commands";
 import { editorHref, searchDiagrams } from "../lib/diagramSearch";
 import { openWorkspaceReplace, setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
 import { diagramCardLabel, folderCountLabel } from "../lib/diagramLabel";
-import { diagramCardHealth, diagramHealthClass } from "../lib/diagramCardHealth";
+import { diagramHealthClass, diagramSurfaceHealth } from "../lib/diagramCardHealth";
 import { contentWithStyle } from "../lib/stylePresets";
 import { nearestExistingFolder } from "../lib/editorBreadcrumb";
 import type { TagCount } from "../lib/tagSuggestions";
@@ -1535,10 +1535,11 @@ function DiagramCard({
     setThumbStatus((current) => (current === status ? current : status));
   }, []);
   const parseError = thumbStatus === "failed";
-  const health = diagramCardHealth({
+  const health = diagramSurfaceHealth({
     errors: problems?.errors,
     warnings: problems?.warnings,
-    parseError,
+    malformed: meta?.malformed === true,
+    thumbnailFailed: parseError,
   });
   return (
     <article
@@ -1636,7 +1637,11 @@ function ListRow({
   onDelete: () => void;
 }) {
   const label = diagramCardLabel(path, meta?.title ?? match?.title);
-  const health = diagramCardHealth({ errors: problems?.errors, warnings: problems?.warnings });
+  const health = diagramSurfaceHealth({
+    errors: problems?.errors,
+    warnings: problems?.warnings,
+    malformed: meta?.malformed === true,
+  });
   return (
     <div
       className={`list-row${diagramHealthClass(health)}${dragging ? " is-dragging" : ""}`}

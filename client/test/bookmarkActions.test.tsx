@@ -6,7 +6,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 import { BookmarksSection } from "../src/components/BookmarksSection";
-import { BOOKMARK_FOLDERS_KEY, type BookmarkState } from "../src/lib/bookmarks";
+import { BOOKMARK_FOLDER_MIME } from "../src/lib/bookmarkDrag";
+import { BOOKMARK_FOLDERS_KEY, normalizeBookmarks, type BookmarkState } from "../src/lib/bookmarks";
 
 const state: BookmarkState = {
   folders: [{ id: "f1", name: "Sites", parentId: null }],
@@ -187,5 +188,172 @@ describe("bookmark rows", () => {
     expect(empty.className).toContain("bookmark-folder");
     fire(empty, "drop", "WAN.mmd");
     expect(folderOf(calls.at(-1) as BookmarkState, "WAN.mmd")).toBe("empty");
+  });
+});
+
+const nestedFolders: BookmarkState = {
+  folders: [
+    { id: "sites", name: "Sites", parentId: null },
+    { id: "lab", name: "Lab", parentId: null },
+    { id: "rack", name: "Rack", parentId: "lab" },
+  ],
+  items: [],
+};
+
+function folderTransfer(id: string) {
+  const data = new Map<string, string>([[BOOKMARK_FOLDER_MIME, id]]);
+  return {
+    types: [BOOKMARK_FOLDER_MIME],
+    setData(type: string, value: string) {
+      data.set(type, value);
+    },
+    getData(type: string) {
+      return data.get(type) ?? "";
+    },
+    effectAllowed: "move",
+    dropEffect: "move",
+  };
+}
+
+function fireFolder(target: HTMLElement, type: string, id: string, band: "before" | "inside" | "after" = "inside") {
+  const height = 100;
+  target.getBoundingClientRect = () =>
+    ({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 200,
+      bottom: height,
+      width: 200,
+      height,
+      toJSON() {
+        return {};
+      },
+    }) as DOMRect;
+  const clientY = band === "before" ? 4 : band === "after" ? 96 : 50;
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clientY", { value: clientY });
+  Object.defineProperty(event, "dataTransfer", { value: folderTransfer(id) });
+  act(() => {
+    target.dispatchEvent(event);
+  });
+}
+
+function rootFolderIds() {
+  return [...document.querySelectorAll("#bookmark-list > .bookmark-folder")].map((node) => node.getAttribute("data-folder-id"));
+}
+
+function childFolderIds(parentId: string) {
+  const parent = document.querySelector(`[data-folder-id='${parentId}']`);
+  const nest = parent?.querySelector(":scope > .tree-children");
+  if (!nest) return [];
+  return [...nest.children]
+    .filter((node) => node.classList.contains("bookmark-folder"))
+    .map((node) => node.getAttribute("data-folder-id"));
+}
+
+describe("bookmark folder drag", () => {
+  let root: Root | null = null;
+
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+    document.body.innerHTML = "";
+    localStorage.clear();
+  });
+
+  function render(current: BookmarkState, onChange: (next: BookmarkState) => void) {
+    root = mount(current, onChange);
+  }
+
+  it("nests a folder when the drop is in the middle, and the order survives a reload", () => {
+    const calls: BookmarkState[] = [];
+    render(nestedFolders, (next) => calls.push(next));
+    const actions = document.querySelector<HTMLButtonElement>("button[aria-label='Actions for Lab']");
+    act(() => {
+      actions?.click();
+    });
+    expect(document.querySelector("[aria-label='Move folder Lab']")).toBeTruthy();
+    act(() => {
+      actions?.click();
+    });
+    const sites = document.querySelector("[data-folder-id='sites']") as HTMLElement;
+    fireFolder(sites, "drop", "lab", "inside");
+    const saved = calls.at(-1) as BookmarkState;
+    expect(saved.folders.find((folder) => folder.id === "lab")?.parentId).toBe("sites");
+    expect(calls).toHaveLength(1);
+
+    act(() => root?.unmount());
+    render(normalizeBookmarks(saved), () => undefined);
+    expect(childFolderIds("sites")).toEqual(["lab"]);
+    expect(rootFolderIds()).toEqual(["sites"]);
+  });
+
+  it("un-nests a folder dropped on the top level, and the order survives a reload", () => {
+    const calls: BookmarkState[] = [];
+    const current: BookmarkState = {
+      folders: [
+        { id: "sites", name: "Sites", parentId: null },
+        { id: "lab", name: "Lab", parentId: "sites" },
+      ],
+      items: [],
+    };
+    render(current, (next) => calls.push(next));
+    fireFolder(document.getElementById("bookmark-list") as HTMLElement, "drop", "lab");
+    const saved = calls.at(-1) as BookmarkState;
+    expect(saved.folders.find((folder) => folder.id === "lab")?.parentId).toBeNull();
+    expect(calls).toHaveLength(1);
+
+    act(() => root?.unmount());
+    render(normalizeBookmarks(saved), () => undefined);
+    expect(rootFolderIds()).toEqual(["sites", "lab"]);
+  });
+
+  it("reorders sibling folders from the row edge and shows the insertion line, not the inside highlight", () => {
+    const calls: BookmarkState[] = [];
+    render(nestedFolders, (next) => calls.push(next));
+    const sitesRow = document.querySelector("[data-bookmark-folder='sites']") as HTMLElement;
+    fireFolder(sitesRow, "dragstart", "lab");
+    fireFolder(sitesRow, "dragover", "lab", "before");
+    expect(document.querySelector(".bookmark-insert")).toBeTruthy();
+    expect(document.querySelector("[data-folder-id='sites']")?.className).not.toContain("is-drop-over");
+    fireFolder(sitesRow, "dragover", "lab", "inside");
+    expect(document.querySelector("[data-folder-id='sites']")?.className).toContain("is-drop-over");
+    expect(document.querySelector(".bookmark-insert")).toBeNull();
+    fireFolder(sitesRow, "drop", "lab", "before");
+    const saved = calls.at(-1) as BookmarkState;
+    expect(saved.folders.filter((folder) => (folder.parentId ?? null) === null).map((folder) => folder.id)).toEqual([
+      "lab",
+      "sites",
+    ]);
+
+    act(() => root?.unmount());
+    render(normalizeBookmarks(saved), () => undefined);
+    expect(rootFolderIds()).toEqual(["lab", "sites"]);
+  });
+
+  it("refuses a drop on the folder itself or a descendant and shows no accept highlight", () => {
+    const calls: BookmarkState[] = [];
+    render(nestedFolders, (next) => calls.push(next));
+    const labRow = document.querySelector("[data-bookmark-folder='lab']") as HTMLElement;
+    fireFolder(labRow, "dragstart", "lab");
+    fireFolder(labRow, "dragover", "lab", "inside");
+    expect(document.querySelector(".is-drop-over")).toBeNull();
+    expect(document.querySelector(".bookmark-insert")).toBeNull();
+    expect(document.querySelector(".is-folder-drop")).toBeNull();
+    fireFolder(labRow, "drop", "lab", "inside");
+    expect(calls).toHaveLength(0);
+
+    const rackRow = document.querySelector("[data-bookmark-folder='rack']") as HTMLElement;
+    fireFolder(rackRow, "dragover", "lab", "before");
+    fireFolder(rackRow, "dragover", "lab", "inside");
+    fireFolder(rackRow, "dragover", "lab", "after");
+    expect(document.querySelector(".is-drop-over")).toBeNull();
+    expect(document.querySelector(".bookmark-insert")).toBeNull();
+    expect(document.querySelector(".is-folder-drop")).toBeNull();
+    fireFolder(rackRow, "drop", "lab", "inside");
+    expect(calls).toHaveLength(0);
+    expect(childFolderIds("lab")).toEqual(["rack"]);
   });
 });

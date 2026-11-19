@@ -2,6 +2,7 @@ import { Component, useEffect, useRef, useState, type MouseEvent, type ReactNode
 import { ApiError, api } from "../api";
 import { FALLBACK_THEME, thumbnailCacheKey } from "../lib/frontMatter";
 import { renderMermaid } from "../lib/mermaidRender";
+import { sourceForThumbnail } from "../lib/thumbnailSource";
 import { readFailureMessage } from "../lib/readError";
 import { unreadableMessage } from "../../../server/src/readError.ts";
 import { lookupThumbnailRecord, rememberThumbnail, scheduleThumbnail } from "../lib/thumbnailCache";
@@ -54,14 +55,17 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus 
   const [attempt, setAttempt] = useState(0);
   const token = `${path}\0${mtimeMs}\0${cacheKey ?? ""}`;
   const memory = lookupThumbnailRecord(path, mtimeMs, cacheKey);
+  const retryFailedFrontMatter = frontMatter && memory?.status === "failed";
   const shown =
     loaded?.token === token
       ? loaded
-      : {
-          token,
-          svg: memory?.status === "ready" ? memory.svg : null,
-          status: (memory ? memory.status : "pending") as Status,
-        };
+      : memory && !retryFailedFrontMatter
+        ? {
+            token,
+            svg: memory.status === "ready" ? memory.svg : null,
+            status: memory.status,
+          }
+        : { token, svg: null, status: "pending" as Status };
 
   useEffect(() => {
     const node = rootRef.current;
@@ -78,7 +82,7 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus 
 
   useEffect(() => {
     const cached = lookupThumbnailRecord(path, mtimeMs, cacheKey);
-    if (cached) return;
+    if (cached && !(frontMatter && cached.status === "failed")) return;
     if (!visible) return;
 
     const controller = new AbortController();
@@ -143,7 +147,7 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus 
           return;
         }
         const warmed = lookupThumbnailRecord(path, file.mtimeMs, key);
-        if (warmed) {
+        if (warmed && !(frontMatter && warmed.status === "failed")) {
           setLoaded({
             token: requestToken,
             svg: warmed.status === "ready" ? warmed.svg : null,
@@ -151,7 +155,7 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus 
           });
           return;
         }
-        const rendered = await renderMermaid(file.content, FALLBACK_THEME);
+        const rendered = await renderMermaid(sourceForThumbnail(file.content), FALLBACK_THEME);
         if (cancelled) return;
         rememberThumbnail({
           path,
@@ -182,7 +186,7 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus 
       cancelled = true;
       controller.abort();
     };
-  }, [visible, path, mtimeMs, cacheKey, attempt]);
+  }, [visible, path, mtimeMs, cacheKey, attempt, frontMatter]);
 
   useEffect(() => {
     onStatus?.(shown.status);
@@ -204,7 +208,7 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus 
           ? "Empty diagram"
           : "";
   const badge =
-    shown.status === "unreadable" ? "Can't read file" : shown.status === "failed" ? "Parse error" : frontMatter ? "Front matter" : null;
+    shown.status === "unreadable" ? "Can't read file" : shown.status === "failed" ? "Parse error" : frontMatter ? "Front matter error" : null;
 
   return (
     <div

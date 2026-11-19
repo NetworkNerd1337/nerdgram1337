@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type DragEvent } from "react";
 import { Link } from "react-router-dom";
+import { folderDropBand, useBookmarkFolderDrag } from "../lib/bookmarkDrag";
 import {
   bookmarkFolderChoices,
   createBookmarkFolder,
@@ -42,6 +43,8 @@ export function BookmarkManager() {
     }
   };
 
+  const folderDrag = useBookmarkFolderDrag(draft, (next) => void commit(next));
+
   const addFolder = (parentId: string | null, name: string) => {
     const next = createBookmarkFolder(draft, name, newFolderId(), parentId);
     if (next === draft) return;
@@ -57,14 +60,23 @@ export function BookmarkManager() {
     void commit(next);
   };
 
+  const folderRoot = folderDrag.dragging && folderDrag.inside(null);
+
   return (
-    <section className="sync-card" id="bookmarks">
+    <section
+      className={`sync-card bookmark-manage${folderDrag.dragging ? " is-dragging" : ""}${folderRoot ? " is-folder-drop" : ""}`}
+      id="bookmarks"
+      onDragOver={(event) => folderDrag.hover(event, null, "inside")}
+      onDrop={(event) => folderDrag.drop(event, null, "inside")}
+    >
       <h2>Bookmarks</h2>
       <p>
         Bookmarks are stored in this NerdGram instance, in <code>.meta/favorites.json</code>. They
         are not an account. Folders can sit inside other folders. Rename, move, and remove them
-        here. Deleting a folder keeps its bookmarks and the folders inside it, and moves them up to
-        that folder's parent. A missing file can be removed. A rename or move inside NerdGram
+        here. Drag a folder to nest it, move it back to the top, or reorder it. The middle of a
+        row nests it, and the top or bottom edge places it before or after that folder. Deleting a
+        folder keeps its bookmarks and the folders inside it, and moves them up to that folder's
+        parent. A missing file can be removed. A rename or move inside NerdGram
         updates the bookmark.
       </p>
       {error ? <div className="error-banner">{error}</div> : null}
@@ -84,6 +96,7 @@ export function BookmarkManager() {
         parentId={null}
         known={known}
         collapsed={collapsed}
+        folderDrag={folderDrag}
         onToggle={(id) => {
           setCollapsed((current) => {
             const next = new Set(current);
@@ -120,11 +133,14 @@ function newFolderId(): string {
   return `f${Math.random().toString(16).slice(2, 10)}`;
 }
 
+type FolderDrag = ReturnType<typeof useBookmarkFolderDrag>;
+
 function FolderLevel({
   draft,
   parentId,
   known,
   collapsed,
+  folderDrag,
   onToggle,
   folderDraft,
   onFolderDraft,
@@ -135,6 +151,7 @@ function FolderLevel({
   parentId: string | null;
   known: Set<string>;
   collapsed: Set<string>;
+  folderDrag: FolderDrag;
   onToggle: (id: string) => void;
   folderDraft: { parentId: string | null; name: string } | null;
   onFolderDraft: (draft: { parentId: string | null; name: string } | null) => void;
@@ -152,6 +169,7 @@ function FolderLevel({
           draft={draft}
           known={known}
           collapsed={collapsed}
+          folderDrag={folderDrag}
           onToggle={onToggle}
           folderDraft={folderDraft}
           onFolderDraft={onFolderDraft}
@@ -159,6 +177,7 @@ function FolderLevel({
           onCommit={onCommit}
         />
       ))}
+      {folderDrag.end(parentId) ? <li className="bookmark-insert" aria-hidden="true" /> : null}
     </ul>
   );
 }
@@ -168,6 +187,7 @@ function FolderBlock({
   draft,
   known,
   collapsed,
+  folderDrag,
   onToggle,
   folderDraft,
   onFolderDraft,
@@ -178,6 +198,7 @@ function FolderBlock({
   draft: BookmarkState;
   known: Set<string>;
   collapsed: Set<string>;
+  folderDrag: FolderDrag;
   onToggle: (id: string) => void;
   folderDraft: { parentId: string | null; name: string } | null;
   onFolderDraft: (draft: { parentId: string | null; name: string } | null) => void;
@@ -187,9 +208,30 @@ function FolderBlock({
   const open = !collapsed.has(folder.id);
   const items = draft.items.filter((item) => item.folderId === folder.id);
   const drafting = folderDraft?.parentId === folder.id;
+  const band = (event: DragEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return folderDropBand(event.clientY, rect.top, rect.height);
+  };
   return (
-    <li>
-      <div className="sidebar-row">
+    <li
+      className={`bookmark-folder${folderDrag.inside(folder.id) ? " is-drop-over" : ""}`}
+      data-folder-id={folder.id}
+      onDragOver={(event) => folderDrag.hover(event, folder.id, "inside")}
+      onDrop={(event) => folderDrag.drop(event, folder.id, "inside")}
+    >
+      {folderDrag.before(folder.id) ? <div className="bookmark-insert" aria-hidden="true" /> : null}
+      <div
+        className="sidebar-row"
+        draggable
+        data-bookmark-folder={folder.id}
+        onDragStart={(event) => folderDrag.onDragStart(event, folder.id)}
+        onDragEnd={folderDrag.onDragEnd}
+        onDragOver={(event) => folderDrag.hover(event, folder.id, band(event))}
+        onDrop={(event) => folderDrag.drop(event, folder.id, band(event))}
+      >
+        <span className="bookmark-drag-handle" aria-label={`Drag folder ${folder.name}`} title="Drag to move">
+          ::
+        </span>
         <button
           type="button"
           className="tree-chevron"
@@ -254,6 +296,7 @@ function FolderBlock({
             parentId={folder.id}
             known={known}
             collapsed={collapsed}
+            folderDrag={folderDrag}
             onToggle={onToggle}
             folderDraft={folderDraft}
             onFolderDraft={onFolderDraft}

@@ -214,6 +214,50 @@ function siblingFolderIndexes(folders: BookmarkFolder[], parentId: string | null
   return indexes;
 }
 
+/** Index among the destination's child folders after `movingId` is taken out. `beforeId` null appends. */
+export function bookmarkFolderDropIndex(
+  folders: readonly BookmarkFolder[],
+  parentId: string | null,
+  beforeId: string | null,
+  movingId: string,
+): number {
+  const siblings = folders.filter((folder) => folderParentId(folder) === parentId && folder.id !== movingId);
+  if (!beforeId || beforeId === movingId) return siblings.length;
+  const at = siblings.findIndex((folder) => folder.id === beforeId);
+  return at < 0 ? siblings.length : at;
+}
+
+/** Move a folder under a parent (or the top level) at a sibling index. A cycle is refused. */
+export function placeBookmarkFolder(state: BookmarkState, id: string, parentId: string | null, index: number): BookmarkState {
+  const current = state.folders.find((folder) => folder.id === id);
+  if (!current) return state;
+  if (!folderParentAllowed(state.folders, id, parentId)) return state;
+  const without = state.folders.filter((folder) => folder.id !== id);
+  const siblings = without.filter((folder) => folderParentId(folder) === parentId);
+  const clamped = Math.max(0, Math.min(index, siblings.length));
+  const moving: BookmarkFolder = { ...current, parentId };
+  const folders = [...without];
+  if (clamped === siblings.length) {
+    const last = siblings[siblings.length - 1];
+    const at = last ? without.indexOf(last) + 1 : without.length;
+    folders.splice(at, 0, moving);
+  } else {
+    const anchor = siblings[clamped];
+    if (!anchor) return state;
+    folders.splice(without.indexOf(anchor), 0, moving);
+  }
+  if (
+    folders.length === state.folders.length &&
+    folders.every(
+      (folder, at) =>
+        folder.id === state.folders[at]?.id && folderParentId(folder) === folderParentId(state.folders[at] as BookmarkFolder),
+    )
+  ) {
+    return state;
+  }
+  return { ...state, folders };
+}
+
 export function reorderBookmarkFolder(state: BookmarkState, id: string, direction: -1 | 1): BookmarkState {
   const index = state.folders.findIndex((folder) => folder.id === id);
   if (index < 0) return state;

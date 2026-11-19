@@ -4192,9 +4192,19 @@ body[data-presenting="true"] .support-link {
 }
 
 .sidebar-block-body.is-dragging.is-drop-over > .bookmark-drop-zone,
-.sidebar-block-body.is-dragging .bookmark-folder.is-drop-over {
+.sidebar-block-body.is-dragging .bookmark-folder.is-drop-over,
+.sidebar-block-body.is-dragging.is-folder-drop,
+.bookmark-manage.is-dragging.is-folder-drop,
+.bookmark-manage.is-dragging .bookmark-folder.is-drop-over {
   outline: 2px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.bookmark-manage.is-dragging .bookmark-folder {
+  min-height: 4.5rem;
+  border-radius: 8px;
+  outline: 1px dashed var(--line);
+  outline-offset: 1px;
 }
 
 .bookmark-insert {
@@ -4203,10 +4213,28 @@ body[data-presenting="true"] .support-link {
   border-radius: 999px;
   background: var(--accent);
   list-style: none;
+  pointer-events: none;
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.bookmark-manage-list li.bookmark-insert {
+  display: block;
+  padding: 0;
+  gap: 0;
 }
 
 .bookmark-end {
   list-style: none;
+}
+
+.bookmark-drag-handle {
+  cursor: grab;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  letter-spacing: -0.08em;
+  user-select: none;
+  flex: none;
 }
 
 .sidebar-row-label {
