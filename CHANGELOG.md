@@ -6,7 +6,13 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- MCP at `/mcp` (streamable HTTP) and `nerdgram mcp` (stdio proxy to `/api/v1`). An automation token lists, reads, lints, renders, creates, and updates diagrams. A read token sees only read tools. PNG render returns a file path, not base64 (from #199).
+_No unreleased items._
+
+## 1.8.7 "Meridian" - 2026-11-18
+
+Patch on the Meridian line. The code name stays Meridian.
+
+- **MCP server.** `/mcp` is streamable HTTP and `nerdgram mcp` is a stdio proxy to `/api/v1`. An automation token lists, reads, lints, renders, creates, and updates diagrams. A read token sees only read tools. PNG render returns a file path, not base64 (#199, #200).
 
 ## 1.8.6 "Meridian" - 2026-11-18
 

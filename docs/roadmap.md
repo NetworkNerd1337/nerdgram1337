@@ -30,10 +30,12 @@ This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas t
 
 | Fact | Value |
 | --- | --- |
-| Current release | 1.8.6 Meridian |
+| Current release | 1.8.7 Meridian |
 | Canonical network schema | `schemaVersion` 1, in [docs/schema/network.schema.json](schema/network.schema.json) |
 | Automation API | `GET /api/v1/openapi.json` already exists (OpenAPI 3.0.3, no token) |
 | Generate behavior | `POST /api/v1/generate` returns **409** if the path exists; refresh updates an existing diagram |
+
+1.8.7 adds the MCP server. `/mcp` is streamable HTTP, and `nerdgram mcp` is the stdio proxy, so an MCP client can list, read, lint, render, and update diagrams with an automation token.
 
 ## Guardrails
 
