@@ -82,6 +82,8 @@ export type FrontMatterMatch = {
   indent: string;
   /** YAML between the fences, still indented when the fence was indented. */
   body: string;
+  /** Index in the source where `body` starts. */
+  bodyStart: number;
   /** Length of the whole match, including the newline that closes the fence. */
   length: number;
 };
@@ -216,7 +218,7 @@ export function matchFrontMatter(text: string): FrontMatterMatch | null {
   for (let i = bodyStart; i <= lastClosingFence; i += 1) {
     const matchEnd = closingEnd(i);
     if (matchEnd !== -1) {
-      return { indent, body: text.slice(bodyStart, i), length: matchEnd + 1 };
+      return { indent, body: text.slice(bodyStart, i), bodyStart, length: matchEnd + 1 };
     }
   }
   return null;
@@ -283,9 +285,34 @@ function yamlText(match: FrontMatterMatch): string {
     .join("\n");
 }
 
-function firstErrorLine(error: { linePos?: readonly { line: number }[] | null }): number {
-  const line = error.linePos?.[0]?.line;
-  return typeof line === "number" && line > 0 ? line : 1;
+type YamlErrorLike = {
+  linePos?: readonly { line: number }[] | null;
+  pos?: readonly (number | null)[] | null;
+};
+
+/** 1-based line of `offset` in `text`. An offset at the end stays on the last line. */
+function lineAt(text: string, offset: number): number {
+  const end = Math.max(0, Math.min(offset, text.length));
+  let line = 1;
+  for (let i = 0; i < end; i += 1) {
+    if (text[i] === "\n") line += 1;
+  }
+  return line;
+}
+
+/**
+ * File line of a YAML parser error. `linePos` is used when the parser
+ * filled it in. Otherwise the character offset in the YAML text is counted.
+ * That line is shifted by the opening fence so it matches the file.
+ */
+function firstErrorLine(error: YamlErrorLike, yaml: string, fileText: string, bodyStart: number): number {
+  const marked = error.linePos?.[0]?.line;
+  let yamlLine: number | null = typeof marked === "number" && marked > 0 ? marked : null;
+  const offset = error.pos?.[0];
+  if (yamlLine == null && typeof offset === "number" && offset >= 0) yamlLine = lineAt(yaml, offset);
+  const fileBodyLine = lineAt(fileText, bodyStart);
+  if (yamlLine == null) return fileBodyLine;
+  return fileBodyLine + yamlLine - 1;
 }
 
 function parseInitArgs(raw: string): { value: Record<string, unknown> | null; error: string | null } {
@@ -443,7 +470,8 @@ export function parseDiagram(source: string): DiagramDocument {
   const match = matchFrontMatter(text);
   if (!match) return withInits({ ...emptyDocument(), body: text }, text, text);
 
-  const doc = parseDocument(yamlText(match), { schema: "core", prettyErrors: false });
+  const yaml = yamlText(match);
+  const doc = parseDocument(yaml, { schema: "core", prettyErrors: false });
   const body = text.slice(match.length);
   if (doc.errors.length > 0) {
     const error = doc.errors[0];
@@ -454,7 +482,7 @@ export function parseDiagram(source: string): DiagramDocument {
         hasFrontMatter: true,
         malformed: true,
         error: message,
-        errorLine: error ? firstErrorLine(error) : 1,
+        errorLine: error ? firstErrorLine(error, yaml, text, match.bodyStart) : 1,
         body,
       },
       body,
@@ -1014,6 +1042,8 @@ export type DiagramMeta = {
   layout: string | null;
   malformed: boolean;
   error: string | null;
+  /** 1-based file line of `error` when the header failed. Null when the header is readable. */
+  errorLine: number | null;
   cacheKey: string;
 };
 
@@ -1030,6 +1060,7 @@ export function diagramMetaFrom(path: string, source: string): DiagramMeta {
     layout: parsed.layout,
     malformed: parsed.malformed,
     error: parsed.error,
+    errorLine: parsed.malformed ? parsed.errorLine : null,
     cacheKey: parsed.cacheKey,
   };
 }

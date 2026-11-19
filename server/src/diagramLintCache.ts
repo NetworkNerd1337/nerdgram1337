@@ -40,7 +40,7 @@ export type DiagramLintSummary = {
   warnings: number | null;
   unreadable: number | null;
   muted: number | null;
-  diagrams: { path: string; errors: number; warnings: number }[] | null;
+  diagrams: { path: string; errors: number; warnings: number; parse: boolean; muted: boolean }[] | null;
 };
 
 type PassInput = {
@@ -94,12 +94,19 @@ export function diagramLintSummary(): DiagramLintSummary {
   }
   let errors = 0;
   let warnings = 0;
+  const mutedPaths = new Set(last.muted);
   const diagrams = last.diagrams.map((diagram) => {
     const diagramErrors = diagram.diagnostics.filter((item) => item.severity === "error").length;
     const diagramWarnings = diagram.diagnostics.length - diagramErrors;
     errors += diagramErrors;
     warnings += diagramWarnings;
-    return { path: diagram.path, errors: diagramErrors, warnings: diagramWarnings };
+    return {
+      path: diagram.path,
+      errors: diagramErrors,
+      warnings: diagramWarnings,
+      parse: diagram.diagnostics.some((item) => item.ruleId === "parse"),
+      muted: mutedPaths.has(diagram.path),
+    };
   });
   return {
     status: "ready",

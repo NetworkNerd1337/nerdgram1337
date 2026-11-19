@@ -241,7 +241,7 @@ export const api = {
       warnings: number | null;
       unreadable: number | null;
       muted: number | null;
-      diagrams: { path: string; errors: number; warnings: number }[] | null;
+      diagrams: { path: string; errors: number; warnings: number; parse: boolean; muted: boolean }[] | null;
     }>("/api/diagram-lint/summary"),
   listExporters: () =>
     request<{

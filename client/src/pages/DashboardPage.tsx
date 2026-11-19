@@ -239,8 +239,15 @@ export function DashboardPage() {
   }, [tree]);
 
   const healthByPath = useMemo(() => {
-    const map = new Map<string, { errors: number; warnings: number }>();
-    for (const row of summary?.diagrams ?? []) map.set(row.path, { errors: row.errors, warnings: row.warnings });
+    const map = new Map<string, { errors: number; warnings: number; parse: boolean; muted: boolean }>();
+    for (const row of summary?.diagrams ?? []) {
+      map.set(row.path, {
+        errors: row.errors,
+        warnings: row.warnings,
+        parse: row.parse === true,
+        muted: row.muted === true,
+      });
+    }
     return map;
   }, [summary]);
 
@@ -1515,7 +1522,7 @@ function DiagramCard({
   meta?: DiagramMeta;
   onTag: (tag: string) => void;
   mtimeMs: number;
-  problems?: { errors: number; warnings: number };
+  problems?: { errors: number; warnings: number; parse?: boolean; muted?: boolean };
   favorited: boolean;
   dragging: boolean;
   onDragStart: (event: DragEvent<HTMLElement>) => void;
@@ -1538,8 +1545,11 @@ function DiagramCard({
   const health = diagramSurfaceHealth({
     errors: problems?.errors,
     warnings: problems?.warnings,
+    muted: problems?.muted,
     malformed: meta?.malformed === true,
     thumbnailFailed: parseError,
+    syntaxError: problems?.parse === true,
+    frontMatterLine: meta?.errorLine,
   });
   return (
     <article
@@ -1557,6 +1567,7 @@ function DiagramCard({
           mtimeMs={mtimeMs}
           cacheKey={meta?.cacheKey ?? null}
           frontMatter={meta?.malformed === true}
+          frontMatterLine={meta?.errorLine}
           onStatus={onThumbStatus}
         />
         <DiagramHealthBadge health={health} thumbnailShowsParseError={parseError} />
@@ -1595,7 +1606,7 @@ function DiagramCard({
   );
 }
 
-function ListRow({
+export function ListRow({
   path,
   href = `/edit/${path}`,
   match,
@@ -1622,7 +1633,7 @@ function ListRow({
   meta?: DiagramMeta;
   onTag: (tag: string) => void;
   mtimeMs: number;
-  problems?: { errors: number; warnings: number };
+  problems?: { errors: number; warnings: number; parse?: boolean; muted?: boolean };
   favorited: boolean;
   dragging: boolean;
   onDragStart: (event: DragEvent<HTMLElement>) => void;
@@ -1640,7 +1651,10 @@ function ListRow({
   const health = diagramSurfaceHealth({
     errors: problems?.errors,
     warnings: problems?.warnings,
+    muted: problems?.muted,
     malformed: meta?.malformed === true,
+    syntaxError: problems?.parse === true,
+    frontMatterLine: meta?.errorLine,
   });
   return (
     <div

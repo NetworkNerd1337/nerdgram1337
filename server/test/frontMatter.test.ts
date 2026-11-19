@@ -107,6 +107,17 @@ describe("front matter parsing", () => {
     expect(parsed.body).toBe(BODY);
   });
 
+  it("reports the file line of a broken settings block", () => {
+    const source = "---\ntitle: Ok\nconfig:\n  theme: [\n---\nflowchart LR\n  A --> B\n";
+    const parsed = parseDiagram(source);
+    expect(parsed.malformed).toBe(true);
+    expect(parsed.errorLine).toBe(4);
+    expect(source.split("\n")[3]).toContain("theme:");
+    const meta = diagramMetaFrom("Sites/Broken.mmd", source);
+    expect(meta).toMatchObject({ malformed: true, errorLine: 4 });
+    expect(diagramMetaFrom("Sites/Ok.mmd", `---\ntitle: Ok\n---\n${BODY}`).errorLine).toBeNull();
+  });
+
   it("reports malformed YAML and refuses to rewrite it", () => {
     const source = `---\ntitle: [\nconfig:\n  theme: forest\n---\n${BODY}`;
     const parsed = parseDiagram(source);
