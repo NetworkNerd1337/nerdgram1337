@@ -73,6 +73,22 @@ describe("diagram lint cache", () => {
     expect(first.body.cachedAt).toBe(second.body.cachedAt);
   });
 
+  it("marks a syntax error in the summary and leaves a broken header unmarked", async () => {
+    const app = createApp({ mode: "production", port: 8787, bindHosts: ["127.0.0.1", "::1"] });
+    await request(app).put("/api/file").set("Host", HOST).send({ path: "Bad.mmd", content: "flowchart LR\n  A -->\n" });
+    await request(app)
+      .put("/api/file")
+      .set("Host", HOST)
+      .send({ path: "Header.mmd", content: "---\ntitle: Ok\nconfig:\n  theme: [\n---\nflowchart LR\n  A --> B\n" });
+    clearDiagramLintCache();
+    await request(app).get("/api/diagram-lint").set("Host", HOST);
+    const summary = await request(app).get("/api/diagram-lint/summary").set("Host", HOST);
+    expect(summary.status).toBe(200);
+    const rows = summary.body.diagrams as { path: string; errors: number; parse: boolean; muted: boolean }[];
+    expect(rows.find((row) => row.path === "Bad.mmd")).toMatchObject({ errors: 1, parse: true, muted: false });
+    expect(rows.find((row) => row.path === "Header.mmd")).toMatchObject({ errors: 1, parse: false, muted: false });
+  });
+
   it("returns not checked yet from the summary until a pass runs", async () => {
     const app = createApp({ mode: "production", port: 8787, bindHosts: ["127.0.0.1", "::1"] });
     const before = await request(app).get("/api/diagram-lint/summary").set("Host", HOST);

@@ -95,7 +95,7 @@ describe("diagram grid cards", () => {
     return host;
   }
 
-  it("shows Front matter error, not Parse error, and still draws the diagram", async () => {
+  it("shows Settings error, not Parse error, and still draws the diagram", async () => {
     renderMermaid.mockImplementation(async (code: string) => {
       if (code.includes("title:")) throw new Error("YAML front matter");
       return { svg: "<svg id=\"ok\"></svg>", id: "ok" };
@@ -106,8 +106,11 @@ describe("diagram grid cards", () => {
 
     const card = host.querySelector("article") as HTMLElement;
     expect(card.className).toContain("is-health-error");
-    expect(card.textContent).toContain("Front matter error");
+    expect(card.textContent).toContain("Settings error");
     expect(card.textContent).not.toContain("Parse error");
+    expect(card.textContent).not.toContain("Front matter error");
+    const pill = card.querySelector(".diagram-card-health") as HTMLElement;
+    expect(pill.getAttribute("title")).toContain("front matter");
     expect(card.textContent).not.toContain("Preview unavailable");
     expect(host.querySelector("img")).toBeTruthy();
     expect(renderMermaid).toHaveBeenCalled();
@@ -127,6 +130,7 @@ describe("diagram grid cards", () => {
     expect(card.textContent).toContain("Parse error");
     expect(card.textContent).toContain("Preview unavailable");
     expect(card.textContent).not.toContain("Front matter error");
+    expect(card.textContent).not.toContain("Settings error");
     expect(host.querySelector("img")).toBeNull();
   });
 });

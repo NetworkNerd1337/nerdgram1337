@@ -15,13 +15,15 @@ export type DiagramCardHealthInput = {
    */
   warnings?: number;
   muted?: boolean;
-  /** The preview could not be drawn. That is an error, even before a check has run. */
+  /** The preview could not be drawn, or the check reported a Mermaid syntax error. */
   parseError?: boolean;
   /**
    * The YAML header is malformed. This is an error even before a check has
    * run. A real Mermaid syntax failure (`parseError`) still wins.
    */
   frontMatterError?: boolean;
+  /** 1-based file line of the broken settings block, when the parser has one. */
+  frontMatterLine?: number | null;
 };
 
 function count(value: number | undefined): number {
@@ -29,18 +31,27 @@ function count(value: number | undefined): number {
   return Math.floor(value);
 }
 
+/** Hover text for a broken settings block. The line is included when the file has one. */
+export function settingsErrorTitle(line?: number | null): string {
+  const known = typeof line === "number" && Number.isFinite(line) && line > 0 ? Math.floor(line) : null;
+  if (known == null) return "The settings block at the top of the file (front matter) has an error.";
+  return `The settings block at the top of the file (front matter) has an error on line ${known}.`;
+}
+
 /**
- * Card chrome for one diagram. Errors, including a parse error, win over
- * warnings. Muted warnings add nothing. A clean diagram adds nothing.
+ * Card and list chrome for one diagram. Errors, including a parse error, win
+ * over warnings. Muted warnings add nothing. A clean diagram adds nothing.
+ * Grid and list both call this so the words cannot drift.
  */
 export function diagramCardHealth(input: DiagramCardHealthInput = {}): DiagramCardHealth {
   const errors = count(input.errors);
   const warnings = input.muted ? 0 : count(input.warnings);
   if (input.parseError) return { tone: "error", label: "Parse error", title: "Parse error" };
-  // One front-matter error is named. Extra errors keep the count, so a
+  // One settings-block error is named. Extra errors keep the count, so a
   // second problem is not hidden behind the header message.
   if (input.frontMatterError && errors <= 1) {
-    return { tone: "error", label: "Front matter error", title: "Front matter error" };
+    const title = settingsErrorTitle(input.frontMatterLine);
+    return { tone: "error", label: "Settings error", title };
   }
   if (errors > 0) {
     const label = errors === 1 ? "1 error" : `${errors} errors`;
@@ -53,18 +64,27 @@ export function diagramCardHealth(input: DiagramCardHealthInput = {}): DiagramCa
   return { tone: "none", label: null, title: null };
 }
 
-/** Grid and list share this so a broken header and a Mermaid failure use the same words. */
+/**
+ * Grid and list share this so a broken header and a Mermaid failure use the
+ * same words. `thumbnailFailed` is the card preview. `syntaxError` is the
+ * workspace check's parse diagnostic, which the list has without a preview.
+ */
 export function diagramSurfaceHealth(input: {
   errors?: number;
   warnings?: number;
+  muted?: boolean;
   malformed?: boolean;
   thumbnailFailed?: boolean;
+  syntaxError?: boolean;
+  frontMatterLine?: number | null;
 } = {}): DiagramCardHealth {
   return diagramCardHealth({
     errors: input.errors,
     warnings: input.warnings,
-    parseError: input.thumbnailFailed === true,
+    muted: input.muted,
+    parseError: input.thumbnailFailed === true || input.syntaxError === true,
     frontMatterError: input.malformed === true,
+    frontMatterLine: input.frontMatterLine,
   });
 }
 

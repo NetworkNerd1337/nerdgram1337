@@ -1,5 +1,6 @@
 import { Component, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { ApiError, api } from "../api";
+import { diagramCardHealth } from "../lib/diagramCardHealth";
 import { FALLBACK_THEME, thumbnailCacheKey } from "../lib/frontMatter";
 import { renderMermaid } from "../lib/mermaidRender";
 import { sourceForThumbnail } from "../lib/thumbnailSource";
@@ -16,6 +17,8 @@ type MermaidThumbnailProps = {
   cacheKey?: string | null;
   /** Shown when the file's header is already known to be broken. */
   frontMatter?: boolean;
+  /** 1-based file line of that header error, when the parser has one. */
+  frontMatterLine?: number | null;
   /** Reports preview status so the card can match a parse error without a second check. */
   onStatus?: (status: ThumbnailStatus) => void;
 };
@@ -48,7 +51,14 @@ class ThumbnailBoundary extends Component<{ children: ReactNode }, { failed: boo
   }
 }
 
-function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus }: MermaidThumbnailProps) {
+function ThumbnailBody({
+  path,
+  mtimeMs,
+  cacheKey,
+  frontMatter = false,
+  frontMatterLine = null,
+  onStatus,
+}: MermaidThumbnailProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(() => typeof IntersectionObserver === "undefined");
   const [loaded, setLoaded] = useState<LoadedThumb | null>(null);
@@ -207,8 +217,12 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus 
         : shown.status === "empty"
           ? "Empty diagram"
           : "";
+  const settings = frontMatter ? diagramCardHealth({ frontMatterError: true, frontMatterLine }) : null;
+  const parseLabel = diagramCardHealth({ parseError: true }).label ?? "Parse error";
   const badge =
-    shown.status === "unreadable" ? "Can't read file" : shown.status === "failed" ? "Parse error" : frontMatter ? "Front matter error" : null;
+    shown.status === "unreadable" ? "Can't read file" : shown.status === "failed" ? parseLabel : settings?.label ?? null;
+  const badgeTitle =
+    shown.status === "unreadable" ? "Can't read file" : shown.status === "failed" ? parseLabel : settings?.title ?? badge;
 
   return (
     <div
@@ -220,8 +234,8 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus 
       {badge ? (
         <span
           className={`thumb-badge${shown.status === "unreadable" ? " is-read" : ""}${shown.status === "failed" ? " is-parse" : ""}`}
-          title={badge}
-          aria-label={badge}
+          title={badgeTitle ?? badge}
+          aria-label={badgeTitle ?? badge}
         >
           {badge}
         </span>

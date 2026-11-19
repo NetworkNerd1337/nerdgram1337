@@ -89,6 +89,8 @@ export type DiagramMeta = {
   layout: string | null;
   malformed: boolean;
   error: string | null;
+  /** 1-based file line when the settings block failed. Null when it is readable. */
+  errorLine: number | null;
   cacheKey: string;
 };
 

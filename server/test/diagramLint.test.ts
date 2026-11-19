@@ -207,7 +207,7 @@ describe("front matter", () => {
     const source = "---\ntitle: [\n---\nflowchart LR\n  A --> B\n";
     const hits = byRule(source, "front-matter");
     expect(hits.some((hit) => hit.severity === "error" && /YAML header/.test(hit.message))).toBe(true);
-    expect(hits[0]?.line).toBeGreaterThan(0);
+    expect(hits[0]?.line).toBe(2);
   });
 
   it("warns about an unknown theme and tags that are not a list", () => {
