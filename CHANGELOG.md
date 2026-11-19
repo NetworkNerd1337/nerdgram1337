@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- MCP at `/mcp` (streamable HTTP) and `nerdgram mcp` (stdio proxy to `/api/v1`). An automation token lists, reads, lints, renders, creates, and updates diagrams. A read token sees only read tools. PNG render returns a file path, not base64 (from #199).
 
 ## 1.8.6 "Meridian" - 2026-11-18
 

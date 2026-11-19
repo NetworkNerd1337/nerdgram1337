@@ -341,10 +341,15 @@ export function createMutationGuard(options: {
       }
     }
 
-    const contentType = singleHeader(req.headers["content-type"]);
-    if (!isJsonContentType(contentType)) {
-      res.status(415).json({ error: "Content-Type must be application/json" });
-      return;
+    // Streamable HTTP ends a session with DELETE and no body. POST /mcp still
+    // requires JSON. The /mcp handler does its own loopback Origin check.
+    const mcpDelete = req.path === "/mcp" && req.method.toUpperCase() === "DELETE";
+    if (!mcpDelete) {
+      const contentType = singleHeader(req.headers["content-type"]);
+      if (!isJsonContentType(contentType)) {
+        res.status(415).json({ error: "Content-Type must be application/json" });
+        return;
+      }
     }
 
     next();

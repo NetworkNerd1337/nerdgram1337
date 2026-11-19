@@ -40,6 +40,8 @@ async function statWorkspaceFile(filePath: string): Promise<{ size: number; mtim
 
 export type MountV1Options = {
   renderRate?: RateLimit;
+  /** Shared with `/mcp` so both render paths use one per-token budget. */
+  renderLimiter?: ReturnType<typeof createRateLimiter>;
 };
 
 type AuthedRequest = Request & { apiToken?: AuthenticatedToken };
@@ -164,7 +166,7 @@ const MAX_EXPORT_FILES = 500;
 const MAX_EXPORT_CHARS = 8_000_000;
 
 export function mountAutomationApi(app: Express, options: MountV1Options = {}): void {
-  const limiter = createRateLimiter(options.renderRate ?? defaultRenderRate());
+  const limiter = options.renderLimiter ?? createRateLimiter(options.renderRate ?? defaultRenderRate());
   const handlers: Record<string, RequestHandler> = {
     getOpenApi: asyncHandler(async (_req, res) => {
       await loadTranslators();

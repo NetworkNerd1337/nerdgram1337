@@ -16,6 +16,7 @@ Guides for installing NerdGram1337, using it, and working on it.
 - [Configuration](configuration.md). Set a variable in the same terminal before `npm run dev` or `npm start`, so the process inherits it.
 - [Team use](team-use.md). NerdGram has no accounts and no roles.
 - [Automation API](api.md). `/api/v1` is for scripts, CI, and other tools.
+- [MCP server](mcp.md). `/mcp` and `nerdgram mcp` let an MCP client use those tools.
 - [Command-line tool](cli.md). `nerdgram` is the command-line client for NerdGram1337.
 - [FAQ](faq.md). Short answers to the questions that come up first, with a link to the page that has the detail.
 - [Security model](security.md). NerdGram1337 is a local, single-user personal tool. How to report a vulnerability is in the [security policy](../SECURITY.md).

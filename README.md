@@ -113,6 +113,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[GitHub sync](docs/github-sync.md).** GitHub sync is optional.
 - **[In-app updates](docs/upgrading.md#in-app-updates).** The running version is the **About** line at the bottom of the sidebar and **About NerdGram1337** in the command palette.
 - **[Syntax reference](docs/features.md#syntax-reference).** NerdGram1337 ships a local mirror of the Mermaid diagram syntax docs. **Open Syntax Reference Library** opens it in a new tab.
+- **[MCP server](docs/mcp.md).** An MCP client can list, read, lint, render, and update diagrams.
 
 ## Documentation
 
@@ -129,6 +130,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Configuration](docs/configuration.md).** Set a variable in the same terminal before `npm run dev` or `npm start`, so the process inherits it.
 - **[Team use](docs/team-use.md).** NerdGram has no accounts and no roles.
 - **[Automation API](docs/api.md).** `/api/v1` is for scripts, CI, and other tools.
+- **[MCP server](docs/mcp.md).** An MCP client can list, read, lint, render, and update diagrams. `/mcp` is streamable HTTP. `nerdgram mcp` is the stdio proxy.
 - **[Command-line tool](docs/cli.md).** `nerdgram` is the command-line client for NerdGram1337.
 - **[Security model](docs/security.md).** NerdGram1337 is a local, single-user personal tool.
 - **[Data and backups](docs/data-and-backups.md).** By default, diagrams live in `diagrams/` inside the project.

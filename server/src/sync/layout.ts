@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { ensureDataRoot, getMetaPath } from "../paths.js";
@@ -142,7 +143,9 @@ async function walkUserFiles(
 
 export async function writePrivateFile(file: string, content: string): Promise<void> {
   await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
-  const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.tmp`);
+  // A second write in this process, such as two MCP requests updating lastUsedAt,
+  // must not share this name. rename of a shared temp file fails with ENOENT.
+  const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`);
   await fs.writeFile(tmp, content, { encoding: "utf8", mode: 0o600 });
   await fs.chmod(tmp, 0o600);
   await fs.rename(tmp, file);

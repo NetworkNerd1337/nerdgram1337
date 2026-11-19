@@ -48,8 +48,9 @@ import { assertConvertInputSize } from "./translators/limits.js";
 import { convertExport } from "./translators/run.js";
 import { installedExporters, prepareExport } from "./exporters/index.js";
 import { assertExportInputSize } from "./exporters/limits.js";
+import { mountMcp } from "./mcp/http.js";
 import { mountAutomationApi } from "./v1.js";
-import type { RateLimit } from "./renderDiagram.js";
+import { createRateLimiter, defaultRenderRate, type RateLimit } from "./renderDiagram.js";
 import {
   describeListenHost,
   loopbackOriginHosts,
@@ -1375,7 +1376,9 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   });
 
   registerTokenRoutes(app);
-  mountAutomationApi(app, { renderRate: options.renderRate });
+  const renderLimiter = createRateLimiter(options.renderRate ?? defaultRenderRate());
+  mountAutomationApi(app, { renderLimiter });
+  mountMcp(app, { renderLimiter });
 
   const clientDist = path.join(REPO_ROOT, "client", "dist");
   if (fs.existsSync(clientDist)) {
