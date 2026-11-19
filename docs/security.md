@@ -38,6 +38,8 @@ curl -fsS -X DELETE "http://127.0.0.1:8787/api/tokens/TOKEN_ID" \
 
 Production does not enable cross-origin browser access, because the UI and the API are the same port. Development CORS allows only the origins listed above.
 
+**MCP.** `/mcp` is streamable HTTP for an MCP client. It requires `Authorization: Bearer` and the automation token from Settings. A missing or unknown token is **401**. The call does not fall back to `/api`. The Host has to be loopback (`localhost`, `127.0.0.1`, another `127.x.x.x` address, or `::1`), even when `NERDGRAM_ALLOWED_HOSTS` would let that name through to `/api`. A missing Origin is allowed. An Origin that is present has to be loopback. Anything else is **403**. `nerdgram mcp` is a stdio proxy to `/api/v1` and uses the same token. MCP stores no new credential. The listen address and the Docker publish `127.0.0.1:8787:8787` are unchanged. The tool list is in [MCP server](mcp.md).
+
 **Files.** Paths stay inside the data directory. The server rejects null bytes, hidden paths such as `.meta`, and any path that escapes that directory. Diagram writes must be `.mmd` files. A `click` link is checked with that same rule: `nerdgram:` and relative `.mmd` paths cannot leave the data directory, and `javascript:` is not opened. Editor locks only keep two windows from writing the same diagram.
 
 **GitHub and updates.** The sync token is stored as described in [GitHub sync](github-sync.md#github-sync). Sync and **Update now** use the same Host, Origin, and JSON checks as other changes. Update checks call the public Releases API with no token. Treat the data directory, `.meta`, and `.nerdgram-git` as personal documents: use your OS permissions, and do not share that folder casually.
@@ -47,4 +49,5 @@ Production does not enable cross-origin browser access, because the UI and the A
 - [Security policy](../SECURITY.md)
 - [Configuration](configuration.md)
 - [Automation API](api.md)
+- [MCP server](mcp.md)
 - [GitHub sync](github-sync.md)

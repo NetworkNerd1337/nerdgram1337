@@ -14,6 +14,7 @@
     "sync:reference": "tsx src/syncReferenceCli.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "cheerio": "^1.2.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
@@ -21,7 +22,8 @@
     "mermaid": "^12.3.0",
     "puppeteer": "^24.43.1",
     "turndown": "^7.2.5",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@redocly/cli": "^1.34.3",

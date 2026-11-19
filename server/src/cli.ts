@@ -79,6 +79,7 @@ Usage
   nerdgram baseline <path> --name "…" [--note "…"] [--id <revision>]
   nerdgram replace <find> <replace> [--folder path] [--regex] [--whole-word] [--match-case] [--front-matter] [--no-recursive] [--dry-run] [--yes]
   nerdgram replace --undo <id>
+  nerdgram mcp
 
 A local .mmd file is rendered and linted in this process. convert reads a
 saved export and writes canonical network JSON in this process. export of a
@@ -138,6 +139,9 @@ previous text is a revision. --dry-run is the default. --folder limits the
 scope. --no-recursive stays in that folder. The diagram body is searched
 unless --front-matter is set. Hidden files, .meta, trash, and templates are
 not changed. --undo restores that replace and skips a file edited since.
+mcp speaks MCP on stdin and stdout and proxies tool calls to /api/v1.
+NERDGRAM_URL defaults to http://127.0.0.1:8787. NERDGRAM_TOKEN is required.
+--url and --token override those. Do not pass --json. stdout is the protocol.
 `;
 
 type RenderModule = typeof import("./renderDiagram.js");
@@ -151,6 +155,12 @@ function loadRender(): Promise<RenderModule> {
 
 async function loadLint(): Promise<typeof import("./mermaidSyntax.js")> {
   return import("./mermaidSyntax.js");
+}
+
+async function mcpCommand(parsed: Parsed, io: Io): Promise<void> {
+  const { base, token } = configOf(parsed.flags, io.env);
+  const { runMcpStdio } = await import("./mcp/stdio.js");
+  await runMcpStdio({ base, token: requireToken(token) });
 }
 
 export async function templateCommand(parsed: Parsed, io: Io): Promise<void> {
@@ -1146,6 +1156,15 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
         return 0;
       case "template":
         await templateCommand(parsed, streams);
+        return 0;
+      case "mcp":
+        try {
+          await mcpCommand(parsed, streams);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          streams.stderr(`${message}\n`);
+          return 1;
+        }
         return 0;
       default:
         throw new CliError(`Unknown command ${parsed.command}. Run nerdgram --help.`);

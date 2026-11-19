@@ -10,6 +10,7 @@
 - [Use](#use)
 - [One call builds the whole diagram](#one-call-builds-the-whole-diagram)
 - [Command to route map](#command-to-route-map)
+- [MCP](#mcp)
 - [Continuous integration](#continuous-integration)
 
 `nerdgram` is the command-line client for NerdGram1337. The npm package name is `nerdgram1337`. The command it installs is `nerdgram`. This page is the install and the commands you run against a server that is already up. `nerdgram` is the client for that API. It talks to a NerdGram server on this machine, or on another machine that can reach the tool port. `lint` and `render` of a `.mmd` file that is already on disk do not need the server. `convert` of a saved export does not need the server either. `generate` and `refresh` follow the [one-call model](api.md#one-call-builds-the-whole-diagram): each call sends the complete data, and the path is the id. Every command and the route it calls is in [Command to route map](#command-to-route-map).
@@ -184,9 +185,26 @@ Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` mea
 | `nerdgram replace --yes` | `POST /api/v1/replace/apply` |
 | `nerdgram replace --undo` | `POST /api/v1/replace/undo` |
 | `nerdgram template` | local `<data>/.templates` |
+| `nerdgram mcp` | stdio proxy. Each tool calls `/api/v1`. See [MCP](mcp.md). |
 <!-- /cli-route-map -->
 
 `nerdgram put` sends `force: true`, so it is the overwrite route, not `POST /api/v1/diagrams`. That POST creates a file and fails when the path exists. There is no `nerdgram` command for it, for folders, for linting unsaved source, for `GET /api/v1/render`, for generate preview, for listing history, or for renaming or deleting a baseline. Those are in the endpoint table in [Automation API](api.md).
+
+## MCP
+
+`nerdgram mcp` speaks MCP on stdin and stdout. It is a proxy to `/api/v1` on a NerdGram that is already running. `NERDGRAM_URL` defaults to `http://127.0.0.1:8787`. `NERDGRAM_TOKEN` is required. `--url` and `--token` override those. Do not pass `--json`. stdout is the protocol, and log lines go to stderr.
+
+```bash
+export NERDGRAM_URL=http://127.0.0.1:8787
+export NERDGRAM_TOKEN=ng_your_token
+nerdgram mcp
+```
+
+```bash
+docker exec -i -e NERDGRAM_TOKEN=ng_your_token nerdgram1337 nerdgram mcp
+```
+
+The tools, the `/mcp` HTTP transport, and NetClaw setup are in [MCP server](mcp.md).
 
 ## Continuous integration
 
@@ -218,5 +236,6 @@ To render from a running server instead, create a read token, store it as a secr
 ## See also
 
 - [Automation API](api.md)
+- [MCP server](mcp.md)
 - [Generate from data](generate-from-data.md)
 - [Install](install.md)

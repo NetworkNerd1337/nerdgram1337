@@ -30,6 +30,7 @@ export NERDGRAM_TOKEN=ng_your_token
 
 nerdgram --help
 nerdgram list
+nerdgram mcp
 nerdgram search Atlanta
 nerdgram get Welcome.mmd -o Welcome.mmd
 nerdgram put Notes.mmd ./Notes.mmd
