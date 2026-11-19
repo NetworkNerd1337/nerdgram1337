@@ -35,13 +35,15 @@ RUN_ENV=(
   -e NERDGRAM_DATA_DIR=/data
   -e NERDGRAM_INSTALL=docker
 )
-# QEMU is slow enough that the default 30s launch and 20s page timeouts can
-# fire before Debian chromium finishes a diagram. Real arm64 hardware does
-# not need this.
+# QEMU user-mode cannot fork Chromium's zygote, so the arm64 smoke runs one
+# process and waits longer. Real arm64 hardware does not set these.
 if [ "$PLATFORM" = "linux/arm64" ]; then
   RUN_ENV+=(
-    -e NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS=180000
-    -e NERDGRAM_RENDER_TIMEOUT_MS=120000
+    -e NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS=420000
+    -e NERDGRAM_RENDER_TIMEOUT_MS=180000
+    -e "NERDGRAM_CHROME_ARGS=--no-zygote --single-process --disable-software-rasterizer"
+    -e NERDGRAM_CHROME_DUMPIO=1
+    -e DBUS_SESSION_BUS_ADDRESS=/dev/null
   )
 fi
 
@@ -62,8 +64,8 @@ fail() {
   exit 1
 }
 
-# ELF e_machine: 62 is x86-64, 183 is aarch64. A script at /usr/bin/chromium
-# is the Debian launcher; the binary it execs is /usr/lib/chromium/chromium.
+# ELF e_machine: 62 is x86-64, 183 is aarch64. Puppeteer is pointed at the
+# Debian chromium ELF, not the /usr/bin/chromium wrapper.
 docker exec -e SMOKE_PLATFORM="$PLATFORM" "$NAME" node --input-type=module -e '
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -73,11 +75,11 @@ const configured = (process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
 let binary = "";
 let label = "";
 if (platform === "linux/arm64") {
-  if (configured !== "/usr/bin/chromium") {
-    console.error("arm64 image must set PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium, got " + (configured || "(empty)"));
+  if (configured !== "/usr/lib/chromium/chromium") {
+    console.error("arm64 image must set PUPPETEER_EXECUTABLE_PATH=/usr/lib/chromium/chromium, got " + (configured || "(empty)"));
     process.exit(1);
   }
-  binary = "/usr/lib/chromium/chromium";
+  binary = configured;
   label = "Debian chromium";
 } else {
   if (configured) {

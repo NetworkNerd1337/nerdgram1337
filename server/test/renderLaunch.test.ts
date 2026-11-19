@@ -20,7 +20,13 @@ function fakeBrowser() {
   };
 }
 
-const ENV_KEYS = ["PUPPETEER_EXECUTABLE_PATH", "NERDGRAM_INSTALL", "NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS"] as const;
+const ENV_KEYS = [
+  "PUPPETEER_EXECUTABLE_PATH",
+  "NERDGRAM_INSTALL",
+  "NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS",
+  "NERDGRAM_CHROME_ARGS",
+  "NERDGRAM_CHROME_DUMPIO",
+] as const;
 
 function restoreEnv(saved: Map<string, string | undefined>): void {
   for (const key of ENV_KEYS) {
@@ -41,11 +47,13 @@ describe("renderer launch", () => {
     delete process.env.PUPPETEER_EXECUTABLE_PATH;
     delete process.env.NERDGRAM_INSTALL;
     delete process.env.NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS;
+    delete process.env.NERDGRAM_CHROME_ARGS;
+    delete process.env.NERDGRAM_CHROME_DUMPIO;
     launch.mockResolvedValue(fakeBrowser());
     try {
       await renderDiagram({ source: SOURCE, format: "svg" }).catch(() => undefined);
       expect(launch).toHaveBeenCalledTimes(1);
-      expect(launch.mock.calls[0][0]).toMatchObject({ headless: "shell", timeout: 30_000 });
+      expect(launch.mock.calls[0][0]).toMatchObject({ headless: "shell", timeout: 30_000, dumpio: false });
       expect(launch.mock.calls[0][0].executablePath).toBeUndefined();
     } finally {
       restoreEnv(saved);
@@ -54,8 +62,10 @@ describe("renderer launch", () => {
 
   it("launches PUPPETEER_EXECUTABLE_PATH as full Chromium", async () => {
     const saved = new Map(ENV_KEYS.map((key) => [key, process.env[key]]));
-    process.env.PUPPETEER_EXECUTABLE_PATH = "  /usr/bin/chromium  ";
-    process.env.NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS = "120000";
+    process.env.PUPPETEER_EXECUTABLE_PATH = "  /usr/lib/chromium/chromium  ";
+    process.env.NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS = "420000";
+    process.env.NERDGRAM_CHROME_ARGS = "--no-zygote --single-process";
+    process.env.NERDGRAM_CHROME_DUMPIO = "1";
     delete process.env.NERDGRAM_INSTALL;
     launch.mockResolvedValue(fakeBrowser());
     try {
@@ -63,8 +73,10 @@ describe("renderer launch", () => {
       expect(launch).toHaveBeenCalledWith(
         expect.objectContaining({
           headless: true,
-          executablePath: "/usr/bin/chromium",
-          timeout: 120_000,
+          executablePath: "/usr/lib/chromium/chromium",
+          timeout: 420_000,
+          dumpio: true,
+          args: expect.arrayContaining(["--no-zygote", "--single-process", "--disable-gpu"]),
         }),
       );
     } finally {

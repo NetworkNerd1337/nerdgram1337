@@ -161,11 +161,12 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 \
 ENTRYPOINT ["tini", "--", "node", "server/dist/index.js"]
 
 # amd64 keeps Puppeteer's chrome-headless-shell. arm64 points Puppeteer at
-# Debian chromium. The env is set on that stage only, then selected below.
+# Debian's chromium ELF. /usr/bin/chromium is a shell wrapper, and Puppeteer
+# has to spawn the binary so it can read the DevTools port from that process.
 FROM runtime-setup AS runtime-amd64
 
 FROM runtime-setup AS runtime-arm64
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/lib/chromium/chromium
 
 ARG TARGETARCH
 FROM runtime-${TARGETARCH}

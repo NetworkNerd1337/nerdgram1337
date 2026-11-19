@@ -124,7 +124,7 @@ A Node install on the host needs the same variable. Node does not read the Windo
 
 ## A render returns 503
 
-`POST /api/v1/render` and `nerdgram_render` answer **503** with `The diagram renderer could not start.` when the browser does not launch. The server log includes `Diagram renderer failed to start:` and the launch error. `docker logs nerdgram1337` shows that line. On linux/amd64 the browser is chrome-headless-shell. On linux/arm64 it is Debian chromium at `/usr/bin/chromium`.
+`POST /api/v1/render` and `nerdgram_render` answer **503** with `The diagram renderer could not start.` when the browser does not launch. The server log includes `Diagram renderer failed to start:` and the launch error. `docker logs nerdgram1337` shows that line. On linux/amd64 the browser is chrome-headless-shell. On linux/arm64 it is Debian chromium at `/usr/lib/chromium/chromium`.
 
 ## See also
 

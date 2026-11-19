@@ -78,13 +78,20 @@ function configuredExecutable(): string | undefined {
   return value || undefined;
 }
 
+/** Extra flags, such as the qemu-only `--no-zygote --single-process` the CI smoke sets. */
+function extraChromeArgs(): string[] {
+  const raw = process.env.NERDGRAM_CHROME_ARGS?.trim();
+  if (!raw) return [];
+  return raw.split(/\s+/).filter(Boolean);
+}
+
 function logRendererLaunchFailure(err: unknown): void {
   const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
   console.error(`Diagram renderer failed to start: ${detail}`);
 }
 
 async function launchBrowser(): Promise<Browser> {
-  const args = ["--disable-dev-shm-usage", "--no-first-run", "--disable-gpu"];
+  const args = ["--disable-dev-shm-usage", "--no-first-run", "--disable-gpu", ...extraChromeArgs()];
   if (wantsNoSandbox()) args.push("--no-sandbox", "--disable-setuid-sandbox");
   const executablePath = configuredExecutable();
   // `headless: "shell"` selects chrome-headless-shell and passes `--headless`.
@@ -92,7 +99,8 @@ async function launchBrowser(): Promise<Browser> {
   const base = {
     headless: executablePath ? (true as const) : ("shell" as const),
     args,
-    timeout: boundedInt("NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS", 30_000, 300_000),
+    timeout: boundedInt("NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS", 30_000, 600_000),
+    dumpio: process.env.NERDGRAM_CHROME_DUMPIO === "1",
     ...(executablePath ? { executablePath } : {}),
   };
   try {
@@ -284,7 +292,7 @@ async function renderOnce(input: RenderInput): Promise<RenderOutput> {
   const background = assertBackground(input.background, theme);
   const current = await browser();
   const page = await current.newPage();
-  page.setDefaultTimeout(boundedInt("NERDGRAM_RENDER_TIMEOUT_MS", 20_000, 300_000));
+  page.setDefaultTimeout(boundedInt("NERDGRAM_RENDER_TIMEOUT_MS", 20_000, 600_000));
   try {
     let svg: string;
     try {
