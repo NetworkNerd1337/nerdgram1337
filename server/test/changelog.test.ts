@@ -44,6 +44,7 @@ describe("changelog notes", () => {
     expect(body.stdout.startsWith("Patch on the Meridian line.")).toBe(true);
     expect(body.stdout).toContain("Parse error");
     expect(body.stdout).toContain("Settings error");
+    expect(body.stdout).toContain("Settings need a fix");
     expect(body.stdout).toContain("front matter");
     expect(body.stdout).toContain("yellow");
     expect(body.stdout).toContain("#213");

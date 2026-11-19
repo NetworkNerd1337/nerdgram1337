@@ -13,6 +13,7 @@ _No unreleased items._
 Patch on the Meridian line. The code name stays Meridian.
 
 - The list uses the same labels as the grid. A diagram Mermaid cannot parse says **Parse error**, with the same red pill and red border. A diagram whose only error is a broken settings block says **Settings error**. The tooltip names that block as front matter and gives the line when the file has one. Unmuted warnings stay a yellow pill. Muted warnings stay hidden. (#213)
+- A card and a list row for that settings error also say **Settings need a fix**. They do not say **Front matter needs a fix**. The tooltip still names the settings block (front matter) and the line. (#213)
 
 ## 1.8.9 "Meridian" - 2026-11-19
 

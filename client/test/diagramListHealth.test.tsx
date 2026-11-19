@@ -6,9 +6,32 @@ import path from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
-import { ListRow } from "../src/pages/DashboardPage";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DiagramCard, ListRow } from "../src/pages/DashboardPage";
+import { clearThumbnailMemory } from "../src/lib/thumbnailCache";
 import type { DiagramMeta } from "../src/types";
+
+const thumbnail = vi.hoisted(() => vi.fn());
+const readFile = vi.hoisted(() => vi.fn());
+const saveThumbnail = vi.hoisted(() => vi.fn());
+const renderMermaid = vi.hoisted(() => vi.fn());
+
+vi.mock("../src/api", async () => {
+  const actual = await vi.importActual<typeof import("../src/api")>("../src/api");
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      thumbnail,
+      readFile,
+      saveThumbnail,
+    },
+  };
+});
+
+vi.mock("../src/lib/mermaidRender", () => ({
+  renderMermaid,
+}));
 
 function meta(over: Partial<DiagramMeta> = {}): DiagramMeta {
   return {
@@ -67,10 +90,32 @@ function renderRow(props: {
 describe("diagram list health", () => {
   let root: Root | null = null;
 
+  beforeEach(() => {
+    vi.stubGlobal("IntersectionObserver", undefined);
+    clearThumbnailMemory();
+    thumbnail.mockReset();
+    readFile.mockReset();
+    saveThumbnail.mockReset();
+    renderMermaid.mockReset();
+    thumbnail.mockResolvedValue({ hit: false, path: "WAN.mmd", cacheKey: "k", mtimeMs: 1 });
+    readFile.mockResolvedValue({
+      path: "WAN.mmd",
+      name: "WAN.mmd",
+      content: "flowchart LR\n  A --> B\n",
+      mtimeMs: 1,
+      size: 20,
+      hash: "abc",
+    });
+    saveThumbnail.mockResolvedValue({});
+    renderMermaid.mockResolvedValue({ svg: "<svg></svg>", id: "ok" });
+  });
+
   afterEach(() => {
     act(() => root?.unmount());
     root = null;
     document.body.innerHTML = "";
+    vi.unstubAllGlobals();
+    clearThumbnailMemory();
   });
 
   function row(props: { problems?: { errors: number; warnings: number; parse?: boolean; muted?: boolean }; diagram?: Partial<DiagramMeta> }) {
@@ -108,6 +153,48 @@ describe("diagram list health", () => {
     expect(pill.className).not.toContain("is-warning");
     expect(list.textContent).not.toContain("Parse error");
     expect(list.textContent).not.toContain("Front matter error");
+    expect(list.textContent).toContain("Settings need a fix");
+    expect(list.textContent).not.toContain("Front matter needs a fix");
+
+    const cardHost = document.createElement("div");
+    document.body.appendChild(cardHost);
+    const cardRoot = createRoot(cardHost);
+    const noop = () => undefined;
+    act(() => {
+      cardRoot.render(
+        <MemoryRouter>
+          <DiagramCard
+            path="WAN.mmd"
+            meta={meta({ malformed: true, errorLine: 3, error: "bad yaml" })}
+            onTag={noop}
+            mtimeMs={1_700_000_000_000}
+            problems={{ errors: 1, warnings: 3, parse: false }}
+            favorited={false}
+            dragging={false}
+            onDragStart={noop}
+            onDragEnd={noop}
+            onDragOver={noop}
+            onDrop={noop}
+            onFavorite={noop}
+            onPresent={noop}
+            onRename={noop}
+            onMove={noop}
+            onDuplicate={noop}
+            onDelete={noop}
+          />
+        </MemoryRouter>,
+      );
+    });
+    const card = cardHost.querySelector("article") as HTMLElement;
+    expect(card.textContent).toContain("Settings error");
+    expect(card.textContent).toContain("Settings need a fix");
+    expect(card.textContent).not.toContain("Front matter needs a fix");
+    expect(card.textContent).not.toContain("Front matter error");
+    const cardPill = card.querySelector(".diagram-card-health") as HTMLElement;
+    expect(cardPill.getAttribute("title")).toBe(
+      "The settings block at the top of the file (front matter) has an error on line 3.",
+    );
+    act(() => cardRoot.unmount());
   });
 
   it("shows a yellow warnings pill when warnings are unmuted", () => {
@@ -140,8 +227,11 @@ describe("diagram list health", () => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) walk(full);
-        else if (/\.(ts|tsx|css)$/.test(entry.name) && fs.readFileSync(full, "utf8").includes("Front matter error")) {
-          hits.push(path.relative(root, full));
+        else if (/\.(ts|tsx|css)$/.test(entry.name)) {
+          const text = fs.readFileSync(full, "utf8");
+          if (text.includes("Front matter error") || text.includes("Front matter needs a fix")) {
+            hits.push(path.relative(root, full));
+          }
         }
       }
     };
