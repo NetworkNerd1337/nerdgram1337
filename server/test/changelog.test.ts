@@ -35,20 +35,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Meridian title and the 1.8.10 section without the heading", () => {
-    const title = notes(["--title", "v1.8.10"]);
+  it("prints the Meridian title and the 1.8.11 section without the heading", () => {
+    const title = notes(["--title", "v1.8.11"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.8.10 "Meridian"\n');
-    const body = notes(["v1.8.10"]);
+    expect(title.stdout).toBe('v1.8.11 "Meridian"\n');
+    const body = notes(["v1.8.11"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Meridian line.")).toBe(true);
-    expect(body.stdout).toContain("Parse error");
-    expect(body.stdout).toContain("Settings error");
-    expect(body.stdout).toContain("Settings need a fix");
-    expect(body.stdout).toContain("front matter");
-    expect(body.stdout).toContain("yellow");
-    expect(body.stdout).toContain("#213");
-    expect(body.stdout).not.toContain('## 1.8.10 "Meridian"');
+    expect(body.stdout).toContain("warning pill");
+    expect(body.stdout).toContain("Diagram health");
+    expect(body.stdout).toContain("#216");
+    expect(body.stdout).not.toContain('## 1.8.11 "Meridian"');
     expect(body.stdout).not.toContain("Future ideas");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
