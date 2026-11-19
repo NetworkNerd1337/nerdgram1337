@@ -452,6 +452,30 @@ export async function diagramLinks(relativePath: string): Promise<DiagramLinkEnd
   return { path: file.path, ...ends };
 }
 
+function lintPathsAfterRename(
+  sources: readonly { path: string }[],
+  fromRel: string,
+  toRel: string,
+  isDir: boolean,
+): string[] {
+  if (!isDir) return [fromRel, toRel];
+  const prefix = `${fromRel}/`;
+  const paths: string[] = [];
+  for (const file of sources) {
+    if (file.path !== fromRel && !file.path.startsWith(prefix)) continue;
+    paths.push(file.path);
+    paths.push(`${toRel}${file.path.slice(fromRel.length)}`);
+  }
+  return paths.length > 0 ? paths : [fromRel, toRel];
+}
+
+function lintPathsAfterDelete(sources: readonly { path: string }[], rel: string, isDir: boolean): string[] {
+  if (!isDir) return [rel];
+  const prefix = `${rel}/`;
+  const paths = sources.filter((file) => file.path === rel || file.path.startsWith(prefix)).map((file) => file.path);
+  return paths.length > 0 ? paths : [rel];
+}
+
 export async function renameItem(
   fromPath: string,
   toPath: string,
@@ -533,7 +557,7 @@ export async function renameItem(
     pending.set(update.path, update.apply(base));
   }
   noteSync({ kind: "structural", summary: `Rename ${fromRel} to ${toRel}` });
-  invalidateDiagramLint(fromStat.isDirectory() ? undefined : [fromRel, toRel]);
+  invalidateDiagramLint(lintPathsAfterRename(sources, fromRel, toRel, fromStat.isDirectory()));
   const updated: string[] = [];
   for (const rewrite of rewrites) {
     const content = pending.get(rewrite.nextPath) ?? rewrite.content;
@@ -788,7 +812,7 @@ export async function deleteItem(relativePath: string, options: DeleteOptions = 
   }
   await forgetDiagramSighting(rel, stat.isDirectory());
   noteSync({ kind: "structural", summary: `Delete ${normalizeRelative(relativePath)}` });
-  invalidateDiagramLint(stat.isDirectory() ? undefined : [rel]);
+  invalidateDiagramLint(lintPathsAfterDelete(sources, rel, stat.isDirectory()));
   return { path: rel, trashed: true, dataKept: kept, message: dataKeptMessage(kept) };
 }
 

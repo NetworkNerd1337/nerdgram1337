@@ -317,8 +317,28 @@ export async function restoreTrashItem(
   await fs.rm(itemDir(id), { recursive: true, force: true });
   const restored = toRelativePath(destAbs);
   noteSync({ kind: "structural", summary: `Restore ${restored}` });
-  invalidateDiagramLint(manifest.type === "folder" ? undefined : [restored]);
+  if (manifest.type === "folder") invalidateDiagramLint(await diagramFilesUnder(destAbs));
+  else invalidateDiagramLint([restored]);
   return { path: restored, type: manifest.type };
+}
+
+async function diagramFilesUnder(absDir: string): Promise<string[]> {
+  const found: string[] = [];
+  let entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[];
+  try {
+    entries = await fs.readdir(absDir, { withFileTypes: true });
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return found;
+    throw err;
+  }
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+    const child = path.join(absDir, entry.name);
+    if (entry.isDirectory()) found.push(...(await diagramFilesUnder(child)));
+    else if (entry.isFile() && entry.name.toLowerCase().endsWith(".mmd")) found.push(toRelativePath(child));
+  }
+  return found;
 }
 
 async function companionRestorePlan(

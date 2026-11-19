@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- The dashboard warning pill updates after mute, unmute, or another edit, in grid and list view, without opening Diagram health. `GET /api/diagram-lint/summary` re-checks only the diagrams that changed and patches those counts. A check that already started cannot publish the pre-edit result as current. Diagram health still runs the library-wide check, and the server runs that check once at startup so edits made outside NerdGram are included after a restart (#216).
 
 ## 1.8.10 "Meridian" - 2026-11-19
 
