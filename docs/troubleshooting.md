@@ -16,6 +16,7 @@ If the API port is taken, the server exits and prints the listen error.
 - [The container exits immediately, or the volume looks empty](#the-container-exits-immediately-or-the-volume-looks-empty)
 - [localhost opens the dev UI, and 127.0.0.1 does not](#localhost-opens-the-dev-ui-and-127001-does-not)
 - [Corporate TLS inspection](#corporate-tls-inspection)
+- [A render returns 503](#a-render-returns-503)
 
 ## Port already in use
 
@@ -120,6 +121,10 @@ services:
 Recreate the container after the change (`docker compose up -d`, or the `docker run` above if that is how you started it). **Check for updates** should then reach GitHub.
 
 A Node install on the host needs the same variable. Node does not read the Windows certificate store. Set it in that shell before `npm start`. macOS or Linux: `NODE_EXTRA_CA_CERTS=/path/to/corp-root.pem npm start`. Command Prompt: `set NODE_EXTRA_CA_CERTS=C:\certs\corp-root.pem`. PowerShell: `$env:NODE_EXTRA_CA_CERTS = "C:\certs\corp-root.pem"`.
+
+## A render returns 503
+
+`POST /api/v1/render` and `nerdgram_render` answer **503** with `The diagram renderer could not start.` when the browser does not launch. The server log includes `Diagram renderer failed to start:` and the launch error. `docker logs nerdgram1337` shows that line. On linux/amd64 the browser is chrome-headless-shell. On linux/arm64 it is Debian chromium at `/usr/lib/chromium/chromium`.
 
 ## See also
 

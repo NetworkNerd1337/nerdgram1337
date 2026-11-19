@@ -408,6 +408,47 @@ describe("move, duplicate, and import", () => {
     await expect(fs.access(path.join(dir, "Part1.mmd"))).rejects.toThrow();
   });
 
+  it("duplicates to a chosen path and refuses a path that exists", async () => {
+    await writeNew("Notes.mmd", "flowchart LR\n  A-->B\n");
+    const copied = await request(app).post("/api/duplicate").set(json).send({ path: "Notes.mmd", to: "Archive/West.mmd" });
+    expect(copied.status).toBe(201);
+    expect(copied.body).toEqual({ path: "Archive/West.mmd", type: "file", dataFiles: [] });
+    expect(await fs.readFile(path.join(dir, "Archive", "West.mmd"), "utf8")).toContain("A-->B");
+    expect(await fs.readFile(path.join(dir, "Notes.mmd"), "utf8")).toContain("A-->B");
+
+    const again = await request(app).post("/api/duplicate").set(json).send({ path: "Notes.mmd", to: "Archive/West.mmd" });
+    expect(again.status).toBe(409);
+    expect(again.body.code).toBe("collision");
+    expect(again.body.path).toBe("Archive/West.mmd");
+
+    const omitted = await request(app).post("/api/duplicate").set(json).send({ path: "Notes.mmd" });
+    expect(omitted.status).toBe(201);
+    expect(omitted.body.path).toBe("Notes (copy).mmd");
+
+    const extension = await request(app).post("/api/duplicate").set(json).send({ path: "Notes.mmd", to: "Archive/West.txt" });
+    expect(extension.status).toBe(400);
+    const folder = await request(app).post("/api/folder").set(json).send({ path: "Lab" });
+    expect(folder.status).toBe(201);
+    await writeNew("Lab/Inside.mmd", "flowchart LR\n  A-->B\n");
+    const intoSelf = await request(app).post("/api/duplicate").set(json).send({ path: "Lab", to: "Lab/Nested" });
+    expect(intoSelf.status).toBe(400);
+    expect(intoSelf.body.code).toBe("descendant");
+
+    const token = await request(app).post("/api/tokens").set(json).send({ name: "ci", scope: "read-write" });
+    expect(token.status).toBe(201);
+    const api = await request(app)
+      .post("/api/v1/diagrams/duplicate")
+      .set(json)
+      .set("Authorization", `Bearer ${token.body.token}`)
+      .send({ path: "Notes.mmd", to: "ApiCopy.mmd" });
+    expect(api.status).toBe(201);
+    expect(api.body.path).toBe("ApiCopy.mmd");
+    const spec = await request(app).get("/api/v1/openapi.json").set("Host", HOST);
+    const schema = spec.body.paths["/api/v1/diagrams/duplicate"].post.requestBody.content["application/json"].schema;
+    expect(schema.properties.to.type).toBe("string");
+    expect(schema.required).toEqual(["path"]);
+  });
+
   it("keeps a safe diagram name when the uploaded name has extra path pieces", () => {
     expect(diagramNameFromImport("..\\..\\Notes.md")).toBe("Notes.mmd");
     expect(diagramNameFromImport("rack/Firewall Rules.TXT")).toBe("Firewall Rules.mmd");

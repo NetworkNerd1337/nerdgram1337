@@ -170,6 +170,7 @@ export function createHttpBackend(options: { base: string; token: string }): Mcp
       const result = await call("POST", "/api/v1/diagrams/duplicate", {
         path: input.path,
         ...(input.copyData != null ? { copyData: input.copyData } : {}),
+        ...(input.to?.trim() ? { to: input.to } : {}),
       });
       return result.json;
     },

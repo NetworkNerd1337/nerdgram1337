@@ -576,7 +576,37 @@ export type DuplicateOptions = {
    * Omitted while a sibling data file exists is refused so the caller chooses.
    */
   copyData?: boolean;
+  /**
+   * Workspace path for the copy. Omitted keeps the collision-safe
+   * `Name (copy)` name beside the original. A path that already exists is a
+   * conflict, and nothing is written.
+   */
+  to?: string;
 };
+
+async function duplicateDestination(fromRel: string, isDirectory: boolean, requested: string | undefined): Promise<string> {
+  const trimmed = requested?.trim() ?? "";
+  if (!trimmed) return resolveAvailablePath(fromRel, relativePathTaken, { word: "copy" });
+  const destAbs = resolveSafePath(trimmed);
+  const destRel = toRelativePath(destAbs);
+  if (!destRel) throw httpFail(400, "to is required", "invalid");
+  if (isDirectory) {
+    if (isDiagramFile(destRel)) throw httpFail(400, "A folder copy cannot use a .mmd path.", "invalid");
+    if (isInsideFolder(fromRel, destRel)) {
+      throw httpFail(400, "A folder cannot be copied into itself or one of its subfolders.", "descendant");
+    }
+  } else if (!isDiagramFile(destRel)) {
+    throw httpFail(400, "Diagram files must use .mmd extension", "invalid");
+  }
+  if (await pathExists(destAbs)) {
+    const suggestedPath = await resolveAvailablePath(destRel, relativePathTaken, { word: "copy" });
+    throw httpFail(409, "Something already exists at that path.", "collision", {
+      path: destRel,
+      suggestedPath,
+    });
+  }
+  return destRel;
+}
 
 export async function duplicateItem(
   relativePath: string,
@@ -609,8 +639,9 @@ export async function duplicateItem(
       { files: companions },
     );
   }
-  const destRel = await resolveAvailablePath(fromRel, relativePathTaken, { word: "copy" });
+  const destRel = await duplicateDestination(fromRel, stat.isDirectory(), options.to);
   const destAbs = resolveSafePath(destRel);
+  await fs.mkdir(path.dirname(destAbs), { recursive: true });
 
   if (stat.isDirectory()) {
     await fs.mkdir(destAbs);

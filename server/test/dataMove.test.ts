@@ -254,6 +254,20 @@ describe("data files follow the diagram", () => {
     );
   });
 
+  it("names the data file after an explicit duplicate path", async () => {
+    await generate("Sites/Campus.mmd");
+    const copied = await request(app)
+      .post("/api/duplicate")
+      .set(json)
+      .send({ path: "Sites/Campus.mmd", to: "Archive/West.mmd", copyData: true });
+    expect(copied.status).toBe(201);
+    expect(copied.body.path).toBe("Archive/West.mmd");
+    expect(copied.body.dataFiles).toEqual([{ from: "Sites/Campus.csv", to: "Archive/West.csv" }]);
+    expect(readDataSource(await fs.readFile(path.join(dir, "Archive", "West.mmd"), "utf8"))?.file).toBe("Archive/West.csv");
+    expect(await fs.readFile(path.join(dir, "Sites", "Campus.csv"), "utf8")).toContain("Core");
+    expect(await fs.readFile(path.join(dir, "Archive", "West.csv"), "utf8")).toContain("Core");
+  });
+
   it("asks before duplicating, then copies or shares without changing the original", async () => {
     await generate("Sites/Campus.mmd");
     const originalDiagram = await fs.readFile(path.join(dir, "Sites", "Campus.mmd"), "utf8");

@@ -699,7 +699,11 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         return;
       }
       const copyData = optionalBoolean(req.body.copyData, "copyData");
-      const result = await store.duplicateItem(itemPath, { copyData });
+      if (req.body.to != null && typeof req.body.to !== "string") {
+        throw httpFail(400, "to must be a string", "invalid");
+      }
+      const to = typeof req.body.to === "string" ? req.body.to : undefined;
+      const result = await store.duplicateItem(itemPath, { copyData, to: to?.trim() ? to : undefined });
       res.status(201).json(result);
     } catch (err) {
       sendError(res, err);

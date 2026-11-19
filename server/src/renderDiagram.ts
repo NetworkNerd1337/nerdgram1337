@@ -13,8 +13,11 @@ import { sanitizeThumbnailSvg } from "./thumbnails.js";
  * A DOM emulator (happy-dom) can parse Mermaid, but text measurement comes
  * back as a guess and the layout collapses. Puppeteer's chrome-headless-shell
  * is the same engine family as the editor, so SVG and PNG match what the
- * preview draws. The shell is smaller than full Chrome; the image still grows
- * by that browser plus the libraries it links. See docs/api.md.
+ * preview draws. The shell is smaller than full Chrome; the amd64 image still
+ * grows by that browser plus the libraries it links. Chrome for Testing does
+ * not publish a linux-arm64 shell, so the arm64 image sets
+ * `PUPPETEER_EXECUTABLE_PATH` to Debian's chromium and this launcher uses that
+ * path. See docs/api.md.
  *
  * `securityLevel` is forced to `strict` and the SVG is passed through the
  * same sanitizer as cached thumbnails. A diagram directive cannot turn that off.
@@ -63,20 +66,60 @@ function wantsNoSandbox(): boolean {
   return process.env.NERDGRAM_INSTALL === "docker" || process.env.NERDGRAM_CHROME_NO_SANDBOX === "1";
 }
 
+function boundedInt(name: string, fallback: number, max: number): number {
+  const value = Number(process.env[name]);
+  if (Number.isInteger(value) && value >= 1000 && value <= max) return value;
+  return fallback;
+}
+
+/** Full Chromium when the image (or the operator) names one. Otherwise the shell. */
+function configuredExecutable(): string | undefined {
+  const value = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+  return value || undefined;
+}
+
+/** Extra flags, such as the qemu-only `--no-zygote --single-process` the CI smoke sets. */
+function extraChromeArgs(): string[] {
+  const raw = process.env.NERDGRAM_CHROME_ARGS?.trim();
+  if (!raw) return [];
+  return raw.split(/\s+/).filter(Boolean);
+}
+
+function logRendererLaunchFailure(err: unknown): void {
+  const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
+  console.error(`Diagram renderer failed to start: ${detail}`);
+}
+
 async function launchBrowser(): Promise<Browser> {
-  const args = ["--disable-dev-shm-usage", "--no-first-run", "--disable-gpu"];
+  const args = ["--disable-dev-shm-usage", "--no-first-run", "--disable-gpu", ...extraChromeArgs()];
   if (wantsNoSandbox()) args.push("--no-sandbox", "--disable-setuid-sandbox");
+  const executablePath = configuredExecutable();
+  // `headless: "shell"` selects chrome-headless-shell and passes `--headless`.
+  // Debian chromium is the full browser, so it gets `--headless=new`.
+  const base = {
+    headless: executablePath ? (true as const) : ("shell" as const),
+    args,
+    timeout: boundedInt("NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS", 30_000, 600_000),
+    dumpio: process.env.NERDGRAM_CHROME_DUMPIO === "1",
+    ...(executablePath ? { executablePath } : {}),
+  };
   try {
-    return await puppeteer.launch({ headless: "shell", args });
+    return await puppeteer.launch(base);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (wantsNoSandbox() || !/sandbox|namespace|zygote/i.test(message)) {
+      logRendererLaunchFailure(err);
       throw httpFail(503, "The diagram renderer could not start.", "renderer");
     }
-    return puppeteer.launch({
-      headless: "shell",
-      args: [...args, "--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    try {
+      return await puppeteer.launch({
+        ...base,
+        args: [...args, "--no-sandbox", "--disable-setuid-sandbox"],
+      });
+    } catch (retryErr) {
+      logRendererLaunchFailure(retryErr);
+      throw httpFail(503, "The diagram renderer could not start.", "renderer");
+    }
   }
 }
 
@@ -249,7 +292,7 @@ async function renderOnce(input: RenderInput): Promise<RenderOutput> {
   const background = assertBackground(input.background, theme);
   const current = await browser();
   const page = await current.newPage();
-  page.setDefaultTimeout(20_000);
+  page.setDefaultTimeout(boundedInt("NERDGRAM_RENDER_TIMEOUT_MS", 20_000, 600_000));
   try {
     let svg: string;
     try {

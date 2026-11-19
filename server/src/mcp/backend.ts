@@ -48,7 +48,7 @@ export type McpBackend = {
   mkdir(path: string): Promise<unknown>;
   rename(input: { from: string; to: string; updateLinks?: boolean }): Promise<unknown>;
   move(input: { from: string; toFolder?: string; updateLinks?: boolean }): Promise<unknown>;
-  duplicate(input: { path: string; copyData?: boolean }): Promise<unknown>;
+  duplicate(input: { path: string; copyData?: boolean; to?: string }): Promise<unknown>;
   trash(input: { path: string; deleteData?: boolean; confirmLinks?: boolean }): Promise<unknown>;
   generate(input: GenerateArgs): Promise<unknown>;
   upsert(input: GenerateArgs): Promise<unknown>;

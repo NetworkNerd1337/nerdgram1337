@@ -158,7 +158,10 @@ export function createLocalBackend(options: {
       return store.moveItem(input.from, input.toFolder ?? "", { updateLinks: input.updateLinks !== false });
     },
     duplicate(input) {
-      return store.duplicateItem(input.path, { copyData: input.copyData });
+      return store.duplicateItem(input.path, {
+        copyData: input.copyData,
+        to: input.to?.trim() ? input.to : undefined,
+      });
     },
     async trash(input) {
       const deleted = await store.deleteItem(input.path, {
