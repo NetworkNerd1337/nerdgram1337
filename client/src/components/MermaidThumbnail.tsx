@@ -7,15 +7,19 @@ import { unreadableMessage } from "../../../server/src/readError.ts";
 import { lookupThumbnailRecord, rememberThumbnail, scheduleThumbnail } from "../lib/thumbnailCache";
 import { svgForImage } from "../../../server/src/svgImage.ts";
 
+export type ThumbnailStatus = "pending" | "ready" | "empty" | "failed" | "unreadable";
+
 type MermaidThumbnailProps = {
   path: string;
   mtimeMs: number;
   cacheKey?: string | null;
   /** Shown when the file's header is already known to be broken. */
   frontMatter?: boolean;
+  /** Reports preview status so the card can match a parse error without a second check. */
+  onStatus?: (status: ThumbnailStatus) => void;
 };
 
-type Status = "pending" | "ready" | "empty" | "failed" | "unreadable";
+type Status = ThumbnailStatus;
 
 type LoadedThumb = {
   token: string;
@@ -43,7 +47,7 @@ class ThumbnailBoundary extends Component<{ children: ReactNode }, { failed: boo
   }
 }
 
-function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false }: MermaidThumbnailProps) {
+function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false, onStatus }: MermaidThumbnailProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(() => typeof IntersectionObserver === "undefined");
   const [loaded, setLoaded] = useState<LoadedThumb | null>(null);
@@ -180,6 +184,10 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false }: Mermaid
     };
   }, [visible, path, mtimeMs, cacheKey, attempt]);
 
+  useEffect(() => {
+    onStatus?.(shown.status);
+  }, [shown.status, onStatus]);
+
   const retry = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -205,7 +213,15 @@ function ThumbnailBody({ path, mtimeMs, cacheKey, frontMatter = false }: Mermaid
       aria-busy={shown.status === "pending"}
       data-status={shown.status}
     >
-      {badge ? <span className={`thumb-badge${shown.status === "unreadable" ? " is-read" : ""}`}>{badge}</span> : null}
+      {badge ? (
+        <span
+          className={`thumb-badge${shown.status === "unreadable" ? " is-read" : ""}${shown.status === "failed" ? " is-parse" : ""}`}
+          title={badge}
+          aria-label={badge}
+        >
+          {badge}
+        </span>
+      ) : null}
       {shown.svg ? <SanitizedSvg svg={shown.svg} /> : <span className="empty">{inlineCode(message)}</span>}
       {shown.status === "unreadable" ? (
         <button type="button" className="btn btn-ghost thumb-retry" onClick={retry}>

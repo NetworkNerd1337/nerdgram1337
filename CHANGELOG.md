@@ -6,7 +6,8 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- Bookmark folders can be nested. An older bookmarks file still loads, and a missing or unknown parent is the top level. Dragging a bookmark reorders it or moves it into a folder, including an empty or collapsed folder, and the drop no longer snaps back to the top level. Settings → Bookmarks no longer has a Reload button. That button only fetched the list the page had already loaded, and bookmarks are not part of GitHub sync (#206).
+- A diagram card with an error, including a parse error, keeps the red pill and uses that same red for the card border. Unmuted warnings show a yellow pill, such as "3 warnings", and a matching yellow border. The yellow is the existing warning color, and the pill text is dark in the light and dark themes. Muted warnings and a clean diagram stay plain. The card reads the workspace check summary (#207).
 
 ## 1.8.8 "Meridian" - 2026-11-18
 

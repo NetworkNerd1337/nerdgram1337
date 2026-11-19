@@ -1,3 +1,4 @@
+import type { BookmarkState } from "./lib/bookmarks";
 import type { LinkRepairPlan } from "../../server/src/diagramLinks.ts";
 import type { StylePreset, StylePresetDocument, StyleSnapshot } from "./lib/stylePresets";
 import type { ReplaceApplyResult, ReplacePreview, ReplaceUndoResult } from "./lib/workspaceReplace";
@@ -440,7 +441,7 @@ export const api = {
     ),
   favorites: () => request<{ favorites: string[] }>("/api/favorites"),
   toggleFavorite: (path: string) =>
-    request<{ favorites: string[]; favorited: boolean; bookmarks?: { folders: { id: string; name: string }[]; items: { path: string; folderId: string | null }[] } }>(
+    request<{ favorites: string[]; favorited: boolean; bookmarks?: BookmarkState }>(
       "/api/favorites/toggle",
       {
         method: "POST",
@@ -600,9 +601,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ path, sessionId }),
     }),
-  bookmarks: () => request<{ folders: { id: string; name: string }[]; items: { path: string; folderId: string | null }[] }>("/api/bookmarks"),
-  setBookmarks: (body: { folders: { id: string; name: string }[]; items: { path: string; folderId: string | null }[] }) =>
-    request<{ folders: { id: string; name: string }[]; items: { path: string; folderId: string | null }[] }>("/api/bookmarks", {
+  bookmarks: () => request<BookmarkState>("/api/bookmarks"),
+  setBookmarks: (body: BookmarkState) =>
+    request<BookmarkState>("/api/bookmarks", {
       method: "PUT",
       body: JSON.stringify(body),
     }),
