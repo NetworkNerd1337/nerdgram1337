@@ -12,12 +12,15 @@ import {
  * Bookmarks are the renamed favorites list. The file is still
  * `<data>/.meta/favorites.json` so an existing list carries over.
  * A legacy file is a JSON array of paths. New writes use a versioned object
- * with folders. Paths stay the list trash, rename, and move already follow.
+ * with folders. A folder may name `parentId`. A missing parent is the top level.
+ * Paths stay the list trash, rename, and move already follow.
  */
 
 export type BookmarkFolder = {
   id: string;
   name: string;
+  /** Null is the top level. Older files omit it and still load. */
+  parentId: string | null;
 };
 
 export type BookmarkItem = {
@@ -172,7 +175,7 @@ async function writeState(state: BookmarkState): Promise<BookmarkState> {
 }
 
 function normalizeState(state: { folders: unknown; items: unknown }): BookmarkState {
-  const folders: BookmarkFolder[] = [];
+  const drafts: { id: string; name: string; parent: string | null }[] = [];
   const folderIds = new Set<string>();
   if (Array.isArray(state.folders)) {
     for (const entry of state.folders) {
@@ -181,9 +184,23 @@ function normalizeState(state: { folders: unknown; items: unknown }): BookmarkSt
       const name = cleanFolderName((entry as { name?: unknown }).name);
       if (!id || !name || folderIds.has(id)) continue;
       folderIds.add(id);
-      folders.push({ id, name });
+      const rawParent = (entry as { parentId?: unknown }).parentId;
+      drafts.push({ id, name, parent: typeof rawParent === "string" ? rawParent.trim() : null });
     }
   }
+  const parentOf = new Map<string, string | null>();
+  for (const folder of drafts) {
+    const parent = folder.parent && folderIds.has(folder.parent) && folder.parent !== folder.id ? folder.parent : null;
+    parentOf.set(folder.id, parent);
+  }
+  const folders: BookmarkFolder[] = drafts.map((folder) => {
+    const parent = parentOf.get(folder.id) ?? null;
+    return {
+      id: folder.id,
+      name: folder.name,
+      parentId: parent && !folderParentCycles(folder.id, parentOf) ? parent : null,
+    };
+  });
   const items: BookmarkItem[] = [];
   const seen = new Set<string>();
   if (Array.isArray(state.items)) {
@@ -198,6 +215,18 @@ function normalizeState(state: { folders: unknown; items: unknown }): BookmarkSt
     }
   }
   return { folders, items };
+}
+
+function folderParentCycles(id: string, parentOf: Map<string, string | null>): boolean {
+  const seen = new Set<string>();
+  let current = parentOf.get(id) ?? null;
+  while (current) {
+    if (current === id) return true;
+    if (seen.has(current)) return false;
+    seen.add(current);
+    current = parentOf.get(current) ?? null;
+  }
+  return false;
 }
 
 function cleanId(value: unknown): string {

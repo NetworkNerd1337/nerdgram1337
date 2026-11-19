@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { ImportDialog } from "../components/ImportDialog";
 import { ItemActions } from "../components/ItemActions";
 import { HighlightedText } from "../components/HighlightedText";
-import { MermaidThumbnail } from "../components/MermaidThumbnail";
+import { MermaidThumbnail, type ThumbnailStatus } from "../components/MermaidThumbnail";
+import { DiagramHealthBadge } from "../components/DiagramHealthBadge";
 import { AffectedLinksDialog } from "../components/AffectedLinksDialog";
 import { DataFileDialog } from "../components/DataFileDialog";
 import { FileNameField } from "../components/FileNameField";
@@ -39,6 +40,7 @@ import type { WorkspaceItem } from "../lib/commands";
 import { editorHref, searchDiagrams } from "../lib/diagramSearch";
 import { openWorkspaceReplace, setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
 import { diagramCardLabel, folderCountLabel } from "../lib/diagramLabel";
+import { diagramCardHealth, diagramHealthClass } from "../lib/diagramCardHealth";
 import { contentWithStyle } from "../lib/stylePresets";
 import { nearestExistingFolder } from "../lib/editorBreadcrumb";
 import type { TagCount } from "../lib/tagSuggestions";
@@ -235,6 +237,12 @@ export function DashboardPage() {
       cancelled = true;
     };
   }, [tree]);
+
+  const healthByPath = useMemo(() => {
+    const map = new Map<string, { errors: number; warnings: number }>();
+    for (const row of summary?.diagrams ?? []) map.set(row.path, { errors: row.errors, warnings: row.warnings });
+    return map;
+  }, [summary]);
 
   const metaByPath = useMemo(() => {
     const map = new Map<string, DiagramMeta>();
@@ -1057,6 +1065,7 @@ export function DashboardPage() {
                     meta={metaByPath.get(hit.path)}
                     onTag={toggleTag}
                     mtimeMs={filesByPath.get(hit.path)?.mtimeMs ?? 0}
+                    problems={healthByPath.get(hit.path)}
                     favorited={favorites.includes(hit.path)}
                     dragging={dragPath === hit.path}
                     onDragStart={(event) => startDrag(event, { path: hit.path, type: "file" })}
@@ -1084,6 +1093,7 @@ export function DashboardPage() {
                     meta={metaByPath.get(hit.path)}
                     onTag={toggleTag}
                     mtimeMs={filesByPath.get(hit.path)?.mtimeMs ?? 0}
+                    problems={healthByPath.get(hit.path)}
                     favorited={favorites.includes(hit.path)}
                     dragging={dragPath === hit.path}
                     onDragStart={(event) => startDrag(event, { path: hit.path, type: "file" })}
@@ -1147,6 +1157,7 @@ export function DashboardPage() {
                     meta={metaByPath.get(file.path)}
                     onTag={toggleTag}
                     mtimeMs={file.mtimeMs}
+                    problems={healthByPath.get(file.path)}
                     favorited={favorites.includes(file.path)}
                     dragging={dragPath === file.path}
                     onDragStart={(event) => startDrag(event, { path: file.path, type: "file" })}
@@ -1171,6 +1182,7 @@ export function DashboardPage() {
                     meta={metaByPath.get(file.path)}
                     onTag={toggleTag}
                     mtimeMs={file.mtimeMs}
+                    problems={healthByPath.get(file.path)}
                     favorited={favorites.includes(file.path)}
                     dragging={dragPath === file.path}
                     onDragStart={(event) => startDrag(event, { path: file.path, type: "file" })}
@@ -1483,6 +1495,7 @@ function DiagramCard({
   meta,
   onTag,
   mtimeMs,
+  problems,
   favorited,
   dragging,
   onDragStart,
@@ -1502,6 +1515,7 @@ function DiagramCard({
   meta?: DiagramMeta;
   onTag: (tag: string) => void;
   mtimeMs: number;
+  problems?: { errors: number; warnings: number };
   favorited: boolean;
   dragging: boolean;
   onDragStart: (event: DragEvent<HTMLElement>) => void;
@@ -1516,9 +1530,19 @@ function DiagramCard({
   onDelete: () => void;
 }) {
   const label = diagramCardLabel(path, meta?.title ?? match?.title);
+  const [thumbStatus, setThumbStatus] = useState<ThumbnailStatus | null>(null);
+  const onThumbStatus = useCallback((status: ThumbnailStatus) => {
+    setThumbStatus((current) => (current === status ? current : status));
+  }, []);
+  const parseError = thumbStatus === "failed";
+  const health = diagramCardHealth({
+    errors: problems?.errors,
+    warnings: problems?.warnings,
+    parseError,
+  });
   return (
     <article
-      className={`card${dragging ? " is-dragging" : ""}`}
+      className={`card${diagramHealthClass(health)}${dragging ? " is-dragging" : ""}`}
       draggable
       aria-describedby="drag-help"
       onDragStart={onDragStart}
@@ -1532,7 +1556,9 @@ function DiagramCard({
           mtimeMs={mtimeMs}
           cacheKey={meta?.cacheKey ?? null}
           frontMatter={meta?.malformed === true}
+          onStatus={onThumbStatus}
         />
+        <DiagramHealthBadge health={health} thumbnailShowsParseError={parseError} />
         <Link className="card-thumb-open" to={href} draggable={false} aria-label={`Open ${label.name}`} />
       </div>
       <div className="card-body">
@@ -1575,6 +1601,7 @@ function ListRow({
   meta,
   onTag,
   mtimeMs,
+  problems,
   favorited,
   dragging,
   onDragStart,
@@ -1594,6 +1621,7 @@ function ListRow({
   meta?: DiagramMeta;
   onTag: (tag: string) => void;
   mtimeMs: number;
+  problems?: { errors: number; warnings: number };
   favorited: boolean;
   dragging: boolean;
   onDragStart: (event: DragEvent<HTMLElement>) => void;
@@ -1608,9 +1636,10 @@ function ListRow({
   onDelete: () => void;
 }) {
   const label = diagramCardLabel(path, meta?.title ?? match?.title);
+  const health = diagramCardHealth({ errors: problems?.errors, warnings: problems?.warnings });
   return (
     <div
-      className={`list-row${dragging ? " is-dragging" : ""}`}
+      className={`list-row${diagramHealthClass(health)}${dragging ? " is-dragging" : ""}`}
       draggable
       aria-describedby="drag-help"
       onDragStart={onDragStart}
@@ -1619,6 +1648,7 @@ function ListRow({
       onDrop={onDrop}
     >
       <div className="list-row-main">
+        <DiagramHealthBadge health={health} />
         <Link to={href} draggable={false}>
           <strong>{label.name}</strong>
         </Link>

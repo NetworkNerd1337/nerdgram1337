@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
-import { bookmarkPaths, EMPTY_BOOKMARKS, type BookmarkState } from "../lib/bookmarks";
+import { bookmarkPaths, EMPTY_BOOKMARKS, normalizeBookmarks, type BookmarkState } from "../lib/bookmarks";
 import type { TreeNode } from "../types";
 
 export function useWorkspace() {
@@ -16,7 +16,7 @@ export function useWorkspace() {
     try {
       const [treeRes, bookRes] = await Promise.all([api.tree(), api.bookmarks()]);
       setTree(treeRes.tree);
-      setBookmarks(bookRes);
+      setBookmarks(normalizeBookmarks(bookRes));
       setRevision((value) => value + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load workspace");
@@ -31,12 +31,12 @@ export function useWorkspace() {
 
   const toggleFavorite = useCallback(async (path: string) => {
     const result = await api.toggleFavorite(path);
-    if (result.bookmarks) setBookmarks(result.bookmarks);
+    if (result.bookmarks) setBookmarks(normalizeBookmarks(result.bookmarks));
     return result.favorited;
   }, []);
 
   const saveBookmarks = useCallback(async (next: BookmarkState) => {
-    const saved = await api.setBookmarks(next);
+    const saved = normalizeBookmarks(await api.setBookmarks(next));
     setBookmarks(saved);
     return saved;
   }, []);

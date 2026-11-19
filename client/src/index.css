@@ -24,6 +24,9 @@
   --checks-ok: #1f6b45;
   --checks-warn: #7a4f00;
   --checks-bad: #a32020;
+  /* Warning pill fill. Light uses the banner warning yellow. Text stays dark in both themes. */
+  --card-warn-bg: var(--banner-warn-line);
+  --card-warn-ink: #1c1404;
   --checks-focus: #1d5f82;
   --radius: 14px;
   --font-display: "Fraunces", Georgia, serif;
@@ -69,6 +72,9 @@ html[data-theme="dark"] {
   --checks-ok: #8fdeb4;
   --checks-warn: #f0d48a;
   --checks-bad: #ffb0b0;
+  /* Same warning yellow as checks, with dark text so the pill stays readable. */
+  --card-warn-bg: var(--checks-warn);
+  --card-warn-ink: #1c1404;
   --checks-focus: #9ec9ff;
   color: var(--ink);
   color-scheme: dark;
@@ -647,6 +653,21 @@ a {
   overflow: hidden;
   transition: transform 180ms ease, box-shadow 180ms ease;
   animation: rise-in 420ms ease both;
+}
+
+.card.is-health-error,
+.list-row.is-health-error {
+  border: 2px solid #6b3030;
+}
+
+.card.is-health-error .thumb-badge:not(.is-parse):not(.is-read):not(.diagram-card-health),
+.card.is-health-warning .thumb-badge:not(.is-parse):not(.is-read):not(.diagram-card-health) {
+  display: none;
+}
+
+.card.is-health-warning,
+.list-row.is-health-warning {
+  border: 2px solid var(--card-warn-bg);
 }
 
 .card:hover {
@@ -1723,6 +1744,22 @@ body.is-col-resizing * {
   background: #6b3030;
   color: #ffd7d7;
   font-size: 0.72rem;
+}
+
+.thumb-badge.is-warning {
+  background: var(--card-warn-bg);
+  color: var(--card-warn-ink);
+}
+
+.card-thumb-frame .diagram-card-health {
+  z-index: 2;
+  pointer-events: none;
+}
+
+.list-row .diagram-card-health {
+  position: static;
+  display: inline-block;
+  margin: 0 0.4rem 0.25rem 0;
 }
 
 .thumb-badge.is-read {
@@ -4135,6 +4172,41 @@ body[data-presenting="true"] .support-link {
 
 .sidebar-rows-nested {
   margin-left: 1rem;
+}
+
+.sidebar-block-body.is-dragging {
+  min-height: 4.5rem;
+}
+
+.sidebar-block-body.is-dragging .bookmark-folder,
+.sidebar-block-body.is-dragging .bookmark-drop-zone {
+  min-height: 4.5rem;
+  border-radius: 8px;
+  outline: 1px dashed var(--line);
+  outline-offset: 1px;
+}
+
+.sidebar-block-body.is-dragging .bookmark-end {
+  min-height: 1.5rem;
+  list-style: none;
+}
+
+.sidebar-block-body.is-dragging.is-drop-over > .bookmark-drop-zone,
+.sidebar-block-body.is-dragging .bookmark-folder.is-drop-over {
+  outline: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.bookmark-insert {
+  height: 3px;
+  margin: 0.15rem 0.25rem;
+  border-radius: 999px;
+  background: var(--accent);
+  list-style: none;
+}
+
+.bookmark-end {
+  list-style: none;
 }
 
 .sidebar-row-label {
