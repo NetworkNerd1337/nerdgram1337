@@ -40,7 +40,7 @@ import type { WorkspaceItem } from "../lib/commands";
 import { editorHref, searchDiagrams } from "../lib/diagramSearch";
 import { openWorkspaceReplace, setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
 import { diagramCardLabel, folderCountLabel } from "../lib/diagramLabel";
-import { diagramHealthClass, diagramSurfaceHealth } from "../lib/diagramCardHealth";
+import { SETTINGS_FIX_LINE, diagramHealthClass, diagramSurfaceHealth } from "../lib/diagramCardHealth";
 import { contentWithStyle } from "../lib/stylePresets";
 import { nearestExistingFolder } from "../lib/editorBreadcrumb";
 import type { TagCount } from "../lib/tagSuggestions";
@@ -1495,7 +1495,7 @@ function SearchMatch({ hit }: { hit: DiagramSearchHit }) {
   );
 }
 
-function DiagramCard({
+export function DiagramCard({
   path,
   href = `/edit/${path}`,
   match,
@@ -1588,7 +1588,7 @@ function DiagramCard({
         {meta?.description && match?.field !== "description" ? (
           <p className="card-description">{meta.description}</p>
         ) : null}
-        {meta?.malformed ? <p className="card-description">Front matter needs a fix</p> : null}
+        {meta?.malformed ? <p className="card-description">{SETTINGS_FIX_LINE}</p> : null}
         <TagList tags={meta?.tags ?? []} onTag={onTag} />
         <p>Updated {formatRelativeTime(mtimeMs)}</p>
         <ItemActions
@@ -1683,7 +1683,7 @@ export function ListRow({
         <TagList tags={meta?.tags ?? []} onTag={onTag} />
         <div style={{ color: "var(--ink-soft)", fontSize: "0.8rem" }}>
           {path} · Updated {formatRelativeTime(mtimeMs)}
-          {meta?.malformed ? " · Front matter needs a fix" : ""}
+          {meta?.malformed ? ` · ${SETTINGS_FIX_LINE}` : ""}
         </div>
       </div>
       <ItemActions

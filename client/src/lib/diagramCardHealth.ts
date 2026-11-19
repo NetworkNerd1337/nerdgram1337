@@ -31,6 +31,9 @@ function count(value: number | undefined): number {
   return Math.floor(value);
 }
 
+/** Secondary line under a card or list row when only the settings block is broken. */
+export const SETTINGS_FIX_LINE = "Settings need a fix";
+
 /** Hover text for a broken settings block. The line is included when the file has one. */
 export function settingsErrorTitle(line?: number | null): string {
   const known = typeof line === "number" && Number.isFinite(line) && line > 0 ? Math.floor(line) : null;

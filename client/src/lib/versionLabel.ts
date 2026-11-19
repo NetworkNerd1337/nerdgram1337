@@ -1,4 +1,4 @@
-/** Same shape as the server label: `v1.8.9 "Meridian"`. */
+/** Same shape as the server label: `v1.8.10 "Meridian"`. */
 const CODENAME_RE = /^[A-Z][A-Za-z0-9]{1,31}$/;
 
 export function knownCodeName(codename: string | null | undefined): string | null {
