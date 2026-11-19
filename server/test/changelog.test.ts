@@ -35,25 +35,19 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Meridian title and the 1.8.9 section without the heading", () => {
-    const title = notes(["--title", "v1.8.9"]);
+  it("prints the Meridian title and the 1.8.10 section without the heading", () => {
+    const title = notes(["--title", "v1.8.10"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.8.9 "Meridian"\n');
-    const body = notes(["v1.8.9"]);
+    expect(title.stdout).toBe('v1.8.10 "Meridian"\n');
+    const body = notes(["v1.8.10"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Meridian line.")).toBe(true);
-    expect(body.stdout).toContain("Bookmark folders");
-    expect(body.stdout).toContain("drop zone");
-    expect(body.stdout).toContain("Reload");
+    expect(body.stdout).toContain("Parse error");
+    expect(body.stdout).toContain("Settings error");
+    expect(body.stdout).toContain("front matter");
     expect(body.stdout).toContain("yellow");
-    expect(body.stdout).toContain("Front matter error");
-    expect(body.stdout).toContain("#206");
-    expect(body.stdout).toContain("#207");
-    expect(body.stdout).toContain("#208");
-    expect(body.stdout).toContain("#210");
-    expect(body.stdout).toContain("#211");
-    expect(body.stdout).toContain("#212");
-    expect(body.stdout).not.toContain('## 1.8.9 "Meridian"');
+    expect(body.stdout).toContain("#213");
+    expect(body.stdout).not.toContain('## 1.8.10 "Meridian"');
     expect(body.stdout).not.toContain("Future ideas");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });

@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 1.8.10 "Meridian" - 2026-11-19
+
+Patch on the Meridian line. The code name stays Meridian.
+
 - The list uses the same labels as the grid. A diagram Mermaid cannot parse says **Parse error**, with the same red pill and red border. A diagram whose only error is a broken settings block says **Settings error**. The tooltip names that block as front matter and gives the line when the file has one. Unmuted warnings stay a yellow pill. Muted warnings stay hidden. (#213)
 
 ## 1.8.9 "Meridian" - 2026-11-19
