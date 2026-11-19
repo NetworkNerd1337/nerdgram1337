@@ -43,7 +43,7 @@ Inside the running container the image already puts `nerdgram` on `PATH`:
 docker exec -e NERDGRAM_TOKEN=ng_your_token nerdgram1337 nerdgram list
 ```
 
-The install downloads Mermaid and Puppeteer's chrome-headless-shell. Offline `lint` and `render` use them. Commands that only call the API do not launch the shell. That shell is the large part of the install. The same kind of shell is what the server image uses for pictures.
+The install downloads Mermaid and Puppeteer's chrome-headless-shell. Offline `lint` and `render` use them. Commands that only call the API do not launch the shell. That shell is the large part of the install. The linux/amd64 server image uses the same kind of shell. The linux/arm64 image uses Debian chromium. See [Install](install.md#docker).
 
 npm 11 can print `puppeteer (postinstall) not yet covered by allowScripts` during `npm install -g nerdgram1337`. That warning means npm has not yet classified Puppeteer's install script. The Chrome download still runs. Offline PNG render still works after that install, including when `PUPPETEER_CACHE_DIR` was empty before the install and Chrome was downloaded into it. You do not need to set `ignore-scripts` or approve the script by hand for the render command to work.
 

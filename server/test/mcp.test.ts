@@ -308,6 +308,114 @@ describe("MCP server", () => {
     }
   }, 30_000);
 
+  it("duplicates to a chosen path and refuses a path that exists", async () => {
+    const server = app();
+    const token = await issueToken(server, "read-write");
+    const running = await listen(server);
+    const client = new Client({ name: "duplicate-to", version: "1.0.0" });
+    try {
+      await client.connect(httpTransport(running.port, token));
+      const created = await client.callTool({
+        name: "nerdgram_create",
+        arguments: { path: "Notes.mmd", content: SOURCE },
+      });
+      expect(created.isError, textOf(created)).not.toBe(true);
+      const copied = await client.callTool({
+        name: "nerdgram_duplicate",
+        arguments: { path: "Notes.mmd", to: "Archive/West.mmd" },
+      });
+      expect(copied.isError, textOf(copied)).not.toBe(true);
+      expect(JSON.parse(textOf(copied)).path).toBe("Archive/West.mmd");
+      expect(await fs.readFile(path.join(dir, "Archive", "West.mmd"), "utf8")).toBe(SOURCE);
+
+      const collision = await client.callTool({
+        name: "nerdgram_duplicate",
+        arguments: { path: "Notes.mmd", to: "Archive/West.mmd" },
+      });
+      expect(collision.isError).toBe(true);
+      expect(JSON.parse(textOf(collision))).toMatchObject({ status: 409, code: "collision" });
+      expect(await fs.readFile(path.join(dir, "Notes.mmd"), "utf8")).toBe(SOURCE);
+
+      const omitted = await client.callTool({
+        name: "nerdgram_duplicate",
+        arguments: { path: "Notes.mmd" },
+      });
+      expect(omitted.isError, textOf(omitted)).not.toBe(true);
+      expect(JSON.parse(textOf(omitted)).path).toBe("Notes (copy).mmd");
+    } finally {
+      await client.close().catch(() => undefined);
+      await running.close();
+    }
+  });
+
+  it("accepts an extra _rationale argument on every tool", async () => {
+    const server = app();
+    const token = await issueToken(server, "read-write");
+    const running = await listen(server);
+    const client = new Client({ name: "rationale", version: "1.0.0" });
+    const rationale = "because the diagram should stay";
+    const called = new Set<string>();
+    async function call(name: string, args: Record<string, unknown>) {
+      called.add(name);
+      const result = await client.callTool({
+        name,
+        arguments: { ...args, _rationale: rationale },
+      });
+      expect(result.isError, `${name} ${textOf(result)}`).not.toBe(true);
+      expect(textOf(result), name).not.toContain(rationale);
+      expect(textOf(result), name).not.toContain("_rationale");
+      return result;
+    }
+    try {
+      await client.connect(httpTransport(running.port, token));
+      await call("nerdgram_list", {});
+      await call("nerdgram_mkdir", { path: "Sites" });
+      await call("nerdgram_create", { path: "Sites/Campus.mmd", content: SOURCE });
+      expect(await fs.readFile(path.join(dir, "Sites", "Campus.mmd"), "utf8")).toBe(SOURCE);
+      const got = JSON.parse(textOf(await call("nerdgram_get", { path: "Sites/Campus.mmd" }))) as { hash: string };
+      await call("nerdgram_search", { q: "Core" });
+      await call("nerdgram_export", { path: "Sites" });
+      await call("nerdgram_lint", { path: "Sites/Campus.mmd" });
+      const svg = await call("nerdgram_render", { path: "Sites/Campus.mmd", format: "svg" });
+      expect(textOf(svg)).toContain("<svg");
+      const next = "flowchart LR\n  A[Core] --> B[Hub]\n";
+      await call("nerdgram_put", { path: "Sites/Campus.mmd", content: next, expectedHash: got.hash });
+      const history = JSON.parse(textOf(await call("nerdgram_history", { path: "Sites/Campus.mmd" }))) as {
+        revisions: { id: string }[];
+      };
+      expect(history.revisions.length).toBeGreaterThan(0);
+      await call("nerdgram_diff", { path: "Sites/Campus.mmd", from: history.revisions[0]!.id, to: "current" });
+      await call("nerdgram_baseline", { path: "Sites/Campus.mmd", name: "kept" });
+      const duplicated = JSON.parse(textOf(await call("nerdgram_duplicate", { path: "Sites/Campus.mmd" }))) as {
+        path: string;
+      };
+      expect(duplicated.path).toBe("Sites/Campus (copy).mmd");
+      await call("nerdgram_rename", { from: "Sites/Campus (copy).mmd", to: "Sites/East.mmd" });
+      await call("nerdgram_move", { from: "Sites/East.mmd", toFolder: "" });
+      const csv = "Local Device,Remote Device\nCore,Edge\n";
+      await call("nerdgram_generate", { path: "Gen.mmd", data: csv, format: "csv" });
+      await call("nerdgram_refresh", { path: "Gen.mmd", data: "Local Device,Remote Device\nCore,West\n" });
+      await call("nerdgram_upsert", { path: "Gen.mmd", data: csv, format: "csv" });
+      const preview = JSON.parse(
+        textOf(await call("nerdgram_replace_preview", { find: "Edge", replace: "North" })),
+      ) as { files: { path: string; hash: string }[] };
+      const target = preview.files.find((file) => file.path === "Gen.mmd");
+      expect(target, textOf({ content: [{ type: "text", text: JSON.stringify(preview) }] })).toBeTruthy();
+      await call("nerdgram_replace_apply", {
+        find: "Edge",
+        replace: "North",
+        files: [{ path: target!.path, hash: target!.hash }],
+      });
+      await call("nerdgram_trash", { path: "East.mmd" });
+      expect([...called].sort()).toEqual([...READ_TOOL_NAMES, ...WRITE_TOOL_NAMES].sort());
+      expect(await fs.readFile(path.join(dir, "Sites", "Campus.mmd"), "utf8")).toBe(next);
+      expect(await fs.readFile(path.join(dir, "Sites", "Campus.mmd"), "utf8")).not.toContain(rationale);
+    } finally {
+      await client.close().catch(() => undefined);
+      await running.close();
+    }
+  }, 120_000);
+
   it("exits when nerdgram mcp has no token", async () => {
     const child = spawn(process.execPath, ["--import", "tsx", "src/cli.ts", "mcp"], {
       cwd: serverRoot,

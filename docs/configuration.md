@@ -40,6 +40,9 @@ Set a variable in the same terminal before `npm run dev` or `npm start`, so the 
 | `NERDGRAM_UPDATE_INTERVAL_MS` | `86400000` | Cache lifetime and automatic check interval, clamped from 1000 to 7 days. |
 | `NERDGRAM_UPDATE_INCLUDE_PRERELEASE` | off | `true`, `1`, `yes`, or `on` includes prereleases even when the About checkbox is clear. |
 | `NERDGRAM_BASELINE_CAP` | `20` | How many named baselines each diagram keeps. They are not dropped by the 20-revision limit. A whole number from 1 to 200. Anything else uses 20. |
+| `PUPPETEER_EXECUTABLE_PATH` | unset | Browser Puppeteer launches for SVG and PNG. Unset uses the downloaded chrome-headless-shell. The linux/arm64 image sets this to `/usr/bin/chromium`. |
+| `NERDGRAM_RENDER_LAUNCH_TIMEOUT_MS` | `30000` | How long Puppeteer waits for the browser to start. A whole number from 1000 to 300000. Anything else uses 30000. |
+| `NERDGRAM_RENDER_TIMEOUT_MS` | `20000` | Page timeout for one SVG or PNG. A whole number from 1000 to 300000. Anything else uses 20000. |
 
 `NERDGRAM_VERSION` is a Docker build argument, not a runtime variable. It has to match the root `package.json`, and the image label `org.opencontainers.image.version` records it. `NERDGRAM_CODENAME` is the code name for that version's milestone. The image sets it in the environment and as `org.opencontainers.image.codename`. The running app still reads the code name from the `codenames` map in `package.json`.
 

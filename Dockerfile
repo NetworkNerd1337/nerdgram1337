@@ -6,8 +6,14 @@
 ARG NODE_IMAGE=node:22.23.5-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
 
 # Production dependencies only. The runtime image copies this tree, not the
-# build stage's devDependencies.
-FROM ${NODE_IMAGE} AS server-deps
+# build stage's devDependencies. npm ci runs on the build machine. The
+# packages are plain JavaScript, so an amd64 install can be copied into the
+# arm64 image. The browser download is not: Chrome for Testing has no
+# linux-arm64 chrome-headless-shell, and the file Puppeteer saves on arm64 is
+# an x86-64 binary. Skip that download when the target is arm64. The runtime
+# stage installs Debian chromium for that architecture instead.
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS server-deps
+ARG TARGETARCH
 WORKDIR /src
 # chrome-headless-shell only (see server/.puppeteerrc.cjs). Full Chrome is not
 # downloaded. The cache has to live somewhere the runtime stage can copy.
@@ -18,12 +24,16 @@ ENV PUPPETEER_CACHE_DIR=/opt/puppeteer
 # and PUPPETEER_CACHE_DIR at runtime, so the compiler is not needed. The
 # runtime image is not a development environment.
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --prefix server \
+    case "$TARGETARCH" in amd64|arm64) ;; *) echo "unsupported TARGETARCH: ${TARGETARCH:-empty}" >&2; exit 1 ;; esac \
+ && mkdir -p /opt/puppeteer \
+ && if [ "$TARGETARCH" = "arm64" ]; then export PUPPETEER_SKIP_DOWNLOAD=1; fi \
+ && npm ci --omit=dev --prefix server \
  && rm -rf server/node_modules/typescript
 
 # Client and server builds. The client bundle is static files. The server
-# compile needs TypeScript, which stays in this stage.
-FROM ${NODE_IMAGE} AS build
+# compile needs TypeScript, which stays in this stage. Both are plain
+# JavaScript, so this stage runs on the build machine even for an arm64 image.
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS build
 WORKDIR /src
 COPY package.json package-lock.json ./
 COPY client/package.json client/package-lock.json client/
@@ -50,34 +60,43 @@ RUN node scripts/check-version.mjs \
  && npm run build --prefix client \
  && npm run build --prefix server
 
-FROM ${NODE_IMAGE} AS runtime
+FROM ${NODE_IMAGE} AS runtime-setup
+ARG TARGETARCH
 WORKDIR /app
 
-# chrome-headless-shell needs these libraries. fonts-liberation is what the
-# renderer falls back to when a diagram names a font the image does not have.
-# The shell itself is about 260 MB unpacked. That is the cost of SVG and PNG
-# that match the editor. A DOM emulator laid nodes on top of each other.
+# fonts-liberation is what the renderer falls back to when a diagram names a
+# font the image does not have. amd64 also installs the libraries
+# chrome-headless-shell links. That shell is about 260 MB unpacked. arm64
+# installs Debian's chromium package instead, about the same size, because
+# the shell download is an x86-64 binary. A DOM emulator laid nodes on top
+# of each other.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update \
+    case "$TARGETARCH" in amd64|arm64) ;; *) echo "unsupported TARGETARCH: ${TARGETARCH:-empty}" >&2; exit 1 ;; esac \
+ && apt-get update \
  && apt-get install -y --no-install-recommends \
       tini \
       ca-certificates \
       fonts-liberation \
-      libasound2 \
-      libatk-bridge2.0-0 \
-      libatk1.0-0 \
-      libdrm2 \
-      libgbm1 \
-      libnss3 \
-      libx11-6 \
-      libxcomposite1 \
-      libxdamage1 \
-      libxext6 \
-      libxfixes3 \
-      libxkbcommon0 \
-      libxrandr2 \
-      libxrender1
+ && if [ "$TARGETARCH" = "arm64" ]; then \
+      apt-get install -y --no-install-recommends chromium; \
+    else \
+      apt-get install -y --no-install-recommends \
+        libasound2 \
+        libatk-bridge2.0-0 \
+        libatk1.0-0 \
+        libdrm2 \
+        libgbm1 \
+        libnss3 \
+        libx11-6 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxext6 \
+        libxfixes3 \
+        libxkbcommon0 \
+        libxrandr2 \
+        libxrender1; \
+    fi
 
 RUN groupadd --gid 1001 nerdgram \
  && useradd --uid 1001 --gid 1001 --home-dir /tmp --no-create-home --shell /usr/sbin/nologin nerdgram \
@@ -140,3 +159,13 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 \
   CMD ["node", "-e", "const p=process.env.PORT||'8787'; fetch('http://127.0.0.1:'+p+'/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
 
 ENTRYPOINT ["tini", "--", "node", "server/dist/index.js"]
+
+# amd64 keeps Puppeteer's chrome-headless-shell. arm64 points Puppeteer at
+# Debian chromium. The env is set on that stage only, then selected below.
+FROM runtime-setup AS runtime-amd64
+
+FROM runtime-setup AS runtime-arm64
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+ARG TARGETARCH
+FROM runtime-${TARGETARCH}

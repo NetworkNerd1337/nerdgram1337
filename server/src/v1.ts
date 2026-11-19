@@ -257,8 +257,10 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
       if (req.body.copyData != null && typeof req.body.copyData !== "boolean") {
         throw httpFail(400, "copyData must be a boolean", "invalid");
       }
+      const to = optionalString(req.body.to, "to");
       const result = await store.duplicateItem(itemPath, {
         copyData: typeof req.body.copyData === "boolean" ? req.body.copyData : undefined,
+        to: to?.trim() ? to : undefined,
       });
       res.status(201).json(result);
     }),

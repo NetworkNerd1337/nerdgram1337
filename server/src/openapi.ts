@@ -110,7 +110,7 @@ export const V1_ROUTES: readonly V1Route[] = [
     path: "/diagrams/duplicate",
     scope: "write",
     operationId: "duplicateDiagram",
-    summary: "Duplicate a diagram or folder. copyData is required when a sibling data file exists.",
+    summary: "Duplicate a diagram or folder. Optional to names the copy. copyData is required when a sibling data file exists.",
     tag: "Diagrams",
   },
   {
@@ -397,6 +397,10 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
     case "duplicateDiagram":
       return jsonBody("Duplicate. copyData is required when a CSV, JSON, network JSON, CDP, or LLDP file sits beside the diagram.", {
         path: { type: "string" },
+        to: {
+          type: "string",
+          description: "Workspace path for the copy. Omit it and the name is Name (copy), then Name (copy 2). A path that already exists is 409 and nothing is written.",
+        },
         copyData: {
           type: "boolean",
           description: "True copies the data file and points the duplicate at the copy. False shares the original file. Omit it and the call returns 409 with the file list when a sibling data file exists.",

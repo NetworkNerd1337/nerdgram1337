@@ -54,6 +54,17 @@ netclaw mcp add --transport stdio \
   nerdgram -- nerdgram mcp
 ```
 
+That example needs a `nerdgram` command on the host. A Docker install can run the command that is already in the container:
+
+```bash
+netclaw mcp add --transport stdio nerdgram -- docker exec -i \
+  -e NERDGRAM_URL=http://127.0.0.1:8787 \
+  -e NERDGRAM_TOKEN=ng_your_token \
+  nerdgram1337 nerdgram mcp
+```
+
+`NERDGRAM_TOKEN` is passed through to the container. It is visible to local processes in the process list. The HTTP example above stores the token in NetClaw's encrypted secrets instead.
+
 Inside the running container:
 
 ```bash
@@ -73,6 +84,8 @@ Use a read-write token when the client should create and update diagrams. Use a 
 ## NetClaw
 
 Run `netclaw init` and choose the Personal posture before you add this server. Personal can see every MCP server. Team and Public start with an empty grant list.
+
+NetClaw may warn that the server exposes N tool(s) not granted to any audience. Personal allows every tool. That warning is expected.
 
 After the server is connected:
 
@@ -101,7 +114,7 @@ Personal allows every tool and runs them without asking. To keep create and upda
 }
 ```
 
-`nerdgram mcp permissions` edits the same grants. A key with a colon is ignored. `nerdgram/nerdgram_put` is also marked destructive, so add it to `ToolOverrides` when an overwrite should ask first.
+`netclaw mcp permissions` edits the same grants. A key with a colon is ignored. `nerdgram/nerdgram_put` is also marked destructive, so add it to `ToolOverrides` when an overwrite should ask first.
 
 Prompts from this server show up as skills named `mcp__nerdgram__diagram_from_lldp` and `mcp__nerdgram__lint_and_fix`. `netclaw skill list` needs the daemon running to show them.
 
@@ -114,6 +127,8 @@ Lint with `nerdgram_lint` before `nerdgram_create` or `nerdgram_put`. `content` 
 `nerdgram_generate`, `nerdgram_upsert`, and `nerdgram_refresh` take raw data in `data`. That is CSV, JSON, Cisco CDP, LLDP, or network JSON text, not a path on the client's disk. `format` is `csv`, `json`, `cdp`, `lldp`, or `network`. `view` is `l3` or `l2` and is required for `network`. Generate fails when the path exists. Upsert creates the diagram or updates the generated block and the data file beside it. Notes outside the generated markers stay. Refresh uses the format and view already stored in the diagram. It does not take a new view.
 
 `nerdgram_render` with `format` `svg` returns SVG text. `format` `png` writes a PNG file and returns that path and a resource link. It does not return a base64 image. On `/mcp` the file is on the machine running NerdGram. With `nerdgram mcp` the file is on the machine running the command. Render is limited to 30 calls a minute for each token, the same limit as `POST /api/v1/render`.
+
+`nerdgram_duplicate` copies to `Name (copy)` when `to` is omitted, then `Name (copy 2)`. `to` is an optional workspace path for the copy. A path that already exists is a conflict and nothing is written.
 
 `nerdgram_replace_preview` writes nothing. `nerdgram_replace_apply` saves each selected diagram, so the previous text is a revision. `nerdgram_trash` moves a diagram to the trash.
 
@@ -153,7 +168,7 @@ Two prompts are registered. `diagram_from_lldp` takes `path`, `text`, and an opt
 
 ## Security
 
-`/mcp` requires `Authorization: Bearer <token>`. A missing or unknown token is **401**. The browser routes under `/api` stay open on the machine and are not a fallback for a failed MCP call.
+`/mcp` requires `Authorization: Bearer <token>`. A missing or unknown token is **401**. The browser routes under `/api` stay open on the machine and are not a fallback for a failed MCP call. Any local process can `POST /api/tokens` and create a read-write automation token. A token stops other machines and web pages. It does not stop software that is already running as you on this computer. See [Security model](security.md).
 
 The `Host` header has to be loopback: `localhost`, `127.0.0.1`, another `127.x.x.x` address, or `::1`. A `Host` that `/api` allows through `NERDGRAM_ALLOWED_HOSTS` is still rejected on `/mcp`. A missing `Origin` is allowed, which is what curl and NetClaw send. An `Origin` that is present has to be loopback too. Anything else is **403**.
 

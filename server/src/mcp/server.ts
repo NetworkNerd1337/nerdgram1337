@@ -327,15 +327,20 @@ const TOOLS: ToolDef[] = [
     title: "Duplicate a diagram",
     annotations: writeHints,
     description:
-      "Duplicate a diagram or folder. The copy is Name (copy).mmd and does not keep history. When a sibling data file exists, copyData is required: true copies the data file, false keeps both diagrams on the original file. Omitting it is a conflict that names the file.",
+      "Duplicate a diagram or folder. The copy does not keep history. Omit to and the copy is Name (copy), then Name (copy 2), beside the original. to is an optional workspace path for the copy. A path that already exists is a conflict and nothing is written. When a sibling data file exists, copyData is required: true copies the data file, false keeps both diagrams on the original file. Omitting it is a conflict that names the file.",
     inputSchema: {
       path: z.string().describe(PATH_RULES),
+      to: z
+        .string()
+        .optional()
+        .describe("Workspace path for the copy. Omit it to use Name (copy). An existing path is a conflict."),
       copyData: z.boolean().optional().describe("Required when a sibling data file exists."),
     },
     run: (backend, args) =>
       toolCall(() =>
         backend.duplicate({
           path: String(args.path),
+          to: typeof args.to === "string" ? args.to : undefined,
           copyData: typeof args.copyData === "boolean" ? args.copyData : undefined,
         }),
       ),
