@@ -6,10 +6,16 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- **Fixed:** SVG and PNG render on the linux/arm64 image. That image installs Debian's chromium package and sets `PUPPETEER_EXECUTABLE_PATH` to `/usr/lib/chromium/chromium`. Chrome for Testing does not publish a linux-arm64 headless shell, and the file Puppeteer downloaded was an x86-64 binary. linux/amd64 still uses chrome-headless-shell. A renderer that fails to start is logged with the launch error. CI renders inside the built image for both architectures (#202).
-- `nerdgram_duplicate` takes an optional `to` path. The copy is written there, and a path that already exists is **409**. Omitting `to` still uses `Name (copy)`. `POST /api/v1/diagrams/duplicate` accepts the same field (#203).
-- MCP tool calls accept an extra argument such as `_rationale` and ignore it (#203).
-- MCP docs name `netclaw mcp permissions`, show a Docker stdio command, and say a loopback `POST /api/tokens` can be called by any local process. NetClaw's "not granted to any audience" warning is expected on the Personal posture (#203).
+_No unreleased items._
+
+## 1.8.8 "Meridian" - 2026-11-18
+
+Patch on the Meridian line. The code name stays Meridian.
+
+- **Fixed:** SVG and PNG render on the linux/arm64 image with Debian's native chromium. The image sets `PUPPETEER_EXECUTABLE_PATH` to `/usr/lib/chromium/chromium`. Chrome for Testing does not publish a linux-arm64 headless shell, and the file Puppeteer downloaded was an x86-64 binary. linux/amd64 still uses chrome-headless-shell. A renderer that fails to start is logged with the launch error. CI renders inside the built image for linux/amd64 and linux/arm64 (#202, #204).
+- `nerdgram_duplicate` takes an optional `to` path. The copy is written there, and a path that already exists is **409**. Omitting `to` still uses `Name (copy)`. `POST /api/v1/diagrams/duplicate` accepts the same field (#203, #204).
+- MCP tool calls accept an extra argument such as `_rationale` and ignore it (#203, #204).
+- MCP docs name `netclaw mcp permissions`, show a Docker stdio command, and say a loopback `POST /api/tokens` can be called by any local process. NetClaw's "not granted to any audience" warning is expected on the Personal posture (#203, #204).
 
 ## 1.8.7 "Meridian" - 2026-11-18
 
