@@ -35,17 +35,18 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Meridian title and the 1.8.7 section without the heading", () => {
-    const title = notes(["--title", "v1.8.7"]);
+  it("prints the Meridian title and the 1.8.8 section without the heading", () => {
+    const title = notes(["--title", "v1.8.8"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.8.7 "Meridian"\n');
-    const body = notes(["v1.8.7"]);
+    expect(title.stdout).toBe('v1.8.8 "Meridian"\n');
+    const body = notes(["v1.8.8"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Meridian line.")).toBe(true);
-    expect(body.stdout).toContain("MCP server");
-    expect(body.stdout).toContain("#199");
-    expect(body.stdout).toContain("#200");
-    expect(body.stdout).not.toContain('## 1.8.7 "Meridian"');
+    expect(body.stdout).toContain("chromium");
+    expect(body.stdout).toContain("#202");
+    expect(body.stdout).toContain("#203");
+    expect(body.stdout).toContain("#204");
+    expect(body.stdout).not.toContain('## 1.8.8 "Meridian"');
     expect(body.stdout).not.toContain("Future ideas");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
