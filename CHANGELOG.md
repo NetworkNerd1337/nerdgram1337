@@ -6,6 +6,8 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- Bookmark folders can be dragged in the sidebar and in Settings → Bookmarks. The middle of a folder row nests the folder you are dragging, and the row highlights. The top or bottom edge reorders it among the folders beside it, with the same insertion line as a bookmark. Dropping it on the top level moves it back there. A drop on the folder itself, or on a folder inside it, is refused and does not highlight. Actions → Move… still moves a folder from the keyboard (#210).
+- A diagram whose only error is a broken YAML header says **Front matter error** on the grid and in the list, and the card keeps the red border. It does not say **Parse error**. **Parse error** stays the badge when Mermaid cannot draw the diagram. The thumbnail still draws the diagram when the body can be drawn with the broken header left out (#211).
 - Bookmark folders can be nested. An older bookmarks file still loads, and a missing or unknown parent is the top level. Dragging a bookmark reorders it or moves it into a folder, including an empty or collapsed folder, and the drop no longer snaps back to the top level. Settings → Bookmarks no longer has a Reload button. That button only fetched the list the page had already loaded, and bookmarks are not part of GitHub sync (#206).
 - A diagram card with an error, including a parse error, keeps the red pill and uses that same red for the card border. Unmuted warnings show a yellow pill, such as "3 warnings", and a matching yellow border. The yellow is the existing warning color, and the pill text is dark in the light and dark themes. Muted warnings and a clean diagram stay plain. The card reads the workspace check summary (#207).
 

@@ -7,7 +7,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { DiagramHealthBadge } from "../src/components/DiagramHealthBadge";
-import { diagramCardHealth, diagramHealthClass, type DiagramCardHealthInput } from "../src/lib/diagramCardHealth";
+import { diagramCardHealth, diagramHealthClass, diagramSurfaceHealth, type DiagramCardHealthInput } from "../src/lib/diagramCardHealth";
 
 function Frame({ input, parsePill = false }: { input: DiagramCardHealthInput; parsePill?: boolean }) {
   const health = diagramCardHealth(input);
@@ -60,6 +60,33 @@ describe("diagram card health", () => {
     const pill = card.querySelector(".thumb-badge.is-parse") as HTMLElement;
     expect(pill.textContent).toBe("Parse error");
     expect(pill.getAttribute("aria-label")).toBe("Parse error");
+  });
+
+  it("names a front-matter-only error and keeps the red border", () => {
+    const card = render({ frontMatterError: true, errors: 1, warnings: 3 });
+    expect(card.className).toContain("is-health-error");
+    expect(card.className).not.toContain("is-health-warning");
+    const pill = card.querySelector(".diagram-card-health") as HTMLElement;
+    expect(pill.textContent).toBe("Front matter error");
+    expect(pill.getAttribute("aria-label")).toBe("Front matter error");
+    expect(card.textContent).not.toContain("Parse error");
+  });
+
+  it("keeps Parse error when a front-matter problem and a Mermaid failure are both present", () => {
+    const card = render({ frontMatterError: true, parseError: true, errors: 2 }, true);
+    expect(card.className).toContain("is-health-error");
+    expect(card.querySelector(".diagram-card-health")).toBeNull();
+    expect(card.querySelector(".thumb-badge.is-parse")?.textContent).toBe("Parse error");
+  });
+
+  it("uses the same front-matter words on the grid and in the list", () => {
+    const list = diagramSurfaceHealth({ malformed: true, errors: 1, warnings: 2 });
+    const grid = diagramSurfaceHealth({ malformed: true, errors: 1, warnings: 2, thumbnailFailed: false });
+    expect(list).toEqual(grid);
+    expect(list).toMatchObject({ tone: "error", label: "Front matter error" });
+    expect(diagramSurfaceHealth({ malformed: true, thumbnailFailed: true }).label).toBe("Parse error");
+    expect(diagramSurfaceHealth({ thumbnailFailed: true }).label).toBe("Parse error");
+    expect(diagramHealthClass(list)).toBe(" is-health-error");
   });
 
   it("shows a yellow warning pill and a yellow border for unmuted warnings", () => {

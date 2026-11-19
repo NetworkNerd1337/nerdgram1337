@@ -21,6 +21,7 @@ import {
   writeIdSet,
   type BookmarkState,
 } from "../lib/bookmarks";
+import { folderDropBand, useBookmarkFolderDrag } from "../lib/bookmarkDrag";
 import { displayName } from "../lib/paths";
 
 type BookmarksSectionProps = {
@@ -59,6 +60,7 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
   const [draggingPath, setDraggingPath] = useState<string | null>(null);
   const [dropSpot, setDropSpot] = useState<DropSpot | null>(null);
   const dragGuard = useRef<Event | null>(null);
+  const folderDrag = useBookmarkFolderDrag(state, onChange);
 
   const toggleOpen = () => {
     const next = !open;
@@ -176,130 +178,161 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
   const renderFolders = (parentId: string | null): ReactNode => {
     const folders = state.folders.filter((folder) => folderParentId(folder) === parentId);
     if (folders.length === 0) return null;
-    return folders.map((folder) => {
-      const folderOpen = !collapsed.has(folder.id);
-      const hovered = dropSpot?.folderId === folder.id;
-      return (
-        <div
-          key={folder.id}
-          className={`bookmark-folder${hovered ? " is-drop-over" : ""}`}
-          data-folder-id={folder.id}
-          onDragOver={(event) => hoverAt(event, folder.id, null)}
-          onDrop={(event) => dropAt(event, folder.id, null)}
-        >
-          <div className="sidebar-row">
-            <button
-              type="button"
-              className="tree-chevron"
-              aria-expanded={folderOpen}
-              aria-label={folderOpen ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
-              onClick={() => toggleFolder(folder.id)}
-            />
-            {renaming === folder.id ? (
-              <form
-                className="sidebar-rename"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  onChange(renameBookmarkFolder(state, folder.id, renameValue));
-                  setRenaming(null);
+    const end = folderDrag.end(parentId) ? <div className="bookmark-insert" aria-hidden="true" /> : null;
+    return (
+      <>
+        {folders.map((folder) => {
+          const folderOpen = !collapsed.has(folder.id);
+          const hovered = dropSpot?.folderId === folder.id || folderDrag.inside(folder.id);
+          return (
+            <div
+              key={folder.id}
+              className={`bookmark-folder${hovered ? " is-drop-over" : ""}`}
+              data-folder-id={folder.id}
+              onDragOver={(event) => {
+                if (folderDrag.hover(event, folder.id, "inside")) return;
+                hoverAt(event, folder.id, null);
+              }}
+              onDrop={(event) => {
+                if (folderDrag.drop(event, folder.id, "inside")) return;
+                dropAt(event, folder.id, null);
+              }}
+            >
+              {folderDrag.before(folder.id) ? <div className="bookmark-insert" aria-hidden="true" /> : null}
+              <div
+                className="sidebar-row"
+                draggable
+                data-bookmark-folder={folder.id}
+                onDragStart={(event) => folderDrag.onDragStart(event, folder.id)}
+                onDragEnd={folderDrag.onDragEnd}
+                onDragOver={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  folderDrag.hover(event, folder.id, folderDropBand(event.clientY, rect.top, rect.height));
+                }}
+                onDrop={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  folderDrag.drop(event, folder.id, folderDropBand(event.clientY, rect.top, rect.height));
                 }}
               >
-                <input
-                  aria-label={`Rename folder ${folder.name}`}
-                  value={renameValue}
-                  onChange={(event) => setRenameValue(event.target.value)}
-                  autoFocus
+                <span className="bookmark-drag-handle" aria-label={`Drag folder ${folder.name}`} title="Drag to move">
+                  ::
+                </span>
+                <button
+                  type="button"
+                  className="tree-chevron"
+                  aria-expanded={folderOpen}
+                  aria-label={folderOpen ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
+                  onClick={() => toggleFolder(folder.id)}
                 />
-              </form>
-            ) : (
-              <span className="sidebar-row-label" title={folder.name}>
-                {folder.name}
-              </span>
-            )}
-            <RowActions label={`Actions for ${folder.name}`}>
-              <button type="button" className="sidebar-mini" aria-label={`Move ${folder.name} up`} onClick={() => onChange(reorderBookmarkFolder(state, folder.id, -1))}>
-                Up
-              </button>
-              <button type="button" className="sidebar-mini" aria-label={`Move ${folder.name} down`} onClick={() => onChange(reorderBookmarkFolder(state, folder.id, 1))}>
-                Down
-              </button>
-              <label className="visually-hidden" htmlFor={`move-folder-${folder.id}`}>
-                Move {folder.name}
-              </label>
-              <select
-                id={`move-folder-${folder.id}`}
-                className="sidebar-mini"
-                aria-label={`Move folder ${folder.name}`}
-                value=""
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (!value) return;
-                  const next = moveBookmarkFolder(state, folder.id, value === "__root__" ? null : value);
-                  if (next !== state) onChange(next);
-                  event.target.value = "";
-                }}
-              >
-                <option value="">Move…</option>
-                <option value="__root__">Top level</option>
-                {bookmarkFolderChoices(state.folders, folder.id).map((choice) => (
-                  <option key={choice.id} value={choice.id}>
-                    {choice.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="sidebar-mini"
-                aria-label={`New subfolder in ${folder.name}`}
-                onClick={() => startDraft(folder.id)}
-              >
-                New subfolder
-              </button>
-              <button
-                type="button"
-                className="sidebar-mini"
-                aria-label={`Rename ${folder.name}`}
-                onClick={() => {
-                  setRenaming(folder.id);
-                  setRenameValue(folder.name);
-                }}
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                className="sidebar-mini"
-                aria-label={`Delete folder ${folder.name}`}
-                onClick={() => onChange(deleteBookmarkFolder(state, folder.id))}
-              >
-                Delete
-              </button>
-            </RowActions>
-          </div>
-          {folderOpen ? (
-            <div className="tree-children">
-              {renderItems(folder.id)}
-              {renderFolders(folder.id)}
-              {draft != null && draftParent === folder.id ? (
-                <FolderDraft
-                  value={draft}
-                  onChange={setDraft}
-                  onCancel={() => setDraft(null)}
-                  onSubmit={() => {
-                    const next = createBookmarkFolder(state, draft, newFolderId(), folder.id);
-                    if (next !== state) onChange(next);
-                    setDraft(null);
-                  }}
-                />
+                {renaming === folder.id ? (
+                  <form
+                    className="sidebar-rename"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      onChange(renameBookmarkFolder(state, folder.id, renameValue));
+                      setRenaming(null);
+                    }}
+                  >
+                    <input
+                      aria-label={`Rename folder ${folder.name}`}
+                      value={renameValue}
+                      onChange={(event) => setRenameValue(event.target.value)}
+                      autoFocus
+                    />
+                  </form>
+                ) : (
+                  <span className="sidebar-row-label" title={folder.name}>
+                    {folder.name}
+                  </span>
+                )}
+                <RowActions label={`Actions for ${folder.name}`}>
+                  <button type="button" className="sidebar-mini" aria-label={`Move ${folder.name} up`} onClick={() => onChange(reorderBookmarkFolder(state, folder.id, -1))}>
+                    Up
+                  </button>
+                  <button type="button" className="sidebar-mini" aria-label={`Move ${folder.name} down`} onClick={() => onChange(reorderBookmarkFolder(state, folder.id, 1))}>
+                    Down
+                  </button>
+                  <label className="visually-hidden" htmlFor={`move-folder-${folder.id}`}>
+                    Move {folder.name}
+                  </label>
+                  <select
+                    id={`move-folder-${folder.id}`}
+                    className="sidebar-mini"
+                    aria-label={`Move folder ${folder.name}`}
+                    value=""
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      if (!value) return;
+                      const next = moveBookmarkFolder(state, folder.id, value === "__root__" ? null : value);
+                      if (next !== state) onChange(next);
+                      event.target.value = "";
+                    }}
+                  >
+                    <option value="">Move…</option>
+                    <option value="__root__">Top level</option>
+                    {bookmarkFolderChoices(state.folders, folder.id).map((choice) => (
+                      <option key={choice.id} value={choice.id}>
+                        {choice.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="sidebar-mini"
+                    aria-label={`New subfolder in ${folder.name}`}
+                    onClick={() => startDraft(folder.id)}
+                  >
+                    New subfolder
+                  </button>
+                  <button
+                    type="button"
+                    className="sidebar-mini"
+                    aria-label={`Rename ${folder.name}`}
+                    onClick={() => {
+                      setRenaming(folder.id);
+                      setRenameValue(folder.name);
+                    }}
+                  >
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    className="sidebar-mini"
+                    aria-label={`Delete folder ${folder.name}`}
+                    onClick={() => onChange(deleteBookmarkFolder(state, folder.id))}
+                  >
+                    Delete
+                  </button>
+                </RowActions>
+              </div>
+              {folderOpen ? (
+                <div className="tree-children">
+                  {renderItems(folder.id)}
+                  {renderFolders(folder.id)}
+                  {draft != null && draftParent === folder.id ? (
+                    <FolderDraft
+                      value={draft}
+                      onChange={setDraft}
+                      onCancel={() => setDraft(null)}
+                      onSubmit={() => {
+                        const next = createBookmarkFolder(state, draft, newFolderId(), folder.id);
+                        if (next !== state) onChange(next);
+                        setDraft(null);
+                      }}
+                    />
+                  ) : null}
+                </div>
               ) : null}
             </div>
-          ) : null}
-        </div>
-      );
-    });
+          );
+        })}
+        {end}
+      </>
+    );
   };
 
   const rootHovered = Boolean(draggingPath) && dropSpot?.folderId === null;
+  const folderRoot = folderDrag.dragging && folderDrag.inside(null);
 
   return (
     <section className="sidebar-block" aria-label="Bookmarks">
@@ -321,9 +354,15 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
       {open ? (
         <div
           id="bookmark-list"
-          className={`sidebar-block-body${draggingPath ? " is-dragging" : ""}${rootHovered ? " is-drop-over" : ""}`}
-          onDragOver={(event) => hoverAt(event, null, null)}
-          onDrop={(event) => dropAt(event, null, null)}
+          className={`sidebar-block-body${draggingPath || folderDrag.dragging ? " is-dragging" : ""}${rootHovered ? " is-drop-over" : ""}${folderRoot ? " is-folder-drop" : ""}`}
+          onDragOver={(event) => {
+            if (folderDrag.hover(event, null, "inside")) return;
+            hoverAt(event, null, null);
+          }}
+          onDrop={(event) => {
+            if (folderDrag.drop(event, null, "inside")) return;
+            dropAt(event, null, null);
+          }}
         >
           {state.items.length === 0 && state.folders.length === 0 ? (
             <p className="sidebar-hint">Bookmarked diagrams appear here.</p>
