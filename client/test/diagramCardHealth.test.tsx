@@ -151,6 +151,10 @@ describe("diagram card health", () => {
     expect(css).toMatch(/\.thumb-badge\.is-warning\s*\{[^}]*color:\s*var\(--card-warn-ink\)/);
     expect(css).toMatch(/\.card\.is-health-error[\s\S]*?#6b3030/);
     expect(css).toMatch(/\.thumb-badge\s*\{[^}]*background:\s*#6b3030/);
-    expect(css).toMatch(/\.sidebar-block-body\.is-dragging \.bookmark-folder[\s\S]*?min-height:\s*4\.5rem/);
+    expect(css).toMatch(
+      /\.sidebar-block-body\.is-dragging \.bookmark-folder,\n\.sidebar-block-body\.is-dragging \.bookmark-drop-zone,\n\.bookmark-manage\.is-dragging \.bookmark-folder \{[^}]*outline: 1px dashed var\(--line\);[^}]*outline-offset: -1px;/,
+    );
+    expect(css).not.toMatch(/\.is-dragging[^{]*\{[^}]*min-height/);
+    expect(css).toMatch(/\.bookmark-end \{[^}]*height: 0\.5rem/);
   });
 });

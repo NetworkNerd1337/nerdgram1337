@@ -4,7 +4,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BookmarksSection } from "../src/components/BookmarksSection";
 import { BOOKMARK_FOLDER_MIME } from "../src/lib/bookmarkDrag";
 import { BOOKMARK_FOLDERS_KEY, normalizeBookmarks, type BookmarkState } from "../src/lib/bookmarks";
@@ -47,9 +47,38 @@ function transfer(path: string) {
   };
 }
 
-function fire(target: Element, type: string, path: string) {
+const frames = new Map<number, FrameRequestCallback>();
+let frameId = 0;
+
+function stubFrames() {
+  frames.clear();
+  frameId = 0;
+  const request = (callback: FrameRequestCallback) => {
+    const id = ++frameId;
+    frames.set(id, callback);
+    return id;
+  };
+  const cancel = (id: number) => {
+    frames.delete(id);
+  };
+  vi.stubGlobal("requestAnimationFrame", request);
+  vi.stubGlobal("cancelAnimationFrame", cancel);
+  window.requestAnimationFrame = request;
+  window.cancelAnimationFrame = cancel;
+}
+
+function flushFrames() {
+  const queued = [...frames.values()];
+  frames.clear();
+  act(() => {
+    for (const callback of queued) callback(0);
+  });
+}
+
+function fire(target: Element, type: string, path: string, clientY?: number) {
   const event = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(event, "dataTransfer", { value: transfer(path) });
+  if (clientY != null) Object.defineProperty(event, "clientY", { value: clientY });
   act(() => {
     target.dispatchEvent(event);
   });
@@ -62,11 +91,17 @@ function folderOf(next: BookmarkState, path: string) {
 describe("bookmark rows", () => {
   let root: Root | null = null;
 
+  beforeEach(() => {
+    stubFrames();
+  });
+
   afterEach(() => {
     act(() => root?.unmount());
     root = null;
     document.body.innerHTML = "";
     localStorage.clear();
+    frames.clear();
+    vi.unstubAllGlobals();
   });
 
   it("lines New folder up with the other sidebar actions", () => {
@@ -175,7 +210,7 @@ describe("bookmark rows", () => {
     expect(sites).toEqual(["A.mmd", "C.mmd", "B.mmd"]);
   });
 
-  it("keeps an empty collapsed folder as a drop target and enlarges zones while dragging", () => {
+  it("keeps an empty collapsed folder as a drop target without resizing when the drag starts", () => {
     localStorage.setItem(BOOKMARK_FOLDERS_KEY, JSON.stringify(["empty"]));
     const calls: BookmarkState[] = [];
     const current: BookmarkState = {
@@ -189,12 +224,130 @@ describe("bookmark rows", () => {
     const empty = document.querySelector("[data-folder-id='empty']") as HTMLElement;
     expect(empty.querySelector("[data-bookmark-path]")).toBeNull();
     expect(empty.querySelector(".tree-children")).toBeNull();
+    expect(document.querySelector(".bookmark-end")).toBeTruthy();
     const row = document.querySelector("[data-bookmark-path='WAN.mmd']") as HTMLElement;
+    const list = document.getElementById("bookmark-list");
     fire(row, "dragstart", "WAN.mmd");
-    expect(document.getElementById("bookmark-list")?.className).toContain("is-dragging");
+    expect(list?.className).not.toContain("is-dragging");
+    flushFrames();
+    expect(list?.className).toContain("is-dragging");
     expect(empty.className).toContain("bookmark-folder");
     fire(empty, "drop", "WAN.mmd");
     expect(folderOf(calls.at(-1) as BookmarkState, "WAN.mmd")).toBe("empty");
+    expect(list?.className).not.toContain("is-dragging");
+  });
+
+  it("does not apply the dragging style synchronously and can drag the same row twice", () => {
+    const calls: BookmarkState[] = [];
+    const current: BookmarkState = {
+      folders: [
+        { id: "folder1", name: "Folder1", parentId: null },
+        { id: "folder2", name: "Folder2", parentId: null },
+      ],
+      items: [{ path: "WAN.mmd", folderId: null }],
+    };
+    root = mount(current, (next) => calls.push(next));
+    const row = document.querySelector("[data-bookmark-path='WAN.mmd']") as HTMLElement;
+    const list = document.getElementById("bookmark-list") as HTMLElement;
+    fire(row, "dragstart", "WAN.mmd");
+    fire(row, "dragend", "WAN.mmd");
+    flushFrames();
+    expect(list.className).not.toContain("is-dragging");
+
+    fire(row, "dragstart", "WAN.mmd");
+    expect(list.className).not.toContain("is-dragging");
+    flushFrames();
+    expect(list.className).toContain("is-dragging");
+    fire(document.querySelector("[data-folder-id='folder1']") as Element, "drop", "WAN.mmd");
+    expect(folderOf(calls.at(-1) as BookmarkState, "WAN.mmd")).toBe("folder1");
+    expect(list.className).not.toContain("is-dragging");
+
+    fire(row, "dragstart", "WAN.mmd");
+    expect(list.className).not.toContain("is-dragging");
+    flushFrames();
+    expect(list.className).toContain("is-dragging");
+    fire(document.querySelector("[data-folder-id='folder2']") as Element, "drop", "WAN.mmd");
+    expect(folderOf(calls.at(-1) as BookmarkState, "WAN.mmd")).toBe("folder2");
+    expect(calls).toHaveLength(2);
+  });
+
+  it("scrolls the bookmark box when the pointer is near the bottom edge", () => {
+    root = mount(state);
+    const list = document.getElementById("bookmark-list") as HTMLElement;
+    list.style.overflowY = "auto";
+    let top = 0;
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 80 });
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 400 });
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => {
+        top = value;
+      },
+    });
+    list.getBoundingClientRect = () =>
+      ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 200,
+        bottom: 80,
+        width: 200,
+        height: 80,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    const row = document.querySelector("[data-bookmark-path]") as HTMLElement;
+    fire(row, "dragstart", "Field Sites/Palo Alto SD-WAN.mmd");
+    flushFrames();
+    fire(row, "dragover", "Field Sites/Palo Alto SD-WAN.mmd", 76);
+    flushFrames();
+    expect(top).toBeGreaterThan(0);
+  });
+
+  it("moves a bookmark from the top into two folders, back out, into a nested folder, and keeps the place after reload", () => {
+    const calls: BookmarkState[] = [];
+    let current: BookmarkState = {
+      folders: [
+        { id: "folder1", name: "Folder1", parentId: null },
+        { id: "folder2", name: "Folder2", parentId: null },
+        { id: "nested", name: "Nested", parentId: "folder2" },
+      ],
+      items: [
+        { path: "WAN.mmd", folderId: null },
+        { path: "A.mmd", folderId: "folder1" },
+        { path: "B.mmd", folderId: "folder1" },
+      ],
+    };
+    const show = () => {
+      act(() => root?.unmount());
+      root = mount(current, (next) => {
+        calls.push(next);
+      });
+    };
+    show();
+    const dropOn = (selector: string, path = "WAN.mmd") => {
+      fire(document.querySelector(selector) as Element, "drop", path);
+      current = normalizeBookmarks(calls.at(-1));
+      show();
+    };
+    dropOn("[data-folder-id='folder1']");
+    expect(folderOf(current, "WAN.mmd")).toBe("folder1");
+    fire(document.querySelector("[data-bookmark-path='A.mmd']") as Element, "drop", "B.mmd");
+    current = normalizeBookmarks(calls.at(-1));
+    show();
+    expect(
+      current.items.filter((item) => item.folderId === "folder1").map((item) => item.path),
+    ).toEqual(["B.mmd", "A.mmd", "WAN.mmd"]);
+    dropOn("[data-folder-id='folder2']");
+    expect(folderOf(current, "WAN.mmd")).toBe("folder2");
+    dropOn("[data-folder-id='nested']");
+    expect(folderOf(current, "WAN.mmd")).toBe("nested");
+    dropOn("#bookmark-list");
+    expect(folderOf(current, "WAN.mmd")).toBeNull();
+    expect(current.folders.find((folder) => folder.id === "nested")?.parentId).toBe("folder2");
   });
 });
 
@@ -263,11 +416,17 @@ function childFolderIds(parentId: string) {
 describe("bookmark folder drag", () => {
   let root: Root | null = null;
 
+  beforeEach(() => {
+    stubFrames();
+  });
+
   afterEach(() => {
     act(() => root?.unmount());
     root = null;
     document.body.innerHTML = "";
     localStorage.clear();
+    frames.clear();
+    vi.unstubAllGlobals();
   });
 
   function render(current: BookmarkState, onChange: (next: BookmarkState) => void) {
@@ -338,6 +497,26 @@ describe("bookmark folder drag", () => {
     act(() => root?.unmount());
     render(normalizeBookmarks(saved), () => undefined);
     expect(rootFolderIds()).toEqual(["lab", "sites"]);
+  });
+
+  it("does not mark a folder drag until the next frame, then accepts a second drag", () => {
+    const calls: BookmarkState[] = [];
+    render(nestedFolders, (next) => calls.push(next));
+    const row = document.querySelector("[data-bookmark-folder='lab']") as HTMLElement;
+    const list = document.getElementById("bookmark-list") as HTMLElement;
+    fireFolder(row, "dragstart", "lab");
+    expect(list.className).not.toContain("is-dragging");
+    flushFrames();
+    expect(list.className).toContain("is-dragging");
+    fireFolder(row, "dragend", "lab");
+    expect(list.className).not.toContain("is-dragging");
+    fireFolder(row, "dragstart", "lab");
+    expect(list.className).not.toContain("is-dragging");
+    flushFrames();
+    expect(list.className).toContain("is-dragging");
+    const sites = document.querySelector("[data-folder-id='sites']") as HTMLElement;
+    fireFolder(sites, "drop", "lab", "inside");
+    expect(calls.at(-1)?.folders.find((folder) => folder.id === "lab")?.parentId).toBe("sites");
   });
 
   it("refuses a drop on the folder itself or a descendant and shows no accept highlight", () => {

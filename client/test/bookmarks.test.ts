@@ -121,6 +121,55 @@ describe("bookmark drag placement", () => {
     expect(next.items.find((item) => item.path === "D.mmd")?.folderId).toBe("lab");
   });
 
+  it("moves one bookmark through folders and back, reorders inside a folder, nests it, and keeps that place after a reload", () => {
+    const start: BookmarkState = {
+      folders: [
+        { id: "folder1", name: "Folder1", parentId: null },
+        { id: "folder2", name: "Folder2", parentId: null },
+        { id: "nested", name: "Nested", parentId: "folder2" },
+      ],
+      items: [
+        { path: "WAN.mmd", folderId: null },
+        { path: "A.mmd", folderId: "folder1" },
+        { path: "B.mmd", folderId: "folder1" },
+      ],
+    };
+    const pathsIn = (state: BookmarkState, folderId: string | null) =>
+      state.items.filter((item) => item.folderId === folderId).map((item) => item.path);
+
+    const inFolder1 = placeBookmark(start, "WAN.mmd", "folder1", bookmarkDropIndex(start.items, "folder1", null, "WAN.mmd"));
+    expect(pathsIn(inFolder1, "folder1")).toEqual(["A.mmd", "B.mmd", "WAN.mmd"]);
+    expect(pathsIn(inFolder1, null)).toEqual([]);
+
+    const inFolder2 = placeBookmark(
+      inFolder1,
+      "WAN.mmd",
+      "folder2",
+      bookmarkDropIndex(inFolder1.items, "folder2", null, "WAN.mmd"),
+    );
+    expect(inFolder2.items.find((item) => item.path === "WAN.mmd")?.folderId).toBe("folder2");
+    expect(pathsIn(inFolder2, "folder2")).toEqual(["WAN.mmd"]);
+
+    const back = placeBookmark(inFolder2, "WAN.mmd", null, 0);
+    expect(pathsIn(back, null)).toEqual(["WAN.mmd"]);
+    expect(back.items.find((item) => item.path === "WAN.mmd")?.folderId).toBeNull();
+
+    const reordered = placeBookmark(
+      inFolder1,
+      "B.mmd",
+      "folder1",
+      bookmarkDropIndex(inFolder1.items, "folder1", "A.mmd", "B.mmd"),
+    );
+    expect(pathsIn(reordered, "folder1")).toEqual(["B.mmd", "A.mmd", "WAN.mmd"]);
+
+    const nestedPlace = placeBookmark(inFolder2, "WAN.mmd", "nested", 0);
+    expect(nestedPlace.items.find((item) => item.path === "WAN.mmd")?.folderId).toBe("nested");
+    const reloaded = normalizeBookmarks(JSON.parse(JSON.stringify(nestedPlace)) as unknown);
+    expect(reloaded.items.find((item) => item.path === "WAN.mmd")?.folderId).toBe("nested");
+    expect(reloaded.folders.find((folder) => folder.id === "nested")?.parentId).toBe("folder2");
+    expect(pathsIn(reloaded, "folder1")).toEqual(["A.mmd", "B.mmd"]);
+  });
+
   it("reorders bookmarks within the same folder", () => {
     expect(bookmarkDropIndex(nested.items, "lab", "B.mmd", "C.mmd")).toBe(0);
     const next = placeBookmark(nested, "C.mmd", "lab", bookmarkDropIndex(nested.items, "lab", "B.mmd", "C.mmd"));

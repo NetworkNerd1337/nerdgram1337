@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   BOOKMARK_FOLDERS_KEY,
@@ -21,7 +21,7 @@ import {
   writeIdSet,
   type BookmarkState,
 } from "../lib/bookmarks";
-import { folderDropBand, useBookmarkFolderDrag } from "../lib/bookmarkDrag";
+import { folderDropBand, useBookmarkAutoScroll, useBookmarkFolderDrag } from "../lib/bookmarkDrag";
 import { displayName } from "../lib/paths";
 
 type BookmarksSectionProps = {
@@ -59,8 +59,18 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
   const [renameValue, setRenameValue] = useState("");
   const [draggingPath, setDraggingPath] = useState<string | null>(null);
   const [dropSpot, setDropSpot] = useState<DropSpot | null>(null);
+  const draggingRef = useRef<string | null>(null);
+  const dragFrame = useRef<number | null>(null);
   const dragGuard = useRef<Event | null>(null);
+  const { track: trackScroll, stop: stopScroll } = useBookmarkAutoScroll();
   const folderDrag = useBookmarkFolderDrag(state, onChange);
+
+  const cancelDragFrame = useCallback(() => {
+    if (dragFrame.current != null) {
+      cancelAnimationFrame(dragFrame.current);
+      dragFrame.current = null;
+    }
+  }, []);
 
   const toggleOpen = () => {
     const next = !open;
@@ -76,26 +86,27 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
     writeIdSet(store, BOOKMARK_FOLDERS_KEY, next);
   };
 
-  const finishDrag = () => {
+  const finishDrag = useCallback(() => {
+    cancelDragFrame();
+    stopScroll();
+    draggingRef.current = null;
     setDraggingPath(null);
     setDropSpot(null);
-  };
+  }, [stopScroll, cancelDragFrame]);
+
+  useEffect(() => cancelDragFrame, [cancelDragFrame]);
 
   useEffect(() => {
     if (!draggingPath) return;
-    const end = () => {
-      setDraggingPath(null);
-      setDropSpot(null);
-    };
-    window.addEventListener("dragend", end);
-    return () => window.removeEventListener("dragend", end);
-  }, [draggingPath]);
+    window.addEventListener("dragend", finishDrag);
+    return () => window.removeEventListener("dragend", finishDrag);
+  }, [draggingPath, finishDrag]);
 
   const itemsIn = (folderId: string | null) => state.items.filter((item) => item.folderId === folderId);
   const choices = bookmarkFolderChoices(state.folders);
 
   const isBookmarkDrag = (event: DragEvent) => {
-    if (draggingPath) return true;
+    if (draggingRef.current) return true;
     return [...event.dataTransfer.types].includes(BOOKMARK_DRAG);
   };
 
@@ -110,6 +121,7 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
 
   const hoverAt = (event: DragEvent, folderId: string | null, beforePath: string | null) => {
     if (!isBookmarkDrag(event)) return;
+    if (draggingPath && event.currentTarget instanceof Element) trackScroll(event.currentTarget, event.clientY);
     if (!claimDrag(event)) return;
     setDropSpot((current) =>
       current && current.folderId === folderId && current.beforePath === beforePath ? current : { folderId, beforePath },
@@ -117,7 +129,7 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
   };
 
   const dropAt = (event: DragEvent, folderId: string | null, beforePath: string | null) => {
-    const path = event.dataTransfer.getData(BOOKMARK_DRAG) || draggingPath;
+    const path = event.dataTransfer.getData(BOOKMARK_DRAG) || draggingRef.current;
     if (!path) return;
     if (!claimDrag(event)) return;
     if (path !== beforePath) {
@@ -129,7 +141,12 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
   const onDragStart = (event: DragEvent, path: string) => {
     event.dataTransfer.setData(BOOKMARK_DRAG, path);
     event.dataTransfer.effectAllowed = "move";
-    setDraggingPath(path);
+    draggingRef.current = path;
+    cancelDragFrame();
+    dragFrame.current = requestAnimationFrame(() => {
+      dragFrame.current = null;
+      setDraggingPath(path);
+    });
   };
 
   const startDraft = (parentId: string | null) => {

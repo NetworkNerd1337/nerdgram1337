@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { readDataSource } from "../../../server/src/diagramData.ts";
 import { indexDiagramLinks, insertDiagramLink, linksFor } from "../../../server/src/diagramLinks.ts";
@@ -10,7 +10,7 @@ import { useCommandHost } from "../components/commandPaletteContext";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { DiagramInfoPanel, type DiagramLinkRow } from "../components/DiagramInfoPanel";
 import { ExportWarnings } from "../components/ExportWarnings";
-import { LabExportGroup } from "../components/LabExportGroup";
+import { ExportFormatMenu } from "../components/LabExportGroup";
 import { DrillTrail } from "../components/DrillTrail";
 import { LinkNodeDialog } from "../components/LinkNodeDialog";
 import { RefreshDiffDialog, type RefreshDiff } from "../components/RefreshDiffDialog";
@@ -1172,6 +1172,22 @@ export function EditorPage() {
     conflictOpen: Boolean(conflict?.open),
   });
 
+  const openGenerate = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const scheduled = filePath;
+    void (async () => {
+      for (let attempt = 0; attempt < 50 && savingRef.current; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 100));
+      }
+      if (!mountedRef.current) return;
+      if (latestCodeRef.current !== lastSavedRef.current) await flushSave(scheduled);
+      if (!mountedRef.current) return;
+      if (latestCodeRef.current !== lastSavedRef.current) return;
+      navigate("/generate");
+    })();
+  };
+
   const dirty = code !== savedCode;
   useEffect(() => {
     if (dirty) document.body.dataset.unsaved = "true";
@@ -1259,34 +1275,17 @@ export function EditorPage() {
           <Link className="btn btn-ghost" to="/reference" target="_blank" rel="noopener">
             Open Syntax Reference Library
           </Link>
-          <label className="export-label">
-            Export as
-            <select
-              aria-label="Export format"
-              defaultValue=""
-              onChange={(e) => {
-                const value = e.target.value;
-                e.target.value = "";
-                if (value === "png-transparent") {
-                  void handleExport("png", true);
-                } else if (value === "svg" || value === "png" || value === "jpg" || value === "pdf") {
-                  void handleExport(value);
-                } else if (value.startsWith("lab:")) {
-                  void handleLabExport(value.slice(4));
-                }
-              }}
-            >
-              <option value="" disabled>
-                Choose…
-              </option>
-              <option value="svg">SVG</option>
-              <option value="png">PNG</option>
-              <option value="png-transparent">PNG (transparent)</option>
-              <option value="jpg">JPG</option>
-              <option value="pdf">PDF</option>
-              {hasNetwork ? <LabExportGroup exporters={exporters} /> : null}
-            </select>
-          </label>
+          <ExportFormatMenu
+            exporters={exporters}
+            enabled={hasNetwork}
+            onImage={(format, transparent) => {
+              void handleExport(format, transparent ?? false);
+            }}
+            onLab={(id) => {
+              void handleLabExport(id);
+            }}
+            onOpenGenerate={openGenerate}
+          />
         </div>
       </header>
 

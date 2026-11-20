@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { folderDropBand, folderDropIntent, moveBookmarkFolderTo } from "../src/lib/bookmarkDrag";
+import { bookmarkScrollDelta, folderDropBand, folderDropIntent, moveBookmarkFolderTo } from "../src/lib/bookmarkDrag";
 import { normalizeBookmarks, type BookmarkState } from "../src/lib/bookmarks";
 
 const tree: BookmarkState = {
@@ -14,6 +14,16 @@ const tree: BookmarkState = {
 function ids(state: BookmarkState, parentId: string | null) {
   return state.folders.filter((folder) => (folder.parentId ?? null) === parentId).map((folder) => folder.id);
 }
+
+describe("bookmark box auto-scroll", () => {
+  it("scrolls only when the pointer is near the top or bottom edge", () => {
+    expect(bookmarkScrollDelta(50, 0, 100)).toBe(0);
+    expect(bookmarkScrollDelta(2, 0, 100)).toBeLessThan(0);
+    expect(bookmarkScrollDelta(98, 0, 100)).toBeGreaterThan(0);
+    expect(bookmarkScrollDelta(Number.NaN, 0, 100)).toBe(0);
+    expect(bookmarkScrollDelta(10, 0, 0)).toBe(0);
+  });
+});
 
 describe("bookmark folder drop intent", () => {
   it("splits a row into a middle nest band and edge reorder bands", () => {
