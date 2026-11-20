@@ -13,6 +13,9 @@ export const BOOKMARK_FOLDER_MIME = "text/bookmark-folder";
 /** Top and bottom quarters of a folder row. The middle half means "drop inside". */
 export const FOLDER_EDGE = 0.25;
 
+/** Extra share of the row the pointer must cross before a zone gives way to the next. */
+const BAND_STICK = 0.08;
+
 export type FolderBand = "before" | "inside" | "after";
 
 export type FolderDropIntent =
@@ -22,13 +25,64 @@ export type FolderDropIntent =
 /**
  * A row with no height counts as the middle, so a drop still nests.
  * `clientY` is relative to the row's top.
+ * Pass the band already shown on this row so a small pointer jitter does not flip it.
  */
-export function folderDropBand(clientY: number, top: number, height: number): FolderBand {
+export function folderDropBand(
+  clientY: number,
+  top: number,
+  height: number,
+  previous?: FolderBand | null,
+): FolderBand {
   if (!Number.isFinite(clientY) || !Number.isFinite(top) || !Number.isFinite(height) || height <= 0) return "inside";
   const ratio = (clientY - top) / height;
+  if (previous === "before") {
+    if (ratio <= FOLDER_EDGE + BAND_STICK) return "before";
+    if (ratio >= 1 - FOLDER_EDGE) return "after";
+    return "inside";
+  }
+  if (previous === "after") {
+    if (ratio >= 1 - FOLDER_EDGE - BAND_STICK) return "after";
+    if (ratio <= FOLDER_EDGE) return "before";
+    return "inside";
+  }
+  if (previous === "inside") {
+    if (ratio <= FOLDER_EDGE - BAND_STICK) return "before";
+    if (ratio >= 1 - FOLDER_EDGE + BAND_STICK) return "after";
+    return "inside";
+  }
   if (ratio <= FOLDER_EDGE) return "before";
   if (ratio >= 1 - FOLDER_EDGE) return "after";
   return "inside";
+}
+
+/** True when the line would sit on either side of the bookmark that is already there. */
+export function bookmarkInsertIsNoOp(
+  items: readonly { path: string; folderId: string | null }[],
+  folderId: string | null,
+  beforePath: string | null,
+  movingPath: string,
+): boolean {
+  if (!movingPath) return false;
+  const siblings = items.filter((item) => item.folderId === folderId);
+  const index = siblings.findIndex((item) => item.path === movingPath);
+  if (index < 0) return false;
+  if (beforePath === movingPath) return true;
+  return beforePath === (siblings[index + 1]?.path ?? null);
+}
+
+/** True when the line would sit on either side of the folder that is already there. */
+export function folderInsertIsNoOp(
+  folders: readonly BookmarkFolder[],
+  parentId: string | null,
+  beforeId: string | null,
+  movingId: string,
+): boolean {
+  if (!movingId) return false;
+  const siblings = folders.filter((folder) => folderParentId(folder) === parentId);
+  const index = siblings.findIndex((folder) => folder.id === movingId);
+  if (index < 0) return false;
+  if (beforeId === movingId) return true;
+  return beforeId === (siblings[index + 1]?.id ?? null);
 }
 
 function isDescendant(folders: readonly BookmarkFolder[], ancestorId: string, id: string): boolean {
@@ -189,6 +243,8 @@ export function useBookmarkFolderDrag(state: BookmarkState, onChange: (next: Boo
   const draggingRef = useRef<string | null>(null);
   const guard = useRef<Event | null>(null);
   const dragFrame = useRef<number | null>(null);
+  const sticky = useRef<{ id: string; band: FolderBand } | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
   const { track: trackScroll, stop: stopScroll } = useBookmarkAutoScroll();
 
   const cancelFrame = useCallback(() => {
@@ -201,8 +257,10 @@ export function useBookmarkFolderDrag(state: BookmarkState, onChange: (next: Boo
   const finish = useCallback(() => {
     cancelFrame();
     stopScroll();
+    sticky.current = null;
     draggingRef.current = null;
     setDraggingId(null);
+    setDraggedId(null);
     setIntent(null);
   }, [stopScroll, cancelFrame]);
 
@@ -231,22 +289,25 @@ export function useBookmarkFolderDrag(state: BookmarkState, onChange: (next: Boo
     return true;
   };
 
-  const show = (next: FolderDropIntent | null) => {
+  const show = (next: FolderDropIntent | null, id: string) => {
+    setDraggedId(id);
     setIntent((current) => (sameIntent(current, next) ? current : next));
   };
 
   const hover = (event: DragEvent, overId: string | null, band: FolderBand) => {
     if (!isFolderDrag(event)) return false;
+    sticky.current = { id: overId ?? "", band };
     if (draggingId && event.currentTarget instanceof Element) trackScroll(event.currentTarget, event.clientY);
     if (!claim(event)) return true;
-    const next = folderDropIntent(state.folders, movingId(event), overId, band);
+    const id = movingId(event);
+    const next = folderDropIntent(state.folders, id, overId, band);
     if (!next.accept) {
       event.dataTransfer.dropEffect = "none";
-      show(null);
+      show(null, id);
       return true;
     }
     event.dataTransfer.dropEffect = "move";
-    show(next);
+    show(next, id);
     return true;
   };
 
@@ -260,17 +321,24 @@ export function useBookmarkFolderDrag(state: BookmarkState, onChange: (next: Boo
   };
 
   const accepted = intent?.accept ? intent : null;
+  const edgeHidden = (parentId: string | null, beforeId: string | null) =>
+    Boolean(draggedId && accepted && folderInsertIsNoOp(state.folders, parentId, beforeId, draggedId));
 
   return {
     dragging: Boolean(draggingId),
+    stickyBand(id: string) {
+      return sticky.current?.id === id ? sticky.current.band : null;
+    },
     inside(id: string | null) {
       return Boolean(accepted && accepted.mode === "inside" && accepted.parentId === id);
     },
     before(id: string) {
-      return Boolean(accepted && accepted.mode === "edge" && accepted.beforeId === id);
+      if (!(accepted && accepted.mode === "edge" && accepted.beforeId === id)) return false;
+      return !edgeHidden(accepted.parentId, accepted.beforeId);
     },
     end(parentId: string | null) {
-      return Boolean(accepted && accepted.mode === "edge" && accepted.parentId === parentId && accepted.beforeId == null);
+      if (!(accepted && accepted.mode === "edge" && accepted.parentId === parentId && accepted.beforeId == null)) return false;
+      return !edgeHidden(parentId, null);
     },
     onDragStart(event: DragEvent, id: string) {
       if (dragBlocked(event)) {

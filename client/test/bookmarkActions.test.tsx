@@ -1,6 +1,8 @@
 /**
  * @vitest-environment happy-dom
  */
+import fs from "node:fs";
+import path from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
@@ -348,6 +350,70 @@ describe("bookmark rows", () => {
     dropOn("#bookmark-list");
     expect(folderOf(current, "WAN.mmd")).toBeNull();
     expect(current.folders.find((folder) => folder.id === "nested")?.parentId).toBe("folder2");
+  });
+
+  it("draws the drop line inside the target row and hides it beside the source", () => {
+    const css = fs.readFileSync(path.join(import.meta.dirname, "../src/index.css"), "utf8");
+    expect(css).toMatch(/\.bookmark-insert\s*\{[^}]*position:\s*absolute/);
+    const current: BookmarkState = {
+      folders: [{ id: "lab", name: "Lab", parentId: null }],
+      items: [
+        { path: "A.mmd", folderId: "lab" },
+        { path: "B.mmd", folderId: "lab" },
+      ],
+    };
+    root = mount(current);
+    const rowA = document.querySelector("[data-bookmark-path='A.mmd']") as HTMLElement;
+    const rowB = document.querySelector("[data-bookmark-path='B.mmd']") as HTMLElement;
+    const beforeTop = rowA.offsetTop;
+    fire(rowA, "dragover", "B.mmd");
+    const line = document.querySelector(".bookmark-insert");
+    expect(line?.parentElement).toBe(rowA);
+    expect(rowA.offsetTop).toBe(beforeTop);
+    expect(rowB.previousElementSibling).not.toBe(line);
+    fire(rowA, "dragover", "A.mmd");
+    expect(document.querySelector(".bookmark-insert")).toBeNull();
+    fire(rowB, "dragover", "A.mmd");
+    expect(document.querySelector(".bookmark-insert")).toBeNull();
+  });
+
+  it("switches Actions menus with one click and closes on Escape", () => {
+    const current: BookmarkState = {
+      folders: [],
+      items: [
+        { path: "A.mmd", folderId: null },
+        { path: "B.mmd", folderId: null },
+      ],
+    };
+    root = mount(current);
+    const first = document.querySelector<HTMLButtonElement>("button[aria-label='Actions for A']");
+    const second = document.querySelector<HTMLButtonElement>("button[aria-label='Actions for B']");
+    const rowA = document.querySelector("[data-bookmark-path='A.mmd']") as HTMLElement;
+    const rowB = document.querySelector("[data-bookmark-path='B.mmd']") as HTMLElement;
+    const topA = rowA.offsetTop;
+    const topB = rowB.offsetTop;
+    act(() => {
+      first?.click();
+    });
+    expect(first?.getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelector("[aria-label='Actions for A']")?.parentElement?.querySelector(".sidebar-menu-panel")).toBeTruthy();
+    expect(rowA.offsetTop).toBe(topA);
+    expect(rowB.offsetTop).toBe(topB);
+    act(() => {
+      second?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      second?.click();
+    });
+    expect(first?.getAttribute("aria-expanded")).toBe("false");
+    expect(second?.getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelector("[aria-label='Remove bookmark B']")).toBeTruthy();
+    expect(document.querySelector("[aria-label='Remove bookmark A']")).toBeNull();
+    const removeB = document.querySelector<HTMLButtonElement>("[aria-label='Remove bookmark B']");
+    removeB?.focus();
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    expect(second?.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(second);
   });
 });
 
