@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import {
   bookmarkFolderDropIndex,
   folderParentAllowed,
@@ -100,25 +100,119 @@ function dragBlocked(event: DragEvent): boolean {
   return Boolean(target.closest("button, input, select, textarea, a, label"));
 }
 
+const SCROLL_EDGE = 28;
+const SCROLL_STEP = 12;
+
+/**
+ * Pixels to add to scrollTop. Negative scrolls toward the top.
+ * The pointer has to be near the box edge. The middle returns 0.
+ */
+export function bookmarkScrollDelta(clientY: number, top: number, bottom: number): number {
+  if (!Number.isFinite(clientY) || !Number.isFinite(top) || !Number.isFinite(bottom) || bottom <= top) return 0;
+  const height = bottom - top;
+  const band = Math.min(SCROLL_EDGE, Math.max(12, height * 0.22));
+  if (clientY < top + band) {
+    const closeness = (top + band - clientY) / band;
+    return -Math.max(1, Math.round(SCROLL_STEP * closeness));
+  }
+  if (clientY > bottom - band) {
+    const closeness = (clientY - (bottom - band)) / band;
+    return Math.max(1, Math.round(SCROLL_STEP * closeness));
+  }
+  return 0;
+}
+
+/** The nearest box that can actually scroll, or the document scroller when the page itself moves. */
+export function scrollableBox(node: Element | null): HTMLElement | null {
+  let current = node instanceof HTMLElement ? node : (node?.parentElement ?? null);
+  const doc = node?.ownerDocument ?? document;
+  while (current && current !== doc.body && current !== doc.documentElement) {
+    const style = getComputedStyle(current);
+    const overflow = `${style.overflowY} ${style.overflow}`;
+    if (/(auto|scroll)/.test(overflow) && current.scrollHeight > current.clientHeight + 1) return current;
+    current = current.parentElement;
+  }
+  const root = doc.scrollingElement;
+  if (root instanceof HTMLElement && root.scrollHeight > root.clientHeight + 1) return root;
+  return null;
+}
+
+/** Scroll the bookmark box when the pointer is near its top or bottom. Returns whether it moved. */
+export function nudgeBookmarkScroll(node: Element, clientY: number): boolean {
+  const box = scrollableBox(node);
+  if (!box) return false;
+  const rect = box.getBoundingClientRect();
+  const delta = bookmarkScrollDelta(clientY, rect.top, rect.bottom);
+  if (!delta) return false;
+  const before = box.scrollTop;
+  box.scrollTop = before + delta;
+  return box.scrollTop !== before;
+}
+
+/** Keep scrolling while the pointer stays in the edge band. Stop on drag end or unmount. */
+export function useBookmarkAutoScroll() {
+  const pointer = useRef<{ node: Element; clientY: number } | null>(null);
+  const frame = useRef<number | null>(null);
+  const pump = useRef<() => void>(() => undefined);
+
+  const stop = useCallback(() => {
+    pointer.current = null;
+    if (frame.current != null) {
+      cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    pump.current = () => {
+      frame.current = null;
+      const sample = pointer.current;
+      if (!sample) return;
+      const moved = nudgeBookmarkScroll(sample.node, sample.clientY);
+      if (pointer.current && moved) frame.current = requestAnimationFrame(() => pump.current());
+    };
+    return stop;
+  }, [stop]);
+
+  const track = useCallback((node: Element, clientY: number) => {
+    pointer.current = { node, clientY };
+    if (frame.current == null) frame.current = requestAnimationFrame(() => pump.current());
+  }, []);
+
+  return { track, stop };
+}
+
 /** Drag a bookmark folder to nest it, un-nest it, or reorder it among siblings. */
 export function useBookmarkFolderDrag(state: BookmarkState, onChange: (next: BookmarkState) => void) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [intent, setIntent] = useState<FolderDropIntent | null>(null);
   const draggingRef = useRef<string | null>(null);
   const guard = useRef<Event | null>(null);
+  const dragFrame = useRef<number | null>(null);
+  const { track: trackScroll, stop: stopScroll } = useBookmarkAutoScroll();
 
-  const finish = () => {
+  const cancelFrame = useCallback(() => {
+    if (dragFrame.current != null) {
+      cancelAnimationFrame(dragFrame.current);
+      dragFrame.current = null;
+    }
+  }, []);
+
+  const finish = useCallback(() => {
+    cancelFrame();
+    stopScroll();
     draggingRef.current = null;
     setDraggingId(null);
     setIntent(null);
-  };
+  }, [stopScroll, cancelFrame]);
+
+  useEffect(() => cancelFrame, [cancelFrame]);
 
   useEffect(() => {
     if (!draggingId) return;
-    const end = () => finish();
-    window.addEventListener("dragend", end);
-    return () => window.removeEventListener("dragend", end);
-  }, [draggingId]);
+    window.addEventListener("dragend", finish);
+    return () => window.removeEventListener("dragend", finish);
+  }, [draggingId, finish]);
 
   const isFolderDrag = (event: DragEvent) => {
     if (draggingRef.current) return true;
@@ -143,6 +237,7 @@ export function useBookmarkFolderDrag(state: BookmarkState, onChange: (next: Boo
 
   const hover = (event: DragEvent, overId: string | null, band: FolderBand) => {
     if (!isFolderDrag(event)) return false;
+    if (draggingId && event.currentTarget instanceof Element) trackScroll(event.currentTarget, event.clientY);
     if (!claim(event)) return true;
     const next = folderDropIntent(state.folders, movingId(event), overId, band);
     if (!next.accept) {
@@ -186,8 +281,12 @@ export function useBookmarkFolderDrag(state: BookmarkState, onChange: (next: Boo
       event.dataTransfer.setData(BOOKMARK_FOLDER_MIME, id);
       event.dataTransfer.effectAllowed = "move";
       draggingRef.current = id;
-      setDraggingId(id);
       setIntent(null);
+      cancelFrame();
+      dragFrame.current = requestAnimationFrame(() => {
+        dragFrame.current = null;
+        setDraggingId(id);
+      });
     },
     onDragEnd: finish,
     hover,

@@ -12,6 +12,7 @@ Short answers to the questions that come up first, with a link to the page that 
 - [Docker or npm, and how do I upgrade?](#docker-or-npm-and-how-do-i-upgrade)
 - [Where are my files stored?](#where-are-my-files-stored)
 - [How do I feed it from other tools?](#how-do-i-feed-it-from-other-tools)
+- [Why is a lab export disabled?](#why-is-a-lab-export-disabled)
 - [Will a refresh overwrite hand edits?](#will-a-refresh-overwrite-hand-edits)
 - [How does GitHub sync work?](#how-does-github-sync-work)
 - [Can a team share it?](#can-a-team-share-it)
@@ -42,6 +43,10 @@ Diagrams are `.mmd` files in the data directory. By default that is `diagrams/` 
 
 You produce the file. **From data** accepts CSV, JSON, network JSON, and CDP or LLDP text. NerdGram does not call NetBox, LibreNMS, or pyATS, and it does not ship those tools. A script or cron job can POST the JSON you already have. See [Generate from data](generate-from-data.md).
 
+## Why is a lab export disabled?
+
+**Export as** lists **Lab and automation** for every installed exporter. The entries are disabled when the open diagram has no sibling `.network.json`. A line under the menu says to generate the diagram from data. That link opens **From data** at `/generate` and does not discard unsaved edits. A diagram that has network JSON keeps the entries enabled. See [Design exports](exports.md).
+
 ## Will a refresh overwrite hand edits?
 
 No. Generated lines sit between `%% nerdgram:generated` and `%% nerdgram:generated end`. Refresh rewrites that block. Notes, the theme, and anything outside the markers stay, including a node you added by hand. See [Generate from data](generate-from-data.md).
@@ -67,4 +72,5 @@ Questions and ideas go to [Discussions](https://github.com/NetworkNerd1337/NerdG
 - [Install](install.md)
 - [Security model](security.md)
 - [Generate from data](generate-from-data.md)
+- [Design exports](exports.md)
 - [Team use](team-use.md)

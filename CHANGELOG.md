@@ -6,7 +6,8 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Fixed:** Dragging a bookmark or a bookmark folder no longer changes the list height when the drag starts. Drop targets highlight with an outline, the end of a list stays a small drop area, and the bookmark box scrolls when the pointer is near its top or bottom. The same bookmark can be moved again, including into the lowest folder. Settings → Bookmarks uses the same drag (#228).
+- **Fixed:** **Export as** shows **Lab and automation** when the diagram has no network JSON. Those entries are disabled, with a note that points to **From data**. A diagram that has network JSON exports as before (#229).
 
 ## 1.8.12 "Meridian" - 2026-11-19
 

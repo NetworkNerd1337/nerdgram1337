@@ -4,7 +4,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BookmarkManager } from "../src/components/BookmarkManager";
 import { BOOKMARK_FOLDER_MIME } from "../src/lib/bookmarkDrag";
 import type { BookmarkState } from "../src/lib/bookmarks";
@@ -99,8 +99,40 @@ function rootFolderIds() {
   );
 }
 
+const frames = new Map<number, FrameRequestCallback>();
+let frameId = 0;
+
+function stubFrames() {
+  frames.clear();
+  frameId = 0;
+  const request = (callback: FrameRequestCallback) => {
+    const id = ++frameId;
+    frames.set(id, callback);
+    return id;
+  };
+  const cancel = (id: number) => {
+    frames.delete(id);
+  };
+  vi.stubGlobal("requestAnimationFrame", request);
+  vi.stubGlobal("cancelAnimationFrame", cancel);
+  window.requestAnimationFrame = request;
+  window.cancelAnimationFrame = cancel;
+}
+
+function flushFrames() {
+  const queued = [...frames.values()];
+  frames.clear();
+  act(() => {
+    for (const callback of queued) callback(0);
+  });
+}
+
 describe("bookmark settings", () => {
   let root: Root | null = null;
+
+  beforeEach(() => {
+    stubFrames();
+  });
 
   afterEach(() => {
     act(() => root?.unmount());
@@ -108,6 +140,8 @@ describe("bookmark settings", () => {
     document.body.innerHTML = "";
     saved.store.bookmarks = saved.initial();
     saved.store.save.mockClear();
+    frames.clear();
+    vi.unstubAllGlobals();
   });
 
   it("shows a nested folder tree and does not offer Reload", () => {
@@ -180,5 +214,24 @@ describe("bookmark settings", () => {
     expect(document.querySelector(".is-drop-over")).toBeNull();
     expect(document.querySelector(".bookmark-insert")).toBeNull();
     expect(saved.store.bookmarks.folders.find((folder) => folder.id === "rack")?.parentId).toBe("lab");
+  });
+
+  it("does not mark the manager as dragging until the next frame, then accepts a second drag", () => {
+    root = show();
+    const row = document.querySelector("[data-bookmark-folder='other']") as HTMLElement;
+    const section = document.getElementById("bookmarks") as HTMLElement;
+    fireFolder(row, "dragstart", "other");
+    expect(section.className).not.toContain("is-dragging");
+    flushFrames();
+    expect(section.className).toContain("is-dragging");
+    fireFolder(row, "dragend", "other");
+    expect(section.className).not.toContain("is-dragging");
+    fireFolder(row, "dragstart", "other");
+    expect(section.className).not.toContain("is-dragging");
+    flushFrames();
+    expect(section.className).toContain("is-dragging");
+    const sites = document.querySelector("[data-folder-id='sites']") as HTMLElement;
+    fireFolder(sites, "drop", "other", "inside");
+    expect(saved.store.bookmarks.folders.find((folder) => folder.id === "other")?.parentId).toBe("sites");
   });
 });
