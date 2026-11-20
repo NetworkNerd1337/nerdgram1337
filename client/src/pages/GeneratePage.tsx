@@ -8,6 +8,8 @@ import { FolderPicker } from "../components/FolderPicker";
 import { GenerateWizard } from "../components/GenerateWizard";
 import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
 import { useCommandHost } from "../components/commandPaletteContext";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { pageTitle } from "../lib/pageTitle";
 import { useWorkspace } from "../hooks/useWorkspace";
 import {
   diagramFilePath,
@@ -23,6 +25,7 @@ import { contentWithStyle } from "../lib/stylePresets";
 
 export function GeneratePage() {
   const navigate = useNavigate();
+  usePageTitle(pageTitle("Generate"));
   const [params] = useSearchParams();
   const { tree } = useWorkspace();
   const [state, dispatch] = useReducer(wizardReducer, params.get("folder") ?? "", initialWizardState);

@@ -96,7 +96,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 
 - **[Preview](docs/features.md#preview).** Drag the preview to pan, and use the wheel to zoom toward the pointer. **Fit** resets that view.
 - **[Editing](docs/features.md#editing).** Opening a diagram takes a lock for that browser tab.
-- **[Files](docs/features.md#files).** **Your space** lists Recent, Bookmarks, and Needs attention above the folder tree. Drag the edge of the sidebar to widen it. **Move to…** is on every diagram and folder, next to Rename and Delete.
+- **[Files](docs/features.md#files).** **Your space** lists Recent, Bookmarks, and Needs attention, then Trash, then a Folders heading and the folder tree. Drag the edge of the sidebar to widen it. **Move to…** is on every diagram and folder, next to Rename and Delete.
 - **[Trash and history](docs/features.md#trash-and-history).** Delete moves a diagram or a folder into the trash.
 - **[Titles, themes, and notes](docs/features.md#titles-themes-and-notes).** A diagram can start with [Mermaid's YAML front matter](https://mermaid.js.org/config/configuration.html). Cards show the file name, and a different title on a second line.
 - **[Style presets](docs/features.md#style-presets).** Save a diagram's theme, colors, and font as a named preset, and copy it onto another diagram or a new one.

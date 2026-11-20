@@ -3,11 +3,15 @@ import { createPortal } from "react-dom";
 import { api } from "../api";
 import { DrillTrail } from "./DrillTrail";
 import { useDiagramView } from "../hooks/useDiagramView";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useStageSize } from "../hooks/useStageSize";
 import { useViewGestures } from "../hooks/useViewGestures";
 import { actionForClickTarget, clickTargetOnElement, openExternalLink } from "../lib/diagramClicks";
 import { sessionJump, sessionOpen, sessionStart, sessionSyncRoot, type DrillSession } from "../lib/drillSession";
 import { diagramHeading, FALLBACK_THEME, parseDiagram } from "../lib/frontMatter";
+import { presentTitle } from "../lib/pageTitle";
+import { PRESENTATION_NARROW_QUERY } from "../lib/presentationLayout";
+import { settingsBlockTooltip } from "../lib/problemText";
 import { renderMermaid } from "../lib/mermaidRender";
 import {
   currentFullscreen,
@@ -73,6 +77,8 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
   const [barVisible, setBarVisible] = useState(true);
   const [idle, setIdle] = useState(false);
   const [nativeFs, setNativeFs] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const compact = useMediaQuery(PRESENTATION_NARROW_QUERY);
 
   const viewport = useStageSize(stageRef);
   const camera = useDiagramView(viewport, content);
@@ -98,19 +104,28 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
     themeBackground(FALLBACK_THEME) ??
     "#333333";
 
+  const settingsTitle = parsed?.malformed
+    ? settingsBlockTooltip(parsed.errorLine, null, parsed.error)
+    : "";
   const notices: string[] = [];
   if (frame.error) notices.push(frame.error);
   if (linkMessage) notices.push(linkMessage);
-  if (parsed?.malformed) {
-    notices.push(
-      parsed.error
-        ? `The YAML header could not be parsed: ${parsed.error}`
-        : "The YAML header could not be parsed.",
-    );
-  }
-  if (renderError) notices.push(renderError);
+  if (parsed?.malformed) notices.push("Settings error");
+  if (renderError && !parsed?.malformed) notices.push(renderError);
   if (frame.source != null && !frame.source.trim() && !frame.error) notices.push("This diagram has nothing to show.");
   const notice = notices.join(" ");
+
+  useEffect(() => {
+    const previous = document.title;
+    document.title = presentTitle(heading);
+    return () => {
+      document.title = previous;
+    };
+  }, [heading]);
+
+  useEffect(() => {
+    if (!compact || idle) setMoreOpen(false);
+  }, [compact, idle]);
 
   useEffect(() => {
     setSession((current) => sessionSyncRoot(current, slideFor(path, source, fileError)));
@@ -379,7 +394,7 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
     <div
       id={PRESENTATION_ROOT_ID}
       ref={rootRef}
-      className={`presentation${idle ? " is-idle" : ""}${nativeFs ? " is-fullscreen" : " is-overlay"}`}
+      className={`presentation${idle ? " is-idle" : ""}${nativeFs ? " is-fullscreen" : " is-overlay"}${compact ? " is-compact" : ""}`}
       role="dialog"
       aria-modal="true"
       aria-label={`Presentation: ${heading}`}
@@ -463,7 +478,7 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
           </ul>
         ) : null}
         {notice ? (
-          <div className={`presentation-banner${svg ? "" : " is-only"}`} role="alert">
+          <div className={`presentation-banner${svg ? "" : " is-only"}`} role="alert" title={settingsTitle || undefined}>
             {notice}
           </div>
         ) : null}
@@ -491,29 +506,72 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
         <button type="button" className="btn" aria-label="Zoom in" onClick={() => camera.zoomAtPoint(gestures.focalRef.current, ZOOM_STEP)}>
           +
         </button>
-        <button type="button" className="btn" aria-label="Rotate left" onClick={() => camera.rotate(-90)}>
-          ↺
-        </button>
-        <button type="button" className="btn" aria-label="Rotate right" onClick={() => camera.rotate(90)}>
-          ↻
-        </button>
+        {compact ? null : (
+          <>
+            <button type="button" className="btn" aria-label="Rotate left" onClick={() => camera.rotate(-90)}>
+              ↺
+            </button>
+            <button type="button" className="btn" aria-label="Rotate right" onClick={() => camera.rotate(90)}>
+              ↻
+            </button>
+          </>
+        )}
         <button type="button" className="btn" aria-label="Fit to screen" onClick={() => camera.reset()}>
           Fit
         </button>
-        <button
-          type="button"
-          className="btn"
-          aria-pressed={titleOn}
-          aria-label={titleOn ? "Hide title" : "Show title"}
-          onClick={() => setTitleOn((current) => !current)}
-        >
-          Title
-        </button>
-        {nativeFs ? null : (
+        {compact ? null : (
+          <button
+            type="button"
+            className="btn"
+            aria-pressed={titleOn}
+            aria-label={titleOn ? "Hide title" : "Show title"}
+            onClick={() => setTitleOn((current) => !current)}
+          >
+            Title
+          </button>
+        )}
+        {compact || nativeFs ? null : (
           <button type="button" className="btn" aria-label="Enter full screen" onClick={() => void enterFullscreen()}>
             Full screen
           </button>
         )}
+        {compact ? (
+          <>
+            <button
+              type="button"
+              className="btn presentation-more-toggle"
+              aria-expanded={moreOpen}
+              aria-controls="presentation-more"
+              onClick={() => setMoreOpen((current) => !current)}
+            >
+              More
+            </button>
+            {moreOpen ? (
+              <div id="presentation-more" className="presentation-more-menu" role="group" aria-label="More presentation controls">
+                <button type="button" className="btn" aria-label="Rotate left" onClick={() => camera.rotate(-90)}>
+                  ↺ Rotate left
+                </button>
+                <button type="button" className="btn" aria-label="Rotate right" onClick={() => camera.rotate(90)}>
+                  ↻ Rotate right
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  aria-pressed={titleOn}
+                  aria-label={titleOn ? "Hide title" : "Show title"}
+                  onClick={() => setTitleOn((current) => !current)}
+                >
+                  Title
+                </button>
+                {nativeFs ? null : (
+                  <button type="button" className="btn" aria-label="Enter full screen" onClick={() => void enterFullscreen()}>
+                    Full screen
+                  </button>
+                )}
+              </div>
+            ) : null}
+          </>
+        ) : null}
         <button type="button" className="btn" aria-label="Exit presentation" onClick={leave}>
           Exit
         </button>

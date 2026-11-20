@@ -79,12 +79,34 @@ describe("command palette registry", () => {
   it("filters diagrams and organize actions by a fuzzy query", () => {
     const titles = collectCommands(context({ query: "welcome" })).map((command) => command.title);
     expect(titles).toContain("Open Hello");
+    expect(titles).toContain("Present: Hello");
     expect(titles).toContain("Rename Hello");
     expect(titles).toContain("Move Hello");
     expect(titles).toContain("Duplicate Hello");
     expect(titles).toContain("Move Hello to trash");
     expect(titles).toContain("Edit diagram info for Hello");
     expect(titles).not.toContain("Open folder Lab");
+    const visited: string[] = [];
+    const host = context({
+      query: "welcome",
+      navigate: (to) => {
+        visited.push(to);
+      },
+    });
+    const present = collectCommands(host).find((command) => command.id === "present:Welcome.mmd");
+    expect(present?.title).toBe("Present: Hello");
+    present?.run(host);
+    expect(visited).toEqual(["/present/Welcome.mmd"]);
+    const folders = collectCommands(context({ query: "lab" })).map((command) => command.title);
+    expect(folders.some((title) => title.startsWith("Present:"))).toBe(false);
+    const editorIds = collectCommands(
+      context({
+        route: "editor",
+        query: "welcome",
+        actions: { ...context().actions, present: () => undefined },
+      }),
+    ).map((command) => command.id);
+    expect(editorIds).not.toContain("present:Welcome.mmd");
   });
 
   it("shows find, export, and theme commands only when the editor can run them", () => {

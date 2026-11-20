@@ -42,6 +42,7 @@ export function FolderTree({
 
   return (
     <div className="tree">
+      <div className="nav-label">Folders</div>
       {nested ? (
         <div className="tree-toolbar">
           <div className="tree-fold-control" role="group" aria-label="Folder tree">

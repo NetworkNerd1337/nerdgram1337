@@ -15,6 +15,7 @@ import {
   type DiagramCheckSeverity,
   type DiagramCheckStatus,
 } from "../lib/diagramChecks";
+import { formatProblem } from "../lib/problemText";
 import { editorHref } from "../lib/diagramSearch";
 import type { UnreadableDiagram } from "../../../server/src/readError.ts";
 import { RepairLinksDialog } from "./RepairLinksDialog";
@@ -128,18 +129,25 @@ export function DiagramChecks({ onViewAll }: { onViewAll?: () => void } = {}) {
                     {group.path}
                   </h3>
                   <ul>
-                    {group.findings.map((item, index) => (
+                    {group.findings.map((item, index) => {
+                      const view = formatProblem(item);
+                      return (
                       <li key={`${item.ruleId}-${item.line}-${index}`}>
-                        <Link className="diagram-checks-finding" to={editorHref(item.path, item.line, "")}>
+                        <Link
+                          className="diagram-checks-finding"
+                          to={editorHref(item.path, item.line, "")}
+                          title={view.title || undefined}
+                        >
                           <span className={`diagram-checks-severity ${item.severity}`}>
                             <SeverityGlyph severity={item.severity} />
                             {item.severity === "error" ? "Error" : "Warning"}
                           </span>
-                          <span className="diagram-checks-line">Line {item.line}</span>
-                          <span className="diagram-checks-message">{item.message}</span>
+                          <span className="diagram-checks-line">{view.where}</span>
+                          <span className="diagram-checks-message">{view.message}</span>
                         </Link>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </section>
               );

@@ -8,6 +8,8 @@ import { FolderPicker } from "../components/FolderPicker";
 import { Modal } from "../components/Modal";
 import { SourceThumbnail } from "../components/MermaidThumbnail";
 import { useCommandHost } from "../components/commandPaletteContext";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { pageTitle } from "../lib/pageTitle";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { FileNameField } from "../components/FileNameField";
 import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
@@ -25,6 +27,7 @@ import { contentWithStyle } from "../lib/stylePresets";
 
 export function TemplatesPage() {
   const navigate = useNavigate();
+  usePageTitle(pageTitle("Template gallery"));
   const [searchParams, setSearchParams] = useSearchParams();
   const { tree, loading: treeLoading } = useWorkspace();
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);

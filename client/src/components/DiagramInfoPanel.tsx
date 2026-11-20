@@ -13,6 +13,7 @@ import {
   type DiagramPatch,
   type Scalar,
 } from "../lib/frontMatter";
+import { settingsBlockTooltip } from "../lib/problemText";
 import { api } from "../api";
 import { TagCombobox } from "./TagCombobox";
 import { FontFamilyField } from "./FontFamilyField";
@@ -194,9 +195,9 @@ export function DiagramInfoPanel({
         )}
       </section>
       {info.malformed && (
-        <p className="info-error" role="alert">
-          The YAML header could not be parsed{info.error ? `: ${info.error}` : ""}. Edit it in the
-          code pane. Saving keeps that text and does not replace the header.
+        <p className="info-error" role="alert" title={settingsBlockTooltip(info.errorLine, null, info.error)}>
+          <strong>Settings error.</strong> Edit it in the code pane. Saving keeps that text and does
+          not replace the header.
         </p>
       )}
       {patchError && !info.malformed && (

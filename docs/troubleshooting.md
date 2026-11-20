@@ -59,7 +59,7 @@ The production build has not been created. From the project root run `npm run bu
 
 ## Can't read file
 
-A dashboard card or the editor says **Can't read file** when that diagram could not be read. The sentence under it is the reason. **Retry** reads the file again. **Parse error** is a different message: Mermaid could not draw the file. **Settings error** is the label when only the settings block at the top of the file is broken. The card and the list row also say **Settings need a fix**. The tooltip names that block as front matter and gives the line when the file has one. A lock names the other instance, the computer, and the time it was opened. A read error does not.
+A dashboard card or the editor says **Can't read file** when that diagram could not be read. The sentence under it is the reason. **Retry** reads the file again. **Parse error** is a different message: Mermaid could not draw the file. **Settings error** is the label when only the settings block at the top of the file is broken. The card and the list row also say **Settings need a fix**. The same words are used in the editor banner, the preview, Diagram health, Diagram info, and Present. The tooltip names that block as front matter and includes the parser message, the line, and the column. That failure is not also shown as invalid Mermaid. A lock names the other instance, the computer, and the time it was opened. A read error does not.
 
 This often means the diagram folder is on iCloud Drive, OneDrive, Dropbox, or Google Drive, and the file is still a placeholder. Those folders are not supported for team locks. See [Synced folders](team-use.md#synced-folders).
 

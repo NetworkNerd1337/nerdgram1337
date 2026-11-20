@@ -9,6 +9,7 @@ import { SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { DiagramInfoPanel, type DiagramLinkRow } from "../components/DiagramInfoPanel";
+import { ExportWarnings } from "../components/ExportWarnings";
 import { LabExportGroup } from "../components/LabExportGroup";
 import { DrillTrail } from "../components/DrillTrail";
 import { LinkNodeDialog } from "../components/LinkNodeDialog";
@@ -23,6 +24,8 @@ import { PresentationView } from "../components/PresentationView";
 import { actionForClickTarget, clickTargetOnElement, openExternalLink } from "../lib/diagramClicks";
 import { EditorDivider } from "../components/EditorDivider";
 import { useEditorSplit } from "../hooks/useEditorSplit";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { usePreviewViewport } from "../hooks/usePreviewViewport";
 import { anchorsFromElement, sourceLocationForElement } from "../lib/sourceJump";
 import { drillForward, drillIndex, trailFromState, withCrumbTitle } from "../lib/drillTrail";
@@ -77,7 +80,11 @@ import {
 import { rememberThumbnail } from "../lib/thumbnailCache";
 import { EditorBreadcrumb } from "../components/EditorBreadcrumb";
 import { editorExitHref, folderHref } from "../lib/editorBreadcrumb";
+import { labExportNotice } from "../lib/exportNotice";
+import { pageTitle } from "../lib/pageTitle";
 import { displayName, joinPath, parentPath } from "../lib/paths";
+import { PREVIEW_TOOLBAR_SINGLE_ROW_QUERY } from "../lib/presentationLayout";
+import { settingsBlockTooltip } from "../lib/problemText";
 import { setWorkspaceReplaceFolder } from "../lib/workspaceReplace";
 import type { TreeNode } from "../types";
 
@@ -182,10 +189,14 @@ export function EditorPage() {
       if (result.archive) {
         const bytes = Uint8Array.from(atob(result.archive.base64), (char) => char.charCodeAt(0));
         downloadExport(result.archive.filename, new Blob([bytes], { type: result.archive.mimeType }));
-        return;
+      } else {
+        downloadExport(result.filename, new Blob([result.text], { type: result.mimeType }));
       }
-      downloadExport(result.filename, new Blob([result.text], { type: result.mimeType }));
+      const name = exporters.find((item) => item.id === target)?.name ?? target;
+      setExportNotice(labExportNotice(name, result.warnings));
+      setExportError(null);
     } catch (err) {
+      setExportNotice(null);
       setExportError(err instanceof Error ? err.message : "Export failed");
     }
   };
@@ -227,6 +238,7 @@ export function EditorPage() {
   }, [filePath, saveState, templateId]);
 
   const [exportError, setExportError] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<ReturnType<typeof labExportNotice>>(null);
   const [templateTitle, setTemplateTitle] = useState("");
   const [renamingFile, setRenamingFile] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -964,6 +976,10 @@ export function EditorPage() {
 
   const readOnly = access !== "edit";
   const info = useMemo(() => parseDiagram(code), [code]);
+  const diagramName = templateId ? templateTitle.trim() || "Template" : displayName(filePath) || "Diagram";
+  const previewSingleRow = useMediaQuery(PREVIEW_TOOLBAR_SINGLE_ROW_QUERY);
+  usePageTitle(presenting ? null : pageTitle(diagramName));
+  const settingsTitle = info.malformed ? settingsBlockTooltip(info.errorLine, null, info.error) : "";
   const heading = diagramHeading(info.title, filePath);
   const exitHref = workspaceTree
     ? editorExitHref(filePath, workspaceTree)
@@ -1295,6 +1311,7 @@ export function EditorPage() {
           {exportError}
         </div>
       )}
+      <ExportWarnings notice={exportNotice} onDismiss={() => setExportNotice(null)} />
       {templateNotice ? (
         <div className="editor-banner" role="status">
           <div>{templateNotice}</div>
@@ -1346,9 +1363,9 @@ export function EditorPage() {
         </Modal>
       ) : null}
       {info.malformed && (
-        <div className="editor-banner" role="alert">
-          The YAML header could not be parsed{info.error ? `: ${info.error}` : ""}. Autosave keeps
-          the text in the code pane and will not replace the header.
+        <div className="editor-banner" role="alert" title={settingsTitle}>
+          <strong>Settings error.</strong> Autosave keeps the text in the code pane and will not
+          replace the header.
         </div>
       )}
       {info.hasLegacyInit && (
@@ -1499,7 +1516,7 @@ export function EditorPage() {
         <section className="panel preview-panel">
           <div className="panel-header">
             <h2>Preview</h2>
-            <div className="preview-toolbar">
+            <div className={`preview-toolbar${previewSingleRow ? " is-single-row" : ""}`}>
               <AppearanceSelect
                 label="Theme"
                 value={info.theme ?? ""}
@@ -1591,14 +1608,14 @@ export function EditorPage() {
               />
             ) : null}
             {previewStale && svgHtml ? (
-              <div className="preview-stale-banner" role="status">
+              <div className="preview-stale-banner" role="status" title={settingsTitle || undefined}>
                 <strong>Out of date.</strong> The last diagram that rendered is still shown.{" "}
-                {shortRenderError(renderError)}
+                {info.malformed ? "Settings error" : shortRenderError(renderError)}
               </div>
             ) : null}
-            {!svgHtml && renderError ? (
-              <div className="preview-error" role="alert">
-                {shortRenderError(renderError)}
+            {!svgHtml && (renderError || info.malformed) ? (
+              <div className="preview-error" role="alert" title={settingsTitle || undefined}>
+                {info.malformed ? "Settings error" : shortRenderError(renderError)}
               </div>
             ) : null}
           </div>

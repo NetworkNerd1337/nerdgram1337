@@ -1,6 +1,21 @@
 import type { DiagramCheckFinding } from "./diagramChecks";
 import type { UnreadableDiagram } from "../../../server/src/readError.ts";
 
+/** Diagrams the Needs attention list actually shows. The badge uses this count. */
+export function attentionBadgeCount(
+  diagrams: readonly { errors: number; warnings: number }[] | null | undefined,
+): number {
+  return (diagrams ?? []).filter((item) => item.errors > 0 || item.warnings > 0).length;
+}
+
+/** "1 error · 2 warnings". Errors and warnings stay separate. */
+export function attentionProblemLabel(errors: number, warnings: number): string {
+  const parts: string[] = [];
+  if (errors > 0) parts.push(`${errors} ${errors === 1 ? "error" : "errors"}`);
+  if (warnings > 0) parts.push(`${warnings} ${warnings === 1 ? "warning" : "warnings"}`);
+  return parts.join(" · ");
+}
+
 export type AttentionRow = {
   path: string;
   count: number;

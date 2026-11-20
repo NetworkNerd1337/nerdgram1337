@@ -17,6 +17,7 @@ import { MoveDialog } from "../components/MoveDialog";
 import { Sidebar } from "../components/Sidebar";
 import { WorkspaceShell } from "../components/WorkspaceShell";
 import { SupportLink } from "../components/SupportLink";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useSidebarWidth } from "../hooks/useSidebarWidth";
 import { useWorkspace } from "../hooks/useWorkspace";
 import {
@@ -27,6 +28,7 @@ import {
   type DragItem,
   type DragPayload,
 } from "../lib/drag";
+import { attentionBadgeCount, attentionProblemLabel } from "../lib/attention";
 import { dataMoveSentence, deleteDataPrompt, duplicateDataPrompt, duplicateStatus } from "../lib/dataFiles";
 import { draftsFromFiles, type ImportDraft } from "../lib/importDrafts";
 import {
@@ -54,6 +56,7 @@ import {
   joinPath,
   presentHref,
 } from "../lib/paths";
+import { pageTitle } from "../lib/pageTitle";
 import { pruneRecent, readRecent, rewriteRecent, writeRecent, type RecentEntry } from "../lib/recent";
 import { startPresentation } from "../lib/presentationFullscreen";
 import type { DiagramMeta, DiagramSearchHit, TrashItem, TreeNode } from "../types";
@@ -849,9 +852,9 @@ export function DashboardPage() {
   const diagramNameIssue = modal?.type === "diagram" ? fileNameIssue(nameValue, folderNames) : null;
 
   const problemCount =
-    summary?.status === "ready" && summary.checked != null
-      ? (summary.errors ?? 0) + (summary.warnings ?? 0) + (summary.unreadable ?? 0)
-      : 0;
+    summary?.status === "ready" && summary.checked != null ? attentionBadgeCount(summary.diagrams) : 0;
+  const heading = showAttention ? "Needs attention" : showTrash ? "Trash" : search.trim() ? "Search" : title;
+  usePageTitle(pageTitle(heading));
 
   return (
     <WorkspaceShell
@@ -921,7 +924,7 @@ export function DashboardPage() {
     >
       <main className={`main${paneClass}`} onDragOver={markPane} onDrop={dropOnPane}>
         <header className="page-header">
-          <h1>{showAttention ? "Needs attention" : showTrash ? "Trash" : search.trim() ? "Search" : title}</h1>
+          <h1>{heading}</h1>
           <div className="page-header-actions">
             <SupportLink />
             <Link className="btn btn-ghost" to="/new">
@@ -1429,9 +1432,7 @@ function AttentionView({
             <li key={row.path}>
               <Link className="attention-row" to={`/health?path=${encodeURIComponent(row.path)}`}>
                 <strong>{displayName(row.path)}</strong>
-                <span>
-                  {row.errors + row.warnings} {row.errors + row.warnings === 1 ? "problem" : "problems"}
-                </span>
+                <span>{attentionProblemLabel(row.errors, row.warnings)}</span>
               </Link>
             </li>
           ))}

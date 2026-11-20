@@ -9,6 +9,7 @@ export type DiagramCheckSeverity = "error" | "warning";
 export type DiagramCheckFinding = {
   path: string;
   line: number;
+  column?: number;
   severity: DiagramCheckSeverity;
   message: string;
   ruleId: string;
@@ -52,7 +53,7 @@ export function findingsFromLint(
   result: {
     diagrams: {
       path: string;
-      diagnostics: { line: number; severity: string; message: string; ruleId: string }[];
+      diagnostics: { line: number; column?: number; severity: string; message: string; ruleId: string }[];
     }[];
   },
 ): DiagramCheckFinding[] {
@@ -60,6 +61,7 @@ export function findingsFromLint(
     diagram.diagnostics.map((item) => ({
       path: diagram.path,
       line: item.line,
+      column: item.column,
       severity: item.severity === "error" ? "error" : "warning",
       message: item.message,
       ruleId: item.ruleId,
