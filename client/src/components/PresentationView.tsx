@@ -10,7 +10,7 @@ import { actionForClickTarget, clickTargetOnElement, openExternalLink } from "..
 import { sessionJump, sessionOpen, sessionStart, sessionSyncRoot, type DrillSession } from "../lib/drillSession";
 import { diagramHeading, FALLBACK_THEME, parseDiagram } from "../lib/frontMatter";
 import { presentTitle } from "../lib/pageTitle";
-import { PRESENTATION_NARROW_QUERY } from "../lib/presentationLayout";
+import { PRESENTATION_NARROW_QUERY, ROTATE_HINT_KEY } from "../lib/presentationLayout";
 import { settingsBlockTooltip } from "../lib/problemText";
 import { renderMermaid } from "../lib/mermaidRender";
 import {
@@ -28,7 +28,7 @@ import {
 } from "../lib/presentationKeys";
 import { readSvgSize } from "../lib/svgBox";
 import { backgroundFromSvg, themeBackground } from "../lib/svgBackground";
-import { cssTransform, ZOOM_STEP, type Size } from "../lib/viewTransform";
+import { cssTransform, fitModeLabel, shouldSuggestRotate, ZOOM_STEP, type Size } from "../lib/viewTransform";
 
 const CONTROL_IDLE_MS = 2500;
 
@@ -79,6 +79,13 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
   const [nativeFs, setNativeFs] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const compact = useMediaQuery(PRESENTATION_NARROW_QUERY);
+  const [rotateHintDismissed, setRotateHintDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem(ROTATE_HINT_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
 
   const viewport = useStageSize(stageRef);
   const camera = useDiagramView(viewport, content);
@@ -90,6 +97,7 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
     wheelTargetRef: rootRef,
     camera,
     rotate: true,
+    doubleTap: true,
     activityRef,
     onClickRef: gestureClickRef,
   });
@@ -378,6 +386,22 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
     revealBar();
   }
 
+  const showRotateHint =
+    compact &&
+    !rotateHintDismissed &&
+    viewport != null &&
+    content != null &&
+    shouldSuggestRotate(viewport, content);
+
+  function dismissRotateHint() {
+    try {
+      sessionStorage.setItem(ROTATE_HINT_KEY, "1");
+    } catch {
+      // Private mode can reject storage. The hint still closes for this view.
+    }
+    setRotateHintDismissed(true);
+  }
+
   const pct = Math.round(camera.view.scale * 100);
   const revealed =
     content != null &&
@@ -484,6 +508,14 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
         ) : null}
         {showStatus ? <div className="presentation-status">{status}</div> : null}
       </div>
+      {showRotateHint ? (
+        <div className="presentation-rotate-hint" role="status">
+          <span>This diagram is wide. Turn the phone, or use Fit height and pan sideways.</span>
+          <button type="button" className="btn" aria-label="Dismiss rotate hint" onClick={dismissRotateHint}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       <div
         ref={barRef}
         className={`presentation-bar${barVisible ? " is-visible" : ""}`}
@@ -516,7 +548,13 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
             </button>
           </>
         )}
-        <button type="button" className="btn" aria-label="Fit to screen" onClick={() => camera.reset()}>
+        <button
+          type="button"
+          className="btn"
+          aria-label={fitModeLabel(camera.fitMode)}
+          title={`${fitModeLabel(camera.fitMode)}. Click to change how the diagram fits.`}
+          onClick={() => camera.cycleFit()}
+        >
           Fit
         </button>
         {compact ? null : (

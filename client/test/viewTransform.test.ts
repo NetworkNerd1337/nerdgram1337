@@ -4,14 +4,18 @@ import {
   MIN_ZOOM,
   cssTransform,
   fit,
+  fitTo,
   identityView,
   isFitted,
+  nextFitMode,
   panBy,
   pinchUpdate,
   resetView,
   rotateView,
   rotatedContentSize,
   screenToContent,
+  shouldSuggestRotate,
+  toggleFitAndActual,
   viewAfterMeasure,
   zoomAt,
   type Size,
@@ -158,6 +162,57 @@ describe("view transform", () => {
     expect(isFitted(stillFitted!.view, viewport, tall)).toBe(true);
     const first = viewAfterMeasure(identityView(), null, viewport, wide);
     expect(first?.view).toEqual(fit(viewport, wide, 0));
+  });
+
+  it("fits a wide phone diagram to its height and a tall one to its width", () => {
+    const phone: Size = { width: 390, height: 844 };
+    const wideDiagram: Size = { width: 1800, height: 420 };
+    const tallDiagram: Size = { width: 420, height: 1800 };
+    const page = fit(phone, wideDiagram, 0);
+    const byHeight = fitTo(phone, wideDiagram, 0, "height");
+    const byWidth = fitTo(phone, wideDiagram, 0, "width");
+    expect(byHeight.scale).toBeGreaterThan(page.scale * 2);
+    expect(byWidth.scale).toBeCloseTo(page.scale);
+    expect(byHeight.x).toBe(0);
+    expect(byHeight.y).toBe(0);
+    expect(fitTo(phone, tallDiagram, 0, "width").scale).toBeGreaterThan(fit(phone, tallDiagram, 0).scale);
+    expect(nextFitMode("page", phone, wideDiagram)).toBe("height");
+    expect(nextFitMode("height", phone, wideDiagram)).toBe("width");
+    expect(nextFitMode("width", phone, wideDiagram)).toBe("page");
+    expect(nextFitMode("page", phone, tallDiagram)).toBe("width");
+  });
+
+  it("keeps a height fit across a resize and leaves a pan alone", () => {
+    const phone: Size = { width: 390, height: 844 };
+    const wideDiagram: Size = { width: 1800, height: 420 };
+    const heightFit = fitTo(phone, wideDiagram, 0, "height");
+    const nextViewport: Size = { width: 400, height: 800 };
+    const resized = viewAfterMeasure(heightFit, heightFit, nextViewport, wideDiagram, "height");
+    expect(resized?.view.scale).toBeCloseTo(fitTo(nextViewport, wideDiagram, 0, "height").scale);
+    expect(viewAfterMeasure({ ...heightFit, x: 30 }, heightFit, phone, wideDiagram, "height")).toBeNull();
+  });
+
+  it("toggles between page fit and 100% at the tapped point", () => {
+    const phone: Size = { width: 390, height: 844 };
+    const wideDiagram: Size = { width: 1800, height: 420 };
+    const fitted = fit(phone, wideDiagram, 0);
+    const focal = { x: 40, y: -10 };
+    const actual = toggleFitAndActual(fitted, focal, phone, wideDiagram);
+    expect(actual.scale).toBeCloseTo(1);
+    expectSamePoint(fitted, actual, focal);
+    const back = toggleFitAndActual(actual, focal, phone, wideDiagram);
+    expect(isFitted(back, phone, wideDiagram)).toBe(true);
+    expect(back.x).toBe(0);
+    expect(back.y).toBe(0);
+  });
+
+  it("suggests rotating only for a very wide diagram in portrait", () => {
+    const phone: Size = { width: 390, height: 844 };
+    const landscape: Size = { width: 844, height: 390 };
+    expect(shouldSuggestRotate(phone, { width: 1800, height: 420 })).toBe(true);
+    expect(shouldSuggestRotate(phone, { width: 420, height: 1800 })).toBe(false);
+    expect(shouldSuggestRotate(landscape, { width: 1800, height: 420 })).toBe(false);
+    expect(shouldSuggestRotate(phone, { width: 500, height: 400 })).toBe(false);
   });
 
   it("reports a pinch as a scale factor and a pan of the midpoint", () => {

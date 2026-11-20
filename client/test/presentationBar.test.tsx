@@ -65,7 +65,7 @@ describe("presentation controls at a phone width", () => {
     expect(rootNode?.className).toContain("is-compact");
     const bar = document.querySelector(".presentation-bar");
     expect(bar?.querySelector("[aria-label='Zoom out']")).toBeTruthy();
-    expect(bar?.querySelector("[aria-label='Fit to screen']")).toBeTruthy();
+    expect(bar?.querySelector("[aria-label='Fit page']")).toBeTruthy();
     expect(bar?.querySelector("[aria-label='Exit presentation']")).toBeTruthy();
     expect(document.getElementById("presentation-more")).toBeNull();
     expect(bar?.querySelector(":scope > [aria-label='Rotate left']")).toBeNull();
@@ -99,6 +99,9 @@ describe("presentation controls at a phone width", () => {
     );
     expect(bar).toContain("position: relative");
     expect(bar).toContain("flex-wrap: nowrap");
+    const hint = css.slice(css.indexOf(".presentation-rotate-hint {"), css.indexOf(".presentation-rotate-hint .btn"));
+    expect(hint).toContain("position: relative");
+    expect(hint).not.toContain("position: absolute");
     const toolbar = css.slice(
       css.indexOf(".preview-toolbar.is-single-row {"),
       css.indexOf(".preview-toolbar.is-single-row select"),

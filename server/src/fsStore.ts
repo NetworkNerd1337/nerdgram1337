@@ -437,6 +437,16 @@ export async function createFolder(relativePath: string): Promise<{ path: string
 export type RenameOptions = {
   /** When other files link here, rewrite those click targets. Without this, the rename is refused. */
   updateLinks?: boolean;
+  /**
+   * Lock token of the editor renaming this item. A live lock with this token
+   * is the same editor, not another window. Omitted by the dashboard.
+   */
+  lockToken?: string | null;
+  /**
+   * Session id of the editor renaming this item. It counts only for a lock
+   * held by this server process. Omitted by the dashboard.
+   */
+  sessionId?: string | null;
 };
 
 async function readDiagramSources(): Promise<{ path: string; content: string }[]> {
@@ -539,7 +549,11 @@ export async function renameItem(
     }
   }
 
-  await assertUnlocked(fromRel, fromStat.isDirectory());
+  const holder =
+    options.lockToken || options.sessionId
+      ? { token: options.lockToken, sessionId: options.sessionId }
+      : undefined;
+  await assertUnlocked(fromRel, fromStat.isDirectory(), holder);
   await fs.mkdir(path.dirname(toAbs), { recursive: true });
   await fs.rename(fromAbs, toAbs);
   await moveDiagramSighting(fromRel, toRel, fromStat.isDirectory());

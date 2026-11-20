@@ -70,6 +70,34 @@ export type GestureResult = {
   activity: boolean;
 };
 
+/** Two taps inside this window and this distance are one double-tap. */
+export const DOUBLE_TAP_MS = 320;
+export const DOUBLE_TAP_SLOP = 28;
+
+export type TapPoint = { time: number; x: number; y: number };
+
+/**
+ * A touch double-tap. The first tap is remembered. The second, close in time
+ * and position, is the double. A double clears the memory so a third tap starts over.
+ */
+export function classifyTap(
+  previous: TapPoint | null,
+  tap: TapPoint,
+  options?: { maxMs?: number; slop?: number },
+): { double: boolean; previous: TapPoint | null } {
+  const maxMs = options?.maxMs ?? DOUBLE_TAP_MS;
+  const slop = options?.slop ?? DOUBLE_TAP_SLOP;
+  if (
+    previous &&
+    tap.time >= previous.time &&
+    tap.time - previous.time <= maxMs &&
+    Math.hypot(tap.x - previous.x, tap.y - previous.y) <= slop
+  ) {
+    return { double: true, previous: null };
+  }
+  return { double: false, previous: tap };
+}
+
 export function emptyGestureSession(): GestureSession {
   return {
     pointers: new Map(),

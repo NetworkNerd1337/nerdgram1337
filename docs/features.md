@@ -40,13 +40,13 @@ A flowchart node keeps the same inner padding when a line is a long address, suc
 
 ## Editing
 
-The editor header is the folder path: **Local files**, then each folder, then the file name without `.mmd`. Each folder is a link to that folder on the dashboard, and **Local files** returns to the dashboard root. Click the file name, or run **Rename file** from the command palette, to rename the file in place. That does not change the front matter title, and renaming the title does not rename the file. Unsaved edits are saved first. A long path collapses the middle folders to an ellipsis, and the tooltip is the full path. The logo leaves the editor for the folder that contains the diagram. A diagram at the root returns to the dashboard root. If that folder is gone, the link opens the nearest folder that is still there. The browser tab is the diagram name, for example **Campus · NerdGram1337**. Renaming the file updates it. Other pages name themselves the same way: **Dashboard · NerdGram1337**, **Diagram health · NerdGram1337**, **Settings · NerdGram1337**, and the page you are on. The browser Back button is unchanged. **Diagram info** in that same header toggles the info panel. It stays marked while the panel is open. The command palette command **Edit diagram info** still opens the panel.
+The editor header is the folder path: **Local files**, then each folder, then the file name without `.mmd`. Each folder is a link to that folder on the dashboard, and **Local files** returns to the dashboard root. Click the file name, or run **Rename file** from the command palette, to rename the file in place. That does not change the front matter title, and renaming the title does not rename the file. Unsaved edits are saved first. The editor that holds the lock can rename the open file. The address changes to the new path, the editor stays on that file, and edits that were not saved yet stay in the editor. A second window that has the same diagram open is still told it is open elsewhere. A long path collapses the middle folders to an ellipsis, and the tooltip is the full path. The logo leaves the editor for the folder that contains the diagram. A diagram at the root returns to the dashboard root. If that folder is gone, the link opens the nearest folder that is still there. The browser tab is the diagram name, for example **Campus · NerdGram1337**. Renaming the file updates it. Other pages name themselves the same way: **Dashboard · NerdGram1337**, **Diagram health · NerdGram1337**, **Settings · NerdGram1337**, and the page you are on. The browser Back button is unchanged. **Diagram info** in that same header toggles the info panel. It stays marked while the panel is open. The command palette command **Edit diagram info** still opens the panel.
 
 Opening a diagram takes a lock for that browser tab. Another tab, or a second NerdGram process pointed at the same data directory with a different `PORT`, can open it read-only and is told that it is already open. The editor sends a heartbeat every **15 seconds**. If the heartbeat is missing for **90 seconds**, or the server process that held the lock has exited, the lock is stale. The read-only banner then offers **Take over editing**. After you confirm, that window takes the lock. A window that is still sending heartbeats keeps the lock, so two editors do not write the same file. Closing the tab, or leaving the editor, releases the lock with a beacon the browser can deliver while the page is going away. If that release does not arrive, the lock still expires on the heartbeat timer. These locks are not accounts, and they do not stop you from editing the `.mmd` file in another program.
 
 Each save sends the modification time and a content hash from the last time this editor loaded or saved the file. If the bytes on disk are different, autosave stops. You can reload the disk copy, overwrite the disk with your copy, or keep your copy without saving. Overwrite stores the disk copy as a revision first. Creating a diagram does not need a baseline. Saving over a file that already exists does: a second write with no baseline is refused, so a new diagram will not silently replace one that is already there.
 
-You cannot rename, move, or trash a diagram, or a folder that contains it, while an editor still holds its lock. Close the editor first.
+From the dashboard, you cannot rename, move, or trash a diagram, or a folder that contains it, while an editor still holds its lock. Close that editor first. The editor that holds the lock can rename the open file from its header.
 
 ## Files
 
@@ -283,17 +283,25 @@ On the dashboard, **Present** on a card or a list row opens that diagram without
 
 The bar hides after about 2.5 seconds. Move the pointer, or press Tab, to bring it back. It has zoom in, zoom out, the zoom percent, rotate left, rotate right, fit, title, full screen, and exit. On a narrow window, about 520 pixels and below, the bar is one row under the diagram. Rotate, title, and full screen move into **More**. Fit uses the height above that bar. A wider window keeps every control on the bar, over the diagram.
 
+**Fit** cycles three ways to size the diagram. **Fit page** shows the whole diagram. **Fit height** matches the height and lets you pan sideways, which is the readable size for a wide diagram on a phone. **Fit width** matches the width and lets you pan up and down, which is the readable size for a tall diagram. The first click leaves **Fit page** for whichever of those two is larger. The button name is the mode you are in. **0** or **F** still clears zoom, pan, and rotation and returns to **Fit page**.
+
+On a phone, a pinch zooms around the point between your fingers. One finger pans once you have left the page fit, including after **Fit height** or **Fit width**. A double-tap switches between **Fit page** and 100% at the place you tapped. A mouse wheel, keyboard, and **Rotate** stay as they are on a desktop.
+
+A very wide diagram in portrait shows a short note under the diagram: turn the phone, or use **Fit height** and pan sideways. **Dismiss** hides that note for the rest of this browser session. The note sits between the diagram and the bar, so it does not cover the picture.
+
 | Action | Keys and pointer |
 | --- | --- |
-| Zoom toward the pointer | Mouse wheel, or a trackpad pinch |
+| Zoom toward the pointer | Mouse wheel, a trackpad pinch, or a two-finger pinch on a touch screen |
 | Zoom toward the last pointer position, or the center | + or =, and - |
-| Pan | Drag, a trackpad two-finger scroll, W A S D, or Shift+arrow |
-| Pan after you have left the fitted view | Plain arrow keys. At the fitted view they do nothing, so a later slideshow can use them for the next diagram. |
+| Pan | Drag, one finger after you have zoomed, a trackpad two-finger scroll, W A S D, or Shift+arrow |
+| Pan after you have left the fitted view | Plain arrow keys. At **Fit page** they do nothing, so a later slideshow can use them for the next diagram. **Fit width** and **Fit height** leave that fitted view, so the arrows pan. |
+| Switch between fit page and 100% at the tap | Double-tap on a touch screen |
 | Rotate 90° | R clockwise, Shift+R the other way. Alt+drag rotates by any angle. |
-| Fit, and clear zoom, pan, and rotation | 0 or F, or **Fit** |
+| Cycle fit page, fit height, and fit width | **Fit** |
+| Fit page, and clear zoom, pan, and rotation | 0 or F |
 | Leave | Esc or **Exit** |
 
-Zoom from the keys and buttons stays between 10% and 800% of the diagram's own size. **Fit** can go outside that range so the whole diagram is visible. A quarter turn uses the rotated size, so a tall diagram turned sideways fills a landscape screen. If fullscreen is unavailable, the diagram still fills the window. **Full screen** tries again after a click. A bad header or a diagram that cannot be drawn shows the error. The last good picture stays up when a later refresh fails. Animated fades are skipped when the system asks for reduced motion.
+Zoom from the keys and buttons stays between 10% and 800% of the diagram's own size. **Fit page** can go outside that range so the whole diagram is visible. **Fit width** and **Fit height** can too. A quarter turn uses the rotated size, so a tall diagram turned sideways fills a landscape screen. If fullscreen is unavailable, the diagram still fills the window. **Full screen** tries again after a click. A bad header or a diagram that cannot be drawn shows the error. The last good picture stays up when a later refresh fails. Animated fades are skipped when the system asks for reduced motion.
 
 ## Template gallery
 

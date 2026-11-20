@@ -444,6 +444,68 @@ describe("trash, history, conflicts, and locks", () => {
     expect(taken.status).toBe(200);
   });
 
+  it("renames a diagram locked by this editor and moves the lock", async () => {
+    await writeNew("Notes.mmd", "loaded\n");
+    const first = await request(app)
+      .post("/api/lock")
+      .set(json)
+      .send({ path: "Notes.mmd", sessionId: "tab-one" });
+    expect(first.status).toBe(200);
+
+    const renamed = await request(app).patch("/api/rename").set(json).send({
+      from: "Notes.mmd",
+      to: "Renamed.mmd",
+      lockToken: first.body.token,
+      sessionId: "tab-one",
+    });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.path).toBe("Renamed.mmd");
+    await expect(fs.access(path.join(dir, "Notes.mmd"))).rejects.toThrow();
+    expect(await fs.readFile(path.join(dir, "Renamed.mmd"), "utf8")).toBe("loaded\n");
+
+    const oldLock = path.join(dir, ".meta", "locks", `${encodeStorageKey("Notes.mmd")}.json`);
+    const newLock = path.join(dir, ".meta", "locks", `${encodeStorageKey("Renamed.mmd")}.json`);
+    await expect(fs.access(oldLock)).rejects.toThrow();
+    const record = JSON.parse(await fs.readFile(newLock, "utf8")) as { token: string; sessionId: string; path: string };
+    expect(record.token).toBe(first.body.token);
+    expect(record.sessionId).toBe("tab-one");
+    expect(record.path).toBe("Renamed.mmd");
+
+    const bySession = await request(app).patch("/api/rename").set(json).send({
+      from: "Renamed.mmd",
+      to: "Again.mmd",
+      sessionId: "tab-one",
+    });
+    expect(bySession.status).toBe(200);
+    expect(bySession.body.path).toBe("Again.mmd");
+    const movedLock = path.join(dir, ".meta", "locks", `${encodeStorageKey("Again.mmd")}.json`);
+    const moved = JSON.parse(await fs.readFile(movedLock, "utf8")) as { token: string; path: string };
+    expect(moved.token).toBe(first.body.token);
+    expect(moved.path).toBe("Again.mmd");
+    await expect(fs.access(newLock)).rejects.toThrow();
+  });
+
+  it("still refuses a rename from another window", async () => {
+    await writeNew("Notes.mmd", "loaded\n");
+    const first = await request(app)
+      .post("/api/lock")
+      .set(json)
+      .send({ path: "Notes.mmd", sessionId: "tab-one" });
+    const foreign = await request(app).patch("/api/rename").set(json).send({
+      from: "Notes.mmd",
+      to: "Stolen.mmd",
+      lockToken: "someone-else",
+      sessionId: "tab-two",
+    });
+    expect(foreign.status).toBe(423);
+    expect(foreign.body.error).toMatch(/another window/);
+    expect(await fs.readFile(path.join(dir, "Notes.mmd"), "utf8")).toBe("loaded\n");
+    const lockPath = path.join(dir, ".meta", "locks", `${encodeStorageKey("Notes.mmd")}.json`);
+    const record = JSON.parse(await fs.readFile(lockPath, "utf8")) as { token: string };
+    expect(record.token).toBe(first.body.token);
+    await expect(fs.access(path.join(dir, "Stolen.mmd"))).rejects.toThrow();
+  });
+
   it("lets a new session take a lock after the heartbeat expires or the holder process is gone", async () => {
     await writeNew("Notes.mmd", "loaded\n");
     const first = await request(app)
