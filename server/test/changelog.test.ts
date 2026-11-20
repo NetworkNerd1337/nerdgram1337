@@ -35,18 +35,18 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Meridian title and the 1.8.13 section without the heading", () => {
-    const title = notes(["--title", "v1.8.13"]);
+  it("prints the Meridian title and the 1.8.14 section without the heading", () => {
+    const title = notes(["--title", "v1.8.14"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.8.13 "Meridian"\n');
-    const body = notes(["v1.8.13"]);
+    expect(title.stdout).toBe('v1.8.14 "Meridian"\n');
+    const body = notes(["v1.8.14"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Meridian line.")).toBe(true);
-    expect(body.stdout).toContain("bookmark");
-    expect(body.stdout).toContain("Lab and automation");
-    expect(body.stdout).toContain("#228");
-    expect(body.stdout).toContain("#229");
-    expect(body.stdout).not.toContain('## 1.8.13 "Meridian"');
+    expect(body.stdout).toContain("drop line");
+    expect(body.stdout).toContain("Actions");
+    expect(body.stdout).toContain("#232");
+    expect(body.stdout).toContain("#233");
+    expect(body.stdout).not.toContain('## 1.8.14 "Meridian"');
     expect(body.stdout).not.toContain("Future ideas");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });

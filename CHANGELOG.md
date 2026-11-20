@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 1.8.14 "Meridian" - 2026-11-20
+
+Patch on the Meridian line. The code name stays Meridian.
+
 - **Fixed:** The bookmark drop line is drawn over the list, so a row's top edge no longer flickers or misses the drop. No line is shown when the item would stay where it is, and the before, after, and inside zones keep a little extra room so the target does not flip on a small pointer move. Sidebar bookmarks, folder drags, and Settings → Bookmarks all use it (#232).
 - **Fixed:** Bookmark **Actions** opens over the list, so the rows below stay put. With one menu open, one click on another row's **Actions** switches to that menu. Escape closes the menu and returns to its button (#233).
 
