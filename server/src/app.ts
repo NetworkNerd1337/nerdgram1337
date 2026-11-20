@@ -678,7 +678,11 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         res.status(400).json({ error: "from and to are required" });
         return;
       }
-      const result = await store.renameItem(from, to, { updateLinks: req.body?.updateLinks === true });
+      const result = await store.renameItem(from, to, {
+        updateLinks: req.body?.updateLinks === true,
+        lockToken: typeof req.body?.lockToken === "string" ? req.body.lockToken : null,
+        sessionId: typeof req.body?.sessionId === "string" ? req.body.sessionId : null,
+      });
       res.json(result);
     } catch (err) {
       sendError(res, err);

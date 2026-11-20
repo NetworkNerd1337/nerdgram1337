@@ -307,10 +307,21 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ path }),
     }),
-  rename: (from: string, to: string, updateLinks = false) =>
+  rename: (
+    from: string,
+    to: string,
+    updateLinks = false,
+    lock?: { lockToken?: string | null; sessionId?: string | null },
+  ) =>
     request<{ path: string; updated?: string[]; dataFiles?: { from: string; to: string }[] }>("/api/rename", {
       method: "PATCH",
-      body: JSON.stringify({ from, to, updateLinks }),
+      body: JSON.stringify({
+        from,
+        to,
+        updateLinks,
+        ...(lock?.lockToken ? { lockToken: lock.lockToken } : {}),
+        ...(lock?.sessionId ? { sessionId: lock.sessionId } : {}),
+      }),
     }),
   move: (from: string, toFolder: string, updateLinks = false) =>
     request<{ path: string; updated?: string[]; dataFiles?: { from: string; to: string }[] }>("/api/move", {

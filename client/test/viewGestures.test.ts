@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { wheelGesture } from "../src/lib/presentationKeys";
 import {
+  classifyTap,
   emptyGestureSession,
   focalFromClient,
   pointerDown,
@@ -98,7 +99,36 @@ describe("view gestures", () => {
       focalFromClient(320, 200, stage),
     );
     expect(moved.zoom?.factor).toBeGreaterThan(1);
+    expect(moved.zoom?.focal).toEqual({ x: (focal.x + focalFromClient(320, 200, stage).x) / 2, y: focal.y });
     expect(moved.pan).not.toBeNull();
+  });
+
+  it("treats two close touch taps as a double-tap and a drag as a pan", () => {
+    const first = classifyTap(null, { time: 1000, x: 40, y: 50 });
+    expect(first.double).toBe(false);
+    const second = classifyTap(first.previous, { time: 1200, x: 48, y: 55 });
+    expect(second.double).toBe(true);
+    expect(second.previous).toBeNull();
+    const late = classifyTap(first.previous, { time: 1400, x: 42, y: 50 });
+    expect(late.double).toBe(false);
+    const far = classifyTap(first.previous, { time: 1100, x: 90, y: 50 });
+    expect(far.double).toBe(false);
+
+    const origin = focalFromClient(40, 50, stage);
+    const down = pointerDown(
+      emptyGestureSession(),
+      pointer({ clientX: 40, clientY: 50, pointerType: "touch" }),
+      origin,
+      { rotate: true },
+    );
+    const dragged = pointerMove(
+      down.session,
+      pointer({ clientX: 120, clientY: 50, pointerType: "touch" }),
+      focalFromClient(120, 50, stage),
+    );
+    expect(dragged.session.gesture.kind).toBe("pan");
+    expect(dragged.pan).toEqual({ dx: 80, dy: 0 });
+    expect(pointerUp(dragged.session, pointer({ clientX: 120, clientY: 50, pointerType: "touch" })).click).toBeNull();
   });
 
   it("does not reset a fitted preview just because the same picture is measured again", () => {

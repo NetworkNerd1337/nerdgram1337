@@ -238,7 +238,11 @@ export function mountAutomationApi(app: Express, options: MountV1Options = {}): 
       if (!jsonObject(req, res)) return;
       const from = readPath(req.body.from, "from");
       const to = readPath(req.body.to, "to");
-      const result = await store.renameItem(from, to, { updateLinks: updateLinksFlag(req.body.updateLinks) });
+      const result = await store.renameItem(from, to, {
+        updateLinks: updateLinksFlag(req.body.updateLinks),
+        lockToken: typeof req.body.lockToken === "string" ? req.body.lockToken : null,
+        sessionId: typeof req.body.sessionId === "string" ? req.body.sessionId : null,
+      });
       res.json(result);
     }),
     moveDiagram: asyncHandler(async (req, res) => {

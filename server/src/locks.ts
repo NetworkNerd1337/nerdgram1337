@@ -334,9 +334,32 @@ function covers(lockPath: string, relativePath: string, isDir: boolean): boolean
   return lockPath === target || (isDir && lockPath.startsWith(`${target}/`));
 }
 
-export async function assertUnlocked(relativePath: string, isDir: boolean): Promise<void> {
+/** The editor that already holds the lock. Dashboard renames send neither field. */
+export type LockHolder = {
+  token?: string | null;
+  sessionId?: string | null;
+};
+
+function heldBy(lock: LockFile, holder: LockHolder | null | undefined, identity: InstanceIdentity): boolean {
+  if (!holder) return false;
+  if (holder.token && lock.token === holder.token) return true;
+  return Boolean(
+    holder.sessionId &&
+      lock.sessionId === holder.sessionId &&
+      lock.pid === process.pid &&
+      sameInstance(lock, identity),
+  );
+}
+
+export async function assertUnlocked(
+  relativePath: string,
+  isDir: boolean,
+  holder?: LockHolder | null,
+): Promise<void> {
+  const identity = holder?.token || holder?.sessionId ? await getInstanceIdentity() : null;
   for (const lock of await eachLock()) {
     if (lock.stale || !covers(lock.path, relativePath, isDir)) continue;
+    if (identity && heldBy(lock, holder, identity)) continue;
     throw await lockedError(lock);
   }
 }

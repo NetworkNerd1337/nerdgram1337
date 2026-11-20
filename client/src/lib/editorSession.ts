@@ -37,6 +37,38 @@ export function clearStoredLock(path: string): void {
   sessionStorage.removeItem(lockStorageKey(path));
 }
 
+const handoffs = new Set<string>();
+
+function handoffKey(path: string, token: string): string {
+  return `${path}\0${token}`;
+}
+
+/**
+ * The editor renamed `from` to `to` and kept this tab's lock. The stored token
+ * moves with the path. A delayed release of the old path must not clear it.
+ */
+export function handoffStoredLock(
+  from: string,
+  to: string,
+  token: string | null,
+  sessionId: string,
+): void {
+  const stored = readStoredLock(from);
+  const lock = stored ?? (token ? { token, sessionId } : null);
+  if (!lock) return;
+  writeStoredLock(to, lock);
+  clearStoredLock(from);
+  handoffs.add(handoffKey(from, lock.token));
+}
+
+/** True once, when this path and token were just handed to a renamed file. */
+export function consumeLockHandoff(path: string, token: string): boolean {
+  const key = handoffKey(path, token);
+  if (!handoffs.has(key)) return false;
+  handoffs.delete(key);
+  return true;
+}
+
 const epochs = new Map<string, number>();
 const releaseTimers = new Map<string, number>();
 

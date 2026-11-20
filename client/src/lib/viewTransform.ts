@@ -40,6 +40,15 @@ export type ViewTransform = {
 
 export type ZoomLimits = { min: number; max: number };
 
+/** How Fit sizes the diagram. Page shows all of it. Width or height uses one axis. */
+export type FitMode = "page" | "width" | "height";
+
+export function fitModeLabel(mode: FitMode): string {
+  if (mode === "width") return "Fit width";
+  if (mode === "height") return "Fit height";
+  return "Fit page";
+}
+
 export function identityView(): ViewTransform {
   return { x: 0, y: 0, scale: 1, rotation: 0 };
 }
@@ -70,28 +79,97 @@ export function rotatedContentSize(content: Size, rotation: number): Size {
   };
 }
 
-/**
- * Largest scale that fits the rotated diagram in the viewport, centered.
- * Scale is not clamped to MIN_ZOOM / MAX_ZOOM: Fit must show the whole
- * diagram, including one that is much larger or smaller than the screen.
- * Interactive zoom uses `zoomAt` limits that expand to include this scale.
- */
-export function fit(viewport: Size, content: Size, rotation: number): ViewTransform {
+function fitPadding(viewport: Size): number {
+  return Math.min(FIT_PADDING, Math.max(0, viewport.width * 0.06), Math.max(0, viewport.height * 0.06));
+}
+
+function axisScales(viewport: Size, content: Size, rotation: number): { width: number; height: number } {
   const bounds = rotatedContentSize(content, rotation);
-  const pad = Math.min(
-    FIT_PADDING,
-    Math.max(0, viewport.width * 0.06),
-    Math.max(0, viewport.height * 0.06),
-  );
+  const pad = fitPadding(viewport);
   const availW = Math.max(1, viewport.width - pad * 2);
   const availH = Math.max(1, viewport.height - pad * 2);
-  const scale = Math.min(availW / Math.max(bounds.width, 1e-6), availH / Math.max(bounds.height, 1e-6));
+  return {
+    width: availW / Math.max(bounds.width, 1e-6),
+    height: availH / Math.max(bounds.height, 1e-6),
+  };
+}
+
+/**
+ * Scale that fits the rotated diagram on the chosen axis, centered.
+ * Page uses the smaller axis so the whole diagram is visible. Width and
+ * height use one axis, so the other direction can be panned.
+ * Scale is not clamped to MIN_ZOOM / MAX_ZOOM: Fit must show the diagram,
+ * including one that is much larger or smaller than the screen.
+ * Interactive zoom uses `zoomAt` limits that expand to include this scale.
+ */
+export function fitTo(viewport: Size, content: Size, rotation: number, mode: FitMode = "page"): ViewTransform {
+  const axes = axisScales(viewport, content, rotation);
+  const scale = mode === "width" ? axes.width : mode === "height" ? axes.height : Math.min(axes.width, axes.height);
   return {
     x: 0,
     y: 0,
     scale: Number.isFinite(scale) && scale > 0 ? scale : 1,
     rotation: normalizeDegrees(rotation),
   };
+}
+
+/** Largest scale that fits the whole rotated diagram in the viewport. */
+export function fit(viewport: Size, content: Size, rotation: number): ViewTransform {
+  return fitTo(viewport, content, rotation, "page");
+}
+
+/**
+ * Next Fit button mode. From page, the next mode is the larger single-axis
+ * fit, which is the readable scale. The click after that uses the other axis,
+ * then page again.
+ */
+export function nextFitMode(
+  mode: FitMode,
+  viewport?: Size | null,
+  content?: Size | null,
+  rotation = 0,
+): FitMode {
+  if (!viewport || !content || viewport.width <= 0 || viewport.height <= 0 || content.width <= 0 || content.height <= 0) {
+    if (mode === "page") return "height";
+    if (mode === "height") return "width";
+    return "page";
+  }
+  const axes = axisScales(viewport, content, rotation);
+  const readable: FitMode = axes.height >= axes.width ? "height" : "width";
+  const other: FitMode = readable === "height" ? "width" : "height";
+  if (mode === "page") return readable;
+  if (mode === readable) return other;
+  return "page";
+}
+
+/** True when a portrait viewport is showing a diagram much wider than it is tall. */
+export function shouldSuggestRotate(viewport: Size, content: Size): boolean {
+  if (!(viewport.height > viewport.width) || viewport.width <= 0 || content.height <= 0) return false;
+  if (content.width / content.height < 1.75) return false;
+  const axes = axisScales(viewport, content, 0);
+  const page = Math.min(axes.width, axes.height);
+  return axes.height >= page * 1.35;
+}
+
+/** Scale is the diagram's own size, within a small step of 100%. */
+export function isActualScale(view: ViewTransform): boolean {
+  return Math.abs(view.scale - 1) <= 0.02;
+}
+
+/**
+ * Double-tap switches between the page fit and 100% at `focal`.
+ * 100% keeps the diagram point under the tap fixed. Fit recenters the page.
+ */
+export function toggleFitAndActual(
+  view: ViewTransform,
+  focal: Point,
+  viewport: Size,
+  content: Size,
+  limits?: ZoomLimits,
+): ViewTransform {
+  if (isActualScale(view)) return fit(viewport, content, view.rotation);
+  if (view.scale <= 0) return view;
+  return zoomAt(view, focal, 1 / view.scale, limits);
 }
 
 /** Clears zoom, pan, and rotation, then fits the upright diagram. */
@@ -126,9 +204,10 @@ export function viewAfterMeasure(
   baseline: ViewTransform | null,
   viewport: Size,
   content: Size,
+  mode: FitMode = "page",
 ): { view: ViewTransform; baseline: ViewTransform } | null {
   if (baseline && !viewsClose(current, baseline)) return null;
-  const next = fit(viewport, content, baseline ? current.rotation : 0);
+  const next = fitTo(viewport, content, baseline ? current.rotation : 0, mode);
   return { view: next, baseline: next };
 }
 

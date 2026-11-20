@@ -48,8 +48,10 @@ import { sanitizeFileStem } from "../lib/fileName";
 import {
   cancelScheduledLockRelease,
   clearStoredLock,
+  consumeLockHandoff,
   editorEpochIsCurrent,
   editorSessionId,
+  handoffStoredLock,
   nextEditorEpoch,
   readStoredLock,
   scheduleLockRelease,
@@ -309,6 +311,7 @@ export function EditorPage() {
   const conflictRef = useRef(false);
   const savingRef = useRef(false);
   const mountedRef = useRef(true);
+  const renameCarry = useRef<{ path: string; code: string } | null>(null);
   const heartbeatEveryRef = useRef(15_000);
 
   useEffect(() => {
@@ -526,12 +529,15 @@ export function EditorPage() {
         }
 
         if (!editorEpochIsCurrent(filePath, epoch)) return;
+        const carried = renameCarry.current?.path === filePath ? renameCarry.current.code : null;
+        if (renameCarry.current?.path === filePath) renameCarry.current = null;
+        const buffer = carried ?? file.content;
         baselineRef.current = { mtimeMs: file.mtimeMs, hash: file.hash };
         lastSavedRef.current = file.content;
         setSavedCode(file.content);
-        latestCodeRef.current = file.content;
-        skipNextSave.current = true;
-        setCode(file.content);
+        latestCodeRef.current = buffer;
+        if (buffer === file.content) skipNextSave.current = true;
+        setCode(buffer);
         setAccess(editable ? "edit" : "readonly");
         setLoaded(true);
       } catch (err) {
@@ -555,6 +561,7 @@ export function EditorPage() {
       const token = acquiredToken ?? lockTokenRef.current;
       if (!token) return;
       scheduleLockRelease(filePath, () => {
+        if (consumeLockHandoff(filePath, token)) return;
         clearStoredLock(filePath);
         if (lockTokenRef.current === token) lockTokenRef.current = null;
         releaseEditorLock(filePath, token);
@@ -915,7 +922,11 @@ export function EditorPage() {
     const to = parent ? `${parent}/${nextName}` : nextName;
     try {
       if (code !== savedCode) await flushSave(filePath);
-      const result = await api.rename(filePath, to);
+      const token = lockTokenRef.current;
+      const sessionId = editorSessionId();
+      const result = await api.rename(filePath, to, false, { lockToken: token, sessionId });
+      renameCarry.current = { path: result.path, code: latestCodeRef.current };
+      handoffStoredLock(filePath, result.path, token, sessionId);
       const store = localStorage;
       writeRecent(store, rewriteRecent(readRecent(store), filePath, result.path, false));
       navigate(`/edit/${result.path}`, { replace: true });

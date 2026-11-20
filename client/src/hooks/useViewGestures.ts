@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import {
+  classifyTap,
   emptyGestureSession,
   focalFromClient,
   pointerDown,
@@ -9,6 +10,7 @@ import {
   wheelFromEvent,
   type GestureResult,
   type PointerInput,
+  type TapPoint,
 } from "../lib/viewGestures";
 import type { Point } from "../lib/viewTransform";
 
@@ -16,6 +18,8 @@ type Camera = {
   zoomAtPoint: (focal: Point, factor: number) => void;
   pan: (dx: number, dy: number) => void;
   rotateFree: (degrees: number) => void;
+  /** Touch double-tap. Presentation toggles fit and 100% around the tap. */
+  toggleActual?: (focal: Point) => void;
 };
 
 type UseViewGesturesOptions = {
@@ -28,6 +32,8 @@ type UseViewGesturesOptions = {
   activityRef?: RefObject<(() => void) | null>;
   /** A completed click that did not drag. Presentation opens a linked node from this. */
   onClickRef?: RefObject<((info: { target: EventTarget | null }) => void) | null>;
+  /** Touch double-tap toggles fit and 100%. Mouse clicks stay clicks. */
+  doubleTap?: boolean;
 };
 
 function inputFrom(event: {
@@ -62,8 +68,10 @@ export function useViewGestures({
   rotate,
   activityRef,
   onClickRef,
+  doubleTap = false,
 }: UseViewGesturesOptions) {
   const session = useRef(emptyGestureSession());
+  const lastTap = useRef<TapPoint | null>(null);
   const focalRef = useRef<Point>({ x: 0, y: 0 });
   const draggedRef = useRef(false);
   const cameraRef = useRef(camera);
@@ -133,7 +141,25 @@ export function useViewGestures({
 
   const onPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
     if (session.current.press?.dragged) draggedRef.current = true;
-    const result = pointerUp(session.current, inputFrom(event));
+    let result = pointerUp(session.current, inputFrom(event));
+    if (doubleTap && result.click && event.pointerType === "touch") {
+      const decision = classifyTap(lastTap.current, {
+        time: event.timeStamp,
+        x: event.clientX,
+        y: event.clientY,
+      });
+      lastTap.current = decision.previous;
+      if (decision.double) {
+        const focal = focalFromClient(
+          event.clientX,
+          event.clientY,
+          event.currentTarget.getBoundingClientRect(),
+        );
+        focalRef.current = focal;
+        cameraRef.current.toggleActual?.(focal);
+        result = { ...result, click: null };
+      }
+    }
     apply(result, event.currentTarget);
   };
 

@@ -2,15 +2,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   defaultZoomLimits,
   fit,
+  fitTo,
   identityView,
+  isActualScale,
   isFitted,
+  nextFitMode,
   normalizeDegrees,
   panBy,
   resetView,
   rotateView,
+  toggleFitAndActual,
   viewAfterMeasure,
   viewsClose,
   zoomAt,
+  type FitMode,
   type Point,
   type Size,
   type ViewTransform,
@@ -23,7 +28,9 @@ import {
  */
 export function useDiagramView(viewport: Size | null, content: Size | null) {
   const [view, setView] = useState<ViewTransform>(identityView);
+  const [fitMode, setFitMode] = useState<FitMode>("page");
   const viewRef = useRef(view);
+  const fitModeRef = useRef<FitMode>("page");
   const fittedBaseline = useRef<ViewTransform | null>(null);
   const viewportRef = useRef<Size | null>(null);
   const contentRef = useRef<Size | null>(null);
@@ -50,7 +57,13 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
     viewportRef.current = nextViewport;
     contentRef.current = nextContent;
     const current = viewRef.current;
-    const decision = viewAfterMeasure(current, fittedBaseline.current, nextViewport, nextContent);
+    const decision = viewAfterMeasure(
+      current,
+      fittedBaseline.current,
+      nextViewport,
+      nextContent,
+      fitModeRef.current,
+    );
     if (!decision) return;
     fittedBaseline.current = decision.baseline;
     if (viewsClose(current, decision.view)) {
@@ -85,7 +98,20 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
 
   const rotate = useCallback(
     (degrees: number) => {
-      commit(rotateView(viewRef.current, degrees, viewportRef.current, contentRef.current));
+      const vp = viewportRef.current;
+      const ct = contentRef.current;
+      const current = viewRef.current;
+      if (vp && ct) {
+        const modeFit = fitTo(vp, ct, current.rotation, fitModeRef.current);
+        if (viewsClose(current, modeFit)) {
+          const next = fitTo(vp, ct, current.rotation + degrees, fitModeRef.current);
+          fittedBaseline.current = next;
+          viewRef.current = next;
+          setView(next);
+          return;
+        }
+      }
+      commit(rotateView(current, degrees, vp, ct));
     },
     [commit],
   );
@@ -99,12 +125,49 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
     [commit],
   );
 
+  const rememberMode = useCallback((mode: FitMode) => {
+    fitModeRef.current = mode;
+    setFitMode(mode);
+  }, []);
+
   const reset = useCallback(() => {
     const vp = viewportRef.current;
     const ct = contentRef.current;
     if (!vp || !ct) return;
+    rememberMode("page");
     commit(resetView(vp, ct));
-  }, [commit]);
+  }, [commit, rememberMode]);
+
+  const cycleFit = useCallback(() => {
+    const vp = viewportRef.current;
+    const ct = contentRef.current;
+    const rotation = viewRef.current.rotation;
+    const next = nextFitMode(fitModeRef.current, vp, ct, rotation);
+    rememberMode(next);
+    if (!vp || !ct) return;
+    const fitted = fitTo(vp, ct, rotation, next);
+    fittedBaseline.current = fitted;
+    viewRef.current = fitted;
+    setView(fitted);
+  }, [rememberMode]);
+
+  const toggleActual = useCallback(
+    (focal: Point) => {
+      const vp = viewportRef.current;
+      const ct = contentRef.current;
+      if (!vp || !ct) return;
+      const returning = isActualScale(viewRef.current);
+      const next = toggleFitAndActual(viewRef.current, focal, vp, ct, limitsFor());
+      if (returning) rememberMode("page");
+      if (returning) {
+        commit(next);
+        return;
+      }
+      viewRef.current = next;
+      setView(next);
+    },
+    [commit, limitsFor, rememberMode],
+  );
 
   const atFit = Boolean(viewport && content && isFitted(view, viewport, content));
 
@@ -115,5 +178,5 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
     return isFitted(viewRef.current, vp, ct);
   }, []);
 
-  return { view, atFit, isAtFit, zoomAtPoint, pan, rotate, rotateFree, reset };
+  return { view, fitMode, atFit, isAtFit, zoomAtPoint, pan, rotate, rotateFree, reset, cycleFit, toggleActual };
 }
