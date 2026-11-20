@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 1.8.12 "Meridian" - 2026-11-19
+
+Patch on the Meridian line. The code name stays Meridian.
+
 - **Fixed:** A lab or automation export that returns warnings shows them in a dismissible note after the file downloads, for example **Exported containerlab topology, 6 things to review**. An export with no warnings adds nothing (#219).
 - **Fixed:** A broken settings block is reported once. The editor, the preview, Diagram health, Diagram info, and Present say **Settings error**, and the parser detail stays in a tooltip. Each problem shows **Line N, column M** once. Needs attention counts the diagrams in its list, and a row separates errors and warnings, for example **1 error · 2 warnings** (#220).
 - **Fixed:** Present controls stay on one row at a phone width, with rotate, title, and full screen under **More**. The bar sits under the diagram so fit uses the space above it. The editor preview toolbar stays on one row at a desktop width (#221).
