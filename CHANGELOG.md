@@ -6,9 +6,15 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- **Fixed:** Present **Fit height** and **Fit width** stop at 200%, so a short wide diagram no longer opens past 800% and fills the screen with one arrow. **Fit** skips a mode that matches the whole page, or that would only hit that cap (#236).
+_No unreleased items._
+
+## 1.8.15 "Meridian" - 2026-11-20
+
+Patch on the Meridian line. The code name stays Meridian.
+
 - **Fixed:** Renaming the open diagram from the editor header no longer says it is open in another window. The lock moves to the new path, the address updates, and unsaved edits stay in the editor. A second window is still blocked. Dashboard rename is unchanged (#227).
 - **Fixed:** Present **Fit** cycles page, height, and width, so a wide diagram on a phone can be read and panned sideways. A pinch zooms around the fingers, one finger pans while zoomed, and a double-tap switches between fit and 100% at that point. A wide diagram in portrait shows a dismissible rotate hint under the diagram (#236).
+- **Fixed:** Present **Fit height** and **Fit width** stop at 200%, so a short wide diagram no longer opens past 800% and fills the screen with one arrow. **Fit** skips a mode that matches the whole page, or that would only hit that cap (#236).
 
 ## 1.8.14 "Meridian" - 2026-11-20
 

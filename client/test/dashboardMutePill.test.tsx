@@ -122,7 +122,7 @@ const updateStatus: UpdateStatus = {
   automatic: false,
   includePrerelease: false,
   installKind: "git",
-  currentVersion: "1.8.14",
+  currentVersion: "1.8.15",
   codename: "Meridian",
   commit: null,
   phase: "disabled",
