@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   BOOKMARK_FOLDERS_KEY,
@@ -21,7 +21,7 @@ import {
   writeIdSet,
   type BookmarkState,
 } from "../lib/bookmarks";
-import { folderDropBand, useBookmarkAutoScroll, useBookmarkFolderDrag } from "../lib/bookmarkDrag";
+import { bookmarkInsertIsNoOp, folderDropBand, useBookmarkAutoScroll, useBookmarkFolderDrag } from "../lib/bookmarkDrag";
 import { displayName } from "../lib/paths";
 
 type BookmarksSectionProps = {
@@ -123,6 +123,11 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
     if (!isBookmarkDrag(event)) return;
     if (draggingPath && event.currentTarget instanceof Element) trackScroll(event.currentTarget, event.clientY);
     if (!claimDrag(event)) return;
+    const moving = event.dataTransfer.getData(BOOKMARK_DRAG) || draggingRef.current || "";
+    if (bookmarkInsertIsNoOp(state.items, folderId, beforePath, moving)) {
+      setDropSpot((current) => (current == null ? current : null));
+      return;
+    }
     setDropSpot((current) =>
       current && current.folderId === folderId && current.beforePath === beforePath ? current : { folderId, beforePath },
     );
@@ -160,34 +165,32 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
     return (
       <ul className="sidebar-rows bookmark-drop-zone">
         {items.map((item) => (
-          <Fragment key={item.path}>
-            {dropSpot?.folderId === folderId && dropSpot.beforePath === item.path ? (
-              <li className="bookmark-insert" aria-hidden="true" />
-            ) : null}
-            <BookmarkRow
-              path={item.path}
-              missing={!knownPaths.has(item.path)}
-              choices={choices}
-              onDragStart={onDragStart}
-              onDragEnd={finishDrag}
-              onDragOver={(event) => hoverAt(event, folderId, item.path)}
-              onDrop={(event) => dropAt(event, folderId, item.path)}
-              onRemove={() => onChange(removeBookmark(state, item.path))}
-              onUp={() => onChange(reorderBookmark(state, item.path, -1))}
-              onDown={() => onChange(reorderBookmark(state, item.path, 1))}
-              onMove={(nextFolder) => onChange(moveBookmark(state, item.path, nextFolder))}
-            />
-          </Fragment>
+          <BookmarkRow
+            key={item.path}
+            path={item.path}
+            missing={!knownPaths.has(item.path)}
+            insert={dropSpot?.folderId === folderId && dropSpot.beforePath === item.path}
+            choices={choices}
+            onDragStart={onDragStart}
+            onDragEnd={finishDrag}
+            onDragOver={(event) => hoverAt(event, folderId, item.path)}
+            onDrop={(event) => dropAt(event, folderId, item.path)}
+            onRemove={() => onChange(removeBookmark(state, item.path))}
+            onUp={() => onChange(reorderBookmark(state, item.path, -1))}
+            onDown={() => onChange(reorderBookmark(state, item.path, 1))}
+            onMove={(nextFolder) => onChange(moveBookmark(state, item.path, nextFolder))}
+          />
         ))}
-        {dropSpot?.folderId === folderId && dropSpot.beforePath == null ? (
-          <li className="bookmark-insert" aria-hidden="true" />
-        ) : null}
         <li
           className="bookmark-end"
           data-bookmark-end={folderId ?? ""}
           onDragOver={(event) => hoverAt(event, folderId, null)}
           onDrop={(event) => dropAt(event, folderId, null)}
-        />
+        >
+          {dropSpot?.folderId === folderId && dropSpot.beforePath == null ? (
+            <span className="bookmark-insert" aria-hidden="true" />
+          ) : null}
+        </li>
       </ul>
     );
   };
@@ -195,7 +198,7 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
   const renderFolders = (parentId: string | null): ReactNode => {
     const folders = state.folders.filter((folder) => folderParentId(folder) === parentId);
     if (folders.length === 0) return null;
-    const end = folderDrag.end(parentId) ? <div className="bookmark-insert" aria-hidden="true" /> : null;
+    const lastId = folders[folders.length - 1]?.id;
     return (
       <>
         {folders.map((folder) => {
@@ -215,7 +218,6 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
                 dropAt(event, folder.id, null);
               }}
             >
-              {folderDrag.before(folder.id) ? <div className="bookmark-insert" aria-hidden="true" /> : null}
               <div
                 className="sidebar-row"
                 draggable
@@ -224,13 +226,16 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
                 onDragEnd={folderDrag.onDragEnd}
                 onDragOver={(event) => {
                   const rect = event.currentTarget.getBoundingClientRect();
-                  folderDrag.hover(event, folder.id, folderDropBand(event.clientY, rect.top, rect.height));
+                  const band = folderDropBand(event.clientY, rect.top, rect.height, folderDrag.stickyBand(folder.id));
+                  folderDrag.hover(event, folder.id, band);
                 }}
                 onDrop={(event) => {
                   const rect = event.currentTarget.getBoundingClientRect();
-                  folderDrag.drop(event, folder.id, folderDropBand(event.clientY, rect.top, rect.height));
+                  const band = folderDropBand(event.clientY, rect.top, rect.height, folderDrag.stickyBand(folder.id));
+                  folderDrag.drop(event, folder.id, band);
                 }}
               >
+                {folderDrag.before(folder.id) ? <span className="bookmark-insert" aria-hidden="true" /> : null}
                 <span className="bookmark-drag-handle" aria-label={`Drag folder ${folder.name}`} title="Drag to move">
                   ::
                 </span>
@@ -322,6 +327,7 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
                   </button>
                 </RowActions>
               </div>
+              {folderDrag.end(parentId) && folder.id === lastId ? <span className="bookmark-insert is-after" aria-hidden="true" /> : null}
               {folderOpen ? (
                 <div className="tree-children">
                   {renderItems(folder.id)}
@@ -343,7 +349,6 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
             </div>
           );
         })}
-        {end}
       </>
     );
   };
@@ -447,6 +452,7 @@ function FolderDraft({
 function BookmarkRow({
   path,
   missing,
+  insert,
   choices,
   onDragStart,
   onDragEnd,
@@ -459,6 +465,7 @@ function BookmarkRow({
 }: {
   path: string;
   missing: boolean;
+  insert: boolean;
   choices: { id: string; label: string }[];
   onDragStart: (event: DragEvent, path: string) => void;
   onDragEnd: () => void;
@@ -481,6 +488,7 @@ function BookmarkRow({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      {insert ? <span className="bookmark-insert" aria-hidden="true" /> : null}
       {missing ? (
         <span className="sidebar-row-label is-missing" title={`${tip} (missing)`}>
           {name}
@@ -529,14 +537,45 @@ function BookmarkRow({
   );
 }
 
+function placeActionsMenu(button: HTMLButtonElement, panel: HTMLElement) {
+  const rect = button.getBoundingClientRect();
+  const width = panel.offsetWidth;
+  const height = panel.offsetHeight;
+  let left = rect.left - width - 4;
+  let top = rect.top;
+  if (left < 8) {
+    left = Math.max(8, rect.left - width - 4);
+    top = rect.bottom + 4;
+  }
+  if (top + height > window.innerHeight - 8) top = Math.max(8, rect.top - height - 4);
+  if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+  panel.style.top = `${top}px`;
+  panel.style.left = `${left}px`;
+}
+
 function RowActions({ label, children }: { label: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+
+  const close = (restoreFocus: boolean) => {
+    setOpen(false);
+    if (restoreFocus) buttonRef.current?.focus();
+  };
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current || !panelRef.current) return;
+    placeActionsMenu(buttonRef.current, panelRef.current);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      close(true);
     };
     const onPointer = (event: MouseEvent) => {
       if (!ref.current?.contains(event.target as Node)) setOpen(false);
@@ -552,17 +591,19 @@ function RowActions({ label, children }: { label: string; children: ReactNode })
   return (
     <div className="sidebar-menu" ref={ref}>
       <button
+        ref={buttonRef}
         type="button"
         className="sidebar-mini"
         aria-expanded={open}
         aria-haspopup="true"
+        aria-controls={panelId}
         aria-label={label}
         onClick={() => setOpen((value) => !value)}
       >
         Actions
       </button>
       {open ? (
-        <div className="sidebar-menu-panel" role="group" aria-label={label}>
+        <div ref={panelRef} id={panelId} className="sidebar-menu-panel" role="group" aria-label={label}>
           {children}
         </div>
       ) : null}

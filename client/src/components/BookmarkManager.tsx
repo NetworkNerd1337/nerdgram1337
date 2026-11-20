@@ -177,7 +177,6 @@ function FolderLevel({
           onCommit={onCommit}
         />
       ))}
-      {folderDrag.end(parentId) ? <li className="bookmark-insert" aria-hidden="true" /> : null}
     </ul>
   );
 }
@@ -210,8 +209,10 @@ function FolderBlock({
   const drafting = folderDraft?.parentId === folder.id;
   const band = (event: DragEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    return folderDropBand(event.clientY, rect.top, rect.height);
+    return folderDropBand(event.clientY, rect.top, rect.height, folderDrag.stickyBand(folder.id));
   };
+  const foldersHere = draft.folders.filter((item) => folderParentId(item) === folderParentId(folder));
+  const lastHere = foldersHere[foldersHere.length - 1]?.id === folder.id;
   return (
     <li
       className={`bookmark-folder${folderDrag.inside(folder.id) ? " is-drop-over" : ""}`}
@@ -219,7 +220,6 @@ function FolderBlock({
       onDragOver={(event) => folderDrag.hover(event, folder.id, "inside")}
       onDrop={(event) => folderDrag.drop(event, folder.id, "inside")}
     >
-      {folderDrag.before(folder.id) ? <div className="bookmark-insert" aria-hidden="true" /> : null}
       <div
         className="sidebar-row"
         draggable
@@ -229,6 +229,7 @@ function FolderBlock({
         onDragOver={(event) => folderDrag.hover(event, folder.id, band(event))}
         onDrop={(event) => folderDrag.drop(event, folder.id, band(event))}
       >
+        {folderDrag.before(folder.id) ? <span className="bookmark-insert" aria-hidden="true" /> : null}
         <span className="bookmark-drag-handle" aria-label={`Drag folder ${folder.name}`} title="Drag to move">
           ::
         </span>
@@ -279,6 +280,7 @@ function FolderBlock({
           Delete folder
         </button>
       </div>
+      {folderDrag.end(folderParentId(folder)) && lastHere ? <span className="bookmark-insert is-after" aria-hidden="true" /> : null}
       {open ? (
         <>
           {drafting ? (

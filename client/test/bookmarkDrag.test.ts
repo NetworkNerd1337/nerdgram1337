@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { bookmarkScrollDelta, folderDropBand, folderDropIntent, moveBookmarkFolderTo } from "../src/lib/bookmarkDrag";
+import {
+  bookmarkInsertIsNoOp,
+  bookmarkScrollDelta,
+  folderDropBand,
+  folderDropIntent,
+  folderInsertIsNoOp,
+  moveBookmarkFolderTo,
+} from "../src/lib/bookmarkDrag";
 import { normalizeBookmarks, type BookmarkState } from "../src/lib/bookmarks";
 
 const tree: BookmarkState = {
@@ -31,6 +38,34 @@ describe("bookmark folder drop intent", () => {
     expect(folderDropBand(50, 0, 100)).toBe("inside");
     expect(folderDropBand(90, 0, 100)).toBe("after");
     expect(folderDropBand(0, 0, 0)).toBe("inside");
+  });
+
+  it("keeps the current zone until the pointer crosses a little further", () => {
+    expect(folderDropBand(30, 0, 100, "before")).toBe("before");
+    expect(folderDropBand(40, 0, 100, "before")).toBe("inside");
+    expect(folderDropBand(20, 0, 100, "inside")).toBe("inside");
+    expect(folderDropBand(10, 0, 100, "inside")).toBe("before");
+    expect(folderDropBand(70, 0, 100, "after")).toBe("after");
+    expect(folderDropBand(60, 0, 100, "after")).toBe("inside");
+  });
+
+  it("treats a line beside the dragged item as a no-op", () => {
+    const items = [
+      { path: "A.mmd", folderId: "lab" },
+      { path: "B.mmd", folderId: "lab" },
+    ];
+    expect(bookmarkInsertIsNoOp(items, "lab", "A.mmd", "A.mmd")).toBe(true);
+    expect(bookmarkInsertIsNoOp(items, "lab", "B.mmd", "A.mmd")).toBe(true);
+    expect(bookmarkInsertIsNoOp(items, "lab", null, "B.mmd")).toBe(true);
+    expect(bookmarkInsertIsNoOp(items, "lab", "A.mmd", "B.mmd")).toBe(false);
+    expect(bookmarkInsertIsNoOp(items, null, null, "A.mmd")).toBe(false);
+    const folders = [
+      { id: "sites", name: "Sites", parentId: null },
+      { id: "lab", name: "Lab", parentId: null },
+    ];
+    expect(folderInsertIsNoOp(folders, null, "lab", "sites")).toBe(true);
+    expect(folderInsertIsNoOp(folders, null, null, "lab")).toBe(true);
+    expect(folderInsertIsNoOp(folders, null, "sites", "lab")).toBe(false);
   });
 
   it("nests, un-nests, and reorders, and refuses the folder and its descendants", () => {
