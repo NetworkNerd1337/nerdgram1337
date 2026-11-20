@@ -95,20 +95,36 @@ function axisScales(viewport: Size, content: Size, rotation: number): { width: n
 }
 
 /**
+ * Upper bound for Fit width and Fit height. 200% keeps a short, wide diagram
+ * readable. It also stays at or under `MAX_ZOOM`, so Fit never opens past 8×.
+ * Fit page is not capped: the whole diagram still has to fit.
+ */
+export const FIT_AXIS_MAX = 2;
+
+function finiteScale(scale: number): number {
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+/** Fit width / Fit height, stopped at `FIT_AXIS_MAX` and never above `MAX_ZOOM`. */
+export function capAxisFit(scale: number): number {
+  return Math.min(finiteScale(scale), FIT_AXIS_MAX, MAX_ZOOM);
+}
+
+/**
  * Scale that fits the rotated diagram on the chosen axis, centered.
- * Page uses the smaller axis so the whole diagram is visible. Width and
- * height use one axis, so the other direction can be panned.
- * Scale is not clamped to MIN_ZOOM / MAX_ZOOM: Fit must show the diagram,
- * including one that is much larger or smaller than the screen.
- * Interactive zoom uses `zoomAt` limits that expand to include this scale.
+ * Page uses the smaller axis so the whole diagram is visible, with no cap.
+ * Width and height use one axis, so the other direction can be panned, and
+ * those scales stop at {@link capAxisFit}.
+ * Interactive zoom uses `zoomAt` limits that expand to include the page fit.
  */
 export function fitTo(viewport: Size, content: Size, rotation: number, mode: FitMode = "page"): ViewTransform {
   const axes = axisScales(viewport, content, rotation);
-  const scale = mode === "width" ? axes.width : mode === "height" ? axes.height : Math.min(axes.width, axes.height);
+  const raw = mode === "width" ? axes.width : mode === "height" ? axes.height : Math.min(axes.width, axes.height);
+  const scale = mode === "page" ? finiteScale(raw) : capAxisFit(raw);
   return {
     x: 0,
     y: 0,
-    scale: Number.isFinite(scale) && scale > 0 ? scale : 1,
+    scale,
     rotation: normalizeDegrees(rotation),
   };
 }
@@ -119,9 +135,52 @@ export function fit(viewport: Size, content: Size, rotation: number): ViewTransf
 }
 
 /**
- * Next Fit button mode. From page, the next mode is the larger single-axis
- * fit, which is the readable scale. The click after that uses the other axis,
- * then page again.
+ * A single-axis fit is a distinct step when its capped scale is clearly
+ * larger than fit page. A scale that matches the page, or a cap that lands
+ * on the page, is not offered.
+ */
+export function axisFitHelps(
+  viewport: Size,
+  content: Size,
+  rotation: number,
+  mode: "width" | "height",
+): boolean {
+  const axes = axisScales(viewport, content, rotation);
+  const page = Math.min(axes.width, axes.height);
+  const capped = capAxisFit(mode === "width" ? axes.width : axes.height);
+  return page > 0 && capped > page * 1.08;
+}
+
+/**
+ * Fit modes that change the picture. Page is always first. A single-axis
+ * mode is left out when it matches fit page, or when the 200% cap would not
+ * show more than fit page. Two axes that land on the same capped scale count
+ * once, keeping the longer raw axis.
+ */
+export function fitCycle(viewport: Size, content: Size, rotation = 0): FitMode[] {
+  const axes = axisScales(viewport, content, rotation);
+  const ranked = (["height", "width"] as const)
+    .filter((mode) => axisFitHelps(viewport, content, rotation, mode))
+    .map((mode) => {
+      const raw = mode === "width" ? axes.width : axes.height;
+      return { mode, raw, capped: capAxisFit(raw) };
+    })
+    .sort((a, b) => b.raw - a.raw);
+  const steps: FitMode[] = ["page"];
+  for (const item of ranked) {
+    const samePicture = steps.some((mode) => {
+      if (mode === "page") return false;
+      const other = capAxisFit(mode === "width" ? axes.width : axes.height);
+      return Math.abs(other - item.capped) <= Math.max(1e-3, item.capped * 0.02);
+    });
+    if (!samePicture) steps.push(item.mode);
+  }
+  return steps;
+}
+
+/**
+ * Next Fit button mode. From page, the next mode is the larger useful
+ * single-axis fit. A mode that would not change the picture is skipped.
  */
 export function nextFitMode(
   mode: FitMode,
@@ -134,21 +193,23 @@ export function nextFitMode(
     if (mode === "height") return "width";
     return "page";
   }
-  const axes = axisScales(viewport, content, rotation);
-  const readable: FitMode = axes.height >= axes.width ? "height" : "width";
-  const other: FitMode = readable === "height" ? "width" : "height";
-  if (mode === "page") return readable;
-  if (mode === readable) return other;
-  return "page";
+  const steps = fitCycle(viewport, content, rotation);
+  const index = steps.indexOf(mode);
+  const at = index < 0 ? 0 : index;
+  return steps[(at + 1) % steps.length] ?? "page";
 }
 
-/** True when a portrait viewport is showing a diagram much wider than it is tall. */
+/**
+ * True when a portrait viewport is showing a very wide diagram and Fit height
+ * is a real step up from fit page, so the hint's Fit height advice applies.
+ */
 export function shouldSuggestRotate(viewport: Size, content: Size): boolean {
   if (!(viewport.height > viewport.width) || viewport.width <= 0 || content.height <= 0) return false;
   if (content.width / content.height < 1.75) return false;
+  if (!axisFitHelps(viewport, content, 0, "height")) return false;
   const axes = axisScales(viewport, content, 0);
   const page = Math.min(axes.width, axes.height);
-  return axes.height >= page * 1.35;
+  return capAxisFit(axes.height) >= page * 1.35;
 }
 
 /** Scale is the diagram's own size, within a small step of 100%. */

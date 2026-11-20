@@ -283,7 +283,7 @@ On the dashboard, **Present** on a card or a list row opens that diagram without
 
 The bar hides after about 2.5 seconds. Move the pointer, or press Tab, to bring it back. It has zoom in, zoom out, the zoom percent, rotate left, rotate right, fit, title, full screen, and exit. On a narrow window, about 520 pixels and below, the bar is one row under the diagram. Rotate, title, and full screen move into **More**. Fit uses the height above that bar. A wider window keeps every control on the bar, over the diagram.
 
-**Fit** cycles three ways to size the diagram. **Fit page** shows the whole diagram. **Fit height** matches the height and lets you pan sideways, which is the readable size for a wide diagram on a phone. **Fit width** matches the width and lets you pan up and down, which is the readable size for a tall diagram. The first click leaves **Fit page** for whichever of those two is larger. The button name is the mode you are in. **0** or **F** still clears zoom, pan, and rotation and returns to **Fit page**.
+**Fit** cycles the sizes that change the picture. **Fit page** shows the whole diagram. **Fit height** matches the height, up to 200%, and lets you pan sideways. That is the readable size for a wide diagram on a phone. **Fit width** matches the width, up to 200%, and lets you pan up and down. That is the readable size for a tall diagram. The first click leaves **Fit page** for whichever of those two shows more. **Fit** skips a mode that matches **Fit page**, and it skips one that would only stop at 200% without showing more than **Fit page**. The button name is the mode you are in. **0** or **F** still clears zoom, pan, and rotation and returns to **Fit page**.
 
 On a phone, a pinch zooms around the point between your fingers. One finger pans once you have left the page fit, including after **Fit height** or **Fit width**. A double-tap switches between **Fit page** and 100% at the place you tapped. A mouse wheel, keyboard, and **Rotate** stay as they are on a desktop.
 
@@ -297,11 +297,11 @@ A very wide diagram in portrait shows a short note under the diagram: turn the p
 | Pan after you have left the fitted view | Plain arrow keys. At **Fit page** they do nothing, so a later slideshow can use them for the next diagram. **Fit width** and **Fit height** leave that fitted view, so the arrows pan. |
 | Switch between fit page and 100% at the tap | Double-tap on a touch screen |
 | Rotate 90° | R clockwise, Shift+R the other way. Alt+drag rotates by any angle. |
-| Cycle fit page, fit height, and fit width | **Fit** |
+| Cycle the fit modes that change the size | **Fit** |
 | Fit page, and clear zoom, pan, and rotation | 0 or F |
 | Leave | Esc or **Exit** |
 
-Zoom from the keys and buttons stays between 10% and 800% of the diagram's own size. **Fit page** can go outside that range so the whole diagram is visible. **Fit width** and **Fit height** can too. A quarter turn uses the rotated size, so a tall diagram turned sideways fills a landscape screen. If fullscreen is unavailable, the diagram still fills the window. **Full screen** tries again after a click. A bad header or a diagram that cannot be drawn shows the error. The last good picture stays up when a later refresh fails. Animated fades are skipped when the system asks for reduced motion.
+Zoom from the keys and buttons stays between 10% and 800% of the diagram's own size. **Fit page** can go outside that range so the whole diagram is visible. **Fit width** and **Fit height** stop at 200%, and they never go above 800%. A quarter turn uses the rotated size, so a tall diagram turned sideways fills a landscape screen. If fullscreen is unavailable, the diagram still fills the window. **Full screen** tries again after a click. A bad header or a diagram that cannot be drawn shows the error. The last good picture stays up when a later refresh fails. Animated fades are skipped when the system asks for reduced motion.
 
 ## Template gallery
 
