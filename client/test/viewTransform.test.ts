@@ -3,7 +3,9 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   cssTransform,
+  FIT_AXIS_MAX,
   fit,
+  fitCycle,
   fitTo,
   identityView,
   isFitted,
@@ -176,10 +178,50 @@ describe("view transform", () => {
     expect(byHeight.x).toBe(0);
     expect(byHeight.y).toBe(0);
     expect(fitTo(phone, tallDiagram, 0, "width").scale).toBeGreaterThan(fit(phone, tallDiagram, 0).scale);
+    expect(fitTo(phone, tallDiagram, 0, "width").scale).toBeLessThanOrEqual(FIT_AXIS_MAX);
     expect(nextFitMode("page", phone, wideDiagram)).toBe("height");
-    expect(nextFitMode("height", phone, wideDiagram)).toBe("width");
-    expect(nextFitMode("width", phone, wideDiagram)).toBe("page");
+    expect(nextFitMode("height", phone, wideDiagram)).toBe("page");
     expect(nextFitMode("page", phone, tallDiagram)).toBe("width");
+    expect(nextFitMode("width", phone, tallDiagram)).toBe("page");
+  });
+
+  it("caps a short wide fit at 200% and keeps a sequence fit under that cap", () => {
+    const phone: Size = { width: 390, height: 844 };
+    const desktop: Size = { width: 1280, height: 800 };
+    // NetworkMap-like: about 10:1, which used to open Fit height near 1078%.
+    const networkMap: Size = { width: 746, height: 74 };
+    const sequence: Size = { width: 903, height: 574 };
+    const tallSkinny: Size = { width: 80, height: 1800 };
+
+    const mapPage = fit(phone, networkMap, 0).scale;
+    const mapHeight = fitTo(phone, networkMap, 0, "height").scale;
+    expect(mapPage).toBeGreaterThan(0.4);
+    expect(mapPage).toBeLessThan(0.5);
+    expect(mapHeight).toBe(FIT_AXIS_MAX);
+    expect(mapHeight).toBeLessThanOrEqual(MAX_ZOOM);
+    expect(mapHeight).toBeLessThan(8);
+    expect(fitTo(desktop, networkMap, 0, "height").scale).toBe(FIT_AXIS_MAX);
+    expect(nextFitMode("page", phone, networkMap)).toBe("height");
+    expect(nextFitMode("height", phone, networkMap)).toBe("page");
+    expect(fitCycle(phone, networkMap)).toEqual(["page", "height"]);
+    expect(shouldSuggestRotate(phone, networkMap)).toBe(true);
+
+    const sequenceHeight = fitTo(phone, sequence, 0, "height").scale;
+    expect(sequenceHeight).toBeCloseTo(1.39, 1);
+    expect(sequenceHeight).toBeLessThan(FIT_AXIS_MAX);
+    expect(fitCycle(phone, sequence)).toEqual(["page", "height"]);
+
+    const tallWidth = fitTo(phone, tallSkinny, 0, "width").scale;
+    expect(tallWidth).toBe(FIT_AXIS_MAX);
+    expect(tallWidth).toBeLessThanOrEqual(MAX_ZOOM);
+    expect(fit(phone, tallSkinny, 0).scale).toBeLessThan(0.5);
+    expect(fitCycle(phone, tallSkinny)).toEqual(["page", "width"]);
+    expect(shouldSuggestRotate(phone, tallSkinny)).toBe(false);
+
+    const alreadyLarge: Size = { width: 100, height: 100 };
+    expect(fit(phone, alreadyLarge, 0).scale).toBeGreaterThan(FIT_AXIS_MAX);
+    expect(fitCycle(phone, alreadyLarge)).toEqual(["page"]);
+    expect(nextFitMode("page", phone, alreadyLarge)).toBe("page");
   });
 
   it("keeps a height fit across a resize and leaves a pan alone", () => {
