@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mermaidSyntaxDiagnostic } from "../src/mermaidSyntax.js";
+import { lintDiagramSource, mermaidSyntaxDiagnostic } from "../src/mermaidSyntax.js";
 import { locateParseError } from "../src/parseError.js";
 
 describe("parse error lines", () => {
@@ -29,5 +29,13 @@ describe("parse error lines", () => {
   it("does not report a syntax error for a diagram Mermaid can parse", async () => {
     const diagnostic = await mermaidSyntaxDiagnostic("flowchart LR\n  A[One] --> B[Two]\n");
     expect(diagnostic).toBeNull();
+  });
+
+  it("does not flag the Mermaid body when the settings block is broken", async () => {
+    const source = "---\ntitle: [\n---\nflowchart LR\n  A --> B\n";
+    expect(await mermaidSyntaxDiagnostic(source)).toBeNull();
+    const errors = (await lintDiagramSource(source)).filter((item) => item.severity === "error");
+    expect(errors.map((item) => item.ruleId)).toEqual(["front-matter"]);
+    expect(source.split("\n")[3]).toContain("flowchart LR");
   });
 });

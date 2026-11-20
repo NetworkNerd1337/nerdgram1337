@@ -74,11 +74,16 @@ describe("presentation drill-down", () => {
 
   it("drills down from a real pointer down and up on a linked node", async () => {
     const node = await mount();
+    expect(document.title).toBe("Present · WAN · NerdGram1337");
     await act(async () => {
       node.dispatchEvent(pointer("pointerdown", 20, 20));
       node.dispatchEvent(pointer("pointerup", 20, 20));
     });
     expect(readFile).toHaveBeenCalledWith("Sites/Atlanta.mmd");
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(document.title).toBe("Present · Atlanta · NerdGram1337");
   });
 
   it("pans instead of drilling when the pointer moves", async () => {

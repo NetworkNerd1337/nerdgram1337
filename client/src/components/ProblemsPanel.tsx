@@ -1,5 +1,6 @@
 import type { LintFix } from "../../../server/src/diagramLint.ts";
 import type { ReportedDiagnostic } from "../lib/mermaidLint";
+import { formatProblem } from "../lib/problemText";
 
 type ProblemsPanelProps = {
   diagnostics: readonly ReportedDiagnostic[];
@@ -49,15 +50,19 @@ export function ProblemsPanel({
       ) : null}
       {diagnostics.length > 0 ? (
         <ul>
-          {diagnostics.map((item, index) => (
+          {diagnostics.map((item, index) => {
+            const view = formatProblem(item);
+            return (
             <li key={`${item.ruleId}-${item.from}-${index}`}>
-              <button type="button" className={`problem ${item.severity}`} onClick={() => onSelect(item)}>
+              <button
+                type="button"
+                className={`problem ${item.severity}`}
+                title={view.title || undefined}
+                onClick={() => onSelect(item)}
+              >
                 <span className="problem-kind">{item.severity === "error" ? "Error" : "Warning"}</span>
-                <span className="problem-where">
-                  Line {item.line}
-                  {item.column > 1 ? `, column ${item.column}` : ""}
-                </span>
-                <span className="problem-message">{messageWithoutLocation(item)}</span>
+                <span className="problem-where">{view.where}</span>
+                <span className="problem-message">{view.message}</span>
               </button>
               {item.fixes.length > 0 ? (
                 <span className="problem-fixes">
@@ -74,7 +79,8 @@ export function ProblemsPanel({
                 </span>
               ) : null}
             </li>
-          ))}
+            );
+          })}
         </ul>
       ) : pending ? (
         <p>Looking through the diagram.</p>
@@ -85,9 +91,3 @@ export function ProblemsPanel({
   );
 }
 
-function messageWithoutLocation(item: ReportedDiagnostic): string {
-  const prefix = item.column > 1 ? `Line ${item.line}, column ${item.column}: ` : `Line ${item.line}: `;
-  if (!item.message.startsWith(prefix)) return item.message;
-  const rest = item.message.slice(prefix.length);
-  return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : item.message;
-}

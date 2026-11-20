@@ -1,4 +1,4 @@
-import { matchFrontMatter } from "./frontMatter.js";
+import { matchFrontMatter, parseDiagram } from "./frontMatter.js";
 
 /**
  * Turn a Mermaid parse failure into a line, a column, and a short sentence.
@@ -45,6 +45,15 @@ export function locateParseError(error: unknown, source: string): ParseLocation 
 export function isMermaidEnvironmentError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /DOMPurify|document is not defined|window is not defined|CSSStyleSheet is not defined/i.test(message);
+}
+
+/**
+ * A broken settings block is the only error to report. Mermaid's parser
+ * also rejects that file, often on a later line that is valid diagram text.
+ * That second hit is not a separate problem.
+ */
+export function settingsBlockHidesSyntaxError(source: string): boolean {
+  return parseDiagram(source).malformed;
 }
 
 /** Lines Mermaid removes before the parser runs. Comment lines stay, as blank lines. */

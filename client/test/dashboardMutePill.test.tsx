@@ -292,7 +292,8 @@ describe("dashboard warning pill follows the editor mute toggle", () => {
     expect(gridPill?.textContent).toBe("4 warnings");
     expect(gridPill?.className).toContain("is-warning");
     expect(document.querySelectorAll(".card.is-health-warning")).toHaveLength(1);
-    expect(document.querySelector(".attention-badge")?.textContent).toContain("4");
+    expect(document.querySelector(".attention-badge")?.textContent).toContain("1");
+    expect(document.querySelector(".attention-badge")?.textContent).not.toContain("4");
     const cards = [...document.querySelectorAll(".card")];
     const clean = cards.find((card) => card.textContent?.includes("Clean"));
     expect(clean?.querySelector(".diagram-card-health")).toBeNull();

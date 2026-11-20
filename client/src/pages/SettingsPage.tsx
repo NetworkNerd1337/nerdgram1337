@@ -5,6 +5,8 @@ import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
 import { SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { pageTitle } from "../lib/pageTitle";
 import { Modal } from "../components/Modal";
 import { AppearanceSettings } from "../components/AppearanceSettings";
 import { StylePresetsSettings } from "../components/StylePresetsSettings";
@@ -33,6 +35,7 @@ function messageOf(err: unknown): string {
 }
 
 export function SettingsPage() {
+  usePageTitle(pageTitle("Settings"));
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [clientId, setClientId] = useState("");
   const [repoName, setRepoName] = useState("nerdgram-diagrams");

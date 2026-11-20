@@ -6,6 +6,8 @@ import { CommandsButton } from "../components/CommandPalette";
 import { SupportLink } from "../components/SupportLink";
 import { FolderPicker } from "../components/FolderPicker";
 import { useCommandHost } from "../components/commandPaletteContext";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { pageTitle } from "../lib/pageTitle";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { FileNameField } from "../components/FileNameField";
 import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
@@ -22,6 +24,7 @@ flowchart LR
 
 export function NewDiagramPage() {
   const navigate = useNavigate();
+  usePageTitle(pageTitle("New diagram"));
   const { tree } = useWorkspace();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");

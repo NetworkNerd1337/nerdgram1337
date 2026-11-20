@@ -1,4 +1,5 @@
 import { MERMAID_THEMES, themeLabel } from "./frontMatter";
+import { presentHref } from "./paths";
 import { FIND_SHORTCUT, GO_TO_LINE_SHORTCUT } from "./editorCommands";
 import { openWorkspaceReplace } from "./workspaceReplace";
 import {
@@ -297,6 +298,15 @@ registerCommandProvider((ctx) => {
         searchOnly: true,
         when: (host) => !!host.actions.openDiagram,
         run: (host) => host.actions.openDiagram?.(item.path),
+      });
+      commands.push({
+        id: `present:${item.path}`,
+        title: `Present: ${label}`,
+        keywords: ["present", "slideshow", "fullscreen", ...keywords],
+        section: "Open",
+        searchOnly: true,
+        when: (host) => host.route === "dashboard",
+        run: (host) => host.navigate(presentHref(item.path)),
       });
       commands.push({
         id: `info:${item.path}`,

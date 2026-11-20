@@ -1,6 +1,6 @@
 import mermaid from "mermaid";
 import { lintDiagram, type LintDiagnostic, type LintOptions } from "./diagramLint.js";
-import { isMermaidEnvironmentError, locateParseError } from "./parseError.js";
+import { isMermaidEnvironmentError, locateParseError, settingsBlockHidesSyntaxError } from "./parseError.js";
 import { omitMutedWarnings } from "./warningMute.js";
 
 /**
@@ -10,6 +10,7 @@ import { omitMutedWarnings } from "./warningMute.js";
  */
 export async function mermaidSyntaxDiagnostic(source: string): Promise<LintDiagnostic | null> {
   if (!source.trim()) return null;
+  if (settingsBlockHidesSyntaxError(source)) return null;
   try {
     await mermaid.parse(source);
     return null;

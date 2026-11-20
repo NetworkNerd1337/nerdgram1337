@@ -381,7 +381,7 @@ export function BookmarksSection({ state, knownPaths, onChange }: BookmarksSecti
               }}
             />
           ) : (
-            <button type="button" className="tree-collapse-all" onClick={() => startDraft(null)}>
+            <button type="button" className="sidebar-action" onClick={() => startDraft(null)}>
               New folder
             </button>
           )}

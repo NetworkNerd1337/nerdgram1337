@@ -8,6 +8,9 @@ import { useCommandHost } from "../components/commandPaletteContext";
 import { useSidebarWidth } from "../hooks/useSidebarWidth";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { findingsFromLint, groupDiagramChecks, mutedWarningNote, type DiagramCheckFinding } from "../lib/diagramChecks";
+import { formatProblem } from "../lib/problemText";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { pageTitle } from "../lib/pageTitle";
 import { editorHref } from "../lib/diagramSearch";
 import { displayName } from "../lib/paths";
 import { readRecent, writeRecent, pruneRecent, type RecentEntry } from "../lib/recent";
@@ -132,6 +135,8 @@ export function HealthPage() {
   const visibleMuted = muted.filter((item) => inFolder(item) && matchesName(item));
   const errorCount = (findings ?? []).filter((item) => item.severity === "error").length;
   const warningCount = (findings ?? []).filter((item) => item.severity === "warning").length;
+  const attentionDiagrams = new Set((findings ?? []).map((item) => item.path)).size;
+  usePageTitle(pageTitle("Diagram health"));
   const showUnreadable = severity === "all" || severity === "unreadable";
   const showMuted = severity === "all" || severity === "muted";
   const showFindings = severity !== "unreadable" && severity !== "muted";
@@ -159,7 +164,7 @@ export function HealthPage() {
             writeRecent(browserStore(), []);
             setRecent([]);
           }}
-          attentionCount={findings == null ? 0 : errorCount + warningCount + unreadable.length}
+          attentionCount={findings == null ? 0 : attentionDiagrams}
           onOpenAttention={() => navigate("/?attention=1")}
           currentFolder="__health__"
           healthActive
@@ -303,17 +308,20 @@ export function HealthPage() {
                   </button>
                   {open ? (
                     <ul>
-                      {group.findings.map((item, index) => (
+                      {group.findings.map((item, index) => {
+                        const view = formatProblem(item);
+                        return (
                         <li key={`${item.ruleId}-${item.line}-${index}`}>
-                          <Link to={editorHref(item.path, item.line, "")}>
+                          <Link to={editorHref(item.path, item.line, "")} title={view.title || undefined}>
                             <span className={`diagram-checks-severity ${item.severity}`}>
                               {item.severity === "error" ? "Error" : "Warning"}
                             </span>
-                            <span>Line {item.line}</span>
-                            <span>{item.message}</span>
+                            <span>{view.where}</span>
+                            <span>{view.message}</span>
                           </Link>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                   ) : null}
                 </section>

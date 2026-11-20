@@ -247,7 +247,7 @@ describe("diagram checks panel", () => {
     const headings = [...details().querySelectorAll(".diagram-checks-path")].map((node) => node.textContent);
     expect(headings).toEqual(["WAN.mmd", "Sites/Atlanta.mmd"]);
     const lines = [...details().querySelectorAll(".diagram-checks-line")].map((node) => node.textContent);
-    expect(lines).toEqual(["Line 4", "Line 8", "Line 3"]);
+    expect(lines).toEqual(["Line 4, column 1:", "Line 8, column 1:", "Line 3, column 1:"]);
     const severities = [...details().querySelectorAll(".diagram-checks-severity")].map((node) =>
       node.textContent?.trim(),
     );

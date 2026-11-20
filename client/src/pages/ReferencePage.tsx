@@ -6,6 +6,8 @@ import { Brand } from "../components/Brand";
 import { SupportLink } from "../components/SupportLink";
 import { CommandsButton } from "../components/CommandPalette";
 import { useCommandHost } from "../components/commandPaletteContext";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { pageTitle } from "../lib/pageTitle";
 
 type PageMeta = {
   id: string;
@@ -24,6 +26,7 @@ function formatSyncedAt(iso: string | null): string {
 }
 
 export function ReferencePage() {
+  usePageTitle(pageTitle("Syntax reference"));
   const [pages, setPages] = useState<PageMeta[]>([]);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [attribution, setAttribution] = useState("");

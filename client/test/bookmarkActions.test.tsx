@@ -69,6 +69,13 @@ describe("bookmark rows", () => {
     localStorage.clear();
   });
 
+  it("lines New folder up with the other sidebar actions", () => {
+    root = mount(state);
+    const button = [...document.querySelectorAll("button")].find((item) => item.textContent === "New folder");
+    expect(button?.className).toContain("sidebar-action");
+    expect(button?.className).not.toContain("tree-collapse-all");
+  });
+
   it("keeps the name readable and reaches every action from the keyboard", () => {
     root = mount(state);
 
