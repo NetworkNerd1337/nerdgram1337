@@ -7,7 +7,8 @@ export const MAX_ZIP_ENTRIES = 512;
 export type ZipEntry = { name: string; bytes: Uint8Array };
 
 /**
- * Read a zip from local headers only. Uncompressed bytes stop at the same 4 MiB
+ * Read a zip from its local file headers and stop at the central directory.
+ * A normal Visio file has both. Uncompressed bytes stop at the same 4 MiB
  * limit as other diagram input. Paths that leave the archive are refused.
  */
 export function readZip(bytes: Uint8Array): ZipEntry[] {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import type { ImportCollisionChoice, ImportDraft, ImportHubLayout, ImportUnit } from "../lib/importDrafts";
-import { MAX_IMPORT_FILES, unitsFromDraft } from "../lib/importDrafts";
+import { FOREIGN_IMPORT_MAX_BYTES, MAX_IMPORT_FILE_CHARS, MAX_IMPORT_FILES, unitsFromDraft } from "../lib/importDrafts";
 import { largeImportAdvice } from "../lib/largeImport";
 import { parseMermaid } from "../lib/mermaidRender";
 import { IMPORT_DATA_KEY, IMPORT_PRESET_KEY, SUPPORTED_IMPORT_LINE } from "../lib/importRecognize";
@@ -174,7 +174,8 @@ export function ImportDialog({
       >
         <h3 id="import-dialog-title">Import diagrams</h3>
         <p>
-          {SUPPORTED_IMPORT_LINE} Files are up to 512 KB each. Mermaid is copied into the folder you
+          {SUPPORTED_IMPORT_LINE} Lucid and Visio files are up to {FOREIGN_IMPORT_MAX_BYTES / (1024 * 1024)} MiB.
+          Mermaid files are up to {MAX_IMPORT_FILE_CHARS / 1024} KB. Mermaid is copied into the folder you
           pick. A name that is already there is never replaced unless you choose Replace.
         </p>
         <FolderPicker tree={tree} value={folder} onChange={onFolderChange} />

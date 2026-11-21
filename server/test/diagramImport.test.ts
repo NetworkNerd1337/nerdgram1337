@@ -82,7 +82,12 @@ describe("Lucid and Visio import", () => {
       readFileSync(path.join(REPO_ROOT, "docs/samples/imports/visio-campus.vsdx")),
     );
     expect(sample.ok).toBe(true);
-    if (sample.ok) expect(sample.pages[0]?.mermaid).toContain("Gi0/1");
+    if (!sample.ok) return;
+    expect(sample.pages.map((page) => page.title)).toEqual(["Campus", "WAN"]);
+    expect(sample.pages[0]?.mermaid).toContain("Gi0/1");
+    expect(sample.pages[0]?.warnings.join(" ")).toMatch(/no text/);
+    expect(sample.pages[0]?.warnings.join(" ")).toMatch(/stub/);
+    expect(sample.pages[1]?.mermaid).toContain("MPLS");
     const result = convertForeign("campus.vsdx", visioPackage());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
