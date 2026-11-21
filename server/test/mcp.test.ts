@@ -245,22 +245,33 @@ describe("MCP server", () => {
     const client = new Client({ name: "png", version: "1.0.0" });
     try {
       await client.connect(httpTransport(running.port, token));
-      const created = await request(server)
-        .post("/api/v1/diagrams")
-        .set("Host", HOST)
-        .set("Content-Type", "application/json")
-        .set("Authorization", `Bearer ${await issueToken(server, "read-write")}`)
-        .send({ path: "Picture.mmd", content: SOURCE });
-      expect(created.status).toBe(201);
-      let rendered = await client.callTool({
-        name: "nerdgram_render",
-        arguments: { path: "Picture.mmd", format: "png" },
+      const diagramPath = `Picture-${Date.now()}.mmd`;
+      const writer = new Client({ name: "png-write", version: "1.0.0" });
+      await writer.connect(httpTransport(running.port, await issueToken(server, "read-write")));
+      const created = await writer.callTool({
+        name: "nerdgram_create",
+        arguments: { path: diagramPath, content: SOURCE },
       });
-      if (rendered.isError && /renderer|did not produce a PNG/i.test(textOf(rendered))) {
-        rendered = await client.callTool({
-          name: "nerdgram_render",
-          arguments: { path: "Picture.mmd", format: "png" },
-        });
+      await writer.close().catch(() => undefined);
+      if (created.isError) console.error("png fixture create", textOf(created));
+      expect(created.isError, textOf(created)).not.toBe(true);
+      const renderPng = async () => {
+        try {
+          return await client.callTool({
+            name: "nerdgram_render",
+            arguments: { path: diagramPath, format: "png" },
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("png render threw", message);
+          return { isError: true, content: [{ type: "text" as const, text: message }] };
+        }
+      };
+      let rendered = await renderPng();
+      for (let attempt = 1; rendered.isError && attempt <= 3; attempt += 1) {
+        console.error("png render failed", attempt, textOf(rendered));
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        rendered = await renderPng();
       }
       expect(rendered.isError, textOf(rendered)).not.toBe(true);
       const text = textOf(rendered);
