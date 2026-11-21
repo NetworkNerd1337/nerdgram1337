@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api";
 import { DrillTrail } from "./DrillTrail";
+import { NodeFindBar } from "./NodeFindBar";
+import { RenderProgress } from "./RenderProgress";
 import { useDiagramView } from "../hooks/useDiagramView";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useStageSize } from "../hooks/useStageSize";
@@ -13,6 +15,18 @@ import { presentTitle } from "../lib/pageTitle";
 import { PRESENTATION_NARROW_QUERY, ROTATE_HINT_KEY } from "../lib/presentationLayout";
 import { settingsBlockTooltip } from "../lib/problemText";
 import { renderMermaid } from "../lib/mermaidRender";
+import {
+  RENDER_PROGRESS_AFTER_MS,
+  countDiagramNodes,
+  renderOverlayText,
+} from "../lib/renderWait";
+import {
+  flowchartNodes,
+  matchNodes,
+  nodeFindShortcut,
+  nodePointInDiagram,
+  stepMatch,
+} from "../lib/nodeFind";
 import {
   currentFullscreen,
   exitPresentationFullscreen,
@@ -40,6 +54,8 @@ export type PresentationViewProps = {
   diffLegend?: boolean;
   fileError?: string | null;
   onExit: () => void;
+  /** Cancel a long render and leave Present. The editor shows the cancelled message. */
+  onRenderCancelled?: () => void;
 };
 
 function slideFor(path: string, source: string | null, error: string | null) {
@@ -51,7 +67,14 @@ function focusable(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], input, select, textarea")];
 }
 
-export function PresentationView({ source, path, fileError = null, onExit, diffLegend = false }: PresentationViewProps) {
+export function PresentationView({
+  source,
+  path,
+  fileError = null,
+  onExit,
+  diffLegend = false,
+  onRenderCancelled,
+}: PresentationViewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -72,6 +95,13 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
   const [knownPaths, setKnownPaths] = useState<string[] | null>(null);
   const [svg, setSvg] = useState("");
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [renderOverlay, setRenderOverlay] = useState<string | null>(null);
+  const [nodeQuery, setNodeQuery] = useState<string | null>(null);
+  const [nodeIndex, setNodeIndex] = useState(0);
+  const nodeQueryRef = useRef(nodeQuery);
+  useEffect(() => {
+    nodeQueryRef.current = nodeQuery;
+  }, [nodeQuery]);
   const [content, setContent] = useState<Size | null>(null);
   const [titleOn, setTitleOn] = useState(true);
   const [barVisible, setBarVisible] = useState(true);
@@ -103,6 +133,29 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
   });
 
   const frame = session.slides[session.index] ?? session.slides[0] ?? slideFor(path, source, fileError);
+  const nodeMatches = useMemo(
+    () => matchNodes(flowchartNodes(frame.source ?? ""), nodeQuery ?? ""),
+    [frame.source, nodeQuery],
+  );
+
+  useEffect(() => {
+    if (nodeQuery === null) return;
+    const match = nodeMatches[nodeIndex];
+    const root = stageRef.current;
+    if (!root || !match || !content) return;
+    root.querySelectorAll(".node.is-found").forEach((node) => node.classList.remove("is-found"));
+    const node = [...root.querySelectorAll<SVGGElement>(".node")].find((item) =>
+      item.id.includes(`flowchart-${match.id}-`),
+    );
+    if (!node) return;
+    node.classList.add("is-found");
+    const moved = node.getAttribute("transform")?.match(/translate\(\s*([-0-9.]+)[,\s]+([-0-9.]+)/);
+    if (!moved) return;
+    camera.centerOn(
+      nodePointInDiagram({ x: Number(moved[1]), y: Number(moved[2]) }, content),
+      1.5,
+    );
+  }, [camera, content, nodeIndex, nodeMatches, nodeQuery]);
   const parsed = useMemo(() => (frame.source == null ? null : parseDiagram(frame.source)), [frame.source]);
   const heading = frame.title || diagramHeading(parsed?.title, frame.path || "diagram");
   const effectiveTheme = parsed?.malformed ? FALLBACK_THEME : (parsed?.theme ?? FALLBACK_THEME);
@@ -167,6 +220,15 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
     if (currentSource == null) return;
     let cancelled = false;
     const delay = hadSvg.current ? 280 : 0;
+    let clock = 0;
+    const started = Date.now();
+    const nodes = countDiagramNodes(currentSource);
+    const tick = () => {
+      if (cancelled) return;
+      const elapsed = Date.now() - started;
+      if (elapsed >= RENDER_PROGRESS_AFTER_MS) setRenderOverlay(renderOverlayText(nodes, elapsed));
+      clock = window.setTimeout(tick, 500);
+    };
     const timer = window.setTimeout(() => {
       const parsedSource = parseDiagram(currentSource);
       const text = parsedSource.malformed ? parsedSource.body : currentSource;
@@ -174,22 +236,27 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
         if (!cancelled) setRenderError(null);
         return;
       }
+      clock = window.setTimeout(tick, RENDER_PROGRESS_AFTER_MS);
       void renderMermaid(text, FALLBACK_THEME).then(
         (result) => {
           if (cancelled) return;
           hadSvg.current = true;
           setSvg(result.svg);
           setRenderError(null);
+          setRenderOverlay(null);
         },
         (err: unknown) => {
           if (cancelled) return;
           setRenderError(err instanceof Error ? err.message : "Could not render this diagram");
+          setRenderOverlay(null);
         },
       );
     }, delay);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      window.clearTimeout(clock);
+      setRenderOverlay(null);
     };
   }, [frame.source]);
 
@@ -284,6 +351,18 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (nodeQueryRef.current !== null && event.key === "Escape" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        setNodeQuery(null);
+        return;
+      }
+      if (nodeFindShortcut(event, isCodeEditorTarget(event.target) || isFormField(event.target)) === "open") {
+        event.preventDefault();
+        setNodeQuery((current) => current ?? "");
+        setNodeIndex(0);
+        revealBar();
+        return;
+      }
       const action = presentationAction(keyEventFrom(event), {
         presenting: true,
         available: true,
@@ -442,6 +521,19 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
           setSession((current) => sessionJump(current, index));
         }}
       />
+      {nodeQuery !== null ? (
+        <NodeFindBar
+          query={nodeQuery}
+          onQuery={(value) => {
+            setNodeQuery(value);
+            setNodeIndex(0);
+          }}
+          index={Math.min(nodeIndex, Math.max(0, nodeMatches.length - 1))}
+          count={nodeMatches.length}
+          onStep={(delta) => setNodeIndex((current) => stepMatch(current, delta, nodeMatches.length))}
+          onClose={() => setNodeQuery(null)}
+        />
+      ) : null}
       <div
         ref={stageRef}
         className={`presentation-stage${gestures.panning ? " is-panning" : ""}`}
@@ -467,6 +559,16 @@ export function PresentationView({ source, path, fileError = null, onExit, diffL
         onPointerUp={gestures.onPointerUp}
         onPointerCancel={gestures.onPointerCancel}
       >
+        {renderOverlay ? (
+          <RenderProgress
+            text={renderOverlay}
+            onCancel={() => {
+              setRenderOverlay(null);
+              if (onRenderCancelled) onRenderCancelled();
+              else onExit();
+            }}
+          />
+        ) : null}
         {svg ? (
           <div
             ref={canvasRef}

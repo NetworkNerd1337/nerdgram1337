@@ -1,0 +1,42 @@
+import { describe, expect, it } from "vitest";
+import { flowchartNodes, matchNodes, nodeFindShortcut, stepMatch } from "../src/lib/nodeFind";
+import { centerViewOn, nodePointInDiagram } from "../src/lib/nodeFind";
+import { screenToContent } from "../src/lib/viewTransform";
+
+const SOURCE = [
+  "flowchart LR",
+  'core["Core"]',
+  'sw1["Switch 10.1.1.1"]',
+  'sw2["Access"]',
+  "core --> sw1",
+  "core --> sw2",
+].join("\n");
+
+describe("node find", () => {
+  it("matches a name, an id, or an IP", () => {
+    const nodes = flowchartNodes(SOURCE);
+    expect(matchNodes(nodes, "access").map((node) => node.id)).toEqual(["sw2"]);
+    expect(matchNodes(nodes, "sw1").map((node) => node.id)).toEqual(["sw1"]);
+    expect(matchNodes(nodes, "10.1.1.1").map((node) => node.id)).toEqual(["sw1"]);
+  });
+
+  it("steps to the next and previous match", () => {
+    expect(stepMatch(0, 1, 3)).toBe(1);
+    expect(stepMatch(2, 1, 3)).toBe(0);
+    expect(stepMatch(0, -1, 3)).toBe(2);
+  });
+
+  it("centers a node and zooms in", () => {
+    const content = { width: 800, height: 400 };
+    const point = nodePointInDiagram({ x: 600, y: 80 }, content);
+    const view = centerViewOn(point, 1.5);
+    expect(view.scale).toBe(1.5);
+    expect(screenToContent(view, { x: 0, y: 0 })).toEqual(point);
+  });
+
+  it("closes on Escape and leaves the code editor's own find alone", () => {
+    expect(nodeFindShortcut({ key: "Escape", metaKey: false, ctrlKey: false, altKey: false }, false)).toBe("ignore");
+    expect(nodeFindShortcut({ key: "f", metaKey: true, ctrlKey: false, altKey: false }, true)).toBe("ignore");
+    expect(nodeFindShortcut({ key: "f", metaKey: false, ctrlKey: true, altKey: false }, false)).toBe("open");
+  });
+});

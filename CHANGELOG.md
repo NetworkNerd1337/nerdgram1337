@@ -8,6 +8,14 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 _No unreleased items._
 
+## 1.8.17 "Meridian" - 2026-11-21
+
+Patch on the Meridian line. The code name stays Meridian.
+
+- **Added:** A render that takes more than about a second shows the node count and elapsed time in the editor preview, in Present, and during export, with Cancel. Cancel stops waiting and leaves the source in the editor. Present's Cancel also leaves Present. A fast render stays quiet (#244).
+- **Added:** Ctrl+F (Cmd+F on a Mac) in the diagram preview or in Present finds a node by name, id, or IP, then centers, zooms, and outlines it. Next and Previous cycle the matches. Esc closes the box. The same shortcut in the code pane stays with the code editor's own find (#245).
+- **Added:** From data warns on the preview step when the diagram has 200 nodes or more, or a hub with 50 or more leaf neighbors, and offers Default rank, Compact hub layout, or Radial hub layout before the file is created. Compact and radial write `nerdgram.hubLayout`. A smaller import does not ask (#246).
+
 ## 1.8.16 "Meridian" - 2026-11-21
 
 Patch on the Meridian line. The code name stays Meridian.

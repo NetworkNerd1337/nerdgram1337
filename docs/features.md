@@ -238,6 +238,8 @@ Dashboard cards keep a thumbnail of each diagram. The first time a card is on sc
 
 **Ctrl** below means **Cmd** on a Mac. Find and go-to-line apply while the code pane is focused. The command palette applies everywhere except during presentation.
 
+**Ctrl+F** in the diagram preview, or in Present, finds a node by its name, id, or IP. The match is centered, zoomed in, and outlined. **Next** and **Previous** move through the matches, and **Esc** closes the box. The same shortcut while the code pane is focused stays with the code editor's own find. A render that takes more than about a second shows **Rendering 1,001 nodes… 3s** on the preview, in Present, and during export, with **Cancel**. Cancel stops waiting and leaves the source in the editor. Present's Cancel also leaves Present. A render that finishes in under a second shows no extra UI.
+
 | Action | Keys |
 | --- | --- |
 | Command palette | Ctrl+K. The **Commands** button does the same thing when the browser takes the shortcut. |

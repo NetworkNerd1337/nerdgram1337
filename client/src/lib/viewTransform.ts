@@ -284,6 +284,22 @@ export function clampZoom(scale: number, limits: ZoomLimits = { min: MIN_ZOOM, m
   return Math.min(limits.max, Math.max(limits.min, scale));
 }
 
+/** Pan so a diagram-center-relative point sits in the middle, at the given scale. */
+export function centerViewOn(point: Point, scale: number, rotation = 0): ViewTransform {
+  const safe = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  const rad = (rotation * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const x = point.x * safe;
+  const y = point.y * safe;
+  return {
+    x: -(x * cos - y * sin),
+    y: -(x * sin + y * cos),
+    scale: safe,
+    rotation,
+  };
+}
+
 /**
  * Zoom by `factor` while keeping the diagram point under `focal` fixed.
  * `focal` is in viewport pixels relative to the viewport center.

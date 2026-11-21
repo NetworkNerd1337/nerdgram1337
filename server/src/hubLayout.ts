@@ -110,7 +110,17 @@ function parseGraph(body: string): { nodes: Set<string>; edges: GraphEdge[] } {
   return { nodes, edges };
 }
 
+/** Leaf neighbors of the busiest node. Zero when the diagram has no edges. */
+export function hubLeafCount(source: string): number {
+  const graph = parseGraph(parseDiagram(source).body);
+  return hubShape(graph.nodes, graph.edges, 1)?.spokes.length ?? 0;
+}
+
 function hubAndSpokes(nodes: Set<string>, edges: readonly GraphEdge[]): { hub: string; spokes: string[] } | null {
+  return hubShape(nodes, edges, HUB_MIN_SPOKES);
+}
+
+function hubShape(nodes: Set<string>, edges: readonly GraphEdge[], minimum: number): { hub: string; spokes: string[] } | null {
   const degree = new Map<string, number>();
   const neighbors = new Map<string, Set<string>>();
   for (const id of nodes) {
@@ -132,9 +142,9 @@ function hubAndSpokes(nodes: Set<string>, edges: readonly GraphEdge[]): { hub: s
       hub = id;
     }
   }
-  if (!hub || best < HUB_MIN_SPOKES) return null;
+  if (!hub || best < minimum) return null;
   const spokes = [...(neighbors.get(hub) ?? [])].filter((id) => (degree.get(id) ?? 0) === 1);
-  if (spokes.length < HUB_MIN_SPOKES) return null;
+  if (spokes.length < minimum) return null;
   return { hub, spokes };
 }
 

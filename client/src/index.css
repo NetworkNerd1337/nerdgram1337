@@ -1582,6 +1582,54 @@ body.is-col-resizing * {
   white-space: nowrap;
 }
 
+.render-progress {
+  position: absolute;
+  left: 50%;
+  top: 1rem;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.45rem 0.6rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.render-progress p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.node-find {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.35rem 0.5rem 0;
+  padding: 0.35rem;
+  border-radius: 12px;
+  background: var(--bg-elevated, #fff);
+  border: 1px solid var(--line);
+}
+
+.node-find input {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.node.is-found rect,
+.node.is-found polygon,
+.node.is-found circle,
+.node.is-found path {
+  stroke: #c45512;
+  stroke-width: 3px;
+}
+
 .preview-stage {
   position: relative;
   flex: 1;

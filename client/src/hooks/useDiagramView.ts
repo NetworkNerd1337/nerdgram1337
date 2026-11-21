@@ -14,6 +14,7 @@ import {
   toggleFitAndActual,
   viewAfterMeasure,
   viewsClose,
+  centerViewOn,
   zoomAt,
   type FitMode,
   type Point,
@@ -130,6 +131,13 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
     setFitMode(mode);
   }, []);
 
+  const centerOn = useCallback(
+    (point: Point, scale: number) => {
+      commit(centerViewOn(point, scale, viewRef.current.rotation));
+    },
+    [commit],
+  );
+
   const reset = useCallback(() => {
     const vp = viewportRef.current;
     const ct = contentRef.current;
@@ -178,5 +186,5 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
     return isFitted(viewRef.current, vp, ct);
   }, []);
 
-  return { view, fitMode, atFit, isAtFit, zoomAtPoint, pan, rotate, rotateFree, reset, cycleFit, toggleActual };
+  return { view, fitMode, atFit, isAtFit, zoomAtPoint, pan, rotate, rotateFree, reset, cycleFit, toggleActual, centerOn };
 }
