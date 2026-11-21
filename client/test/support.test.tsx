@@ -95,9 +95,13 @@ describe("Support button", () => {
   });
 
   it("is in the dashboard, paste, and editor headers, and hidden while presenting", () => {
+    expect(source("pages/DashboardPage.tsx")).toContain("<AboutButton />");
     expect(source("pages/DashboardPage.tsx")).toContain("<SupportLink />");
+    expect(source("pages/EditorPage.tsx")).toContain("<AboutButton />");
+    expect(source("components/Sidebar.tsx")).not.toContain("sidebar-about");
     expect(source("pages/NewDiagramPage.tsx")).toContain("<SupportLink />");
-    expect(source("pages/EditorPage.tsx")).toContain("presenting ? null : <SupportLink />");
+    expect(source("pages/EditorPage.tsx")).toContain("presenting ? null : (");
+    expect(source("pages/EditorPage.tsx")).toContain("<SupportLink />");
     expect(source("pages/GeneratePage.tsx")).toContain("<SupportLink />");
     expect(source("pages/SettingsPage.tsx")).toContain("<SupportLink />");
     expect(source("pages/TemplatesPage.tsx")).toContain("<SupportLink />");
@@ -108,6 +112,7 @@ describe("Support button", () => {
 
     const css = readFileSync(path.join(clientSrc, "index.css"), "utf8");
     expect(css).toContain('body[data-presenting="true"] .support-link');
+    expect(css).toContain(".about-link .about-link-label");
     expect(css).toContain(".support-link:not(.support-link-text) .support-link-label");
   });
 });

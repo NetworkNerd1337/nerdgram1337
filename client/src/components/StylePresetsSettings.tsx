@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { IMPORT_PRESET_KEY } from "../lib/importRecognize";
 import { api } from "../api";
 import { StyleFields } from "./StyleFields";
 import {
@@ -71,8 +72,14 @@ export function StylePresetsSettings() {
     URL.revokeObjectURL(url);
   };
 
-  const importFile = async (file: File) => {
-    const text = await file.text();
+  useEffect(() => {
+    const raw = sessionStorage.getItem(IMPORT_PRESET_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem("nerdgram-import-presets");
+    void importText(raw);
+  }, []);
+
+  const importText = async (text: string) => {
     let parsed: unknown;
     try {
       parsed = JSON.parse(text) as unknown;
@@ -94,6 +101,10 @@ export function StylePresetsSettings() {
       });
       setNotice(replaceOnImport ? "Replaced the presets on this computer." : "Imported presets.");
     });
+  };
+
+  const importFile = async (file: File) => {
+    await importText(await file.text());
   };
 
   return (

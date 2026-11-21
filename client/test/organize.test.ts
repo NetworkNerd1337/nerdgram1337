@@ -50,6 +50,7 @@ describe("collision-safe names", () => {
     expect(diagramNameFromImport("..\\..\\Notes.md")).toEqual({ name: "Notes.mmd" });
     expect(diagramNameFromImport("rack/Firewall Rules.TXT")).toEqual({ name: "Firewall Rules.mmd" });
     expect(diagramNameFromImport(".hidden.mmd").error).toMatch(/not allowed/);
-    expect(diagramNameFromImport("photo.png").error).toMatch(/\.mmd, \.md, and \.txt/);
+    expect(diagramNameFromImport("photo.png").error).toMatch(/\.mmd, \.mermaid/);
+    expect(diagramNameFromImport("Site.markdown")).toEqual({ name: "Site.mmd" });
   });
 });

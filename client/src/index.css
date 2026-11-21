@@ -2563,6 +2563,7 @@ body.is-col-resizing * {
     max-height: 40vh;
   }
 
+  .about-link .about-link-label,
   .support-link:not(.support-link-text) .support-link-label {
     position: absolute;
     width: 1px;
@@ -2575,6 +2576,7 @@ body.is-col-resizing * {
     border: 0;
   }
 
+  .about-link,
   .support-link:not(.support-link-text) {
     padding: 0.4rem;
   }
@@ -2914,13 +2916,15 @@ body.is-col-resizing * {
 }
 
 .drop-hint,
+.import-hint,
 .dialog-note,
 .import-meta {
   color: var(--ink-soft);
   font-size: 0.85rem;
 }
 
-.drop-hint {
+.drop-hint,
+.import-hint {
   margin: 0 0 0.8rem;
 }
 
@@ -3809,19 +3813,7 @@ body.is-col-resizing * {
   font-size: 0.8rem;
 }
 
-.sidebar-about {
-  margin-top: auto;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--ink-soft);
-  padding: 0.35rem 0.2rem 0;
-  font-size: 0.85rem;
-}
-
+.about-link,
 .support-link {
   position: relative;
   display: inline-flex;
@@ -3829,14 +3821,37 @@ body.is-col-resizing * {
   flex: none;
   gap: 0.35rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, #ff5e5b 42%, var(--line));
-  background: color-mix(in srgb, #ff5e5b 9%, var(--bg-elevated));
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
   color: var(--ink);
   padding: 0.4rem 0.75rem;
   font-size: 0.88rem;
   line-height: 1.2;
   white-space: nowrap;
   text-decoration: none;
+}
+
+.about-link {
+  border-color: var(--line);
+  background: var(--bg-elevated);
+}
+
+.about-link:hover {
+  background: var(--bg-muted);
+}
+
+.about-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.about-link svg {
+  color: var(--ink-soft);
+}
+
+.support-link {
+  border-color: color-mix(in srgb, #ff5e5b 42%, var(--line));
+  background: color-mix(in srgb, #ff5e5b 9%, var(--bg-elevated));
 }
 
 .support-link:hover {
@@ -3848,6 +3863,7 @@ body.is-col-resizing * {
   outline-offset: 2px;
 }
 
+.about-link svg,
 .support-link svg {
   width: 16px;
   height: 16px;
@@ -3870,6 +3886,7 @@ body.is-col-resizing * {
   background: color-mix(in srgb, #ff5e5b 28%, var(--bg-elevated));
 }
 
+body[data-presenting="true"] .about-link,
 body[data-presenting="true"] .support-link {
   display: none;
 }

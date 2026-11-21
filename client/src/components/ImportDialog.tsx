@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 import type { ImportCollisionChoice, ImportDraft } from "../lib/importDrafts";
 import { MAX_IMPORT_FILES } from "../lib/importDrafts";
 import { parseMermaid } from "../lib/mermaidRender";
+import { IMPORT_DATA_KEY, IMPORT_PRESET_KEY, SUPPORTED_IMPORT_LINE } from "../lib/importRecognize";
 import { collectPaths, explainOrganizeError, nextAvailablePath } from "../lib/organize";
 import { displayName, joinPath } from "../lib/paths";
 import type { ImportFileResult, TreeNode } from "../types";
@@ -78,7 +80,7 @@ export function ImportDialog({
     void (async () => {
       const next: Record<string, string> = {};
       for (const draft of rows) {
-        if (draft.error) continue;
+        if (draft.error || draft.route) continue;
         if (!draft.text.trim()) {
           next[draft.id] = "This file is empty. You can still import it and edit it later.";
           continue;
@@ -165,15 +167,52 @@ export function ImportDialog({
       >
         <h3 id="import-dialog-title">Import diagrams</h3>
         <p>
-          Text files only: .mmd, .md, or .txt, up to 512 KB each. They are copied into the folder
-          you pick. A name that is already there is never replaced unless you choose Replace.
+          {SUPPORTED_IMPORT_LINE} Files are up to 512 KB each. Mermaid is copied into the folder you
+          pick. A name that is already there is never replaced unless you choose Replace.
         </p>
         <FolderPicker tree={tree} value={folder} onChange={onFolderChange} />
         <div className="import-list">
           {planned.map((item) => (
             <div key={item.draft.id} className="import-row">
               <strong>{item.draft.sourceName}</strong>
-              {item.draft.error ? <p className="import-error">{item.draft.error}</p> : null}
+              {item.draft.formatLabel ? <p className="import-meta">Recognized as {item.draft.formatLabel}.</p> : null}
+              {item.draft.error ? (
+                <p className="import-error">
+                  {item.draft.error}{" "}
+                  {item.draft.suggestFromData ? <Link to="/generate">From data</Link> : null}
+                </p>
+              ) : null}
+              {item.draft.route === "from-data" ? (
+                <p>
+                  <Link
+                    to="/generate"
+                    onClick={() => {
+                      sessionStorage.setItem(
+                        IMPORT_DATA_KEY,
+                        JSON.stringify({
+                          text: item.draft.text,
+                          fileName: item.draft.sourceName,
+                          format: item.draft.dataFormat || "auto",
+                        }),
+                      );
+                    }}
+                  >
+                    Open in From data
+                  </Link>
+                </p>
+              ) : null}
+              {item.draft.route === "style-presets" ? (
+                <p>
+                  <Link
+                    to="/settings#style-presets"
+                    onClick={() => {
+                      sessionStorage.setItem(IMPORT_PRESET_KEY, item.draft.text);
+                    }}
+                  >
+                    Open in Style presets
+                  </Link>
+                </p>
+              ) : null}
               {!item.draft.error && item.path ? (
                 <p className="import-meta">Saves as {item.path}</p>
               ) : null}

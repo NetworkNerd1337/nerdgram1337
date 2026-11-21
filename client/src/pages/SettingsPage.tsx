@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
-import { SupportLink } from "../components/SupportLink";
+import { AboutButton, SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { pageTitle } from "../lib/pageTitle";
@@ -130,6 +130,7 @@ export function SettingsPage() {
           </div>
         </div>
         <div className="reference-top-actions">
+          <AboutButton />
           <SupportLink />
           <CommandsButton />
           <Link className="btn btn-ghost" to="/">

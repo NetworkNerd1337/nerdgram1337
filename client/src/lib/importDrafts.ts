@@ -1,4 +1,9 @@
-import { diagramNameFromImport } from "./organize";
+import {
+  diagramFileName,
+  recognizeImport,
+  type ImportAction,
+  type ImportKind,
+} from "./importRecognize";
 
 export const MAX_IMPORT_FILE_CHARS = 512 * 1024;
 export const MAX_IMPORT_FILES = 25;
@@ -11,6 +16,11 @@ export type ImportDraft = {
   text: string;
   diagramName: string;
   error?: string;
+  formatLabel?: string;
+  kind?: ImportKind;
+  route?: Extract<ImportAction, "from-data" | "style-presets">;
+  dataFormat?: "" | "csv" | "json" | "cdp" | "lldp" | "network";
+  suggestFromData?: boolean;
 };
 
 export async function draftsFromFiles(files: File[]): Promise<ImportDraft[]> {
@@ -27,43 +37,51 @@ export async function draftsFromFiles(files: File[]): Promise<ImportDraft[]> {
       });
       continue;
     }
-    const text = await file.text();
-    const named = diagramNameFromImport(file.name);
-    if (!named.name) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (bytes.length > MAX_IMPORT_FILE_CHARS) {
       drafts.push({
         id,
         sourceName: file.name,
         text: "",
         diagramName: "",
-        error: named.error || "That file cannot be imported.",
-      });
-      continue;
-    }
-    if (text.length > MAX_IMPORT_FILE_CHARS) {
-      drafts.push({
-        id,
-        sourceName: file.name,
-        text: "",
-        diagramName: named.name,
         error: "This file is larger than 512 KB.",
       });
       continue;
     }
-    if (text.includes("\0")) {
+    const found = recognizeImport(file.name, bytes);
+    if (found.action === "diagram") {
       drafts.push({
         id,
         sourceName: file.name,
-        text: "",
-        diagramName: named.name,
-        error: "Only text files can be imported.",
+        text: found.diagramText,
+        diagramName: diagramFileName(file.name),
+        formatLabel: found.label,
+        kind: found.kind,
+      });
+      continue;
+    }
+    if (found.action === "from-data" || found.action === "style-presets") {
+      drafts.push({
+        id,
+        sourceName: file.name,
+        text: new TextDecoder().decode(bytes),
+        diagramName: "",
+        formatLabel: found.label,
+        kind: found.kind,
+        route: found.action,
+        dataFormat: found.dataFormat,
       });
       continue;
     }
     drafts.push({
       id,
       sourceName: file.name,
-      text,
-      diagramName: named.name,
+      text: "",
+      diagramName: "",
+      error: found.message,
+      formatLabel: found.kind === "unknown" ? undefined : found.label,
+      kind: found.kind,
+      suggestFromData: true,
     });
   }
   return drafts;

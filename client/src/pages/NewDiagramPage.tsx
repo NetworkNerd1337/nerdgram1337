@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
-import { SupportLink } from "../components/SupportLink";
+import { AboutButton, SupportLink } from "../components/SupportLink";
 import { FolderPicker } from "../components/FolderPicker";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -97,6 +97,7 @@ export function NewDiagramPage() {
             <Brand />
           </Link>
           <div className="paste-top-actions">
+            <AboutButton />
             <SupportLink />
             <CommandsButton />
           </div>
