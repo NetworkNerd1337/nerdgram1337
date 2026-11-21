@@ -1,4 +1,5 @@
 import { useState, type Dispatch, type ReactNode } from "react";
+import { largeImportAdvice } from "../lib/largeImport";
 import type { FlowDirection, NetworkView } from "../../../server/src/diagramData.ts";
 import {
   canCreate,
@@ -342,6 +343,7 @@ export function GenerateWizard({
             {state.counts.nodes} nodes, {state.counts.edges} edges
             {state.counts.groups > 0 ? `, ${state.counts.groups} groups` : ""}
           </p>
+          <LargeImportChoice state={state} dispatch={dispatch} />
           <label htmlFor="generate-preview">Mermaid preview</label>
           <textarea id="generate-preview" readOnly value={state.mermaid} spellCheck={false} rows={16} />
           <div className="generate-actions">
@@ -355,6 +357,44 @@ export function GenerateWizard({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function LargeImportChoice({ state, dispatch }: { state: WizardState; dispatch: Dispatch<WizardAction> }) {
+  const advice = largeImportAdvice(state.mermaid, state.counts.nodes);
+  if (!advice) return null;
+  return (
+    <fieldset className="generate-large">
+      <legend>Large diagram</legend>
+      <p>{advice.message}</p>
+      <label>
+        <input
+          type="radio"
+          name="hub-layout"
+          checked={state.hubLayout === ""}
+          onChange={() => dispatch({ type: "hubLayout", hubLayout: "" })}
+        />
+        Default rank
+      </label>
+      <label>
+        <input
+          type="radio"
+          name="hub-layout"
+          checked={state.hubLayout === "compact"}
+          onChange={() => dispatch({ type: "hubLayout", hubLayout: "compact" })}
+        />
+        Compact hub layout
+      </label>
+      <label>
+        <input
+          type="radio"
+          name="hub-layout"
+          checked={state.hubLayout === "radial"}
+          onChange={() => dispatch({ type: "hubLayout", hubLayout: "radial" })}
+        />
+        Radial hub layout
+      </label>
+    </fieldset>
   );
 }
 

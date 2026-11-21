@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
 import { renderForExport } from "./mermaidRender";
+import { yieldToInput } from "./renderWait";
 import { rasterExportScale, rasterScaleNote } from "./rasterScale";
 import { backgroundFromSvg, themeBackground } from "./svgBackground";
 import { exportBackgroundColor, svgHasForeignObject } from "./exportSvg";
@@ -171,6 +172,8 @@ export type ExportOptions = {
   themeVariables?: Record<string, unknown> | null;
   /** PNG only. Every other format paints the theme background. */
   transparent?: boolean;
+  /** When this returns true, the file is not downloaded. */
+  isCancelled?: () => boolean;
 };
 
 export type DiagramExportResult = {
@@ -202,6 +205,9 @@ export async function exportDiagram(
     }
   }
 
+  await yieldToInput();
+  if (options.isCancelled?.()) return { note: null };
+
   if (format === "svg") {
     const painted = paintBackground(vector ?? svg, fill);
     triggerDownload(
@@ -216,6 +222,8 @@ export async function exportDiagram(
     if (vector) {
       try {
         const blob = await svgToPdfBlob(painted);
+        await yieldToInput();
+        if (options.isCancelled?.()) return { note: null };
         triggerDownload(blob, `${safe}.pdf`);
         return { note: null };
       } catch {
@@ -223,6 +231,8 @@ export async function exportDiagram(
       }
     }
     const drawn = await svgToCanvas(paintBackground(svg, fill), fill);
+    await yieldToInput();
+    if (options.isCancelled?.()) return { note: null };
     triggerDownload(await canvasToPdfBlob(drawn.canvas, drawn.scale), `${safe}.pdf`);
     return { note: drawn.note };
   }
@@ -236,6 +246,8 @@ export async function exportDiagram(
       0.92,
     );
   });
+  await yieldToInput();
+  if (options.isCancelled?.()) return { note: null };
   triggerDownload(blob, `${safe}.${format === "jpg" ? "jpg" : "png"}`);
   return { note: drawn.note };
 }

@@ -30,6 +30,23 @@ import { usePreviewViewport } from "../hooks/usePreviewViewport";
 import { anchorsFromElement, sourceLocationForElement } from "../lib/sourceJump";
 import { drillForward, drillIndex, trailFromState, withCrumbTitle } from "../lib/drillTrail";
 import { getEditorView, revealEditorLine, revealEditorMatch, runFind, runGotoLine, runReplace } from "../lib/editorCommands";
+import { NodeFindBar } from "../components/NodeFindBar";
+import { RenderProgress } from "../components/RenderProgress";
+import {
+  RENDER_CANCELLED_MESSAGE,
+  cancelledPreviewNotice,
+  countDiagramNodes,
+  renderGuarded,
+} from "../lib/renderWait";
+import {
+  flowchartNodes,
+  matchNodes,
+  nodeFindShortcut,
+  nodePointInDiagram,
+  stepMatch,
+  type NodeMatch,
+} from "../lib/nodeFind";
+import { useNodeMeta } from "../hooks/useNodeMeta";
 import { extractNodeIds } from "../lib/mermaidCompletions";
 import { applyLintFix } from "../lib/lintActions";
 import type { ReportedDiagnostic } from "../lib/mermaidLint";
@@ -696,18 +713,82 @@ export function EditorPage() {
     return () => window.clearInterval(timer);
   }, [access, filePath, loaded]);
 
+  const renderCancel = useRef(false);
+  const [renderOverlay, setRenderOverlay] = useState<string | null>(null);
+  const [nodeQuery, setNodeQuery] = useState<string | null>(null);
+  const [nodeIndex, setNodeIndex] = useState(0);
+  const nodeMeta = useNodeMeta(filePath, code);
+
+  const cancelRender = useCallback(() => {
+    renderCancel.current = true;
+    setRenderOverlay(null);
+    setRenderError(RENDER_CANCELLED_MESSAGE);
+    getEditorView()?.focus();
+  }, []);
+
+  const nodeMatches = useMemo(
+    () => matchNodes(flowchartNodes(code), nodeQuery ?? "", nodeMeta),
+    [code, nodeMeta, nodeQuery],
+  );
+
+  const focusNode = useCallback(
+    (match: NodeMatch | undefined) => {
+      const root = previewStageRef.current;
+      const svg = root?.querySelector("svg");
+      if (!root || !svg || !match) return;
+      root.querySelectorAll(".node.is-found").forEach((node) => node.classList.remove("is-found"));
+      const node = [...root.querySelectorAll<SVGGElement>(".node")].find((item) =>
+        item.id.includes(`flowchart-${match.id}-`),
+      );
+      if (!node) return;
+      node.classList.add("is-found");
+      const moved = node.getAttribute("transform")?.match(/translate\(\s*([-0-9.]+)[,\s]+([-0-9.]+)/);
+      const box = svg.viewBox.baseVal;
+      if (!moved || !box.width || !box.height) return;
+      preview.camera.centerOn(
+        nodePointInDiagram({ x: Number(moved[1]), y: Number(moved[2]) }, { width: box.width, height: box.height }),
+        1.5,
+      );
+    },
+    [preview.camera],
+  );
+
+  useEffect(() => {
+    if (nodeQuery === null) return;
+    focusNode(nodeMatches[nodeIndex]);
+  }, [focusNode, nodeIndex, nodeMatches, nodeQuery]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (nodeFindShortcut(event, isCodeEditorTarget(event.target)) !== "open") return;
+      event.preventDefault();
+      setNodeQuery((current) => current ?? "");
+      setNodeIndex(0);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const runRender = useCallback(async (source: string) => {
     const generation = renderGen.current;
+    renderCancel.current = false;
     try {
-      const { svg } = await renderMermaid(source, FALLBACK_THEME);
-      if (!mountedRef.current || generation !== renderGen.current) return;
+      const outcome = await renderGuarded({
+        nodeCount: countDiagramNodes(source),
+        showOverlay: setRenderOverlay,
+        hideOverlay: () => setRenderOverlay(null),
+        cancelled: () => renderCancel.current || generation !== renderGen.current,
+        run: () => renderMermaid(source, FALLBACK_THEME),
+      });
+      if (!mountedRef.current || generation !== renderGen.current || renderCancel.current || !outcome.ok) return;
+      const { svg } = outcome.value;
       renderedRef.current = { source, svg };
       setSvgHtml(svg);
       setRenderError(null);
       setPreviewStale(false);
       publishThumbnail(pathRef.current, source, svg);
     } catch (err) {
-      if (!mountedRef.current || generation !== renderGen.current) return;
+      if (!mountedRef.current || generation !== renderGen.current || renderCancel.current) return;
       const message = err instanceof Error ? err.message : "Render failed";
       setRenderError(message);
       setPreviewStale(Boolean(renderedRef.current?.svg));
@@ -876,19 +957,32 @@ export function EditorPage() {
       return;
     }
     const parsed = parseDiagram(code);
+    renderCancel.current = false;
     try {
-      const exported = await exportDiagram(svg, diagramHeading(parsed.title, templateId ? templateTitle : filePath), format, {
-        source: code,
-        fallbackTheme: FALLBACK_THEME,
-        theme: parsed.theme,
-        themeVariables: parsed.themeVariables,
-        transparent,
+      const outcome = await renderGuarded({
+        nodeCount: countDiagramNodes(code),
+        showOverlay: setRenderOverlay,
+        hideOverlay: () => setRenderOverlay(null),
+        cancelled: () => renderCancel.current,
+        run: () =>
+          exportDiagram(svg, diagramHeading(parsed.title, templateId ? templateTitle : filePath), format, {
+            source: code,
+            fallbackTheme: FALLBACK_THEME,
+            theme: parsed.theme,
+            themeVariables: parsed.themeVariables,
+            transparent,
+            isCancelled: () => renderCancel.current,
+          }),
       });
+      if (renderCancel.current || !outcome.ok) {
+        if (renderCancel.current) setRenderError(RENDER_CANCELLED_MESSAGE);
+        return;
+      }
       setExportNotice(
-        exported.note ? { title: "Export scaled down", items: [exported.note] } : null,
+        outcome.value.note ? { title: "Export scaled down", items: [outcome.value.note] } : null,
       );
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : "Export failed");
+      if (!renderCancel.current) setExportError(err instanceof Error ? err.message : "Export failed");
     }
   };
 
@@ -1603,6 +1697,19 @@ export function EditorPage() {
               {linkMessage.text}
             </div>
           ) : null}
+          {nodeQuery !== null ? (
+            <NodeFindBar
+              query={nodeQuery}
+              onQuery={(value) => {
+                setNodeQuery(value);
+                setNodeIndex(0);
+              }}
+              index={Math.min(nodeIndex, Math.max(0, nodeMatches.length - 1))}
+              count={nodeMatches.length}
+              onStep={(delta) => setNodeIndex((current) => stepMatch(current, delta, nodeMatches.length))}
+              onClose={() => setNodeQuery(null)}
+            />
+          ) : null}
           <div
             className={`preview-stage${previewStale ? " is-stale" : ""}${previewGestures.panning ? " is-panning" : ""}`}
             ref={previewStageRef}
@@ -1612,6 +1719,7 @@ export function EditorPage() {
             onPointerCancel={previewGestures.onPointerCancel}
             onClick={followPreviewClick}
           >
+            {renderOverlay ? <RenderProgress text={renderOverlay} onCancel={cancelRender} /> : null}
             {svgHtml ? (
               <div
                 ref={previewCanvasRef}
@@ -1620,7 +1728,12 @@ export function EditorPage() {
                 dangerouslySetInnerHTML={{ __html: svgHtml }}
               />
             ) : null}
-            {previewStale && svgHtml ? (
+            {cancelledPreviewNotice(Boolean(svgHtml), renderError) ? (
+              <div className="preview-cancel-banner" role="status">
+                {cancelledPreviewNotice(Boolean(svgHtml), renderError)}
+              </div>
+            ) : null}
+            {previewStale && svgHtml && renderError !== RENDER_CANCELLED_MESSAGE ? (
               <div className="preview-stale-banner" role="status" title={settingsTitle || undefined}>
                 <strong>Out of date.</strong> The last diagram that rendered is still shown.{" "}
                 {info.malformed ? "Settings error" : shortRenderError(renderError)}
@@ -1645,7 +1758,15 @@ export function EditorPage() {
         />
       )}
       {presenting && loaded ? (
-        <PresentationView source={code} path={filePath} onExit={() => setPresenting(false)} />
+        <PresentationView
+          source={code}
+          path={filePath}
+          onExit={() => setPresenting(false)}
+          onRenderCancelled={() => {
+            setPresenting(false);
+            setRenderError(RENDER_CANCELLED_MESSAGE);
+          }}
+        />
       ) : null}
       {linkNodeOpen ? (
         <LinkNodeDialog

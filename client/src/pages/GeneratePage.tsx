@@ -22,6 +22,7 @@ import {
   type WizardState,
 } from "../lib/generateWizard";
 import { contentWithStyle } from "../lib/stylePresets";
+import { applyDiagramPatch } from "../lib/frontMatter";
 
 export function GeneratePage() {
   const navigate = useNavigate();
@@ -96,10 +97,13 @@ export function GeneratePage() {
         storeData: true,
         dataName: request.sourceFile,
       });
-      if (preset.style) {
-        const next = contentWithStyle(created.mermaid, preset.style);
-        if (next !== created.mermaid) await api.writeFile(created.path, next, { force: true });
+      let next = created.mermaid;
+      if (preset.style) next = contentWithStyle(next, preset.style);
+      if (state.hubLayout === "compact" || state.hubLayout === "radial") {
+        const patched = applyDiagramPatch(next, { hubLayout: state.hubLayout });
+        if (patched.ok) next = patched.source;
       }
+      if (next !== created.mermaid) await api.writeFile(created.path, next, { force: true });
       navigate(`/edit/${created.path}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not create the diagram.";

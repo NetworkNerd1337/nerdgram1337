@@ -173,6 +173,11 @@ export const api = {
     request<FolderListing>(`/api/list?path=${encodeURIComponent(path)}`),
   readFile: (path: string) =>
     request<FilePayload>(`/api/file?path=${encodeURIComponent(path)}`),
+  /** The data file named by this diagram. Not a general file read. */
+  readDiagramSidecar: (diagramPath: string) =>
+    request<{ path: string; content: string; bytes: number }>(
+      `/api/diagram-sidecar?path=${encodeURIComponent(diagramPath)}`,
+    ),
   thumbnail: (path: string) =>
     request<ThumbnailPayload>(`/api/thumbnail?path=${encodeURIComponent(path)}`),
   saveThumbnail: (path: string, cacheKey: string, svg: string) =>

@@ -76,6 +76,8 @@ export type WizardState = {
   detectedShape: DataShape | "";
   detectedFormat: DataFormat | "";
   fatal: string | null;
+  /** Empty keeps Mermaid's rank layout. Compact and radial are stored on the new file. */
+  hubLayout: "" | "compact" | "radial";
 };
 
 export type WizardAction =
@@ -97,7 +99,8 @@ export type WizardAction =
   | { type: "meta"; diagramName?: string; folder?: string; title?: string }
   | { type: "result"; result: WizardInspection; step: "map" | "preview" }
   | { type: "fatal"; message: string }
-  | { type: "back" };
+  | { type: "back" }
+  | { type: "hubLayout"; hubLayout: WizardState["hubLayout"] };
 
 export function initialWizardState(folder = ""): WizardState {
   return {
@@ -132,6 +135,7 @@ export function initialWizardState(folder = ""): WizardState {
     detectedShape: "",
     detectedFormat: "",
     fatal: null,
+    hubLayout: "",
   };
 }
 
@@ -252,6 +256,8 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       };
     case "fatal":
       return { ...state, fatal: action.message };
+    case "hubLayout":
+      return { ...state, hubLayout: action.hubLayout };
     case "back":
       if (state.step === "preview") return { ...state, step: "map", fatal: null };
       if (state.step === "map") return { ...state, step: "input", fatal: null };
