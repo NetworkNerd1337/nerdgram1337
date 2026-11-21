@@ -56,7 +56,7 @@ function milestonesForMajor(major: number, map: CodenameMap): Milestone[] {
  * A code name starts at its `major.minor` key and covers every patch of that
  * minor. It also covers later minors of the same major until the next key.
  * The last key of a major covers only its own minor. 1.5.y stays Compass.
- * 1.9.y and 2.0.y stay unnamed until a key is added.
+ * 1.9.y stays unnamed. 2.0.y and 2.1.y are Zenith. A later 2.y stays unnamed.
  */
 export function codenameForVersion(version: string, map: CodenameMap = readCodenames()): string | null {
   const parsed = parseSemver(version);
@@ -99,7 +99,7 @@ export function releaseCodename(
   return codenameFromReleaseTitle(version, title);
 }
 
-/** `v1.8.19 "Meridian"`, or `v1.8.19` when this version has no code name. */
+/** `v2.1.0 "Zenith"`, or `v2.1.0` when this version has no code name. */
 export function formatVersionLabel(version: string, codename: string | null | undefined): string {
   const trimmed = version.trim();
   const base = trimmed.startsWith("v") ? trimmed : `v${trimmed}`;

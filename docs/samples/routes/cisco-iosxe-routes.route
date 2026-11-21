@@ -1,0 +1,10 @@
+iosxe-rtr#show ip route
+Codes: L - local, C - connected, S - static, O - OSPF
+C        10.9.0.0/31 is directly connected, GigabitEthernet0/0/0
+L        10.9.0.0/32 is directly connected, GigabitEthernet0/0/0
+O        10.9.9.0/24 [110/2] via 10.9.0.1, 00:00:01, GigabitEthernet0/0/0
+
+peer-rtr#show ip route
+Codes: L - local, C - connected, S - static
+C        10.9.0.0/31 is directly connected, GigabitEthernet0/0/1
+L        10.9.0.1/32 is directly connected, GigabitEthernet0/0/1

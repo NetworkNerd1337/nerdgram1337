@@ -1,0 +1,21 @@
+nx-core# show ip route
+IP Route Table for VRF "default"
+'*' denotes best ucast next-hop
+'**' denotes best mcast next-hop
+'[x/y]' denotes [preference/metric]
+
+10.4.0.0/30, ubest/mbest: 1/0, attached
+    *via 10.4.0.1, Eth1/1, [0/0], 1w2d, direct
+10.4.0.1/32, ubest/mbest: 1/0, attached
+    *via 10.4.0.1, Eth1/1, [0/0], 1w2d, local
+10.8.0.0/16, ubest/mbest: 1/0
+    *via 10.4.0.2, Eth1/1, [110/2], 00:01:02, ospf-1, intra
+0.0.0.0/0, ubest/mbest: 1/0
+    *via 198.51.100.1, Eth1/2, [1/0], 2w1d, static
+
+nx-dist# show ip route
+IP Route Table for VRF "default"
+10.4.0.0/30, ubest/mbest: 1/0, attached
+    *via 10.4.0.2, Eth1/1, [0/0], 1w2d, direct
+10.4.0.2/32, ubest/mbest: 1/0, attached
+    *via 10.4.0.2, Eth1/1, [0/0], 1w2d, local

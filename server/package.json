@@ -1,6 +1,6 @@
 {
   "name": "nerdgram1337-server",
-  "version": "1.8.19",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "bin": {

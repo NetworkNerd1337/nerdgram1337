@@ -78,6 +78,8 @@ export type WizardState = {
   fatal: string | null;
   /** Empty keeps Mermaid's rank layout. Compact and radial are stored on the new file. */
   hubLayout: "" | "compact" | "radial";
+  /** Routing tables. ports draws each host. Counts draw one node per port or VLAN. */
+  hosts: "ports" | "port-counts" | "vlan-counts";
 };
 
 export type WizardAction =
@@ -100,7 +102,8 @@ export type WizardAction =
   | { type: "result"; result: WizardInspection; step: "map" | "preview" }
   | { type: "fatal"; message: string }
   | { type: "back" }
-  | { type: "hubLayout"; hubLayout: WizardState["hubLayout"] };
+  | { type: "hubLayout"; hubLayout: WizardState["hubLayout"] }
+  | { type: "hosts"; hosts: WizardState["hosts"] };
 
 export function initialWizardState(folder = ""): WizardState {
   return {
@@ -136,6 +139,7 @@ export function initialWizardState(folder = ""): WizardState {
     detectedFormat: "",
     fatal: null,
     hubLayout: "",
+    hosts: "ports",
   };
 }
 
@@ -258,6 +262,8 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return { ...state, fatal: action.message };
     case "hubLayout":
       return { ...state, hubLayout: action.hubLayout };
+    case "hosts":
+      return { ...state, hosts: action.hosts };
     case "back":
       if (state.step === "preview") return { ...state, step: "map", fatal: null };
       if (state.step === "map") return { ...state, step: "input", fatal: null };
@@ -326,6 +332,7 @@ export function previewRequest(state: WizardState): {
   vlan?: number;
   title: string;
   sourceFile: string;
+  hosts?: WizardState["hosts"];
 } {
   const translated = Boolean(state.translatorId && state.documentText);
   const network = isNetworkSource(state);
@@ -333,9 +340,9 @@ export function previewRequest(state: WizardState): {
   return {
     text: translated ? state.documentText : state.text,
     format: translated ? "network" : state.format,
-    shape: isNeighborSource(state) || network ? "links" : state.shape,
+    shape: isNeighborSource(state) || isRouteSource(state) || network ? "links" : state.shape,
     mapping: state.mapping,
-    edgesText: isNeighborSource(state) || network || !state.edgesText.trim() ? undefined : state.edgesText,
+    edgesText: isNeighborSource(state) || isRouteSource(state) || network || !state.edgesText.trim() ? undefined : state.edgesText,
     edgesMapping: state.edgesMapping,
     direction: state.direction,
     grouping: state.grouping,
@@ -346,7 +353,15 @@ export function previewRequest(state: WizardState): {
     vlan,
     title: state.title.trim() || state.diagramName.trim() || "Diagram",
     sourceFile: dataFilePath(state),
+    hosts: isRouteSource(state) ? state.hosts : undefined,
   };
+}
+
+export function isRouteSource(state: WizardState): boolean {
+  if (state.translatorId) return false;
+  if (state.format === "route") return true;
+  if (state.format === "auto") return state.detectedFormat === "route";
+  return false;
 }
 
 export function isNeighborSource(state: WizardState): boolean {
@@ -389,7 +404,7 @@ export function dataFilePath(state: WizardState): string {
   const ext =
     selected === "network"
       ? "network.json"
-      : selected === "json" || selected === "cdp" || selected === "lldp"
+      : selected === "json" || selected === "cdp" || selected === "lldp" || selected === "route"
         ? selected
         : state.fileName.toLowerCase().endsWith(".network.json")
           ? "network.json"
@@ -417,7 +432,7 @@ function setColumn(mapping: ColumnMapping, field: string, column: string): Colum
 function stemFromFile(fileName: string | undefined): string {
   if (!fileName) return "";
   const base = fileName.split(/[/\\]/).pop() ?? "";
-  return base.replace(/\.network\.json$/i, "").replace(/\.(csv|json|txt|cdp|lldp)$/i, "").trim();
+  return base.replace(/\.network\.json$/i, "").replace(/\.(csv|json|txt|cdp|lldp|route)$/i, "").trim();
 }
 
 function formatFromName(fileName: string | undefined): WizardFormat | null {
@@ -425,6 +440,7 @@ function formatFromName(fileName: string | undefined): WizardFormat | null {
   if (lower.endsWith(".network.json")) return "network";
   if (lower.endsWith(".cdp")) return "cdp";
   if (lower.endsWith(".lldp")) return "lldp";
+  if (lower.endsWith(".route")) return "route";
   if (lower.endsWith(".json")) return "json";
   if (lower.endsWith(".csv")) return "csv";
   return null;

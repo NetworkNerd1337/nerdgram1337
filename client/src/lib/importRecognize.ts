@@ -1,10 +1,11 @@
 import { detectNeighborKind } from "../../../server/src/neighbors/index.ts";
+import { looksLikeIpRoute } from "../../../server/src/routing/ipRoute.ts";
 
 /** Shown on the Import button. Extension is only a hint; content decides. */
 export const MERMAID_IMPORT_HINT = "Mermaid: .mmd, .mermaid, .md, .markdown, .txt";
 
 export const SUPPORTED_IMPORT_LINE =
-  "Supported files: Mermaid (.mmd, .mermaid, .md, .markdown, .txt). CSV, JSON, CDP/LLDP, and .network.json open in From data.";
+  "Supported files: Mermaid (.mmd, .mermaid, .md, .markdown, .txt). CSV, JSON, CDP/LLDP, routing tables, and .network.json open in From data.";
 
 export const IMPORT_DATA_KEY = "nerdgram-import-data";
 export const IMPORT_PRESET_KEY = "nerdgram-import-presets";
@@ -19,6 +20,7 @@ export type ImportKind =
   | "csv"
   | "cdp"
   | "lldp"
+  | "route"
   | "network"
   | "lucidchart"
   | "drawio"
@@ -41,7 +43,7 @@ export type ImportRecognition = {
   action: ImportAction;
   diagramText: string;
   /** Wizard format when the file opens in From data. */
-  dataFormat: "" | "csv" | "json" | "cdp" | "lldp" | "network";
+  dataFormat: "" | "csv" | "json" | "cdp" | "lldp" | "network" | "route";
   message: string;
 };
 
@@ -53,6 +55,7 @@ const LABELS: Record<ImportKind, string> = {
   csv: "CSV",
   cdp: "Cisco CDP output",
   lldp: "LLDP output",
+  route: "Cisco routing table",
   network: "Network JSON",
   lucidchart: "Lucidchart JSON",
   drawio: "draw.io / diagrams.net",
@@ -250,6 +253,7 @@ function classifyText(name: string, text: string): ImportRecognition {
   const neighbor = detectNeighborKind(trimmed);
   if (neighbor === "cdp") return named("cdp", "from-data", { dataFormat: "cdp" });
   if (neighbor === "lldp") return named("lldp", "from-data", { dataFormat: "lldp" });
+  if (looksLikeIpRoute(trimmed) || extension(name) === ".route") return named("route", "from-data", { dataFormat: "route" });
 
   const fences = mermaidFences(trimmed);
   if (fences.length > 0) {

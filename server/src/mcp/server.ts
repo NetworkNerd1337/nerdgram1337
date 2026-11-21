@@ -56,8 +56,10 @@ const destructiveHints: McpToolAnnotation = {
 };
 
 const formatSchema = z
-  .enum(["csv", "json", "cdp", "lldp", "network"])
-  .describe("csv, json, cdp, lldp, or network. cdp and lldp are raw neighbor command output. network is network JSON.");
+  .enum(["csv", "json", "cdp", "lldp", "network", "route"])
+  .describe(
+    "csv, json, cdp, lldp, network, or route. cdp and lldp are raw neighbor command output. network is network JSON. route is Cisco show ip route text.",
+  );
 
 const generateFields = {
   path: z.string().describe(`Diagram path to create. ${PATH_RULES}`),
@@ -68,7 +70,11 @@ const generateFields = {
   vlan: z.number().int().optional().describe("Layer 2 only. Keep links that carry this VLAN id, from 1 to 4094."),
   direction: z.string().optional().describe("Mermaid flowchart direction, such as LR or TB."),
   groupBy: z.string().optional().describe("cdp and lldp: platform or capability. network l3: vrf. network l2: site, role, or platform."),
-  localDevice: z.string().optional().describe("Local device name when a CDP or LLDP paste has no prompt."),
+  localDevice: z.string().optional().describe("Local device name when a CDP, LLDP, or routing-table paste has no prompt."),
+  hosts: z
+    .enum(["ports", "port-counts", "vlan-counts"])
+    .optional()
+    .describe("Routing tables only. ports places each host. port-counts and vlan-counts draw a count instead. ARP alone never infers links."),
   title: z.string().optional().describe("Diagram title."),
   edgesText: z.string().optional().describe("Optional second table of edges, as text."),
   storeData: z.boolean().optional().describe("Write the data file beside the diagram. Default is true."),
@@ -371,7 +377,7 @@ const TOOLS: ToolDef[] = [
     scope: "write",
     title: "Generate a diagram",
     annotations: writeHints,
-    description: `Create a diagram from data. Fails when the path already exists. Use nerdgram_upsert to update an existing generated diagram. data is raw CSV, JSON, CDP, LLDP, or network JSON text, not a file path. ${PATH_RULES} ${SAVE_RULES}`,
+    description: `Create a diagram from data. Fails when the path already exists. Use nerdgram_upsert to update an existing generated diagram. data is raw CSV, JSON, CDP, LLDP, routing table, or network JSON text, not a file path. ${PATH_RULES} ${SAVE_RULES}`,
     inputSchema: generateFields,
     run: (backend, args) => toolCall(() => backend.generate(asGenerate(args))),
   },

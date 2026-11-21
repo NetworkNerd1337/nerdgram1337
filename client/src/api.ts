@@ -360,12 +360,13 @@ export const api = {
     view?: "l3" | "l2";
     includeDown?: boolean;
     vlan?: number;
+    hosts?: string;
     title?: string;
     sourceFile?: string;
     edgesFile?: string;
   }) =>
     request<{
-      format: "csv" | "json" | "cdp" | "lldp" | "network";
+      format: "csv" | "json" | "cdp" | "lldp" | "network" | "route";
       shape: "links" | "nodes" | "edges" | "graph";
       headers: string[];
       edgesHeaders: string[];
@@ -396,6 +397,7 @@ export const api = {
     view?: "l3" | "l2";
     includeDown?: boolean;
     vlan?: number;
+    hosts?: string;
     title?: string;
     description?: string;
     sourceFile?: string;

@@ -7,6 +7,7 @@ import {
   edgeFields,
   fieldsFor,
   isNeighborSource,
+  isRouteSource,
   isNetworkSource,
   issueListTitle,
   listedIssueText,
@@ -52,6 +53,7 @@ export function GenerateWizard({
 }: GenerateWizardProps) {
   const fields = fieldsFor(state);
   const neighbor = isNeighborSource(state);
+  const route = isRouteSource(state);
   const network = isNetworkSource(state);
   const translator = translators.find((item) => item.id === state.translatorId) ?? null;
   const [converting, setConverting] = useState(false);
@@ -85,7 +87,7 @@ export function GenerateWizard({
     <div className="generate-wizard">
       <ol className="generate-steps" aria-label="Steps">
         <li className={state.step === "input" ? "active" : ""}>Data</li>
-        <li className={state.step === "map" ? "active" : ""}>{neighbor || network ? "Options" : "Columns"}</li>
+        <li className={state.step === "map" ? "active" : ""}>{neighbor || route || network ? "Options" : "Columns"}</li>
         <li className={state.step === "preview" ? "active" : ""}>Preview</li>
       </ol>
 
@@ -111,6 +113,7 @@ export function GenerateWizard({
             <option value="network">Network data (JSON)</option>
             <option value="cdp">Cisco CDP</option>
             <option value="lldp">LLDP neighbors</option>
+            <option value="route">Routing table</option>
             {translators.map((item) => (
               <option key={item.id} value={`translator:${item.id}`}>
                 {item.name}
@@ -132,7 +135,7 @@ export function GenerateWizard({
             Upload a file
             <input
               type="file"
-              accept=".csv,.json,.network.json,.cdp,.lldp,.txt,text/csv,application/json,text/plain"
+              accept=".csv,.json,.network.json,.cdp,.lldp,.route,.txt,text/csv,application/json,text/plain"
               aria-label="Upload data file"
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -143,7 +146,7 @@ export function GenerateWizard({
             />
           </label>
           {translator ? <NetworkOptions state={state} dispatch={dispatch} /> : null}
-          {!translator && (state.format === "cdp" || state.format === "lldp" || state.format === "network") ? (
+          {!translator && (state.format === "cdp" || state.format === "lldp" || state.format === "network" || state.format === "route") ? (
             <label htmlFor="generate-local-device">
               Local device name
               <input
@@ -159,7 +162,8 @@ export function GenerateWizard({
             </label>
           ) : null}
           {!translator && state.format === "network" ? <NetworkOptions state={state} dispatch={dispatch} /> : null}
-          {translator || state.format === "cdp" || state.format === "lldp" || state.format === "network" ? null : (
+          {state.format === "route" ? <RouteHostOptions state={state} dispatch={dispatch} /> : null}
+          {translator || state.format === "cdp" || state.format === "lldp" || state.format === "network" || state.format === "route" ? null : (
             <>
               <label htmlFor="generate-edges">Edges file, if the first file is only nodes</label>
               <textarea
@@ -182,7 +186,20 @@ export function GenerateWizard({
 
       {state.step === "map" ? (
         <div className="generate-panel">
-          {neighbor ? (
+          {route ? (
+            <>
+              <label htmlFor="generate-route-device">
+                Local device name
+                <input
+                  id="generate-route-device"
+                  value={state.localDevice}
+                  onChange={(event) => dispatch({ type: "localDevice", localDevice: event.target.value })}
+                  placeholder="Used when the paste has no hostname prompt"
+                />
+              </label>
+              <RouteHostOptions state={state} dispatch={dispatch} />
+            </>
+          ) : neighbor ? (
             <>
               <label htmlFor="generate-local-device">
                 Local device name
@@ -499,9 +516,30 @@ function DataNotice({ translator }: { translator: TranslatorChoice }) {
   );
 }
 
+function RouteHostOptions({ state, dispatch }: { state: WizardState; dispatch: Dispatch<WizardAction> }) {
+  return (
+    <label htmlFor="generate-hosts">
+      Hosts
+      <select
+        id="generate-hosts"
+        value={state.hosts}
+        onChange={(event) => dispatch({ type: "hosts", hosts: event.target.value as WizardState["hosts"] })}
+      >
+        <option value="ports">On switchports</option>
+        <option value="port-counts">Counts per port</option>
+        <option value="vlan-counts">Counts per VLAN</option>
+      </select>
+      <span className="generate-hint">
+        ARP and a MAC address table place hosts. ARP alone does not draw links. A port with many MACs stays an uplink. Counts keep a large access layer from becoming a starburst.
+      </span>
+    </label>
+  );
+}
+
 function dataLabel(format: WizardState["format"]): string {
   if (format === "cdp") return "Cisco CDP output";
   if (format === "lldp") return "LLDP neighbor output";
+  if (format === "route") return "Routing table";
   if (format === "network") return "Network data (JSON)";
   if (format === "json") return "JSON";
   if (format === "csv") return "CSV";
@@ -514,6 +552,9 @@ function dataPlaceholder(format: WizardState["format"]): string {
   }
   if (format === "lldp") {
     return "core-sw#show lldp neighbors detail\nLocal Intf: Gi1/0/1\nPort id: Gi1/0/48\nSystem Name: dist-sw";
+  }
+  if (format === "route") {
+    return "core-rtr#show ip route\nC        10.1.0.0/30 is directly connected, GigabitEthernet0/0\nL        10.1.0.1/32 is directly connected, GigabitEthernet0/0";
   }
   if (format === "network") {
     return '{"schemaVersion":1,"devices":[{"name":"core-rtr"}],"interfaces":[{"device":"core-rtr","name":"Loopback0","ipv4":[{"address":"10.255.0.1","prefix":32}]}]}';
