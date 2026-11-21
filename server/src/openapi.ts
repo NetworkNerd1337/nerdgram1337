@@ -455,7 +455,7 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
             allOf: [{ $ref: "#/components/schemas/GraphDocument" }],
           },
           path: { type: "string", description: "Required for generate and upsert. Diagram path ending in .mmd." },
-          format: { type: "string", enum: ["csv", "json", "cdp", "lldp", "network"] },
+          format: { type: "string", enum: ["csv", "json", "cdp", "lldp", "network", "route"] },
           view: { type: "string", enum: ["l3", "l2"], description: "Required when format is network. l3 is subnets. l2 is VLANs, trunks, and LAGs." },
           includeDown: { type: "boolean", description: "Network data. Include shutdown or down interfaces. Defaults to false." },
           vlan: { type: "integer", description: "Layer 2 network view. Draw only links that carry this VLAN id." },
@@ -469,7 +469,12 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
             description:
               "Every group-by value. CDP and LLDP use platform (the default) or capability. Network Layer 3 uses vrf. Network Layer 2 uses site, role, or platform.",
           },
-          localDevice: { type: "string", description: "Hostname when CDP or LLDP text has no CLI prompt." },
+          localDevice: { type: "string", description: "Hostname when CDP, LLDP, or a routing table has no CLI prompt." },
+          hosts: {
+            type: "string",
+            enum: ["ports", "port-counts", "vlan-counts"],
+            description: "Routing tables. Place hosts on switchports, or draw a count per port or per VLAN. ARP without a MAC table does not infer links.",
+          },
           title: { type: "string" },
           edgesText: { type: "string" },
           storeData: { type: "boolean" },

@@ -34,10 +34,10 @@ The full install is in [Install](docs/install.md).
 
 ### Docker
 
-The command uses `v1.8.19`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)).
+The command uses `v2.1.0`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)).
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v1.8.19
+docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.0
 ```
 
 ```bash
@@ -48,7 +48,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v1.8.19
+  ghcr.io/networknerd1337/nerdgram1337:v2.1.0
 ```
 
 Open [http://127.0.0.1:8787](http://127.0.0.1:8787) or [http://localhost:8787](http://localhost:8787).
@@ -103,7 +103,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Appearance](docs/features.md#appearance).** Light, Dark, or Match system. The choice stays in this browser. It does not change a diagram's theme.
 - **[Diagram checks](docs/features.md#diagram-checks).** The code pane checks the diagram while you type. Mute warnings for one diagram from the editor. Errors stay. A link to a subgraph id is not reported as a typo.
 - **[Linked diagrams](docs/features.md#linked-diagrams).** A node can open another diagram.
-- **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, or network JSON file can build the diagram.
+- **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, network JSON, CDP, LLDP, or Cisco `show ip route` paste can build the diagram.
 - **[Translators](docs/translators.md).** `nerdgram convert` turns a saved export into network JSON. It does not log in or call out.
 - **[Design exports](docs/exports.md).** **Export as** can write a pyATS testbed, a containerlab or CML or GNS3 or EVE-NG lab, or an Ansible or Nornir inventory. Passwords and images are placeholders. NerdGram does not connect.
 - **[Thumbnails, find, and shortcuts](docs/features.md#thumbnails-find-and-shortcuts).** Dashboard cards keep a thumbnail of each diagram.
@@ -122,7 +122,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Security policy](SECURITY.md).** How to report a vulnerability in private.
 - **[Install](docs/install.md).** Run NerdGram with Docker, or with Node.js on the machine.
 - **[Features](docs/features.md).** The dashboard lists folders and diagrams in a tree, with search and grid or list view.
-- **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, or network JSON file can build the diagram.
+- **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, network JSON, CDP, LLDP, or Cisco `show ip route` paste can build the diagram.
 - **[Translators](docs/translators.md).** A saved export becomes network JSON. The command does not log in.
 - **[Design exports](docs/exports.md).** A diagram and its network JSON can be written as a pyATS testbed, a lab file, or an inventory. Credentials are placeholders.
 - **[Schema compatibility](docs/schema/README.md).** Network JSON stays on schemaVersion 1 when a change only adds optional fields, and moves to 2 when a field's meaning changes.
@@ -136,7 +136,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Data and backups](docs/data-and-backups.md).** By default, diagrams live in `diagrams/` inside the project.
 - **[Upgrading](docs/upgrading.md).** Stop the app before you replace it.
 - **[Versioning and releases](docs/releases.md).** Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix.
-- **[Roadmap](docs/roadmap.md).** Planned work after v1.8.19. 1.8.x is Meridian. The next milestone is 2.0, and its code name is not decided yet. Future ideas at the end are not committed.
+- **[Roadmap](docs/roadmap.md).** Planned work after v2.1.0. 2.1.0 through 2.1.4 are Zenith. 2.1.5 is Azimuth. Future ideas at the end are not committed.
 - **[Troubleshooting](docs/troubleshooting.md).** If the API port is taken, the server exits and prints the listen error.
 - **[Developing](docs/developing.md).** The project folders, the npm scripts, and what CI runs.
 

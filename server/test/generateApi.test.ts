@@ -311,4 +311,38 @@ Enabled Capabilities: B
     expect(rows.body.errors[0].row).toBeGreaterThan(0);
     expect(String(rows.body.errors[0].message)).toMatch(/Row /);
   });
+
+  it("generates a diagram from a multi-device show ip route paste", async () => {
+    const server = app();
+    const text = `core-rtr#show ip route
+Codes: L - local, C - connected, S - static, O - OSPF
+C        10.1.0.0/30 is directly connected, GigabitEthernet0/0
+L        10.1.0.1/32 is directly connected, GigabitEthernet0/0
+O        10.2.0.0/16 [110/2] via 10.1.0.2, 00:01:02, GigabitEthernet0/0
+S*       0.0.0.0/0 [1/0] via 192.0.2.1
+dist-sw#show ip route
+Codes: L - local, C - connected, O - OSPF
+C        10.1.0.0/30 is directly connected, GigabitEthernet1/0/1
+L        10.1.0.2/32 is directly connected, GigabitEthernet1/0/1
+`;
+    const preview = await request(server).post("/api/generate/preview").set(json).send({ text, format: "route" });
+    expect(preview.status).toBe(200);
+    expect(preview.body.errors).toEqual([]);
+    expect(preview.body.mermaid).toContain("core-rtr");
+    expect(preview.body.mermaid).toContain("dist-sw");
+    expect(preview.body.mermaid).toContain("unknown next hop 192.0.2.1");
+    expect(preview.body.warnings.map((warning: { message: string }) => warning.message)).toContain(
+      "1 next hop did not match any pasted device.",
+    );
+
+    const created = await request(server)
+      .post("/api/generate")
+      .set(json)
+      .send({ text, format: "route", path: "Routes.mmd", title: "Routes" });
+    expect(created.status).toBe(201);
+    expect(created.body.dataPath).toBe("Routes.route");
+    const diagram = await fs.readFile(path.join(dir, "Routes.mmd"), "utf8");
+    expect(diagram).toContain("format: route");
+    expect(diagram).toContain("10.1.0.0/30");
+  });
 });

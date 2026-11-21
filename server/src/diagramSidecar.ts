@@ -6,7 +6,7 @@ import { httpFail, normalizeRelative } from "./storage.js";
 import { readFile } from "./fsStore.js";
 
 /** Extensions this read will return. `.txt` is included only here. */
-const SIDECAR_EXTENSIONS = [".network.json", ".csv", ".json", ".cdp", ".lldp", ".txt"] as const;
+const SIDECAR_EXTENSIONS = [".network.json", ".csv", ".json", ".cdp", ".lldp", ".route", ".txt"] as const;
 
 export function sidecarExtension(name: string): (typeof SIDECAR_EXTENSIONS)[number] | "" {
   const base = name.split("/").pop()?.toLowerCase() ?? "";

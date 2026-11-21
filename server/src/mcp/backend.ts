@@ -10,6 +10,7 @@ export type GenerateArgs = {
   direction?: string;
   groupBy?: string;
   localDevice?: string;
+  hosts?: string;
   title?: string;
   edgesText?: string;
   storeData?: boolean;

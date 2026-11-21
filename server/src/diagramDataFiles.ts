@@ -160,6 +160,10 @@ export function importInputFromBody(body: Record<string, unknown>): ImportInput 
     }
     input.vlan = body.vlan;
   }
+  if (body.hosts != null) {
+    if (typeof body.hosts !== "string") throw dataFail(400, "hosts must be a string.", "invalid");
+    input.hosts = body.hosts;
+  }
   return input;
 }
 
@@ -325,6 +329,7 @@ export async function refreshGeneratedDiagram(input: RefreshGeneratedInput): Pro
     view: config.view,
     includeDown: config.includeDown,
     vlan: config.vlan,
+    hosts: config.hosts,
   });
   if (imported.errors.length > 0) {
     throw dataFail(400, fixListedMessage(imported.format, "refreshing"), "invalid", { errors: imported.errors });

@@ -7,11 +7,12 @@ export const CODENAME_RE = /^[A-Z][A-Za-z0-9]{1,31}$/;
 
 /**
  * `"1.5"` or `"1.6"`: the major and the minor where a code name starts.
- * A name applies to every patch of that minor. It also applies to later minors
- * of the same major until the next key. The last key of a major covers only
- * its own minor, so an unnamed later minor stays unnamed.
+ * `"2.1.5"`: a later patch of that minor where a new name starts.
+ * A name applies until the next key. The last key of a major covers only its
+ * own minor, so an unnamed later minor stays unnamed. A minor before the first
+ * key of that major, such as 2.0, stays unnamed.
  */
-const MILESTONE_KEY = /^[1-9]\d*\.(0|[1-9]\d*)$/;
+const MILESTONE_KEY = /^[1-9]\d*\.(0|[1-9]\d*)(?:\.([1-9]\d*))?$/;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -30,7 +31,10 @@ export function parseCodenames(value) {
   const map = {};
   for (const [key, name] of Object.entries(value)) {
     if (!MILESTONE_KEY.test(key)) {
-      return { ok: false, error: `codenames key ${key} must be a major and a minor, such as 1.5 or 1.6.` };
+      return {
+        ok: false,
+        error: `codenames key ${key} must be a major and a minor, such as 1.5 or 1.6, or a later patch such as 2.1.5.`,
+      };
     }
     if (typeof name !== "string" || !CODENAME_RE.test(name)) {
       return { ok: false, error: `codenames[${key}] must be a code name like Atlas.` };
@@ -52,36 +56,38 @@ function parseVersion(version) {
 
 /**
  * @param {string} key
- * @returns {{ major: number, minor: number } | null}
+ * @returns {{ major: number, minor: number, patch: number } | null}
  */
 function parseKey(key) {
-  const match = /^([1-9]\d*)\.(0|[1-9]\d*)$/.exec(key);
+  const match = /^([1-9]\d*)\.(0|[1-9]\d*)(?:\.([1-9]\d*))?$/.exec(key);
   if (!match) return null;
-  return { major: Number(match[1]), minor: Number(match[2]) };
+  return { major: Number(match[1]), minor: Number(match[2]), patch: match[3] ? Number(match[3]) : 0 };
 }
 
 /**
  * Code name for a version, or null when that milestone is not in the map.
  * 1.0 covers 1.0.y through 1.4.y because the next key is 1.5. 1.5.y is only
  * Compass. The last named minor of a major does not cover a later minor.
+ * A patch key such as 2.1.5 starts a new name at that patch. 2.1.0 through
+ * 2.1.4 stay on 2.1. 2.0 stays unnamed.
  * @param {string} version
  * @param {Record<string, string>} map
  */
 export function codenameForVersion(version, map) {
   const parsed = parseVersion(version);
   if (!parsed) return null;
-  /** @type {{ minor: number, name: string }[]} */
+  /** @type {{ minor: number, patch: number, name: string }[]} */
   const sameMajor = [];
   for (const [key, name] of Object.entries(map)) {
     const milestone = parseKey(key);
     if (!milestone || milestone.major !== parsed.major) continue;
     if (typeof name !== "string" || !CODENAME_RE.test(name)) continue;
-    sameMajor.push({ minor: milestone.minor, name });
+    sameMajor.push({ minor: milestone.minor, patch: milestone.patch, name });
   }
-  sameMajor.sort((a, b) => a.minor - b.minor);
+  sameMajor.sort((a, b) => a.minor - b.minor || a.patch - b.patch);
   let chosen = null;
   for (const entry of sameMajor) {
-    if (entry.minor <= parsed.minor) chosen = entry;
+    if (entry.minor < parsed.minor || (entry.minor === parsed.minor && entry.patch <= parsed.patch)) chosen = entry;
   }
   if (!chosen) return null;
   if (chosen.minor === parsed.minor) return chosen.name;
@@ -90,8 +96,9 @@ export function codenameForVersion(version, map) {
 }
 
 /**
- * Minors from 0 through this version that do not resolve, plus the current
- * minor when it has no key of its own. A missing milestone fails CI.
+ * The shipping minor needs its own key. Minors from the first named minor of
+ * that major through this version must resolve. A minor before that first key,
+ * such as 2.0 before 2.1, stays unnamed and does not fail CI.
  * @param {string} version
  * @param {Record<string, string>} map
  */
@@ -102,7 +109,14 @@ export function missingMilestones(version, map) {
   const missing = [];
   const own = `${parsed.major}.${parsed.minor}`;
   if (!map[own]) missing.push(own);
-  for (let minor = 0; minor <= parsed.minor; minor += 1) {
+  let first = null;
+  for (const key of Object.keys(map)) {
+    const milestone = parseKey(key);
+    if (!milestone || milestone.major !== parsed.major) continue;
+    if (first == null || milestone.minor < first) first = milestone.minor;
+  }
+  const start = first == null ? 0 : first;
+  for (let minor = start; minor <= parsed.minor; minor += 1) {
     const key = `${parsed.major}.${minor}`;
     if (!codenameForVersion(`${parsed.major}.${minor}.0`, map) && !missing.includes(key)) missing.push(key);
   }

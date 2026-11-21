@@ -50,8 +50,8 @@ COPY templates templates
 COPY reference reference
 COPY diagrams diagrams
 COPY Dockerfile compose.yaml compose.build.yaml README.md CHANGELOG.md LICENSE SECURITY.md ./
-ARG NERDGRAM_VERSION=1.8.19
-ARG NERDGRAM_CODENAME=Meridian
+ARG NERDGRAM_VERSION=2.1.0
+ARG NERDGRAM_CODENAME=Zenith
 ENV NERDGRAM_VERSION=${NERDGRAM_VERSION} \
     NERDGRAM_CODENAME=${NERDGRAM_CODENAME}
 RUN node scripts/check-version.mjs \
@@ -126,8 +126,8 @@ RUN chmod -R a-w /app/templates /app/reference /app/diagrams /app/docs/schema /a
  && printf '%s\n' '#!/bin/sh' 'exec node /app/server/dist/cli.js "$@"' > /usr/local/bin/nerdgram \
  && chmod 755 /usr/local/bin/nerdgram
 
-ARG NERDGRAM_VERSION=1.8.19
-ARG NERDGRAM_CODENAME=Meridian
+ARG NERDGRAM_VERSION=2.1.0
+ARG NERDGRAM_CODENAME=Zenith
 ARG NERDGRAM_COMMIT=
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

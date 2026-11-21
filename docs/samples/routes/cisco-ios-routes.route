@@ -1,0 +1,25 @@
+core-rtr#show ip route
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area
+Gateway of last resort is 192.0.2.1 to network 0.0.0.0
+
+      10.0.0.0/8 is variably subnetted, 2 subnets, 2 masks
+C        10.1.0.0/30 is directly connected, GigabitEthernet0/0
+L        10.1.0.1/32 is directly connected, GigabitEthernet0/0
+O        10.2.0.0/16 [110/2] via 10.1.0.2, 00:01:02, GigabitEthernet0/0
+S*       0.0.0.0/0 [1/0] via 192.0.2.1
+
+dist-sw#show ip route
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       O - OSPF, IA - OSPF inter area
+C        10.1.0.0/30 is directly connected, GigabitEthernet1/0/1
+L        10.1.0.2/32 is directly connected, GigabitEthernet1/0/1
+C        10.2.0.0/24 is directly connected, Vlan20
+L        10.2.0.1/32 is directly connected, Vlan20
+O        0.0.0.0/0 [110/1] via 10.1.0.1, 00:00:11, GigabitEthernet1/0/1
+
+access-sw#show ip route
+Codes: L - local, C - connected, S - static, O - OSPF
+C        10.3.0.0/24 is directly connected, Vlan30
+L        10.3.0.1/32 is directly connected, Vlan30
+O        10.2.0.0/16 [110/2] via 10.2.0.1, 00:00:04, Vlan30

@@ -36,6 +36,9 @@ describe("import recognition", () => {
     expect(textFile("rows.json", '{"nodes":[{"id":"a"}]}').dataFormat).toBe("json");
     expect(textFile("links.csv", "local,remote\na,b\n").dataFormat).toBe("csv");
     expect(textFile("show.txt", "core#show cdp neighbors detail\n").dataFormat).toBe("cdp");
+    expect(textFile("core.route", "core#show ip route\nC        10.1.0.0/30 is directly connected, Gi0/0\n").dataFormat).toBe(
+      "route",
+    );
     expect(textFile("show.txt", "core#show lldp neighbors detail\n").dataFormat).toBe("lldp");
     const network = textFile("Campus.network.json", '{"schemaVersion":1,"devices":[],"interfaces":[]}');
     expect(network.kind).toBe("network");

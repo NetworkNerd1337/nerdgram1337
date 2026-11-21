@@ -19,7 +19,7 @@ export type ImportDraft = {
   formatLabel?: string;
   kind?: ImportKind;
   route?: Extract<ImportAction, "from-data" | "style-presets">;
-  dataFormat?: "" | "csv" | "json" | "cdp" | "lldp" | "network";
+  dataFormat?: "" | "csv" | "json" | "cdp" | "lldp" | "network" | "route";
   suggestFromData?: boolean;
 };
 

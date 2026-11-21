@@ -69,6 +69,7 @@ export function createHttpBackend(options: { base: string; token: string }): Mcp
       ...(input.direction != null ? { direction: input.direction } : {}),
       ...(input.groupBy != null ? { groupBy: input.groupBy } : {}),
       ...(input.localDevice != null ? { localDevice: input.localDevice } : {}),
+      ...(input.hosts != null ? { hosts: input.hosts } : {}),
       ...(input.title != null ? { title: input.title } : {}),
       ...(input.edgesText != null ? { edgesText: input.edgesText } : {}),
       ...(input.storeData != null ? { storeData: input.storeData } : {}),

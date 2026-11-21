@@ -4,7 +4,7 @@ NerdGram handles API tokens, GitHub sync credentials, and network inventory on y
 
 ## Supported versions
 
-The latest minor release line gets fixes. That line is 1.8.x, code name Meridian. Older lines are not updated. The version list is [Versioning and releases](docs/releases.md).
+The latest minor release line gets fixes. That line is 2.1.x. 2.1.0 through 2.1.4 are Zenith. 2.1.5 is Azimuth. Older lines are not updated. The version list is [Versioning and releases](docs/releases.md).
 
 | Version | Supported |
 | --- | --- |

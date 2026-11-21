@@ -107,10 +107,12 @@ Flags
                   cdp and lldp: platform or capability.
                   network with --view l3: vrf.
                   network with --view l2: site, role, or platform.
+  --hosts <value> Routing tables. ports places each host. port-counts and
+                  vlan-counts draw a count per port or per VLAN.
   --view <l3|l2>  generate --format network only. l3 is subnets. l2 is VLANs,
                   trunks, and LAGs. refresh rejects --view. The view is stored
                   in the diagram.
-Rename and move also move a CSV, JSON, network JSON, CDP, or LLDP file that
+Rename and move also move a CSV, JSON, network JSON, CDP, LLDP, or routing-table file that
 sits next to the diagram and update nerdgram.source. duplicate --copy-data
 gives the copy its own data file. duplicate --share-data keeps both diagrams
 on the original file.
@@ -783,7 +785,9 @@ async function generateCommand(parsed: Parsed, io: Io): Promise<void> {
   const diagramPath = flagString(parsed.flags, "path") ?? parsed.positionals[0];
   const dataFile = flagString(parsed.flags, "data");
   if (!diagramPath || !dataFile) {
-    throw new CliError("generate needs --path Diagram.mmd and --data file.csv, file.json, file.network.json, file.cdp, or file.lldp.");
+    throw new CliError(
+      "generate needs --path Diagram.mmd and --data file.csv, file.json, file.network.json, file.cdp, file.lldp, or file.route.",
+    );
   }
   const format = flagString(parsed.flags, "format");
   const view = flagString(parsed.flags, "view");
@@ -804,6 +808,7 @@ async function generateCommand(parsed: Parsed, io: Io): Promise<void> {
     title: flagString(parsed.flags, "title"),
     localDevice: flagString(parsed.flags, "local-device"),
     groupBy: flagString(parsed.flags, "group-by"),
+    hosts: flagString(parsed.flags, "hosts"),
     view,
     ...(parsed.flags.get("include-down") === true ? { includeDown: true } : {}),
     ...(vlanText != null ? { vlan: Number(vlanText) } : {}),

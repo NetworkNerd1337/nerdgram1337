@@ -96,6 +96,21 @@ describe("diagram data import", () => {
     expect(() => importDiagramData({ text: "device,port\n", format: "yaml" })).toThrow(/network JSON/);
   });
 
+  it("tells auto-detect when the paste is not a supported format", () => {
+    expect(() => importDiagramData({ text: "hello this is junk" })).toThrow(
+      /Couldn't recognize that format\. Supported inputs are CSV, JSON, Cisco CDP, LLDP neighbors, a Cisco show ip route paste, and network JSON\./,
+    );
+    const mapped = importDiagramData({ text: "hello this is junk", format: "csv" });
+    expect(mapped.errors.map((issue) => issue.message).join(" ")).toMatch(/column/);
+    const route = importDiagramData({ text: "not a routing table", format: "route" });
+    expect(route.errors.map((issue) => issue.message).join(" ")).toMatch(
+      /This is not Cisco IOS, IOS-XE, or NX-OS show ip route output/,
+    );
+    expect(route.errors.map((issue) => issue.message).join(" ")).not.toMatch(/Couldn't recognize/);
+    const table = importDiagramData({ text: "not,a,table\nfoo,bar,baz" });
+    expect(table.errors[0]?.message).toMatch(/column/);
+  });
+
   it("refuses data larger than 4 MiB", () => {
     expect(() => importDiagramData({ text: `id,label\n${"a".repeat(4 * 1024 * 1024)}` })).toThrow(
       /Data is larger than 4 MiB \(about 3,000 CDP detail neighbors\)/,

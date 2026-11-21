@@ -12,8 +12,8 @@ export const CODENAME_RE = /^[A-Z][A-Za-z0-9]{1,31}$/;
 const TITLE_RE =
   /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\s+"([A-Z][A-Za-z0-9]{1,31})"$/;
 
-/** `"1.5"` or `"1.6"`: major and the minor where that code name starts. */
-const MILESTONE_KEY = /^[1-9]\d*\.(0|[1-9]\d*)$/;
+/** `"1.5"`, `"1.6"`, or a later patch such as `"2.1.5"`. */
+const MILESTONE_KEY = /^[1-9]\d*\.(0|[1-9]\d*)(?:\.(?:[1-9]\d*))?$/;
 
 export type CodenameMap = Record<string, string>;
 
@@ -38,25 +38,25 @@ export function sanitizeCodenames(value: unknown): CodenameMap {
   return map;
 }
 
-type Milestone = { minor: number; name: string };
+type Milestone = { minor: number; patch: number; name: string };
 
 function milestonesForMajor(major: number, map: CodenameMap): Milestone[] {
   const found: Milestone[] = [];
   for (const [key, name] of Object.entries(map)) {
-    const match = /^([1-9]\d*)\.(0|[1-9]\d*)$/.exec(key);
+    const match = /^([1-9]\d*)\.(0|[1-9]\d*)(?:\.([1-9]\d*))?$/.exec(key);
     if (!match || Number(match[1]) !== major) continue;
     if (!CODENAME_RE.test(name)) continue;
-    found.push({ minor: Number(match[2]), name });
+    found.push({ minor: Number(match[2]), patch: match[3] ? Number(match[3]) : 0, name });
   }
-  found.sort((a, b) => a.minor - b.minor);
+  found.sort((a, b) => a.minor - b.minor || a.patch - b.patch);
   return found;
 }
 
 /**
- * A code name starts at its `major.minor` key and covers every patch of that
- * minor. It also covers later minors of the same major until the next key.
- * The last key of a major covers only its own minor. 1.5.y stays Compass.
- * 1.9.y and 2.0.y stay unnamed until a key is added.
+ * A code name starts at its `major.minor` key and covers later minors of the
+ * same major until the next key. The last key of a major covers only its own
+ * minor. 1.5.y stays Compass. 1.9.y and 2.0.y stay unnamed. 2.1.0 through
+ * 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth.
  */
 export function codenameForVersion(version: string, map: CodenameMap = readCodenames()): string | null {
   const parsed = parseSemver(version);
@@ -64,7 +64,7 @@ export function codenameForVersion(version: string, map: CodenameMap = readCoden
   const milestones = milestonesForMajor(parsed.major, map);
   let chosen: Milestone | null = null;
   for (const entry of milestones) {
-    if (entry.minor <= parsed.minor) chosen = entry;
+    if (entry.minor < parsed.minor || (entry.minor === parsed.minor && entry.patch <= parsed.patch)) chosen = entry;
   }
   if (!chosen) return null;
   if (chosen.minor === parsed.minor) return chosen.name;
@@ -99,7 +99,7 @@ export function releaseCodename(
   return codenameFromReleaseTitle(version, title);
 }
 
-/** `v1.8.19 "Meridian"`, or `v1.8.19` when this version has no code name. */
+/** `v2.1.0 "Zenith"`, or `v2.1.0` when this version has no code name. */
 export function formatVersionLabel(version: string, codename: string | null | undefined): string {
   const trimmed = version.trim();
   const base = trimmed.startsWith("v") ? trimmed : `v${trimmed}`;

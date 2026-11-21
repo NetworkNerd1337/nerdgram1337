@@ -35,20 +35,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Meridian title and the 1.8.19 section without the heading", () => {
-    const title = notes(["--title", "v1.8.19"]);
+  it("prints the Zenith title and the 2.1.0 section without the heading", () => {
+    const title = notes(["--title", "v2.1.0"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.8.19 "Meridian"\n');
-    const body = notes(["v1.8.19"]);
+    expect(title.stdout).toBe('v2.1.0 "Zenith"\n');
+    const body = notes(["v2.1.0"]);
     expect(body.code).toBe(0);
-    expect(body.stdout.startsWith("Patch on the Meridian line.")).toBe(true);
-    expect(body.stdout).toContain("#251");
-    expect(body.stdout).toContain("#252");
-    expect(body.stdout).toContain("#253");
-    expect(body.stdout).toContain("#254");
-    expect(body.stdout).toContain("#255");
-    expect(body.stdout).toContain("themed dialog");
-    expect(body.stdout).not.toContain('## 1.8.19 "Meridian"');
+    expect(body.stdout.startsWith("First release on the Zenith line.")).toBe(true);
+    expect(body.stdout).toContain("#257");
+    expect(body.stdout).toContain("show ip route");
+    expect(body.stdout).toContain("4 MiB");
+    expect(body.stdout).not.toContain('## 2.1.0 "Zenith"');
     expect(body.stdout).not.toContain("Future ideas");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
@@ -109,7 +106,7 @@ describe("changelog notes", () => {
     const still = notes(["--title", "v1.8.5"], '## 1.8.5 "Meridian" - 2026-12-01\n\nStill that minor.\n');
     expect(still.code).toBe(0);
     expect(still.stdout).toBe('v1.8.5 "Meridian"\n');
-    const unmapped = notes(["--title", "v2.0.0"], "## 2.0.0 - 2026-12-01\n\nNext line.\n");
+    const unmapped = notes(["--title", "v2.2.0"], "## 2.2.0 - 2026-12-01\n\nNext line.\n");
     expect(unmapped.code).toBe(2);
     expect(unmapped.stderr).toMatch(/no entry/);
     const wrong = notes(["--title", "v1.0.5"], '## 1.0.5 "Wrong" - 2026-11-13\n\nBody.\n');

@@ -4381,6 +4381,46 @@ body[data-presenting="true"] .support-link {
   width: auto;
 }
 
+.generate-large {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0.2rem 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem 0.85rem;
+}
+
+.generate-large legend {
+  padding: 0 0.3rem;
+  color: var(--ink);
+}
+
+.generate-large p {
+  margin: 0 0 0.15rem;
+  color: var(--ink-soft);
+}
+
+.generate-large label.generate-choice {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--ink);
+}
+
+.generate-panel .generate-large input[type="radio"] {
+  width: auto;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .generate-actions {
   display: flex;
   justify-content: flex-end;

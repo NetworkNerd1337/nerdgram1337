@@ -14,6 +14,6 @@ services:
     build:
       context: .
       args:
-        NERDGRAM_VERSION: "1.8.19"
-        NERDGRAM_CODENAME: "Meridian"
+        NERDGRAM_VERSION: "2.1.0"
+        NERDGRAM_CODENAME: "Zenith"
         NERDGRAM_COMMIT: ${NERDGRAM_COMMIT:-}
