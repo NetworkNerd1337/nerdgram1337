@@ -7,8 +7,8 @@
     "1.6": "Galileo",
     "1.7": "Navigator",
     "1.8": "Meridian",
-    "2.0": "Zenith",
-    "2.1": "Zenith"
+    "2.1": "Zenith",
+    "2.1.5": "Azimuth"
   },
   "private": true,
   "description": "Local-first Mermaid diagramming app by NetworkNerd1337",

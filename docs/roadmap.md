@@ -22,7 +22,7 @@ The planned work after 1.4.8. 1.5.x is Compass. Later milestones use the code na
 
 Progress is tracked in [GitHub milestones](https://github.com/NetworkNerd1337/NerdGram1337/milestones).
 
-This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas tree. 1.5.x is Compass. 1.6.x is Galileo. 1.7.0 through 1.7.5, and the other 1.7.y patches, are Navigator. 1.8.0 through 1.8.5, and the other 1.8.y patches, are Meridian. 2.0.y and 2.1.y are Zenith. The code-name rule is in [Versioning and releases](releases.md#version-numbers-and-code-names).
+This roadmap is a plan, not a commitment. The work starts from the 1.4.8 Atlas tree. 1.5.x is Compass. 1.6.x is Galileo. 1.7.0 through 1.7.5, and the other 1.7.y patches, are Navigator. 1.8.0 through 1.8.5, and the other 1.8.y patches, are Meridian. 2.0 is not named. 2.1.0 through 2.1.4 are Zenith. 2.1.5 is Azimuth. The code-name rule is in [Versioning and releases](releases.md#version-numbers-and-code-names).
 
 ## Where we are
 
