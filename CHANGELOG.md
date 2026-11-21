@@ -12,6 +12,7 @@ _No unreleased items._
 
 First release on the Zenith line.
 
+- **Changed:** From data labels the first source **Auto-detect**. A paste that matches none of the supported inputs says so and lists them. Choosing **Routing table** still names the Cisco formats it accepts. The large-diagram radios sit on the same row as their labels.
 - **Added:** From data accepts a Cisco IOS, IOS-XE, or NX-OS `show ip route` paste from several devices. Prompts split the devices. Connected and local routes supply subnets. A matched next hop is an adjacency. Many prefixes behind one next hop become one edge with a prefix count. An unmatched next hop is an unknown-next-hop stub. One device still draws, with a note. ARP plus a MAC address table can place hosts on switchports, or as counts per port or VLAN. ARP alone does not infer links. A port with many MACs is an uplink. The paste uses the same 4 MiB limit as the other From data sources. CDP and LLDP are unchanged (#257).
 
 ## 1.8.19 "Meridian" - 2026-11-21

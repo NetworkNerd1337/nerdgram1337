@@ -347,7 +347,7 @@ Mirrored content is from the Mermaid documentation (MIT License). Each page keep
 
 ## Generate from data
 
-**From data** on the dashboard, and **Generate diagram from data** in the command palette, open `/generate`. The source list adds each installed translator beside CSV, JSON, network JSON, CDP, LLDP, and a Cisco routing table. A routing-table paste uses the same 4 MiB limit as the other sources. Prefixes that share a next hop collapse to one edge. Hosts from ARP and a MAC table can be drawn on ports or as counts. The list is loaded from the server. A note above the input says the diagram reflects that export, and **Don't show again** hides it for that translator. The steps are in [Generate from data](generate-from-data.md). The field tables are in [Translators](translators.md).
+**From data** on the dashboard, and **Generate diagram from data** in the command palette, open `/generate`. The source list starts with **Auto-detect**, then CSV, JSON, network JSON, CDP, LLDP, and a Cisco routing table, and adds each installed translator beside those. A routing-table paste uses the same 4 MiB limit as the other sources. Prefixes that share a next hop collapse to one edge. Hosts from ARP and a MAC table can be drawn on ports or as counts. The list is loaded from the server. A note above the input says the diagram reflects that export, and **Don't show again** hides it for that translator. The steps are in [Generate from data](generate-from-data.md). The field tables are in [Translators](translators.md).
 
 ## See also
 

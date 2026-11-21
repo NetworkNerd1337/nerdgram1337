@@ -406,7 +406,10 @@ describe("translator picker", () => {
     const options = [...document.querySelectorAll<HTMLOptionElement>("#generate-format option")].map((item) => item.textContent);
     expect(options).toContain("Nautobot");
     expect(options).toContain("SolarWinds Orion");
+    expect(options[0]).toBe("Auto-detect");
+    expect(document.querySelector(".generate-hint")?.textContent).toMatch(/Cisco CDP/);
     expect(options).toContain("CSV");
+    expect(options).not.toContain("CSV or JSON");
     act(() => root?.unmount());
     root = null;
     document.body.innerHTML = "";
@@ -416,6 +419,36 @@ describe("translator picker", () => {
     expect(next).toContain("Nautobot");
     expect(next).not.toContain("SolarWinds Orion");
     expect(next).toContain("Network data (JSON)");
+  });
+
+  it("puts each large-diagram radio on the same row as its label", () => {
+    const state: WizardState = {
+      ...initialWizardState("Sites"),
+      step: "preview",
+      mermaid: "flowchart LR\nhub --> a",
+      counts: { nodes: 200, edges: 1, groups: 0 },
+      diagramName: "Big",
+    };
+    act(() => {
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      root = createRoot(host);
+      root.render(<GenerateWizard state={state} dispatch={() => undefined} busy={false} onInspect={() => undefined} onCreate={() => undefined} />);
+    });
+    const fieldset = document.querySelector("fieldset.generate-large");
+    expect(fieldset?.querySelector("legend")?.textContent).toBe("Large diagram");
+    const labels = [...(fieldset?.querySelectorAll("label") ?? [])];
+    expect(labels.map((label) => label.textContent?.replace(/\s+/g, " ").trim())).toEqual([
+      "Default rank",
+      "Compact hub layout",
+      "Radial hub layout",
+    ]);
+    for (const label of labels) {
+      const input = label.querySelector("input");
+      expect(input?.getAttribute("type")).toBe("radio");
+      expect(label.firstElementChild).toBe(input);
+      expect(label.classList.contains("generate-choice")).toBe(true);
+    }
   });
 
   it("converts paste and upload, and shows mapper warnings before save", async () => {

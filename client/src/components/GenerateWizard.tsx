@@ -107,7 +107,7 @@ export function GenerateWizard({
               else dispatch({ type: "format", format: value as WizardState["format"] });
             }}
           >
-            <option value="auto">CSV or JSON</option>
+            <option value="auto">Auto-detect</option>
             <option value="csv">CSV</option>
             <option value="json">JSON</option>
             <option value="network">Network data (JSON)</option>
@@ -120,6 +120,9 @@ export function GenerateWizard({
               </option>
             ))}
           </select>
+          {!translator && state.format === "auto" ? (
+            <p className="generate-hint">CSV, JSON, network JSON, Cisco CDP, LLDP neighbors, or a Cisco routing table.</p>
+          ) : null}
           {translator ? <DataNotice translator={translator} /> : null}
           {translator ? <p className="generate-hint">{translator.formatHint}</p> : null}
           <label htmlFor="generate-data">{translator ? translator.name : dataLabel(state.format)}</label>
@@ -384,7 +387,7 @@ function LargeImportChoice({ state, dispatch }: { state: WizardState; dispatch: 
     <fieldset className="generate-large">
       <legend>Large diagram</legend>
       <p>{advice.message}</p>
-      <label>
+      <label className="generate-choice">
         <input
           type="radio"
           name="hub-layout"
@@ -393,7 +396,7 @@ function LargeImportChoice({ state, dispatch }: { state: WizardState; dispatch: 
         />
         Default rank
       </label>
-      <label>
+      <label className="generate-choice">
         <input
           type="radio"
           name="hub-layout"
@@ -402,7 +405,7 @@ function LargeImportChoice({ state, dispatch }: { state: WizardState; dispatch: 
         />
         Compact hub layout
       </label>
-      <label>
+      <label className="generate-choice">
         <input
           type="radio"
           name="hub-layout"
@@ -543,7 +546,7 @@ function dataLabel(format: WizardState["format"]): string {
   if (format === "network") return "Network data (JSON)";
   if (format === "json") return "JSON";
   if (format === "csv") return "CSV";
-  return "CSV or JSON";
+  return "Data";
 }
 
 function dataPlaceholder(format: WizardState["format"]): string {

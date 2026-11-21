@@ -337,7 +337,11 @@ export function suggestEdgeMapping(headers: readonly string[]): ColumnMapping {
 export function importDiagramData(input: ImportInput): ImportResult {
   const text = requireText(input.text, "Data");
   const requestedFormat = typeof input.format === "string" ? input.format.trim().toLowerCase() : "auto";
-  const format = requestedFormat === "" || requestedFormat === "auto" ? detectFormat(text) : requestedFormat;
+  const auto = requestedFormat === "" || requestedFormat === "auto";
+  const format = auto ? detectFormat(text) : requestedFormat;
+  if (auto && format === "csv" && !looksLikeCsvTable(text)) {
+    throw dataFail(400, UNRECOGNIZED_DATA, "invalid");
+  }
   if (format === "network") return importNetworkFormat(input, text);
   if (format === "cdp" || format === "lldp") return importNeighborFormat(input, format, text);
   if (format === "route") return importRouteFormat(input, text);
@@ -862,6 +866,16 @@ function requireText(value: unknown, label: string): string {
     throw dataFail(400, `Paste or upload a CSV, JSON, CDP, LLDP, routing table, or network JSON ${label.toLowerCase()} file.`, "invalid");
   }
   return value.replace(/^\uFEFF/, "");
+}
+
+const UNRECOGNIZED_DATA =
+  "Couldn't recognize that format. Supported inputs are CSV, JSON, Cisco CDP, LLDP neighbors, a Cisco show ip route paste, and network JSON.";
+
+/** A comma-separated row, or a single header that matches a known column, is a table. Other text is not. */
+function looksLikeCsvTable(text: string): boolean {
+  const line = text.split(/\r?\n/).find((item) => item.trim().length > 0)?.trim() ?? "";
+  if (line.includes(",")) return true;
+  return (Object.keys(ALIASES) as DataField[]).some((field) => aliasMatch(field, line));
 }
 
 function detectFormat(text: string): DataFormat {
