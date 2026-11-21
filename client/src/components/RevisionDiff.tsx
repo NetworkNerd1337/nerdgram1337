@@ -253,14 +253,24 @@ export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose 
                 <figure>
                   <figcaption>
                     From, older · {diff.from.label}
-                    {diff.from.createdAt ? <time dateTime={diff.from.createdAt}>{formatStamp(diff.from.createdAt)}</time> : null}
+                    {diff.from.createdAt ? (
+                      <>
+                        {" · "}
+                        <time dateTime={diff.from.createdAt}>{formatStamp(diff.from.createdAt)}</time>
+                      </>
+                    ) : null}
                   </figcaption>
                   <div className="diff-canvas diff-fit" dangerouslySetInnerHTML={{ __html: leftSvg }} />
                 </figure>
                 <figure>
                   <figcaption>
                     To, newer · {diff.to.label}
-                    {diff.to.createdAt ? <time dateTime={diff.to.createdAt}>{formatStamp(diff.to.createdAt)}</time> : null}
+                    {diff.to.createdAt ? (
+                      <>
+                        {" · "}
+                        <time dateTime={diff.to.createdAt}>{formatStamp(diff.to.createdAt)}</time>
+                      </>
+                    ) : null}
                   </figcaption>
                   <div className="diff-canvas diff-fit" dangerouslySetInnerHTML={{ __html: rightSvg }} />
                 </figure>

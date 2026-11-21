@@ -148,8 +148,12 @@ describe("history diff dialog", () => {
       side?.click();
     });
     const figures = container.querySelectorAll(".diff-side figure");
-    expect(figures[0]?.textContent).toContain("From, older");
-    expect(figures[0]?.textContent).toContain("Baseline - pre-change");
+    const fromCaption = figures[0]?.querySelector("figcaption")?.textContent ?? "";
+    const fromTime = figures[0]?.querySelector("figcaption time")?.textContent ?? "";
+    expect(fromCaption).toContain(`From, older · Baseline - pre-change · ${fromTime}`);
+    const toCaption = figures[1]?.querySelector("figcaption")?.textContent ?? "";
+    const toTime = figures[1]?.querySelector("figcaption time")?.textContent ?? "";
+    expect(toCaption).toContain(`To, newer · Current · ${toTime}`);
     expect(figures[0]?.querySelector(".node.ngRemoved")).toBeTruthy();
     expect(figures[0]?.querySelector(".node.ngAdded")).toBeNull();
     expect(figures[0]?.querySelector(".flowchart-link.ngRemoved")).toBeTruthy();
