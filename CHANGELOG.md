@@ -8,6 +8,13 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 _No unreleased items._
 
+## 1.8.18 "Meridian" - 2026-11-21
+
+Patch on the Meridian line. The code name stays Meridian.
+
+- **Added:** Import recognizes a file by its contents. Mermaid, including a `.txt` paste and a Markdown `mermaid` fence, is imported as a diagram. CSV, JSON, CDP, LLDP, and network JSON open in From data. A style-preset JSON file opens in Style presets. Lucidchart is recognized from its product name or from pages of block shapes (`FreehandBlock`, `ProcessBlock`, and other names ending in `Block`) and lines (`endpoint1`/`endpoint2`, `from`/`to`, or `source`/`target`), whether those lists are arrays or id-keyed objects, so that export is not sent to From data. Network JSON and a plain nodes-and-links file still open in From data. draw.io and Visio are recognized from their file structure. PlantUML, Graphviz, D2, Excalidraw, and images are named and left unsupported. Anything else says it is not a recognized format (#248).
+- **Changed:** About sits in the top-right header next to Support. On a narrow dashboard it stays in a bar above the sidebar, so it is on screen without scrolling. The sidebar no longer has an About row. The tooltip uses the running version (#249).
+
 ## 1.8.17 "Meridian" - 2026-11-21
 
 Patch on the Meridian line. The code name stays Meridian.

@@ -99,7 +99,7 @@ export function releaseCodename(
   return codenameFromReleaseTitle(version, title);
 }
 
-/** `v1.8.17 "Meridian"`, or `v1.8.17` when this version has no code name. */
+/** `v1.8.18 "Meridian"`, or `v1.8.18` when this version has no code name. */
 export function formatVersionLabel(version: string, codename: string | null | undefined): string {
   const trimmed = version.trim();
   const base = trimmed.startsWith("v") ? trimmed : `v${trimmed}`;

@@ -5,7 +5,7 @@ import { indexDiagramLinks, insertDiagramLink, linksFor } from "../../../server/
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
-import { SupportLink } from "../components/SupportLink";
+import { AboutButton, SupportLink } from "../components/SupportLink";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { DiagramInfoPanel, type DiagramLinkRow } from "../components/DiagramInfoPanel";
@@ -1341,7 +1341,12 @@ export function EditorPage() {
           />
         </div>
         <div className="editor-top-actions">
-          {presenting ? null : <SupportLink />}
+          {presenting ? null : (
+            <>
+              <AboutButton />
+              <SupportLink />
+            </>
+          )}
           <span className="status-pill" aria-live="polite">
             {saveLabel}
           </span>

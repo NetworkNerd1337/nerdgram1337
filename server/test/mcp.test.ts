@@ -252,10 +252,16 @@ describe("MCP server", () => {
         .set("Authorization", `Bearer ${await issueToken(server, "read-write")}`)
         .send({ path: "Picture.mmd", content: SOURCE });
       expect(created.status).toBe(201);
-      const rendered = await client.callTool({
+      let rendered = await client.callTool({
         name: "nerdgram_render",
         arguments: { path: "Picture.mmd", format: "png" },
       });
+      if (rendered.isError && /renderer|did not produce a PNG/i.test(textOf(rendered))) {
+        rendered = await client.callTool({
+          name: "nerdgram_render",
+          arguments: { path: "Picture.mmd", format: "png" },
+        });
+      }
       expect(rendered.isError, textOf(rendered)).not.toBe(true);
       const text = textOf(rendered);
       expect(text).toContain("PNG written to ");

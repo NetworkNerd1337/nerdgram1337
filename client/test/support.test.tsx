@@ -95,9 +95,13 @@ describe("Support button", () => {
   });
 
   it("is in the dashboard, paste, and editor headers, and hidden while presenting", () => {
+    expect(source("pages/DashboardPage.tsx")).toContain("<AboutButton />");
     expect(source("pages/DashboardPage.tsx")).toContain("<SupportLink />");
+    expect(source("pages/EditorPage.tsx")).toContain("<AboutButton />");
+    expect(source("components/Sidebar.tsx")).not.toContain("sidebar-about");
     expect(source("pages/NewDiagramPage.tsx")).toContain("<SupportLink />");
-    expect(source("pages/EditorPage.tsx")).toContain("presenting ? null : <SupportLink />");
+    expect(source("pages/EditorPage.tsx")).toContain("presenting ? null : (");
+    expect(source("pages/EditorPage.tsx")).toContain("<SupportLink />");
     expect(source("pages/GeneratePage.tsx")).toContain("<SupportLink />");
     expect(source("pages/SettingsPage.tsx")).toContain("<SupportLink />");
     expect(source("pages/TemplatesPage.tsx")).toContain("<SupportLink />");
@@ -108,6 +112,16 @@ describe("Support button", () => {
 
     const css = readFileSync(path.join(clientSrc, "index.css"), "utf8");
     expect(css).toContain('body[data-presenting="true"] .support-link');
+    expect(source("components/WorkspaceShell.tsx")).toContain('className="narrow-app-bar"');
+    expect(source("components/WorkspaceShell.tsx")).toContain("<AboutButton />");
+    expect(source("components/WorkspaceShell.tsx")).toContain("<SupportLink />");
+    const narrow = css.slice(css.indexOf("@media (max-width: 960px)"), css.indexOf(".modal.wide"));
+    expect(narrow).toContain(".narrow-app-bar");
+    expect(narrow).toContain("display: flex");
+    expect(narrow).toContain("order: -1");
+    expect(narrow).toContain("position: sticky");
+    expect(narrow).toContain(".main .page-header-actions .about-link");
+    expect(css).toContain(".about-link .about-link-label");
     expect(css).toContain(".support-link:not(.support-link-text) .support-link-label");
   });
 });

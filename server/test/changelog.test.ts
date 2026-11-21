@@ -35,21 +35,18 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Meridian title and the 1.8.17 section without the heading", () => {
-    const title = notes(["--title", "v1.8.17"]);
+  it("prints the Meridian title and the 1.8.18 section without the heading", () => {
+    const title = notes(["--title", "v1.8.18"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.8.17 "Meridian"\n');
-    const body = notes(["v1.8.17"]);
+    expect(title.stdout).toBe('v1.8.18 "Meridian"\n');
+    const body = notes(["v1.8.18"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Meridian line.")).toBe(true);
-    expect(body.stdout).toContain("#244");
-    expect(body.stdout).toContain("#245");
-    expect(body.stdout).toContain("#246");
-    expect(body.stdout).toContain("Cancel");
-    expect(body.stdout).toContain("does not tick");
-    expect(body.stdout).toContain("Ctrl+F");
-    expect(body.stdout).toContain("200 nodes");
-    expect(body.stdout).not.toContain('## 1.8.17 "Meridian"');
+    expect(body.stdout).toContain("#248");
+    expect(body.stdout).toContain("#249");
+    expect(body.stdout).toContain("recognized format");
+    expect(body.stdout).toContain("About");
+    expect(body.stdout).not.toContain('## 1.8.18 "Meridian"');
     expect(body.stdout).not.toContain("Future ideas");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
