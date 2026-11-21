@@ -274,6 +274,19 @@ export function diagramFileName(rawName: string): string {
   const stem = (ext ? base.slice(0, -ext.length) : base.replace(/\.[^.]+$/, ""))
     .trim()
     .replace(/[. ]+$/g, "");
-  const safe = stem.replace(/[<>:"|?*\u0000-\u001f]/g, "").replace(/^\.+/, "");
+  const safe = stripUnsafeName(stem).replace(/^\.+/, "");
   return `${safe || "diagram"}.mmd`;
+}
+
+function stripUnsafeName(value: string): string {
+  let out = "";
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    if (code < 32 || code === 127) continue;
+    if (char === "<" || char === ">" || char === ":" || char === '"' || char === "|" || char === "?" || char === "*") {
+      continue;
+    }
+    out += char;
+  }
+  return out;
 }

@@ -72,13 +72,6 @@ export function StylePresetsSettings() {
     URL.revokeObjectURL(url);
   };
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem(IMPORT_PRESET_KEY);
-    if (!raw) return;
-    sessionStorage.removeItem("nerdgram-import-presets");
-    void importText(raw);
-  }, []);
-
   const importText = async (text: string) => {
     let parsed: unknown;
     try {
@@ -106,6 +99,13 @@ export function StylePresetsSettings() {
   const importFile = async (file: File) => {
     await importText(await file.text());
   };
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(IMPORT_PRESET_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(IMPORT_PRESET_KEY);
+    void importText(raw);
+  }, []);
 
   return (
     <section className="sync-card" id="style-presets">
