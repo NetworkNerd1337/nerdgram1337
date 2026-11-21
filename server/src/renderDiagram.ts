@@ -3,6 +3,7 @@ import type { Browser, Page } from "puppeteer";
 import puppeteer from "puppeteer";
 import { padEdgeLabelBoxes, padEdgeLabelSvg, repairSvgMarkup, svgXmlError } from "./edgeLabelPadding.js";
 import { diagramInitConfig, withNodeLabelRoom } from "./frontMatter.js";
+import { relayoutHubSvg } from "./hubLayout.js";
 import { locateParseError } from "./parseError.js";
 import { httpFail } from "./storage.js";
 import { sanitizeThumbnailSvg } from "./thumbnails.js";
@@ -296,7 +297,7 @@ async function renderOnce(input: RenderInput): Promise<RenderOutput> {
   try {
     let svg: string;
     try {
-      svg = await draw(page, source, background);
+      svg = relayoutHubSvg(await draw(page, source, background), source);
     } catch (err) {
       throw httpFail(400, plainError(err), "invalid");
     }

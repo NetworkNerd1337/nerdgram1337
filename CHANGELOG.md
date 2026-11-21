@@ -6,7 +6,14 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- **Changed:** **From data** accepts a file up to 4 MiB, about 3,000 CDP detail neighbors. Mermaid's text limit is 4 MiB and its edge limit is 5,000, and a diagram cannot raise those from front matter. Rendered pictures and thumbnails can be up to 8,000,000 characters. PNG, JPG, and PDF scale down when the canvas would be too large, and the editor says so (#240).
+_No unreleased items._
+
+## 1.8.16 "Meridian" - 2026-11-21
+
+Patch on the Meridian line. The code name stays Meridian.
+
+- **Changed:** **From data** accepts a file up to 4 MiB, up from 512 KB, about 3,000 CDP detail neighbors. A larger paste says it is over 4 MiB. Mermaid `maxTextSize` is 4 MiB and `maxEdges` is 5,000 in the app config, and front matter cannot raise them. Rendered SVGs and thumbnails can be up to 8,000,000 characters. PNG, JPG, and PDF scale down from 2× when the canvas would be too large, and a note says the scale that was used (#240).
+- **Added:** Diagram info can set **Hub layout** to a compact grid or radial rings. The choice is stored in the file under `nerdgram.hubLayout`. A hub with hundreds of leaf neighbors then draws roughly square in the editor, Present, and SVG and PNG export. Diagrams that leave it unset stay on the usual rank layout (#242).
 
 ## 1.8.15 "Meridian" - 2026-11-20
 

@@ -1,5 +1,6 @@
 import mermaid from "mermaid";
 import { padEdgeLabelSvg } from "../../../server/src/edgeLabelPadding.ts";
+import { relayoutHubSvg } from "../../../server/src/hubLayout.ts";
 import { withSvgTextLabels } from "./exportSvg";
 import { diagramInitConfig, FALLBACK_THEME, withNodeLabelRoom } from "./frontMatter";
 
@@ -88,7 +89,7 @@ export async function renderForExport(
     const id = `nerdgram-export-${++renderSeq}`;
     try {
       const { svg } = await mermaid.render(id, trimmed);
-      return padRenderedSvg(svg);
+      return relayoutHubSvg(padRenderedSvg(svg), code);
     } finally {
       removeMermaidTemp(id);
     }
@@ -108,7 +109,7 @@ export async function renderMermaid(
     const id = `nerdgram-${++renderSeq}`;
     try {
       const { svg } = await mermaid.render(id, trimmed);
-      return { svg: padRenderedSvg(svg), id };
+      return { svg: relayoutHubSvg(padRenderedSvg(svg), code), id };
     } finally {
       removeMermaidTemp(id);
     }
