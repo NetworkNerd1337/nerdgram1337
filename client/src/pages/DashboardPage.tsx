@@ -17,6 +17,7 @@ import { MoveDialog } from "../components/MoveDialog";
 import { Sidebar } from "../components/Sidebar";
 import { WorkspaceShell } from "../components/WorkspaceShell";
 import { AboutButton, SupportLink } from "../components/SupportLink";
+import { confirmChoice } from "../lib/confirmChoice";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useSidebarWidth } from "../hooks/useSidebarWidth";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -493,9 +494,13 @@ export function DashboardPage() {
   };
 
   const handleDelete = async (path: string) => {
-    if (!window.confirm(`Move "${displayName(path)}" to the trash? You can restore it later.`)) {
-      return;
-    }
+    const ok = await confirmChoice({
+      title: "Move to trash",
+      message: `Move "${displayName(path)}" to the trash? You can restore it later.`,
+      confirmLabel: "Move to trash",
+      danger: true,
+    });
+    if (!ok) return;
     setActionError(null);
     try {
       await finishDelete(path, false);
@@ -537,7 +542,13 @@ export function DashboardPage() {
   };
 
   const purgeItem = async (id: string) => {
-    if (!window.confirm("Delete this item permanently? This cannot be undone.")) return;
+    const ok = await confirmChoice({
+      title: "Delete permanently",
+      message: "Delete this item permanently? This cannot be undone.",
+      confirmLabel: "Delete permanently",
+      danger: true,
+    });
+    if (!ok) return;
     setActionError(null);
     try {
       await api.purgeTrash(id);
@@ -548,7 +559,13 @@ export function DashboardPage() {
   };
 
   const emptyTrash = async () => {
-    if (!window.confirm("Empty the trash? This permanently deletes everything in it.")) return;
+    const ok = await confirmChoice({
+      title: "Empty trash",
+      message: "Empty the trash? This permanently deletes everything in it.",
+      confirmLabel: "Empty trash",
+      danger: true,
+    });
+    if (!ok) return;
     setActionError(null);
     try {
       await api.emptyTrash();

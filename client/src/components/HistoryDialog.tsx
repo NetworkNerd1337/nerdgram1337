@@ -215,11 +215,22 @@ export function HistoryDialog({ path, lockToken, canRestore, onClose, onRestored
               >
                 <label>
                   Name
-                  <input value={name} onChange={(event) => setName(event.target.value)} maxLength={120} required />
+                  <input
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    maxLength={120}
+                    required
+                    placeholder="Baseline name"
+                  />
                 </label>
                 <label>
                   Note
-                  <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} />
+                  <input
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    maxLength={500}
+                    placeholder="Optional note"
+                  />
                 </label>
                 <button type="submit" className="btn btn-primary" disabled={busy}>
                   Save baseline

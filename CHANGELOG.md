@@ -8,6 +8,16 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 _No unreleased items._
 
+## 1.8.19 "Meridian" - 2026-11-21
+
+Patch on the Meridian line. The code name stays Meridian.
+
+- **Fixed:** Save baseline Name and Note follow the app theme in dark, light, and the default theme. Typed text, the placeholder, and the focus ring stay readable (#251).
+- **Fixed:** Compare stays inside the window. The title, From and To, and the view choices stay put, and Export and Back to history stay visible. The comparison scrolls inside the modal. From, To, and the picture follow the theme (#254).
+- **Fixed:** Side by side scales each diagram to its column and colours added, removed, and changed nodes and links to match the legend (#253).
+- **Fixed:** Text compare names From as the older side and To as the newer side, with the version label and time, and colours added, removed, and changed lines to match the legend (#255).
+- **Fixed:** Move to trash, delete permanently, empty trash, and the reload warning use a themed dialog. Escape cancels, Enter confirms, and a destructive action uses the danger button (#252).
+
 ## 1.8.18 "Meridian" - 2026-11-21
 
 Patch on the Meridian line. The code name stays Meridian.

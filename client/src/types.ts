@@ -59,8 +59,18 @@ export type HistoryDiff = {
   semantic: boolean;
   diagramType: string;
   note: string | null;
-  from: { ref: string; id: string | null; name: string | null; label: string };
-  to: { ref: string; id: string | null; name: string | null; label: string };
+  from: { ref: string; id: string | null; name: string | null; label: string; createdAt?: string | null };
+  to: { ref: string; id: string | null; name: string | null; label: string; createdAt?: string | null };
+  nodes?: {
+    added: { id: string }[];
+    removed: { id: string }[];
+    changed: { id: string }[];
+  };
+  edges?: {
+    added: { from: string; to: string; index: number }[];
+    removed: { from: string; to: string; index: number }[];
+    changed: { from: string; to: string; index: number }[];
+  };
   text: {
     unified: string;
     rows: {
