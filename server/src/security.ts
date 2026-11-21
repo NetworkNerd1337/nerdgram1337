@@ -241,10 +241,16 @@ function allowedPortsFor(req: Request, configuredPort: number): Set<string> {
   return ports;
 }
 
+function mimeType(value: string | undefined): string {
+  return value?.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+}
+
 function isJsonContentType(value: string | undefined): boolean {
-  if (!value) return false;
-  const mime = value.split(";", 1)[0]?.trim().toLowerCase();
-  return mime === "application/json";
+  return mimeType(value) === "application/json";
+}
+
+function isOctetStream(value: string | undefined): boolean {
+  return mimeType(value) === "application/octet-stream";
 }
 
 export function createHostGuard(options: {
@@ -343,13 +349,18 @@ export function createMutationGuard(options: {
 
     // Streamable HTTP ends a session with DELETE and no body. POST /mcp still
     // requires JSON. The /mcp handler does its own loopback Origin check.
+    // Lucid and Visio import sends the file bytes. Origin checks above still apply.
+    const contentType = singleHeader(req.headers["content-type"]);
     const mcpDelete = req.path === "/mcp" && req.method.toUpperCase() === "DELETE";
-    if (!mcpDelete) {
-      const contentType = singleHeader(req.headers["content-type"]);
-      if (!isJsonContentType(contentType)) {
-        res.status(415).json({ error: "Content-Type must be application/json" });
+    const foreignFile = req.path === "/api/import/foreign" && req.method.toUpperCase() === "POST";
+    if (foreignFile) {
+      if (!isOctetStream(contentType)) {
+        res.status(415).json({ error: "Content-Type must be application/octet-stream" });
         return;
       }
+    } else if (!mcpDelete && !isJsonContentType(contentType)) {
+      res.status(415).json({ error: "Content-Type must be application/json" });
+      return;
     }
 
     next();

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DATA_MAX_CHARS, importDiagramData } from "../src/diagramData.js";
 import { hubLeafCount } from "../src/hubLayout.js";
-import { buildRouteDiagram, looksLikeIpRoute } from "../src/routing/ipRoute.js";
+import { ARP_NEEDS_MAC, MIXED_LAYER_NOTE, buildArpMacDiagram, buildRouteDiagram, looksLikeArpMac, looksLikeIpRoute } from "../src/routing/ipRoute.js";
 
 const ios = `core-rtr#show ip route
 Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
@@ -231,6 +231,43 @@ Internet  10.2.0.10               4   0011.2233.4401  ARPA   Vlan20
       /Data is larger than 4 MiB \(about 3,000 CDP detail neighbors\)/,
     );
   }, 20_000);
+
+  it("keeps a mixed route paste on layer 3 and notes the ARP and MAC lines", () => {
+    const diagram = buildRouteDiagram(arpMac);
+    expect(diagram.errors).toEqual([]);
+    expect(diagram.warnings.map((warning) => warning.message)).toContain(MIXED_LAYER_NOTE);
+    expect(diagram.edges.some((edge) => edge.label.includes("Gi1/0/48"))).toBe(false);
+    expect(importDiagramData({ text: arpMac }).format).toBe("route");
+  });
+
+  it("draws a layer 2 switch, hosts, and an uplink stub without a routing table", () => {
+    const layer2 = arpMac.slice(arpMac.indexOf("dist-sw#show ip arp"));
+    const diagram = buildArpMacDiagram(layer2);
+    expect(diagram.errors).toEqual([]);
+    expect(diagram.nodes.map((node) => node.label)).toEqual(expect.arrayContaining(["dist-sw", "10.2.0.10", "10.2.0.11", "uplink Gi1/0/48"]));
+    expect(diagram.nodes.map((node) => node.label)).not.toContain("10.2.0.1");
+    expect(diagram.edges.some((edge) => edge.label.includes("Gi1/0/48"))).toBe(true);
+    const stored = importDiagramData({ text: layer2, format: "arpmac", sourceFile: "Campus.arpmac" });
+    expect(stored.format).toBe("arpmac");
+    expect(stored.source.format).toBe("arpmac");
+    expect(stored.source.file).toBe("Campus.arpmac");
+    expect(stored.mermaid).toContain("format: arpmac");
+    expect(importDiagramData({ text: layer2 }).format).toBe("arpmac");
+  });
+
+  it("asks for a MAC table when only ARP is pasted", () => {
+    const onlyArp = `dist-sw#show ip arp
+Protocol  Address          Age (min)  Hardware Addr   Type   Interface
+Internet  10.2.0.10               4   0011.2233.4401  ARPA   Vlan20
+`;
+    const diagram = buildArpMacDiagram(onlyArp);
+    expect(diagram.errors).toEqual([]);
+    expect(diagram.nodes.map((node) => node.label)).toEqual(["dist-sw"]);
+    expect(diagram.edges).toEqual([]);
+    expect(diagram.warnings.map((warning) => warning.message)).toContain(ARP_NEEDS_MAC);
+    expect(looksLikeArpMac(onlyArp)).toBe(true);
+    expect(looksLikeIpRoute(onlyArp)).toBe(false);
+  });
 
   it("rejects junk and non-Cisco route output", () => {
     expect(looksLikeIpRoute("hello world")).toBe(false);

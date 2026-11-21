@@ -1,0 +1,15 @@
+{
+  "pages": [
+    {
+      "id": "p1",
+      "title": "Campus",
+      "shapes": {
+        "c1": { "type": "ProcessBlock", "text": "Core" },
+        "a1": { "class": "DefaultSquareBlock", "textAreas": [{ "text": "Access" }] }
+      },
+      "lines": {
+        "l1": { "from": "c1", "to": "a1", "text": "Gi0/1" }
+      }
+    }
+  ]
+}

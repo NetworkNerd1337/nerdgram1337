@@ -294,7 +294,7 @@ Samples: [config-only.json](samples/translators/batfish/config-only.json) and [l
 
 **From data** (`/generate`) lists the installed translators from `GET /api/translators`. That route needs no token. Adding or deleting a module file changes the list. The page does not keep its own copy of the ids. Paste and upload call `POST /api/convert/<source>`, the tokenless twin of `POST /api/v1/convert/<source>`, then the existing preview. Mapper warnings are on that preview before the diagram is saved. CSV, JSON, network JSON, CDP, and LLDP stay on the same screen. There is no new sidebar entry.
 
-When a translator is selected, a note above the input says the diagram reflects that export. **Don't show again** stores that choice for that translator in this browser and nothing else. **Translator tips** opens this page at that translator's section. The note follows Light, Dark, and Match system.
+Every **Source** choice, including each translator, shows a note above the input that says the diagram reflects that data. **Don't show again** stores that choice for that source in this browser and nothing else. **Translator tips** opens this page at that translator's section. Built-in sources use **Source tips** and open [Generate from data](generate-from-data.md). The note follows Light, Dark, and Match system.
 
 ## Add a translator
 

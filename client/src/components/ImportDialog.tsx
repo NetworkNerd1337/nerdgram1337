@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import type { ImportCollisionChoice, ImportDraft } from "../lib/importDrafts";
-import { MAX_IMPORT_FILES } from "../lib/importDrafts";
+import type { ImportCollisionChoice, ImportDraft, ImportHubLayout, ImportUnit } from "../lib/importDrafts";
+import { FOREIGN_IMPORT_MAX_BYTES, MAX_IMPORT_FILE_CHARS, MAX_IMPORT_FILES, unitsFromDraft } from "../lib/importDrafts";
+import { largeImportAdvice } from "../lib/largeImport";
 import { parseMermaid } from "../lib/mermaidRender";
 import { IMPORT_DATA_KEY, IMPORT_PRESET_KEY, SUPPORTED_IMPORT_LINE } from "../lib/importRecognize";
 import { collectPaths, explainOrganizeError, nextAvailablePath } from "../lib/organize";
@@ -20,6 +21,7 @@ type ImportDialogProps = {
 };
 
 type Planned = {
+  unit: ImportUnit | null;
   draft: ImportDraft;
   path: string;
   conflict: boolean;
@@ -33,23 +35,30 @@ function planImports(
   choices: Record<string, ImportCollisionChoice | "">,
 ): Planned[] {
   const reserved = new Set<string>();
-  return drafts.map((draft) => {
-    if (draft.error || !draft.diagramName) {
-      return { draft, path: "", conflict: false, suggested: null };
+  const planned: Planned[] = [];
+  for (const draft of drafts) {
+    const units = unitsFromDraft(draft);
+    if (units.length === 0) {
+      planned.push({ unit: null, draft, path: "", conflict: false, suggested: null });
+      continue;
     }
-    const path = joinPath(folder, draft.diagramName);
-    const isTaken = (candidate: string) => taken.has(candidate) || reserved.has(candidate);
-    const conflict = isTaken(path);
-    const choice = choices[draft.id];
-    if (!conflict) {
-      reserved.add(path);
-      return { draft, path, conflict, suggested: null };
+    for (const unit of units) {
+      const path = joinPath(folder, unit.diagramName);
+      const isTaken = (candidate: string) => taken.has(candidate) || reserved.has(candidate);
+      const conflict = isTaken(path);
+      const choice = choices[unit.id];
+      if (!conflict) {
+        reserved.add(path);
+        planned.push({ unit, draft, path, conflict, suggested: null });
+        continue;
+      }
+      const suggested = nextAvailablePath(path, isTaken);
+      if (choice === "rename" && suggested) reserved.add(suggested);
+      if (choice === "replace") reserved.add(path);
+      planned.push({ unit, draft, path, conflict, suggested });
     }
-    const suggested = nextAvailablePath(path, isTaken);
-    if (choice === "rename" && suggested) reserved.add(suggested);
-    if (choice === "replace") reserved.add(path);
-    return { draft, path, conflict, suggested };
-  });
+  }
+  return planned;
 }
 
 export function ImportDialog({
@@ -71,24 +80,24 @@ export function ImportDialog({
     [folder, rows, taken, choices],
   );
   const parseKey = useMemo(
-    () => rows.map((draft) => `${draft.id}\n${draft.text}`).join("\n---\n"),
-    [rows],
+    () => planned.map((item) => `${item.unit?.id ?? item.draft.id}\n${item.unit?.text ?? ""}`).join("\n---\n"),
+    [planned],
   );
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const next: Record<string, string> = {};
-      for (const draft of rows) {
-        if (draft.error || draft.route) continue;
-        if (!draft.text.trim()) {
-          next[draft.id] = "This file is empty. You can still import it and edit it later.";
+      for (const item of planned) {
+        if (!item.unit) continue;
+        if (!item.unit.text.trim()) {
+          next[item.unit.id] = "This file is empty. You can still import it and edit it later.";
           continue;
         }
         try {
-          await parseMermaid(draft.text);
+          await parseMermaid(item.unit.text);
         } catch {
-          next[draft.id] = "This may not render until you fix it in the editor. You can still import it.";
+          next[item.unit.id] = "This may not render until you fix it in the editor. You can still import it.";
         }
       }
       if (!cancelled) setWarnings(next);
@@ -96,19 +105,17 @@ export function ImportDialog({
     return () => {
       cancelled = true;
     };
-  }, [rows, parseKey]);
+  }, [parseKey, planned]);
 
-  const pendingChoice = planned.some(
-    (item) => item.conflict && !item.draft.error && !choices[item.draft.id],
-  );
-  const sendable = planned.filter((item) => !item.draft.error && item.draft.diagramName);
+  const pendingChoice = planned.some((item) => item.conflict && item.unit && !choices[item.unit.id]);
+  const sendable = planned.filter((item) => item.unit);
   const tooMany = sendable.length > MAX_IMPORT_FILES;
 
   const setAll = (choice: ImportCollisionChoice) => {
     setChoices((current) => {
       const next = { ...current };
       for (const item of planned) {
-        if (item.conflict) next[item.draft.id] = choice;
+        if (item.conflict && item.unit) next[item.unit.id] = choice;
       }
       return next;
     });
@@ -122,9 +129,9 @@ export function ImportDialog({
       const result = await api.importFiles(
         folder,
         sendable.map((item) => ({
-          name: item.draft.sourceName,
-          text: item.draft.text,
-          onCollision: item.conflict ? (choices[item.draft.id] as ImportCollisionChoice) : undefined,
+          name: item.unit?.diagramName || item.draft.sourceName,
+          text: item.unit?.text || "",
+          onCollision: item.conflict && item.unit ? (choices[item.unit.id] as ImportCollisionChoice) : undefined,
         })),
       );
       const failed = result.results.filter(
@@ -167,15 +174,55 @@ export function ImportDialog({
       >
         <h3 id="import-dialog-title">Import diagrams</h3>
         <p>
-          {SUPPORTED_IMPORT_LINE} Files are up to 512 KB each. Mermaid is copied into the folder you
+          {SUPPORTED_IMPORT_LINE} Lucid and Visio files are up to {FOREIGN_IMPORT_MAX_BYTES / (1024 * 1024)} MiB.
+          Mermaid files are up to {MAX_IMPORT_FILE_CHARS / 1024} KB. Mermaid is copied into the folder you
           pick. A name that is already there is never replaced unless you choose Replace.
         </p>
         <FolderPicker tree={tree} value={folder} onChange={onFolderChange} />
         <div className="import-list">
           {planned.map((item) => (
-            <div key={item.draft.id} className="import-row">
-              <strong>{item.draft.sourceName}</strong>
+            <div key={item.unit?.id ?? item.draft.id} className="import-row">
+              <strong>{item.unit?.sourceName ?? item.draft.sourceName}</strong>
               {item.draft.formatLabel ? <p className="import-meta">Recognized as {item.draft.formatLabel}.</p> : null}
+              {planned.find((row) => row.draft.id === item.draft.id) === item && item.draft.pages && item.draft.pages.length > 1 ? (
+                <label>
+                  Page
+                  <select
+                    aria-label={`Page for ${item.draft.sourceName}`}
+                    value={item.draft.pageChoice ?? "all"}
+                    onChange={(event) =>
+                      setRows((current) =>
+                        current.map((draft) =>
+                          draft.id === item.draft.id ? { ...draft, pageChoice: event.target.value } : draft,
+                        ),
+                      )
+                    }
+                  >
+                    <option value="all">Each page as its own diagram</option>
+                    {item.draft.pages.map((page) => (
+                      <option key={page.id} value={page.id}>
+                        {page.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {planned.find((row) => row.draft.id === item.draft.id) === item ? (
+                <HubChoice
+                  name={`import-hub-${item.draft.id}`}
+                  text={(planned.find((row) => row.draft.id === item.draft.id && row.unit && largeImportAdvice(row.unit.text, row.unit.nodes)) ?? item).unit?.text ?? ""}
+                  nodes={(planned.find((row) => row.draft.id === item.draft.id && row.unit && largeImportAdvice(row.unit.text, row.unit.nodes)) ?? item).unit?.nodes ?? 0}
+                  value={item.draft.hubLayout ?? ""}
+                  onChange={(hubLayout) =>
+                    setRows((current) => current.map((draft) => (draft.id === item.draft.id ? { ...draft, hubLayout } : draft)))
+                  }
+                />
+              ) : null}
+              {item.unit?.warnings.map((warning) => (
+                <p key={warning} className="import-warning">
+                  {warning}
+                </p>
+              ))}
               {item.draft.error ? (
                 <p className="import-error">
                   {item.draft.error}{" "}
@@ -216,17 +263,17 @@ export function ImportDialog({
               {!item.draft.error && item.path ? (
                 <p className="import-meta">Saves as {item.path}</p>
               ) : null}
-              {warnings[item.draft.id] ? <p className="import-warning">{warnings[item.draft.id]}</p> : null}
-              {item.conflict ? (
+              {item.unit && warnings[item.unit.id] ? <p className="import-warning">{warnings[item.unit.id]}</p> : null}
+              {item.conflict && item.unit ? (
                 <label>
                   This name is taken
                   <select
-                    aria-label={`What to do with ${item.draft.sourceName}`}
-                    value={choices[item.draft.id] ?? ""}
+                    aria-label={`What to do with ${item.unit.sourceName}`}
+                    value={choices[item.unit.id] ?? ""}
                     onChange={(event) =>
                       setChoices((current) => ({
                         ...current,
-                        [item.draft.id]: event.target.value as ImportCollisionChoice | "",
+                        [item.unit?.id ?? ""]: event.target.value as ImportCollisionChoice | "",
                       }))
                     }
                   >
@@ -268,6 +315,41 @@ export function ImportDialog({
         </div>
       </form>
     </div>
+  );
+}
+
+function HubChoice({
+  name,
+  text,
+  nodes,
+  value,
+  onChange,
+}: {
+  name: string;
+  text: string;
+  nodes: number;
+  value: ImportHubLayout;
+  onChange: (value: ImportHubLayout) => void;
+}) {
+  const advice = largeImportAdvice(text, nodes);
+  if (!advice) return null;
+  return (
+    <fieldset className="import-hub">
+      <legend>Large diagram</legend>
+      <p>{advice.message}</p>
+      {(
+        [
+          ["", "Default rank"],
+          ["compact", "Compact hub layout"],
+          ["radial", "Radial hub layout"],
+        ] as const
+      ).map(([id, label]) => (
+        <label key={id || "default"} className="import-choice">
+          <input type="radio" name={name} checked={value === id} onChange={() => onChange(id)} />
+          {label}
+        </label>
+      ))}
+    </fieldset>
   );
 }
 

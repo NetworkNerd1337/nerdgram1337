@@ -28,6 +28,7 @@ import * as thumbnails from "./thumbnails.js";
 import * as updates from "./updates/service.js";
 import { getVersionInfo } from "./updates/versionInfo.js";
 import { importDiagramData } from "./diagramData.js";
+import { convertForeign } from "./diagramImport/convert.js";
 import { readDiagramSidecar } from "./diagramSidecar.js";
 import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram } from "./diagramDataFiles.js";
 import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
@@ -806,6 +807,25 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         writeData: req.body.writeData,
       });
       res.json(refreshed);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.post("/api/import/foreign", express.raw({ type: "*/*", limit: "5mb" }), (req, res) => {
+    try {
+      const name = typeof req.query.name === "string" ? req.query.name : "diagram";
+      const body = req.body;
+      if (!Buffer.isBuffer(body)) {
+        res.status(400).json({ error: "Send the file as the request body.", code: "invalid" });
+        return;
+      }
+      const result = convertForeign(name, new Uint8Array(body));
+      if (!result.ok) {
+        res.status(400).json({ error: result.message, code: "invalid" });
+        return;
+      }
+      res.json(result);
     } catch (err) {
       sendError(res, err);
     }

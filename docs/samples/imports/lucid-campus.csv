@@ -1,0 +1,9 @@
+Id,Name,Page ID,Page Name,Contained By,Line Source,Line Destination,Text Area 1
+c1,Core,p1,Campus,,,,Core
+blank,,p1,Campus,,,,
+rack,Rack,p1,Campus,,,,Rack
+sw,Switch,p1,Campus,rack,,,Switch
+a1,Access,p1,Campus,,,,Access
+l1,link,p1,Campus,,c1,a1,Gi0/1
+l2,open,p1,Campus,,c1,,loose
+w1,Edge,p2,WAN,,,,Edge

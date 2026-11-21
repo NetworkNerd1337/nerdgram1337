@@ -124,6 +124,9 @@ export function Sidebar({
         <Link className={`nav-link${healthActive ? " active" : ""}`} to="/health">
           Diagram health
         </Link>
+        <Link className="nav-link" to="/reference" target="_blank" rel="noopener">
+          Syntax reference
+        </Link>
         <section className="sidebar-block" aria-label="Recent">
           <div className="sidebar-block-head">
             <button
@@ -227,13 +230,6 @@ export function Sidebar({
         </Link>
         <Link className="nav-link" to="/settings#bookmarks">
           Bookmarks
-        </Link>
-      </div>
-
-      <div className="nav-section">
-        <div className="nav-label">Reference</div>
-        <Link className="nav-link" to="/reference" target="_blank" rel="noopener">
-          Open Syntax Reference Library
         </Link>
       </div>
 

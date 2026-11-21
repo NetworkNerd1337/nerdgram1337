@@ -43,7 +43,7 @@ function status(version: string, codename: string): UpdateStatus {
 describe("About button", () => {
   it("sits in the header, uses the live version, and opens from the keyboard", () => {
     let opened = false;
-    const value = { openAbout: () => (opened = true), status: status("2.1.0", "Zenith") } as UpdateContextValue;
+    const value = { openAbout: () => (opened = true), status: status("2.1.5", "Azimuth") } as UpdateContextValue;
     const host = document.createElement("div");
     document.body.append(host);
     act(() => {
@@ -57,8 +57,8 @@ describe("About button", () => {
     const button = host.querySelector("button");
     expect(button?.getAttribute("aria-label")).toBe("About NerdGram1337");
     expect(button?.getAttribute("type")).toBe("button");
-    expect(button?.getAttribute("title")).toBe(formatVersionLabel("2.1.0", "Zenith"));
-    expect(button?.getAttribute("title")).toBe('v2.1.0 "Zenith"');
+    expect(button?.getAttribute("title")).toBe(formatVersionLabel("2.1.5", "Azimuth"));
+    expect(button?.getAttribute("title")).toBe('v2.1.5 "Azimuth"');
     expect(button?.textContent).toContain("About");
     act(() => button?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     act(() => button?.click());

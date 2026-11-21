@@ -5,7 +5,7 @@ import { matchFrontMatter, type FrontMatterMatch } from "./frontMatter.js";
 import { detectNeighborKind, parseNeighborSource } from "./neighbors/index.js";
 import type { NormalizedNeighbor } from "./neighbors/types.js";
 import { importNetworkFormat } from "./network/import.js";
-import { buildRouteDiagram, looksLikeIpRoute, resolveRouteHosts, type RouteHosts } from "./routing/ipRoute.js";
+import { buildArpMacDiagram, buildRouteDiagram, looksLikeArpMac, looksLikeIpRoute, resolveRouteHosts, type RouteHosts } from "./routing/ipRoute.js";
 
 /**
  * File-based diagram import.
@@ -64,7 +64,7 @@ export const DATA_FIELDS = [
 
 export type DataField = (typeof DATA_FIELDS)[number];
 export type ColumnMapping = Partial<Record<DataField, string>>;
-export type DataFormat = "csv" | "json" | "cdp" | "lldp" | "network" | "route";
+export type DataFormat = "csv" | "json" | "cdp" | "lldp" | "network" | "route" | "arpmac";
 export type DataShape = "links" | "nodes" | "edges" | "graph";
 export type FlowDirection = "TD" | "TB" | "LR" | "RL" | "BT";
 export type GroupBy = "platform" | "capability";
@@ -345,10 +345,11 @@ export function importDiagramData(input: ImportInput): ImportResult {
   if (format === "network") return importNetworkFormat(input, text);
   if (format === "cdp" || format === "lldp") return importNeighborFormat(input, format, text);
   if (format === "route") return importRouteFormat(input, text);
+  if (format === "arpmac") return importArpMacFormat(input, text);
   if (format !== "csv" && format !== "json") {
     throw dataFail(
       400,
-      "Use a CSV or JSON file, Cisco CDP output, LLDP neighbor output, a Cisco show ip route paste, or network JSON.",
+      "Use a CSV or JSON file, Cisco CDP output, LLDP neighbor output, a Cisco show ip route paste, ARP and MAC tables, or network JSON.",
       "invalid",
     );
   }
@@ -863,13 +864,13 @@ function requireText(value: unknown, label: string): string {
     throw dataFail(400, dataTooLargeMessage(label), "invalid");
   }
   if (!value.trim()) {
-    throw dataFail(400, `Paste or upload a CSV, JSON, CDP, LLDP, routing table, or network JSON ${label.toLowerCase()} file.`, "invalid");
+    throw dataFail(400, `Paste or upload a CSV, JSON, CDP, LLDP, routing table, ARP and MAC tables, or network JSON ${label.toLowerCase()} file.`, "invalid");
   }
   return value.replace(/^\uFEFF/, "");
 }
 
 const UNRECOGNIZED_DATA =
-  "Couldn't recognize that format. Supported inputs are CSV, JSON, Cisco CDP, LLDP neighbors, a Cisco show ip route paste, and network JSON.";
+  "Couldn't recognize that format. Supported inputs are CSV, JSON, Cisco CDP, LLDP neighbors, a Cisco show ip route paste, ARP and MAC tables, and network JSON.";
 
 /** A comma-separated row, or a single header that matches a known column, is a table. Other text is not. */
 function looksLikeCsvTable(text: string): boolean {
@@ -883,6 +884,7 @@ function detectFormat(text: string): DataFormat {
   const neighbor = detectNeighborKind(text);
   if (neighbor) return neighbor;
   if (looksLikeIpRoute(text)) return "route";
+  if (looksLikeArpMac(text)) return "arpmac";
   const trimmed = text.trim();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) return "json";
   return "csv";
@@ -948,6 +950,56 @@ function importRouteFormat(input: ImportInput, text: string): ImportResult {
       : "";
   return {
     format: "route",
+    shape: "links",
+    headers: [],
+    edgesHeaders: [],
+    mapping: {},
+    edgesMapping: {},
+    errors: built.errors,
+    warnings: built.warnings,
+    model,
+    mermaid,
+    counts: countModel(model),
+    direction,
+    grouping: false,
+    source,
+  };
+}
+
+function importArpMacFormat(input: ImportInput, text: string): ImportResult {
+  let hosts: RouteHosts;
+  try {
+    hosts = resolveRouteHosts(input.hosts);
+  } catch (err) {
+    throw dataFail(400, err instanceof Error ? err.message : "Hosts must be ports, port-counts, or vlan-counts.", "invalid");
+  }
+  const direction = resolveDirection(input.direction, "links");
+  const localDevice = cleanLocalDevice(input.localDevice);
+  const built = buildArpMacDiagram(text, { localDevice, hosts });
+  const model = built.errors.length === 0 ? { nodes: built.nodes.map((node) => ({ ...node, group: "", diagram: "" })), edges: built.edges } : { nodes: [], edges: [] };
+  const sourceFile = cleanStoredName(input.sourceFile) || defaultSourceName("arpmac");
+  const source: DataSourceConfig = {
+    file: sourceFile,
+    format: "arpmac",
+    shape: "links",
+    mapping: {},
+    direction,
+    grouping: false,
+    diagramType: "flowchart",
+    hosts,
+  };
+  if (localDevice) source.localDevice = localDevice;
+  const mermaid =
+    built.errors.length === 0
+      ? renderNewDiagram({
+          model,
+          source,
+          title: clipTitle(input.title),
+          description: clipTitle(input.description) || (source.file ? `Generated from ${source.file}` : undefined),
+        })
+      : "";
+  return {
+    format: "arpmac",
     shape: "links",
     headers: [],
     edgesHeaders: [],
@@ -1701,7 +1753,8 @@ function configFromPlain(block: Record<string, unknown>): DataSourceConfig | nul
     block.format !== "cdp" &&
     block.format !== "lldp" &&
     block.format !== "network" &&
-    block.format !== "route"
+    block.format !== "route" &&
+    block.format !== "arpmac"
   ) {
     return null;
   }
@@ -1748,7 +1801,7 @@ function configFromPlain(block: Record<string, unknown>): DataSourceConfig | nul
   if (typeof block.localDevice === "string" && block.localDevice.trim()) {
     config.localDevice = block.localDevice.trim();
   }
-  if (block.format === "route") {
+  if (block.format === "route" || block.format === "arpmac") {
     if (block.hosts != null && block.hosts !== "") {
       if (block.hosts !== "ports" && block.hosts !== "port-counts" && block.hosts !== "vlan-counts") return null;
       config.hosts = block.hosts;

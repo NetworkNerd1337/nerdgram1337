@@ -125,7 +125,7 @@ curl -fsS -X POST "http://127.0.0.1:8787/api/v1/generate" \
 
 LLDP is the same call with `"format":"lldp"`. A paste that has no prompt needs `"localDevice":"edge-sw"`. The samples are `docs/samples/neighbors/cisco-ios-cdp.cdp` and `docs/samples/neighbors/cisco-ios-lldp.lldp`.
 
-A Cisco routing table is the same call with `"format":"route"`. `text` is `show ip route` from one or more devices, and optional ARP and MAC table output. `"hosts"` is `ports`, `port-counts`, or `vlan-counts`. The body is still at most 4 MiB. Samples are under `docs/samples/routes/`.
+A Cisco routing table is the same call with `"format":"route"`. `text` is `show ip route` from one or more devices. Optional ARP and MAC output in that paste is still applied. `"format":"arpmac"` is `show ip arp` or `show arp` plus `show mac address-table`, with no routing table. `"hosts"` is `ports`, `port-counts`, or `vlan-counts` for either format. The body is still at most 4 MiB. Samples are under `docs/samples/routes/`.
 
 Later, the same path is the refresh. This replaces the generated block with the new neighbor output and keeps the previous diagram as a revision:
 

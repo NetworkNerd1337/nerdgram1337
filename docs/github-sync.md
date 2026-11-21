@@ -10,7 +10,7 @@ GitHub sync is optional. The folder on this computer stays the copy NerdGram edi
 
 NerdGram does not ship a client ID or a client secret. You register an OAuth app in your own GitHub account. There is no operating-system keychain in a typical container. The token file mode `0600` is the stored secret.
 
-**What is copied.** Synced files are the `.mmd` diagrams, the `.csv`, `.json`, `.network.json`, `.cdp`, `.lldp`, and `.route` data files stored next to a generated diagram, and the folders that contain them. The commit also includes a short README, `.gitignore`, and `.gitattributes` so the GitHub repository can be read on its own. A one-file commit is `Update Network/Core.mmd`.
+**What is copied.** Synced files are the `.mmd` diagrams, the `.csv`, `.json`, `.network.json`, `.cdp`, `.lldp`, `.route`, and `.arpmac` data files stored next to a generated diagram, and the folders that contain them. The commit also includes a short README, `.gitignore`, and `.gitattributes` so the GitHub repository can be read on its own. A one-file commit is `Update Network/Core.mmd`.
 
 These stay on this computer and are not pushed:
 

@@ -1386,7 +1386,7 @@ export function EditorPage() {
             </button>
           )}
           <Link className="btn btn-ghost" to="/reference" target="_blank" rel="noopener">
-            Open Syntax Reference Library
+            Syntax reference
           </Link>
           <ExportFormatMenu
             exporters={exporters}

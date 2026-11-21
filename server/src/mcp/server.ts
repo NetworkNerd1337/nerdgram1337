@@ -56,9 +56,9 @@ const destructiveHints: McpToolAnnotation = {
 };
 
 const formatSchema = z
-  .enum(["csv", "json", "cdp", "lldp", "network", "route"])
+  .enum(["csv", "json", "cdp", "lldp", "network", "route", "arpmac"])
   .describe(
-    "csv, json, cdp, lldp, network, or route. cdp and lldp are raw neighbor command output. network is network JSON. route is Cisco show ip route text.",
+    "csv, json, cdp, lldp, network, route, or arpmac. cdp and lldp are raw neighbor command output. network is network JSON. route is Cisco show ip route text. arpmac is show ip arp or show arp plus show mac address-table.",
   );
 
 const generateFields = {
@@ -74,7 +74,7 @@ const generateFields = {
   hosts: z
     .enum(["ports", "port-counts", "vlan-counts"])
     .optional()
-    .describe("Routing tables only. ports places each host. port-counts and vlan-counts draw a count instead. ARP alone never infers links."),
+    .describe("route and arpmac. ports places each host. port-counts and vlan-counts draw a count instead. ARP alone never infers links."),
   title: z.string().optional().describe("Diagram title."),
   edgesText: z.string().optional().describe("Optional second table of edges, as text."),
   storeData: z.boolean().optional().describe("Write the data file beside the diagram. Default is true."),

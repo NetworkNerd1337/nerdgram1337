@@ -81,6 +81,25 @@ export function looksLikeIpRoute(text: string): boolean {
   );
 }
 
+/** Cisco `show ip arp`, `show arp`, or `show mac address-table`. Not a routing table. */
+export function looksLikeArpMac(text: string): boolean {
+  return (
+    /show\s+ip\s+arp\b/i.test(text) ||
+    /(?:^|\n)\s*show\s+arp\b/i.test(text) ||
+    /show\s+mac\s+address-table\b/i.test(text) ||
+    /show\s+mac\s+address\s+table\b/i.test(text) ||
+    /^Protocol\s+Address/im.test(text) ||
+    /IP ARP Table/i.test(text) ||
+    (/Mac Address/i.test(text) && /\bPorts?\b/i.test(text))
+  );
+}
+
+export const MIXED_LAYER_NOTE =
+  "This paste also includes ARP or MAC output. That is supported with the routing table. Choose ARP and MAC tables (L2) for a layer 2 view.";
+
+export const ARP_NEEDS_MAC =
+  "A MAC address table is needed to place hosts on ports. ARP alone does not draw links.";
+
 export function resolveRouteHosts(value: string | undefined): RouteHosts {
   const text = value?.trim().toLowerCase() ?? "";
   if (text === "" || text === "ports") return "ports";
@@ -106,7 +125,32 @@ export function buildRouteDiagram(
   if (!looksLikeIpRoute(text) || routeCount === 0) {
     return empty(looksLikeIpRoute(text) ? "No routes were found in that Cisco show ip route paste." : UNSUPPORTED);
   }
-  return assemble(active, hosts);
+  const diagram = assemble(active, hosts);
+  if (looksLikeArpMac(text)) diagram.warnings.push({ message: MIXED_LAYER_NOTE });
+  return diagram;
+}
+
+const ARP_MAC_UNSUPPORTED =
+  "This is not Cisco IOS, IOS-XE, or NX-OS ARP or MAC address-table output.";
+
+/** Layer 2 view: switches, hosts from the MAC table, and uplink stubs. ARP does not draw links by itself. */
+export function buildArpMacDiagram(
+  text: string,
+  options: { localDevice?: string; hosts?: RouteHosts } = {},
+): RouteDiagram {
+  const hosts = options.hosts ?? "ports";
+  const localName = cleanName(options.localDevice ?? "");
+  if (looksLikeIpRoute(text) && !looksLikeArpMac(text)) {
+    return empty("This looks like a routing table. Choose Routing table (L3) for show ip route.");
+  }
+  if (isForeignRouteTable(text) && !looksLikeArpMac(text)) return empty(ARP_MAC_UNSUPPORTED);
+  const devices = splitDevices(text, localName);
+  parseDevices(devices);
+  const active = devices.filter((device) => device.arp.length + device.macs.length > 0);
+  if (active.length === 0 || !looksLikeArpMac(text)) {
+    return empty(looksLikeArpMac(text) ? "No ARP or MAC entries were found in that Cisco paste." : ARP_MAC_UNSUPPORTED);
+  }
+  return assembleLayer2(active, hosts);
 }
 
 function empty(message: string): RouteDiagram {
@@ -494,6 +538,106 @@ function drawRoutes(
     addEdge(bucket.from, target, `${detail} ${bucket.protocol}`.trim());
   }
   return unknownIps.size;
+}
+
+function assembleLayer2(devices: Device[], hosts: RouteHosts): RouteDiagram {
+  const warnings: RouteIssue[] = [];
+  if (devices.some((device) => device.unnamed)) {
+    warnings.push({ message: "No CLI prompt was found, so this paste is one unnamed device." });
+  }
+  const used = new Set<string>();
+  const idOf = new Map<string, string>();
+  const nodes: RouteNode[] = [];
+  const edges: RouteEdge[] = [];
+  const edgeKeys = new Set<string>();
+  const addNode = (key: string, label: string, className: string): string => {
+    const existing = idOf.get(key);
+    if (existing) return existing;
+    const id = fresh(label, used);
+    idOf.set(key, id);
+    nodes.push({ id, label, className });
+    return id;
+  };
+  const ref = (value: string): string => idOf.get(value) ?? value;
+  const addEdge = (source: string, target: string, label: string) => {
+    const from = ref(source);
+    const to = ref(target);
+    const key = [from, to].sort().join("|") + `|${label}`;
+    if (edgeKeys.has(key) || from === to) return;
+    edgeKeys.add(key);
+    edges.push({ source: from, target: to, label });
+  };
+  for (const device of devices) addNode(`device:${device.name}`, device.name, "");
+  drawLayer2Hosts(devices, hosts, addNode, addEdge, warnings);
+  return { errors: [], warnings, nodes, edges, unknownNextHops: 0 };
+}
+
+function drawLayer2Hosts(
+  devices: Device[],
+  hosts: RouteHosts,
+  addNode: (key: string, label: string, className: string) => string,
+  addEdge: (source: string, target: string, label: string) => void,
+  warnings: RouteIssue[],
+): void {
+  const macs = devices.flatMap((device) => device.macs.map((entry) => ({ ...entry, device: device.name })));
+  if (macs.length === 0) {
+    if (devices.some((device) => device.arp.length > 0)) warnings.push({ message: ARP_NEEDS_MAC });
+    return;
+  }
+  const perPort = new Map<string, number>();
+  for (const entry of macs) {
+    const key = `${entry.device}\0${entry.port}`;
+    perPort.set(key, (perPort.get(key) ?? 0) + 1);
+  }
+  const trunk = new Set([...perPort.entries()].filter(([, count]) => count >= TRUNK_MAC_MIN).map(([key]) => key));
+  if (trunk.size > 0) {
+    warnings.push({
+      message: `Ports with ${TRUNK_MAC_MIN} or more MAC addresses were treated as uplinks and drawn as stubs.`,
+    });
+  }
+  for (const key of trunk) {
+    const [device, port] = key.split("\0");
+    if (!device || !port) continue;
+    const stub = addNode(`uplink:${device}:${port}`, `uplink ${port}`, "stub");
+    addEdge(`device:${device}`, stub, port);
+  }
+  const arpByMac = new Map<string, string>();
+  for (const device of devices) {
+    for (const entry of device.arp) if (!arpByMac.has(entry.mac)) arpByMac.set(entry.mac, entry.ip);
+  }
+  const ownIps = new Set(devices.flatMap((device) => device.locals.map((local) => local.ip)));
+  type Placed = { label: string; device: string; port: string; vlan: string };
+  const placed: Placed[] = [];
+  const seen = new Set<string>();
+  for (const entry of macs) {
+    if (trunk.has(`${entry.device}\0${entry.port}`)) continue;
+    const ip = arpByMac.get(entry.mac);
+    if (ip && ownIps.has(ip)) continue;
+    const identity = `${entry.device}\0${entry.mac}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    placed.push({ label: ip || entry.mac, device: entry.device, port: entry.port, vlan: entry.vlan });
+  }
+  if (hosts === "ports") {
+    for (const host of placed) {
+      const node = addNode(`host:${host.device}:${host.label}`, host.label, "host");
+      addEdge(`device:${host.device}`, node, host.vlan ? `${host.port} vlan ${host.vlan}` : host.port);
+    }
+    return;
+  }
+  const groups = new Map<string, { device: string; label: string; count: number }>();
+  for (const host of placed) {
+    const key = hosts === "vlan-counts" ? `${host.device}\0vlan\0${host.vlan}` : `${host.device}\0port\0${host.port}`;
+    const label = hosts === "vlan-counts" ? `VLAN ${host.vlan}` : host.port;
+    const bucket = groups.get(key) ?? { device: host.device, label, count: 0 };
+    bucket.count += 1;
+    groups.set(key, bucket);
+  }
+  for (const [key, bucket] of groups) {
+    const noun = bucket.count === 1 ? "host" : "hosts";
+    const node = addNode(`count:${key}`, `${bucket.label} · ${bucket.count} ${noun}`, "host");
+    addEdge(`device:${bucket.device}`, node, bucket.label);
+  }
 }
 
 function drawHosts(

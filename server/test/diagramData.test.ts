@@ -98,7 +98,7 @@ describe("diagram data import", () => {
 
   it("tells auto-detect when the paste is not a supported format", () => {
     expect(() => importDiagramData({ text: "hello this is junk" })).toThrow(
-      /Couldn't recognize that format\. Supported inputs are CSV, JSON, Cisco CDP, LLDP neighbors, a Cisco show ip route paste, and network JSON\./,
+      /Couldn't recognize that format\. Supported inputs are CSV, JSON, Cisco CDP, LLDP neighbors, a Cisco show ip route paste, ARP and MAC tables, and network JSON\./,
     );
     const mapped = importDiagramData({ text: "hello this is junk", format: "csv" });
     expect(mapped.errors.map((issue) => issue.message).join(" ")).toMatch(/column/);

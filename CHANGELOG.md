@@ -8,6 +8,17 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 _No unreleased items._
 
+## 2.1.5 "Azimuth" - 2026-11-21
+
+First release on the Azimuth line. 2.1.0 through 2.1.4 stay Zenith.
+
+- **Added:** Import reads a Lucid CSV of shape data or Lucid JSON, and a Visio `.vsdx` drawing, into a Mermaid flowchart. Each page can be its own diagram, or you pick one page. Shapes with no text and connectors with a missing end are listed. A free end is a stub. Older `.vsd` and `.vss` files ask you to save as `.vsdx`. A large result still offers the hub layouts (#258).
+- **Changed:** From data splits **Routing table (L3)** from **ARP and MAC tables (L2)**. The layer 2 source draws switches and places hosts from the MAC table. A port with many MACs is an uplink stub. ARP alone asks for a MAC table. A `.route` file that already mixes both still refreshes. Layer 2 files are `.arpmac`.
+- **Changed:** **Your diagram reflects your data** is shown for every From data source, with a tip that opens that source's section. **Don't show again** still remembers each source on its own.
+- **Changed:** **Syntax reference** is in **Your space**, after Dashboard and Diagram health. The Reference section is gone. The command palette and the editor link use the same name and still open `/reference` in a new tab.
+- **Fixed:** Lucid and Visio import accepts the file upload. The import dialog states the 4 MiB limit for those files. The Visio sample is a normal zip with two pages.
+- **Added:** The Docker install docs show a sample `compose.yaml` and explain each key, the `.env` placeholders, a bind mount owned by uid 1001, and the everyday Compose commands.
+
 ## 2.1.0 "Zenith" - 2026-11-21
 
 First release on the Zenith line.

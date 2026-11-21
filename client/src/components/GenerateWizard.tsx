@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type ReactNode } from "react";
 import { largeImportAdvice } from "../lib/largeImport";
+import { builtinSourceNotice, translatorSourceNotice, type SourceNotice } from "../lib/sourceNotice";
 import type { FlowDirection, NetworkView } from "../../../server/src/diagramData.ts";
 import {
   canCreate,
@@ -7,13 +8,13 @@ import {
   edgeFields,
   fieldsFor,
   isNeighborSource,
+  isArpMacSource,
   isRouteSource,
   isNetworkSource,
   issueListTitle,
   listedIssueText,
   noticeStorageKey,
   showEdgeFields,
-  translatorDocsHref,
   type MapperWarning,
   type TranslatorChoice,
   type WizardAction,
@@ -54,6 +55,7 @@ export function GenerateWizard({
   const fields = fieldsFor(state);
   const neighbor = isNeighborSource(state);
   const route = isRouteSource(state);
+  const layer2 = isArpMacSource(state);
   const network = isNetworkSource(state);
   const translator = translators.find((item) => item.id === state.translatorId) ?? null;
   const [converting, setConverting] = useState(false);
@@ -87,7 +89,7 @@ export function GenerateWizard({
     <div className="generate-wizard">
       <ol className="generate-steps" aria-label="Steps">
         <li className={state.step === "input" ? "active" : ""}>Data</li>
-        <li className={state.step === "map" ? "active" : ""}>{neighbor || route || network ? "Options" : "Columns"}</li>
+        <li className={state.step === "map" ? "active" : ""}>{neighbor || route || layer2 || network ? "Options" : "Columns"}</li>
         <li className={state.step === "preview" ? "active" : ""}>Preview</li>
       </ol>
 
@@ -113,7 +115,8 @@ export function GenerateWizard({
             <option value="network">Network data (JSON)</option>
             <option value="cdp">Cisco CDP</option>
             <option value="lldp">LLDP neighbors</option>
-            <option value="route">Routing table</option>
+            <option value="route">Routing table (L3)</option>
+            <option value="arpmac">ARP and MAC tables (L2)</option>
             {translators.map((item) => (
               <option key={item.id} value={`translator:${item.id}`}>
                 {item.name}
@@ -121,9 +124,9 @@ export function GenerateWizard({
             ))}
           </select>
           {!translator && state.format === "auto" ? (
-            <p className="generate-hint">CSV, JSON, network JSON, Cisco CDP, LLDP neighbors, or a Cisco routing table.</p>
+            <p className="generate-hint">CSV, JSON, network JSON, Cisco CDP, LLDP neighbors, a routing table, or ARP and MAC tables.</p>
           ) : null}
-          {translator ? <DataNotice translator={translator} /> : null}
+          <DataNotice notice={translator ? translatorSourceNotice(translator.id, translator.name) : builtinSourceNotice(state.format)} />
           {translator ? <p className="generate-hint">{translator.formatHint}</p> : null}
           <label htmlFor="generate-data">{translator ? translator.name : dataLabel(state.format)}</label>
           <textarea
@@ -138,7 +141,7 @@ export function GenerateWizard({
             Upload a file
             <input
               type="file"
-              accept=".csv,.json,.network.json,.cdp,.lldp,.route,.txt,text/csv,application/json,text/plain"
+              accept=".csv,.json,.network.json,.cdp,.lldp,.route,.arpmac,.txt,text/csv,application/json,text/plain"
               aria-label="Upload data file"
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -147,9 +150,25 @@ export function GenerateWizard({
                 void file.text().then((text) => dispatch({ type: "text", text, fileName: file.name }));
               }}
             />
+            {state.format === "route" ? (
+              <span className="generate-hint">Upload a .route file, or paste show ip route from Cisco IOS, IOS-XE, or NX-OS.</span>
+            ) : null}
+            {state.format === "arpmac" ? (
+              <span className="generate-hint">Upload a .arpmac file, or paste show ip arp and show mac address-table.</span>
+            ) : null}
           </label>
+          {state.format === "route" ? (
+            <p className="generate-hint">
+              Layer 3. Prompts such as core-rtr#show ip route name each device. A paste that also includes ARP or a MAC table still works, and the preview says so.
+            </p>
+          ) : null}
+          {state.format === "arpmac" ? (
+            <p className="generate-hint">
+              Layer 2. A MAC address table places hosts on switchports. A port with many MACs is an uplink. ARP alone does not draw links.
+            </p>
+          ) : null}
           {translator ? <NetworkOptions state={state} dispatch={dispatch} /> : null}
-          {!translator && (state.format === "cdp" || state.format === "lldp" || state.format === "network" || state.format === "route") ? (
+          {!translator && (state.format === "cdp" || state.format === "lldp" || state.format === "network" || state.format === "route" || state.format === "arpmac") ? (
             <label htmlFor="generate-local-device">
               Local device name
               <input
@@ -165,8 +184,8 @@ export function GenerateWizard({
             </label>
           ) : null}
           {!translator && state.format === "network" ? <NetworkOptions state={state} dispatch={dispatch} /> : null}
-          {state.format === "route" ? <RouteHostOptions state={state} dispatch={dispatch} /> : null}
-          {translator || state.format === "cdp" || state.format === "lldp" || state.format === "network" || state.format === "route" ? null : (
+          {state.format === "arpmac" ? <RouteHostOptions state={state} dispatch={dispatch} /> : null}
+          {translator || state.format === "cdp" || state.format === "lldp" || state.format === "network" || state.format === "route" || state.format === "arpmac" ? null : (
             <>
               <label htmlFor="generate-edges">Edges file, if the first file is only nodes</label>
               <textarea
@@ -189,7 +208,7 @@ export function GenerateWizard({
 
       {state.step === "map" ? (
         <div className="generate-panel">
-          {route ? (
+          {route || layer2 ? (
             <>
               <label htmlFor="generate-route-device">
                 Local device name
@@ -200,7 +219,9 @@ export function GenerateWizard({
                   placeholder="Used when the paste has no hostname prompt"
                 />
               </label>
-              <RouteHostOptions state={state} dispatch={dispatch} />
+              {layer2 ? <RouteHostOptions state={state} dispatch={dispatch} /> : (
+                <p className="generate-hint">Hosts from an ARP and MAC table in this paste are placed on switchports. Counts are on ARP and MAC tables (L2).</p>
+              )}
             </>
           ) : neighbor ? (
             <>
@@ -477,10 +498,9 @@ function readDismissed(id: string): boolean {
   }
 }
 
-function DataNotice({ translator }: { translator: TranslatorChoice }) {
+function DataNotice({ notice }: { notice: SourceNotice }) {
   const [dismissedId, setDismissedId] = useState("");
-  if (readDismissed(translator.id) || dismissedId === translator.id) return null;
-  const source = translator.name;
+  if (readDismissed(notice.id) || dismissedId === notice.id) return null;
   return (
     <aside className="data-notice" role="note">
       <div className="data-notice-title">
@@ -491,25 +511,21 @@ function DataNotice({ translator }: { translator: TranslatorChoice }) {
         </svg>
         <strong>Your diagram reflects your data</strong>
       </div>
-      <p>
-        NerdGram draws exactly what this {source} export describes. Devices or links the source doesn't know about won't
-        appear. For a fuller topology, enrich the data in {source} first, for example by adding LLDP or CDP links to a
-        Batfish snapshot.
-      </p>
+      <p>{notice.body}</p>
       <div className="data-notice-actions">
-        <a href={translatorDocsHref(source)} target="_blank" rel="noopener noreferrer">
-          Translator tips
+        <a href={notice.href} target="_blank" rel="noopener noreferrer">
+          {notice.tipsLabel}
         </a>
         <button
           type="button"
           className="btn btn-ghost"
           onClick={() => {
             try {
-              localStorage.setItem(noticeStorageKey(translator.id), "1");
+              localStorage.setItem(noticeStorageKey(notice.id), "1");
             } catch {
               // Dismissal still applies for this view when storage is blocked.
             }
-            setDismissedId(translator.id);
+            setDismissedId(notice.id);
           }}
         >
           Don't show again
@@ -533,7 +549,7 @@ function RouteHostOptions({ state, dispatch }: { state: WizardState; dispatch: D
         <option value="vlan-counts">Counts per VLAN</option>
       </select>
       <span className="generate-hint">
-        ARP and a MAC address table place hosts. ARP alone does not draw links. A port with many MACs stays an uplink. Counts keep a large access layer from becoming a starburst.
+        The MAC table places hosts. A port with many MACs is an uplink stub. ARP alone does not draw links. Counts keep a large access layer from becoming a starburst.
       </span>
     </label>
   );
@@ -542,7 +558,8 @@ function RouteHostOptions({ state, dispatch }: { state: WizardState; dispatch: D
 function dataLabel(format: WizardState["format"]): string {
   if (format === "cdp") return "Cisco CDP output";
   if (format === "lldp") return "LLDP neighbor output";
-  if (format === "route") return "Routing table";
+  if (format === "route") return "Routing table (L3)";
+  if (format === "arpmac") return "ARP and MAC tables (L2)";
   if (format === "network") return "Network data (JSON)";
   if (format === "json") return "JSON";
   if (format === "csv") return "CSV";
@@ -557,7 +574,10 @@ function dataPlaceholder(format: WizardState["format"]): string {
     return "core-sw#show lldp neighbors detail\nLocal Intf: Gi1/0/1\nPort id: Gi1/0/48\nSystem Name: dist-sw";
   }
   if (format === "route") {
-    return "core-rtr#show ip route\nC        10.1.0.0/30 is directly connected, GigabitEthernet0/0\nL        10.1.0.1/32 is directly connected, GigabitEthernet0/0";
+    return "core-rtr#show ip route\nC        10.1.0.0/30 is directly connected, GigabitEthernet0/0\nL        10.1.0.1/32 is directly connected, GigabitEthernet0/0\nO        10.2.0.0/24 [110/2] via 10.1.0.2, GigabitEthernet0/0";
+  }
+  if (format === "arpmac") {
+    return "dist-sw#show ip arp\nInternet  10.2.0.10  4  0011.2233.4401  ARPA  Vlan20\ndist-sw#show mac address-table\n20  0011.2233.4401  DYNAMIC  Gi1/0/5";
   }
   if (format === "network") {
     return '{"schemaVersion":1,"devices":[{"name":"core-rtr"}],"interfaces":[{"device":"core-rtr","name":"Loopback0","ipv4":[{"address":"10.255.0.1","prefix":32}]}]}';

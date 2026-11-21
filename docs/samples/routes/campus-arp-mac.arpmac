@@ -1,0 +1,18 @@
+dist-sw#show ip arp
+Protocol  Address          Age (min)  Hardware Addr   Type   Interface
+Internet  10.2.0.10               4   0011.2233.4401  ARPA   Vlan20
+Internet  10.2.0.11               4   0011.2233.4402  ARPA   Vlan20
+
+dist-sw#show mac address-table
+Vlan    Mac Address       Type        Ports
+----    -----------       --------    -----
+20      0011.2233.4401    DYNAMIC     Gi1/0/5
+20      0011.2233.4402    DYNAMIC     Gi1/0/6
+20      0011.2233.4411    DYNAMIC     Gi1/0/48
+20      0011.2233.4412    DYNAMIC     Gi1/0/48
+20      0011.2233.4413    DYNAMIC     Gi1/0/48
+20      0011.2233.4414    DYNAMIC     Gi1/0/48
+20      0011.2233.4415    DYNAMIC     Gi1/0/48
+20      0011.2233.4416    DYNAMIC     Gi1/0/48
+20      0011.2233.4417    DYNAMIC     Gi1/0/48
+20      0011.2233.4418    DYNAMIC     Gi1/0/48
