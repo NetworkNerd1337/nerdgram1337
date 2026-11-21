@@ -118,6 +118,7 @@ describe("Support button", () => {
     const narrow = css.slice(css.indexOf("@media (max-width: 960px)"), css.indexOf(".modal.wide"));
     expect(narrow).toContain(".narrow-app-bar");
     expect(narrow).toContain("display: flex");
+    expect(narrow).toContain("order: -1");
     expect(narrow).toContain("position: sticky");
     expect(narrow).toContain(".main .page-header-actions .about-link");
     expect(css).toContain(".about-link .about-link-label");

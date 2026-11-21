@@ -2504,6 +2504,7 @@ body.is-col-resizing * {
 
   .narrow-app-bar {
     display: flex;
+    order: -1;
     justify-content: flex-end;
     align-items: center;
     gap: 0.5rem;

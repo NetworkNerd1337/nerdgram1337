@@ -22,10 +22,6 @@ export function WorkspaceShell({
 }) {
   return (
     <div className="app-shell" style={{ "--sidebar-width": `${width.width}px` } as CSSProperties}>
-      <div className="narrow-app-bar">
-        <AboutButton />
-        <SupportLink />
-      </div>
       {sidebar}
       <EditorDivider
         className="app-split"
@@ -43,6 +39,10 @@ export function WorkspaceShell({
         onPointerUp={width.onPointerUp}
       />
       {children}
+      <div className="narrow-app-bar">
+        <AboutButton />
+        <SupportLink />
+      </div>
     </div>
   );
 }
