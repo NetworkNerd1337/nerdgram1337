@@ -33,6 +33,8 @@ export type HistoryEndpoint = {
   id: string | null;
   name: string | null;
   label: string;
+  /** Revision time, or the current file's modification time. Null when unknown. */
+  createdAt: string | null;
 };
 
 export type HistoryComparison = DiagramDiff & {
@@ -109,14 +111,20 @@ export async function diffHistory(filePath: string, fromRef: unknown, toRef: unk
   return { path: file.path, from: from.endpoint, to: to.endpoint, ...diff };
 }
 
+function endpointStamp(mtimeMs: number | undefined): string | null {
+  if (mtimeMs == null || !Number.isFinite(mtimeMs)) return null;
+  const date = new Date(mtimeMs);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 async function resolveEndpoint(
-  file: { path: string; content: string },
+  file: { path: string; content: string; mtimeMs?: number },
   ref: string,
 ): Promise<{ content: string; endpoint: HistoryEndpoint }> {
   if (ref.toLowerCase() === "current") {
     return {
       content: file.content,
-      endpoint: { ref, id: null, name: null, label: "Current" },
+      endpoint: { ref, id: null, name: null, label: "Current", createdAt: endpointStamp(file.mtimeMs) },
     };
   }
   const revisions = await listRevisions(file.path);
@@ -129,6 +137,6 @@ async function resolveEndpoint(
   const label = published.name ?? `Revision ${published.createdAt}`;
   return {
     content: stored.content,
-    endpoint: { ref, id: published.id, name: published.name, label },
+    endpoint: { ref, id: published.id, name: published.name, label, createdAt: published.createdAt },
   };
 }

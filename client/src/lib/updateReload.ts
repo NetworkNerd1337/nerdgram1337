@@ -1,3 +1,5 @@
+import { confirmChoice } from "./confirmChoice";
+
 /**
  * A reload after an update has to warn before it interrupts a presentation
  * or throws away unsaved editor text.
@@ -14,11 +16,19 @@ export function reloadWarning(flags: { presenting: boolean; unsaved: boolean }):
   return `${parts.join(" ")} Reload now?`;
 }
 
-export function requestUpdateReload(): void {
+export async function requestUpdateReload(): Promise<void> {
   const message = reloadWarning({
     presenting: document.body.dataset.presenting === "true",
     unsaved: document.body.dataset.unsaved === "true",
   });
-  if (message && !window.confirm(message)) return;
+  if (message) {
+    const ok = await confirmChoice({
+      title: "Reload now?",
+      message,
+      confirmLabel: "Reload",
+      danger: false,
+    });
+    if (!ok) return;
+  }
   window.location.reload();
 }

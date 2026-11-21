@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
 import { exportDiagram, type ExportFormat } from "../lib/exportDiagram";
 import { renderMermaid } from "../lib/mermaidRender";
+import { prepareSideSvg } from "../lib/sideDiff";
 import type { HistoryDiff, RevisionSummary } from "../types";
 import { PresentationView } from "./PresentationView";
 
@@ -29,6 +30,25 @@ function formatStamp(iso: string): string {
 function fileStem(path: string): string {
   const name = path.split("/").pop() || "diagram";
   return name.replace(/\.mmd$/i, "") || "diagram";
+}
+
+function ColumnHeading({
+  role,
+  age,
+  endpoint,
+}: {
+  role: "From" | "To";
+  age: "Older" | "Newer";
+  endpoint: HistoryDiff["from"];
+}) {
+  return (
+    <th colSpan={2} scope="col">
+      <span className="diff-col-role">{role}</span>
+      <span className="diff-col-age">{age}</span>
+      <span className="diff-col-name">{endpoint.label}</span>
+      {endpoint.createdAt ? <time dateTime={endpoint.createdAt}>{formatStamp(endpoint.createdAt)}</time> : null}
+    </th>
+  );
 }
 
 export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose }: RevisionDiffProps) {
@@ -104,7 +124,7 @@ export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose 
       jobs.push(
         renderMermaid(diff.fromSource).then(
           (result) => {
-            if (!cancelled) setLeftSvg(result.svg);
+            if (!cancelled) setLeftSvg(prepareSideSvg(result.svg, "from", diff));
           },
           () => undefined,
         ),
@@ -112,7 +132,7 @@ export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose 
       jobs.push(
         renderMermaid(diff.toSource).then(
           (result) => {
-            if (!cancelled) setRightSvg(result.svg);
+            if (!cancelled) setRightSvg(prepareSideSvg(result.svg, "to", diff));
           },
           () => undefined,
         ),
@@ -208,53 +228,81 @@ export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose 
           {exportNote}
         </div>
       )}
-      {busy && <p>Comparing…</p>}
-      {diff && (
-        <>
-          {diff.note && <p className="diff-note">{diff.note}</p>}
-          <DiffLegend />
-          <div className="diff-summary" aria-label="Change summary">
-            <h4>Changes</h4>
-            <ul>
-              {diff.summary.map((line, index) => (
-                <li key={`${index}-${line}`}>{line}</li>
-              ))}
-            </ul>
-          </div>
-          {view === "merged" && (
-            <div className="diff-canvas" aria-label="Merged diagram">
-              {renderError ? <div className="preview-error">{renderError}</div> : null}
-              {mergedSvg ? <div dangerouslySetInnerHTML={{ __html: mergedSvg }} /> : <p>Drawing the diff…</p>}
+      <div className="diff-scroll">
+        {busy && <p>Comparing…</p>}
+        {diff && (
+          <>
+            {diff.note && <p className="diff-note">{diff.note}</p>}
+            <DiffLegend />
+            <div className="diff-summary" aria-label="Change summary">
+              <h4>Changes</h4>
+              <ul>
+                {diff.summary.map((line, index) => (
+                  <li key={`${index}-${line}`}>{line}</li>
+                ))}
+              </ul>
             </div>
-          )}
-          {view === "side" && (
-            <div className="diff-side">
-              <figure>
-                <figcaption>{diff.from.label}</figcaption>
-                <div className="diff-canvas" dangerouslySetInnerHTML={{ __html: leftSvg }} />
-              </figure>
-              <figure>
-                <figcaption>{diff.to.label}</figcaption>
-                <div className="diff-canvas" dangerouslySetInnerHTML={{ __html: rightSvg }} />
-              </figure>
-            </div>
-          )}
-          {view === "text" && (
-            <div className="diff-text" aria-label="Text diff">
-              <table>
-                <tbody>
-                  {diff.text.rows.map((row, index) => (
-                    <tr key={index} className={`diff-row is-${row.kind}`}>
-                      <td>{row.leftLine ?? ""}</td>
-                      <td>{row.left ?? ""}</td>
-                      <td>{row.rightLine ?? ""}</td>
-                      <td>{row.right ?? ""}</td>
+            {view === "merged" && (
+              <div className="diff-canvas" aria-label="Merged diagram">
+                {renderError ? <div className="preview-error">{renderError}</div> : null}
+                {mergedSvg ? <div dangerouslySetInnerHTML={{ __html: mergedSvg }} /> : <p>Drawing the diff…</p>}
+              </div>
+            )}
+            {view === "side" && (
+              <div className="diff-side">
+                <figure>
+                  <figcaption>
+                    From, older · {diff.from.label}
+                    {diff.from.createdAt ? (
+                      <>
+                        {" · "}
+                        <time dateTime={diff.from.createdAt}>{formatStamp(diff.from.createdAt)}</time>
+                      </>
+                    ) : null}
+                  </figcaption>
+                  <div className="diff-canvas diff-fit" dangerouslySetInnerHTML={{ __html: leftSvg }} />
+                </figure>
+                <figure>
+                  <figcaption>
+                    To, newer · {diff.to.label}
+                    {diff.to.createdAt ? (
+                      <>
+                        {" · "}
+                        <time dateTime={diff.to.createdAt}>{formatStamp(diff.to.createdAt)}</time>
+                      </>
+                    ) : null}
+                  </figcaption>
+                  <div className="diff-canvas diff-fit" dangerouslySetInnerHTML={{ __html: rightSvg }} />
+                </figure>
+              </div>
+            )}
+            {view === "text" && (
+              <div className="diff-text" aria-label="Text diff">
+                <table>
+                  <thead>
+                    <tr>
+                      <ColumnHeading role="From" age="Older" endpoint={diff.from} />
+                      <ColumnHeading role="To" age="Newer" endpoint={diff.to} />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {diff.text.rows.map((row, index) => (
+                      <tr key={index} className={`diff-row is-${row.kind}`}>
+                        <td>{row.leftLine ?? ""}</td>
+                        <td>{row.left ?? ""}</td>
+                        <td>{row.rightLine ?? ""}</td>
+                        <td>{row.right ?? ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <div className="diff-footer">
+        {diff ? (
           <div className="diff-export">
             <button type="button" className="btn btn-ghost" disabled={!diff.visualSource} onClick={() => void exportImage("svg")}>
               Export SVG
@@ -275,12 +323,12 @@ export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose 
               Present
             </button>
           </div>
-        </>
-      )}
-      <div className="modal-actions">
-        <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Back to history
-        </button>
+        ) : null}
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Back to history
+          </button>
+        </div>
       </div>
       {presenting && diff?.visualSource ? (
         <PresentationView

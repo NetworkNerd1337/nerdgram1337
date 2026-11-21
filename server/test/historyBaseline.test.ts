@@ -246,7 +246,9 @@ describe("named baselines and revision diffs", () => {
     );
     expect(diff.body.visualSource).toContain("classDef ngRemoved");
     expect(diff.body.from.label).toBe("Before");
+    expect(diff.body.from.createdAt).toBe(history.body.revisions[0].createdAt);
     expect(diff.body.to.label).toBe("Current");
+    expect(diff.body.to.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     const after = await request(app).get("/api/file").query({ path: "Diff.mmd" }).set("Host", HOST);
     expect(after.body.hash).toBe(beforeHash);
     expect(after.body.content).toBe(saved.content);

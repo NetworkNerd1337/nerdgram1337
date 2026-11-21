@@ -2673,6 +2673,20 @@ body.is-col-resizing * {
 
 .modal.diff-open {
   width: min(1100px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.modal.diff-open > p {
+  display: none;
+}
+
+.modal.diff-open > .revision-diff {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .history-baseline,
@@ -2703,8 +2717,39 @@ body.is-col-resizing * {
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg-muted);
   color: var(--ink);
+  caret-color: var(--ink);
+}
+
+.baseline-form input::placeholder {
+  color: var(--ink-soft);
+  opacity: 1;
+}
+
+.baseline-form input:focus-visible,
+.diff-toolbar select:focus-visible,
+.history-baseline select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.revision-diff {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.diff-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.diff-footer {
+  flex: none;
 }
 
 .diff-readonly,
@@ -2778,17 +2823,77 @@ body.is-col-resizing * {
 
 .diff-canvas {
   overflow: auto;
-  max-height: 420px;
   margin-bottom: 0.8rem;
   padding: 0.75rem;
   border-radius: 10px;
-  background: #f4f7f5;
+  background: var(--bg-muted);
+  color: var(--ink);
   border: 1px solid var(--line);
 }
 
 .diff-canvas svg {
   max-width: 100%;
   height: auto;
+}
+
+.diff-side .diff-canvas.diff-fit {
+  overflow: hidden;
+}
+
+.diff-side .diff-fit svg {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.diff-canvas .node.ngAdded :is(rect, polygon, circle, ellipse, path),
+.diff-canvas .node.ngRemoved :is(rect, polygon, circle, ellipse, path),
+.diff-canvas .node.ngChanged :is(rect, polygon, circle, ellipse, path),
+.diff-canvas .node.ngSame :is(rect, polygon, circle, ellipse, path) {
+  stroke-width: 2px;
+}
+
+.diff-canvas .node.ngAdded :is(rect, polygon, circle, ellipse, path) {
+  fill: #1f7a4d !important;
+  stroke: #3dd68c !important;
+}
+
+.diff-canvas .node.ngRemoved :is(rect, polygon, circle, ellipse, path) {
+  fill: #8f2430 !important;
+  stroke: #ff8b98 !important;
+  stroke-dasharray: 5 4;
+}
+
+.diff-canvas .node.ngChanged :is(rect, polygon, circle, ellipse, path) {
+  fill: #8a5a12 !important;
+  stroke: #ffc46b !important;
+}
+
+.diff-canvas .node.ngSame :is(rect, polygon, circle, ellipse, path) {
+  fill: #2a3340 !important;
+  stroke: #66788a !important;
+}
+
+.diff-canvas .flowchart-link.ngAdded,
+.diff-canvas .edgePath.ngAdded path {
+  stroke: #3dd68c !important;
+}
+
+.diff-canvas .flowchart-link.ngRemoved,
+.diff-canvas .edgePath.ngRemoved path {
+  stroke: #ff8b98 !important;
+  stroke-dasharray: 5 4;
+}
+
+.diff-canvas .flowchart-link.ngChanged,
+.diff-canvas .edgePath.ngChanged path {
+  stroke: #ffc46b !important;
+}
+
+.diff-canvas .flowchart-link.ngSame,
+.diff-canvas .edgePath.ngSame path {
+  stroke: #66788a !important;
 }
 
 /* Diff node labels sit on the colored fills. .modal p would otherwise paint them dark.
@@ -2817,8 +2922,14 @@ body.is-col-resizing * {
 
 .diff-side {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.diff-side figure {
+  min-width: 0;
+  margin: 0;
 }
 
 .diff-side figcaption {
@@ -2828,11 +2939,33 @@ body.is-col-resizing * {
 }
 
 .diff-text {
-  max-height: 320px;
-  overflow: auto;
   margin-bottom: 0.8rem;
   border: 1px solid var(--line);
   border-radius: 10px;
+}
+
+.diff-text thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-elevated);
+  color: var(--ink);
+  text-align: left;
+  font-family: var(--font-sans);
+  font-weight: 650;
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.diff-col-role,
+.diff-col-name {
+  margin-right: 0.4rem;
+}
+
+.diff-col-age {
+  margin-right: 0.45rem;
+  color: var(--ink-soft);
+  font-weight: 500;
 }
 
 .diff-text table {
@@ -2853,16 +2986,28 @@ body.is-col-resizing * {
   color: var(--ink-soft);
 }
 
-.diff-row.is-add td {
-  background: #e5f6ec;
+.diff-text .diff-row.is-add td {
+  background: #1f7a4d;
+  color: #f8fafc;
 }
 
-.diff-row.is-remove td {
-  background: #fde8ea;
+.diff-text .diff-row.is-remove td {
+  background: #8f2430;
+  color: #f8fafc;
 }
 
-.diff-row.is-change td {
-  background: #fff4df;
+.diff-text .diff-row.is-change td {
+  background: #8a5a12;
+  color: #f8fafc;
+}
+
+.diff-text .diff-row.is-same td {
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.confirm-backdrop {
+  z-index: 80;
 }
 
 .presentation-legend {
