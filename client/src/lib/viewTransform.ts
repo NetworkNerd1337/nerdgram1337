@@ -141,36 +141,25 @@ export function fit(viewport: Size, content: Size, rotation: number): ViewTransf
 }
 
 /**
- * Editor preview Fit. The whole diagram is shown when that scale stays
- * readable. A very tall diagram fits the width and pans vertically. A very
- * wide one fits the height and pans sideways. If both axes are still below
- * {@link READABLE_ZOOM}, the scale stops there and both directions pan.
- * Presentation keeps {@link fit} so Fit page still shows the whole slide.
+ * Editor preview Fit. Use the whole page when that scale stays at or above
+ * {@link READABLE_ZOOM}, and never past {@link FIT_AXIS_MAX}. A page fit below
+ * the floor uses the short side instead, so a very tall diagram pans vertically
+ * and a very wide one pans sideways. Presentation keeps {@link fit}.
  */
 export function readableFit(
   viewport: Size,
   content: Size,
   rotation: number,
 ): { mode: FitMode; view: ViewTransform } {
-  const bounds = rotatedContentSize(content, rotation);
-  const aspect = Math.max(bounds.width, bounds.height) / Math.max(Math.min(bounds.width, bounds.height), 1);
   const page = fitTo(viewport, content, rotation, "page");
-  if (aspect >= 3) {
-    const along: FitMode = bounds.height >= bounds.width ? "width" : "height";
-    const fitted = fitTo(viewport, content, rotation, along);
-    const scale = fitted.scale >= READABLE_ZOOM ? fitted.scale : Math.min(MAX_ZOOM, READABLE_ZOOM);
-    return { mode: along, view: { ...fitted, scale, rotation: normalizeDegrees(rotation) } };
+  if (page.scale >= READABLE_ZOOM) {
+    return { mode: "page", view: { ...page, scale: Math.min(page.scale, FIT_AXIS_MAX) } };
   }
-  if (page.scale >= READABLE_ZOOM) return { mode: "page", view: page };
-  return {
-    mode: "page",
-    view: {
-      x: 0,
-      y: 0,
-      scale: Math.min(MAX_ZOOM, READABLE_ZOOM),
-      rotation: normalizeDegrees(rotation),
-    },
-  };
+  const bounds = rotatedContentSize(content, rotation);
+  const along: FitMode = bounds.height >= bounds.width ? "width" : "height";
+  const fitted = fitTo(viewport, content, rotation, along);
+  const scale = fitted.scale >= READABLE_ZOOM ? fitted.scale : Math.min(MAX_ZOOM, READABLE_ZOOM);
+  return { mode: along, view: { ...fitted, scale, rotation: normalizeDegrees(rotation) } };
 }
 
 /**

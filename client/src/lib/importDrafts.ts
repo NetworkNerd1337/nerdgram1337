@@ -1,3 +1,4 @@
+import { countDiagramNodes } from "./renderWait";
 import { applyDiagramPatch } from "./frontMatter";
 import { api } from "../api";
 import {
@@ -199,7 +200,7 @@ export function unitsFromDraft(draft: ImportDraft): ImportUnit[] {
         diagramName: draft.diagramName,
         text: withHub(draft.text, draft.hubLayout),
         warnings: draft.warnings ?? [],
-        nodes: 0,
+        nodes: countDiagramNodes(draft.text),
       },
     ];
   }

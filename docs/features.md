@@ -30,7 +30,7 @@ The editor is split code and live preview, with autosave about **500 ms** after 
 
 ## Preview
 
-The preview pane shows the diagram from the file. Drag anywhere on the picture to pan. The mouse wheel zooms toward the pointer. A trackpad pinch zooms, and a two-finger scroll pans. **Fit** clears the pan. It shows the whole diagram when that picture stays readable. A very tall diagram fits the width, and a very wide one fits the height. When that would still shrink the labels, Fit stops at the diagram's own size and you pan. The percent next to **Fit** is the zoom. Typing in the code pane does not reset that view.
+The preview pane shows the diagram from the file. Drag anywhere on the picture to pan. The mouse wheel zooms toward the pointer. A trackpad pinch zooms, and a two-finger scroll pans. **Fit** clears the pan. It shows the whole diagram when that zoom stays at least 25%, and it does not open past 200%. A diagram that would shrink below 25% fits the shorter side instead, and you pan along the long side. The percent next to **Fit** is the zoom. Typing in the code pane does not reset that view.
 
 Drag the divider between the code pane and the preview to give either side more room. The preview fits again as the pane changes size, while you are still on the fitted view. Double-click the divider to put the split back. The choice is saved in this browser when you drag it or move it with the keyboard. Resizing the window only clamps what you see, and the saved split comes back when there is room. The divider is a separator: arrow keys move it when it is focused, and the value it reports is a whole number. A narrow window stacks the panes and hides the divider.
 

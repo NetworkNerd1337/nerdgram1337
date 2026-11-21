@@ -132,7 +132,8 @@ describe("About dialog content", () => {
     const text = visibleText(html);
     expect(text).toContain("NerdGram1337");
     expect(text).toContain("A local app for writing Mermaid diagrams as Markdown.");
-    expect(text).toContain('v1.4.8 "Atlas"');
+    expect(text).toContain("v1.4.8");
+    expect(text).not.toContain('v1.4.8 "Atlas"');
     expect(text).toContain("Code name");
     expect(text).toContain("Atlas");
     expect(text).toContain("git clone");

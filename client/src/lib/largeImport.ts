@@ -1,3 +1,4 @@
+import { countDiagramNodes } from "./renderWait";
 import { hubLeafCount } from "../../../server/src/hubLayout.ts";
 
 /** Show the From data warning at this many nodes, or this many leaf neighbors. */
@@ -10,7 +11,7 @@ export type LargeImportAdvice = {
 };
 
 export function largeImportAdvice(source: string, nodeCount: number): LargeImportAdvice | null {
-  const nodes = Math.max(0, nodeCount);
+  const nodes = Math.max(0, nodeCount, countDiagramNodes(source));
   const leaves = hubLeafCount(source);
   if (nodes < LARGE_IMPORT_NODES && leaves < LARGE_IMPORT_LEAVES) return null;
   const count = nodes.toLocaleString("en-US");
