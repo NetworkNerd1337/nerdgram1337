@@ -1622,6 +1622,31 @@ body.is-col-resizing * {
   min-width: 0;
 }
 
+/* Present is a row flex. The box overlays the corner so it is not a left column. */
+.presentation .node-find-float {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 7;
+  width: min(22rem, calc(100% - 1rem));
+  margin: 0;
+  pointer-events: auto;
+}
+
+@media (max-width: 390px) {
+  .presentation .node-find-float {
+    top: 0.35rem;
+    right: 0.25rem;
+    width: calc(100% - 0.5rem);
+    padding: 0.25rem;
+    gap: 0.25rem;
+  }
+
+  .presentation .node-find-float .btn {
+    padding: 0.2rem 0.4rem;
+  }
+}
+
 .node.is-found rect,
 .node.is-found polygon,
 .node.is-found circle,

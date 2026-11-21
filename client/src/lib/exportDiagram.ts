@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
 import { renderForExport } from "./mermaidRender";
+import { yieldToInput } from "./renderWait";
 import { rasterExportScale, rasterScaleNote } from "./rasterScale";
 import { backgroundFromSvg, themeBackground } from "./svgBackground";
 import { exportBackgroundColor, svgHasForeignObject } from "./exportSvg";
@@ -204,6 +205,7 @@ export async function exportDiagram(
     }
   }
 
+  await yieldToInput();
   if (options.isCancelled?.()) return { note: null };
 
   if (format === "svg") {
@@ -220,6 +222,7 @@ export async function exportDiagram(
     if (vector) {
       try {
         const blob = await svgToPdfBlob(painted);
+        await yieldToInput();
         if (options.isCancelled?.()) return { note: null };
         triggerDownload(blob, `${safe}.pdf`);
         return { note: null };
@@ -228,6 +231,7 @@ export async function exportDiagram(
       }
     }
     const drawn = await svgToCanvas(paintBackground(svg, fill), fill);
+    await yieldToInput();
     if (options.isCancelled?.()) return { note: null };
     triggerDownload(await canvasToPdfBlob(drawn.canvas, drawn.scale), `${safe}.pdf`);
     return { note: drawn.note };
@@ -242,6 +246,7 @@ export async function exportDiagram(
       0.92,
     );
   });
+  await yieldToInput();
   if (options.isCancelled?.()) return { note: null };
   triggerDownload(blob, `${safe}.${format === "jpg" ? "jpg" : "png"}`);
   return { note: drawn.note };

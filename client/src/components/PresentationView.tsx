@@ -15,18 +15,16 @@ import { presentTitle } from "../lib/pageTitle";
 import { PRESENTATION_NARROW_QUERY, ROTATE_HINT_KEY } from "../lib/presentationLayout";
 import { settingsBlockTooltip } from "../lib/problemText";
 import { renderMermaid } from "../lib/mermaidRender";
-import {
-  RENDER_PROGRESS_AFTER_MS,
-  countDiagramNodes,
-  renderOverlayText,
-} from "../lib/renderWait";
+import { countDiagramNodes, renderGuarded } from "../lib/renderWait";
 import {
   flowchartNodes,
   matchNodes,
+  nodeFindKey,
   nodeFindShortcut,
   nodePointInDiagram,
   stepMatch,
 } from "../lib/nodeFind";
+import { useNodeMeta } from "../hooks/useNodeMeta";
 import {
   currentFullscreen,
   exitPresentationFullscreen,
@@ -98,10 +96,13 @@ export function PresentationView({
   const [renderOverlay, setRenderOverlay] = useState<string | null>(null);
   const [nodeQuery, setNodeQuery] = useState<string | null>(null);
   const [nodeIndex, setNodeIndex] = useState(0);
-  const nodeQueryRef = useRef(nodeQuery);
-  useEffect(() => {
-    nodeQueryRef.current = nodeQuery;
-  }, [nodeQuery]);
+  const nodeQueryRef = useRef<string | null>(null);
+  const nodeCountRef = useRef(0);
+  const renderDrop = useRef(false);
+  const setNodeQueryNow = (value: string | null) => {
+    nodeQueryRef.current = value;
+    setNodeQuery(value);
+  };
   const [content, setContent] = useState<Size | null>(null);
   const [titleOn, setTitleOn] = useState(true);
   const [barVisible, setBarVisible] = useState(true);
@@ -133,10 +134,14 @@ export function PresentationView({
   });
 
   const frame = session.slides[session.index] ?? session.slides[0] ?? slideFor(path, source, fileError);
+  const nodeMeta = useNodeMeta(frame.source);
   const nodeMatches = useMemo(
-    () => matchNodes(flowchartNodes(frame.source ?? ""), nodeQuery ?? ""),
-    [frame.source, nodeQuery],
+    () => matchNodes(flowchartNodes(frame.source ?? ""), nodeQuery ?? "", nodeMeta),
+    [frame.source, nodeMeta, nodeQuery],
   );
+  useEffect(() => {
+    nodeCountRef.current = nodeMatches.length;
+  }, [nodeMatches.length]);
 
   useEffect(() => {
     if (nodeQuery === null) return;
@@ -218,44 +223,42 @@ export function PresentationView({
   useEffect(() => {
     const currentSource = frame.source;
     if (currentSource == null) return;
-    let cancelled = false;
+    let alive = true;
+    renderDrop.current = false;
     const delay = hadSvg.current ? 280 : 0;
-    let clock = 0;
-    const started = Date.now();
-    const nodes = countDiagramNodes(currentSource);
-    const tick = () => {
-      if (cancelled) return;
-      const elapsed = Date.now() - started;
-      if (elapsed >= RENDER_PROGRESS_AFTER_MS) setRenderOverlay(renderOverlayText(nodes, elapsed));
-      clock = window.setTimeout(tick, 500);
-    };
     const timer = window.setTimeout(() => {
       const parsedSource = parseDiagram(currentSource);
       const text = parsedSource.malformed ? parsedSource.body : currentSource;
       if (!text.trim()) {
-        if (!cancelled) setRenderError(null);
+        if (alive) setRenderError(null);
         return;
       }
-      clock = window.setTimeout(tick, RENDER_PROGRESS_AFTER_MS);
-      void renderMermaid(text, FALLBACK_THEME).then(
-        (result) => {
-          if (cancelled) return;
+      void renderGuarded({
+        nodeCount: countDiagramNodes(text),
+        showOverlay: (label) => {
+          if (alive) setRenderOverlay(label);
+        },
+        hideOverlay: () => {
+          if (alive) setRenderOverlay(null);
+        },
+        cancelled: () => !alive || renderDrop.current,
+        run: () => renderMermaid(text, FALLBACK_THEME),
+      }).then(
+        (outcome) => {
+          if (!alive || renderDrop.current || !outcome.ok) return;
           hadSvg.current = true;
-          setSvg(result.svg);
+          setSvg(outcome.value.svg);
           setRenderError(null);
-          setRenderOverlay(null);
         },
         (err: unknown) => {
-          if (cancelled) return;
+          if (!alive || renderDrop.current) return;
           setRenderError(err instanceof Error ? err.message : "Could not render this diagram");
-          setRenderOverlay(null);
         },
       );
     }, delay);
     return () => {
-      cancelled = true;
+      alive = false;
       window.clearTimeout(timer);
-      window.clearTimeout(clock);
       setRenderOverlay(null);
     };
   }, [frame.source]);
@@ -351,13 +354,24 @@ export function PresentationView({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (nodeQueryRef.current !== null && event.key === "Escape" && !event.metaKey && !event.ctrlKey) {
+      const findAction = nodeFindKey(event, nodeQueryRef.current !== null);
+      if (findAction === "close") {
         event.preventDefault();
+        event.stopPropagation();
+        nodeQueryRef.current = null;
         setNodeQuery(null);
+        return;
+      }
+      if (findAction === "next" || findAction === "prev") {
+        event.preventDefault();
+        event.stopPropagation();
+        const delta = findAction === "next" ? 1 : -1;
+        setNodeIndex((current) => stepMatch(current, delta, nodeCountRef.current));
         return;
       }
       if (nodeFindShortcut(event, isCodeEditorTarget(event.target) || isFormField(event.target)) === "open") {
         event.preventDefault();
+        nodeQueryRef.current = nodeQueryRef.current ?? "";
         setNodeQuery((current) => current ?? "");
         setNodeIndex(0);
         revealBar();
@@ -486,7 +500,7 @@ export function PresentationView({
     content != null &&
     viewport != null &&
     (camera.atFit || camera.view.x !== 0 || camera.view.y !== 0 || camera.view.rotation !== 0 || camera.view.scale !== 1);
-  const showStatus = !svg && !notice;
+  const showStatus = !svg && !notice && !renderOverlay;
   const status = frame.source == null ? "Loading diagram…" : "Rendering diagram…";
   const presentationTrail = {
     crumbs: session.slides.map((slide) => ({ path: slide.path, title: slide.title })),
@@ -523,15 +537,17 @@ export function PresentationView({
       />
       {nodeQuery !== null ? (
         <NodeFindBar
+          floating
           query={nodeQuery}
           onQuery={(value) => {
+            nodeQueryRef.current = value;
             setNodeQuery(value);
             setNodeIndex(0);
           }}
           index={Math.min(nodeIndex, Math.max(0, nodeMatches.length - 1))}
           count={nodeMatches.length}
           onStep={(delta) => setNodeIndex((current) => stepMatch(current, delta, nodeMatches.length))}
-          onClose={() => setNodeQuery(null)}
+          onClose={() => setNodeQueryNow(null)}
         />
       ) : null}
       <div
@@ -563,6 +579,7 @@ export function PresentationView({
           <RenderProgress
             text={renderOverlay}
             onCancel={() => {
+              renderDrop.current = true;
               setRenderOverlay(null);
               if (onRenderCancelled) onRenderCancelled();
               else onExit();

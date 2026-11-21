@@ -102,6 +102,11 @@ describe("presentation controls at a phone width", () => {
     const hint = css.slice(css.indexOf(".presentation-rotate-hint {"), css.indexOf(".presentation-rotate-hint .btn"));
     expect(hint).toContain("position: relative");
     expect(hint).not.toContain("position: absolute");
+    const find = css.slice(css.indexOf(".presentation .node-find-float {"), css.indexOf("@media (max-width: 390px)"));
+    expect(find).toContain("position: absolute");
+    expect(find).toContain("right: 0.5rem");
+    const phone = css.slice(css.indexOf("@media (max-width: 390px)"), css.indexOf(".node.is-found"));
+    expect(phone).toContain(".presentation .node-find-float");
     const toolbar = css.slice(
       css.indexOf(".preview-toolbar.is-single-row {"),
       css.indexOf(".preview-toolbar.is-single-row select"),

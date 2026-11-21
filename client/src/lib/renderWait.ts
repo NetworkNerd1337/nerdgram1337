@@ -1,18 +1,18 @@
-/** Show the render overlay only after the wait is long enough to notice. */
-export const RENDER_PROGRESS_AFTER_MS = 1000;
+/** A diagram at least this large paints the overlay before Mermaid draws. */
+export const SLOW_RENDER_NODES = 200;
 
 export const RENDER_CANCELLED_MESSAGE =
   "Render cancelled. The diagram source is still in the editor.";
 
-export function shouldShowRenderOverlay(elapsedMs: number): boolean {
-  return elapsedMs >= RENDER_PROGRESS_AFTER_MS;
+/** `Rendering 1,001 nodes…` The clock does not tick while Mermaid blocks the page. */
+export function renderOverlayText(nodeCount: number): string {
+  const count = Math.max(0, Math.round(nodeCount)).toLocaleString("en-US");
+  return `Rendering ${count} nodes…`;
 }
 
-/** `Rendering 1,001 nodes… 3s` */
-export function renderOverlayText(nodeCount: number, elapsedMs: number): string {
-  const count = Math.max(0, Math.round(nodeCount)).toLocaleString("en-US");
-  const seconds = Math.max(1, Math.floor(elapsedMs / 1000));
-  return `Rendering ${count} nodes… ${seconds}s`;
+export function slowRenderLabel(nodeCount: number): string | null {
+  if (nodeCount < SLOW_RENDER_NODES) return null;
+  return renderOverlayText(nodeCount);
 }
 
 /** Unique flowchart node ids declared or named on an edge. */
@@ -34,4 +34,55 @@ export function countDiagramNodes(source: string): number {
     }
   }
   return ids.size;
+}
+
+/** Two frames, then a macrotask, so a React overlay paints before a blocking draw. */
+export function yieldForPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame !== "function") {
+      setTimeout(resolve, 0);
+      return;
+    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTimeout(resolve, 0);
+      });
+    });
+  });
+}
+
+/** A click queued during a blocked draw runs before the caller keeps the picture. */
+export function yieldToInput(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * Large diagrams show the overlay and yield so it paints. After the draw, a
+ * queued Cancel is honored and the picture is dropped. Small diagrams draw
+ * with no overlay and no extra wait.
+ */
+export async function renderGuarded<T>(options: {
+  nodeCount: number;
+  showOverlay: (text: string) => void;
+  hideOverlay: () => void;
+  cancelled: () => boolean;
+  run: () => Promise<T>;
+}): Promise<{ ok: true; value: T } | { ok: false }> {
+  const label = slowRenderLabel(options.nodeCount);
+  if (label) {
+    options.showOverlay(label);
+    await yieldForPaint();
+    if (options.cancelled()) {
+      options.hideOverlay();
+      return { ok: false };
+    }
+  }
+  try {
+    const value = await options.run();
+    if (label) await yieldToInput();
+    if (options.cancelled()) return { ok: false };
+    return { ok: true, value };
+  } finally {
+    options.hideOverlay();
+  }
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { flowchartNodes, matchNodes, nodeFindShortcut, stepMatch } from "../src/lib/nodeFind";
+import { flowchartNodes, matchNodes, nodeFindKey, nodeFindShortcut, stepMatch } from "../src/lib/nodeFind";
 import { centerViewOn, nodePointInDiagram } from "../src/lib/nodeFind";
+import { metaFromSidecar } from "../src/lib/nodeMeta";
 import { screenToContent } from "../src/lib/viewTransform";
 
 const SOURCE = [
@@ -38,5 +39,30 @@ describe("node find", () => {
     expect(nodeFindShortcut({ key: "Escape", metaKey: false, ctrlKey: false, altKey: false }, false)).toBe("ignore");
     expect(nodeFindShortcut({ key: "f", metaKey: true, ctrlKey: false, altKey: false }, true)).toBe("ignore");
     expect(nodeFindShortcut({ key: "f", metaKey: false, ctrlKey: true, altKey: false }, false)).toBe("open");
+  });
+
+  it("matches an IP, platform, or interface from the sidecar, not the picture", () => {
+    const source = ["flowchart LR", 'core["core-sw"]', 'dist["dist-sw"]', "core --> dist"].join("\n");
+    const nodes = flowchartNodes(source);
+    const sidecar = [
+      "core-sw#show cdp neighbors detail",
+      "Device ID: dist-sw",
+      "  IP address: 10.1.1.2",
+      "Platform: cisco WS-C3750X-48,  Capabilities: Switch",
+      "Interface: GigabitEthernet1/0/1,  Port ID (outgoing port): GigabitEthernet1/0/48",
+    ].join("\n");
+    const meta = metaFromSidecar(sidecar);
+    expect(matchNodes(nodes, "10.1.1.2").map((node) => node.id)).toEqual([]);
+    expect(matchNodes(nodes, "10.1.1.2", meta).map((node) => node.id)).toEqual(["dist"]);
+    expect(matchNodes(nodes, "WS-C3750", meta).map((node) => node.id)).toEqual(["dist"]);
+    expect(matchNodes(nodes, "GigabitEthernet1/0/1", meta).map((node) => node.id).sort()).toEqual(["core", "dist"]);
+  });
+
+  it("steps and closes from the keyboard while search is open", () => {
+    expect(nodeFindKey({ key: "Escape" }, false)).toBe("ignore");
+    expect(nodeFindKey({ key: "Escape" }, true)).toBe("close");
+    expect(nodeFindKey({ key: "ArrowDown" }, true)).toBe("next");
+    expect(nodeFindKey({ key: "ArrowUp" }, true)).toBe("prev");
+    expect(nodeFindKey({ key: "Enter" }, true)).toBe("next");
   });
 });

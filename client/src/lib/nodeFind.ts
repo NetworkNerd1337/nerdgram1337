@@ -1,3 +1,4 @@
+import { metaTextForNode, type NodeMeta } from "./nodeMeta";
 import { centerViewOn, type Point, type Size } from "./viewTransform";
 
 export { centerViewOn };
@@ -26,15 +27,28 @@ export function flowchartNodes(source: string): NodeMatch[] {
   return [...labels.entries()].map(([id, label]) => ({ id, label }));
 }
 
-export function matchNodes(nodes: readonly NodeMatch[], query: string): NodeMatch[] {
+export function matchNodes(nodes: readonly NodeMatch[], query: string, meta: readonly NodeMeta[] = []): NodeMatch[] {
   const needle = query.trim().toLowerCase();
   if (!needle) return [];
   return nodes.filter((node) => {
-    const haystack = `${node.id} ${node.label}`.toLowerCase();
+    const extra = metaTextForNode(node.label, node.id, meta);
+    const haystack = `${node.id} ${node.label} ${extra}`.toLowerCase();
     if (haystack.includes(needle)) return true;
-    const ips = `${node.id} ${node.label}`.match(IP) ?? [];
+    const ips = haystack.match(IP) ?? [];
     return ips.some((ip) => ip.includes(needle));
   });
+}
+
+/** Keys while the node search box is open. Closed, Present keeps Escape for leaving. */
+export function nodeFindKey(
+  event: { key: string; shiftKey?: boolean },
+  open: boolean,
+): "close" | "next" | "prev" | "ignore" {
+  if (!open) return "ignore";
+  if (event.key === "Escape") return "close";
+  if (event.key === "ArrowDown" || (event.key === "Enter" && !event.shiftKey)) return "next";
+  if (event.key === "ArrowUp" || (event.key === "Enter" && event.shiftKey)) return "prev";
+  return "ignore";
 }
 
 export function stepMatch(index: number, delta: number, count: number): number {

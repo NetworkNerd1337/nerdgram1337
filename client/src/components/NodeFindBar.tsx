@@ -1,3 +1,5 @@
+import { nodeFindKey } from "../lib/nodeFind";
+
 export function NodeFindBar({
   query,
   onQuery,
@@ -5,6 +7,7 @@ export function NodeFindBar({
   count,
   onStep,
   onClose,
+  floating = false,
 }: {
   query: string;
   onQuery: (value: string) => void;
@@ -12,14 +15,26 @@ export function NodeFindBar({
   count: number;
   onStep: (delta: number) => void;
   onClose: () => void;
+  /** Present draws the box over the diagram instead of in the column. */
+  floating?: boolean;
 }) {
   return (
     <form
-      className="node-find"
+      className={floating ? "node-find node-find-float" : "node-find"}
       role="search"
       onSubmit={(event) => {
         event.preventDefault();
+        event.stopPropagation();
         onStep(1);
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        const action = nodeFindKey(event, true);
+        if (action === "ignore") return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (action === "close") onClose();
+        else onStep(action === "next" ? 1 : -1);
       }}
     >
       <input
@@ -27,12 +42,6 @@ export function NodeFindBar({
         value={query}
         placeholder="Name or IP"
         onChange={(event) => onQuery(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            onClose();
-          }
-        }}
         autoFocus
       />
       <span className="node-find-count">{count > 0 ? `${index + 1} of ${count}` : "No matches"}</span>

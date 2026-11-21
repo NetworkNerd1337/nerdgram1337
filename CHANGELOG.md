@@ -12,8 +12,8 @@ _No unreleased items._
 
 Patch on the Meridian line. The code name stays Meridian.
 
-- **Added:** A render that takes more than about a second shows the node count and elapsed time in the editor preview, in Present, and during export, with Cancel. Cancel stops waiting and leaves the source in the editor. Present's Cancel also leaves Present. A fast render stays quiet (#244).
-- **Added:** Ctrl+F (Cmd+F on a Mac) in the diagram preview or in Present finds a node by name, id, or IP, then centers, zooms, and outlines it. Next and Previous cycle the matches. Esc closes the box. The same shortcut in the code pane stays with the code editor's own find (#245).
+- **Added:** A diagram of about 200 nodes or more shows the node count and Cancel on the editor preview, in Present, and during export before the draw starts. Cancel during the draw is kept and applied when it returns: the picture is dropped and the editor says the render was cancelled. Present's Cancel also leaves Present. The elapsed time does not tick while Mermaid blocks the page. A smaller diagram stays quiet (#244).
+- **Added:** Ctrl+F (Cmd+F on a Mac) in the diagram preview or in Present finds a node by name or id, and by IP, platform, or interface when that data is in the file beside the diagram. Next, Previous, Up, and Down cycle the matches. Esc closes the box. In Present the box sits in the top-right corner. The same shortcut in the code pane stays with the code editor's own find (#245).
 - **Added:** From data warns on the preview step when the diagram has 200 nodes or more, or a hub with 50 or more leaf neighbors, and offers Default rank, Compact hub layout, or Radial hub layout before the file is created. Compact and radial write `nerdgram.hubLayout`. A smaller import does not ask (#246).
 
 ## 1.8.16 "Meridian" - 2026-11-21

@@ -46,6 +46,7 @@ describe("changelog notes", () => {
     expect(body.stdout).toContain("#245");
     expect(body.stdout).toContain("#246");
     expect(body.stdout).toContain("Cancel");
+    expect(body.stdout).toContain("does not tick");
     expect(body.stdout).toContain("Ctrl+F");
     expect(body.stdout).toContain("200 nodes");
     expect(body.stdout).not.toContain('## 1.8.17 "Meridian"');

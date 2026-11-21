@@ -238,7 +238,9 @@ Dashboard cards keep a thumbnail of each diagram. The first time a card is on sc
 
 **Ctrl** below means **Cmd** on a Mac. Find and go-to-line apply while the code pane is focused. The command palette applies everywhere except during presentation.
 
-**Ctrl+F** in the diagram preview, or in Present, finds a node by its name, id, or IP. The match is centered, zoomed in, and outlined. **Next** and **Previous** move through the matches, and **Esc** closes the box. The same shortcut while the code pane is focused stays with the code editor's own find. A render that takes more than about a second shows **Rendering 1,001 nodes… 3s** on the preview, in Present, and during export, with **Cancel**. Cancel stops waiting and leaves the source in the editor. Present's Cancel also leaves Present. A render that finishes in under a second shows no extra UI.
+**Ctrl+F** in the diagram preview, or in Present, finds a node by its name or id. An IP, platform, or interface matches when the diagram was generated from a data file (`.cdp`, `.lldp`, or network JSON) that still sits beside it. The picture usually shows hostnames only, so those values are read from that file and mapped back to the node. A diagram with no data file does not match an IP. The match is centered, zoomed in, and outlined. **Next** and **Previous**, or Down and Up, move through the matches. Enter moves to the next one. **Esc** closes the box and leaves Present open. In Present the box sits in the top-right corner, including on a narrow phone, and does not take a column beside the diagram. The same Ctrl+F while the code pane is focused stays with the code editor's own find.
+
+A diagram of about 200 nodes or more shows **Rendering 1,001 nodes…** with **Cancel** on the preview, in Present, and during export, before the draw starts. Mermaid draws on the page's main thread, so the elapsed time does not tick during that draw. Cancel during the draw is kept and applied when the draw returns: the picture is dropped, and the editor says the render was cancelled. Present's Cancel also leaves Present. A smaller diagram shows no overlay.
 
 | Action | Keys |
 | --- | --- |

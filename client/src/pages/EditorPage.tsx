@@ -34,9 +34,8 @@ import { NodeFindBar } from "../components/NodeFindBar";
 import { RenderProgress } from "../components/RenderProgress";
 import {
   RENDER_CANCELLED_MESSAGE,
-  RENDER_PROGRESS_AFTER_MS,
   countDiagramNodes,
-  renderOverlayText,
+  renderGuarded,
 } from "../lib/renderWait";
 import {
   flowchartNodes,
@@ -46,6 +45,7 @@ import {
   stepMatch,
   type NodeMatch,
 } from "../lib/nodeFind";
+import { useNodeMeta } from "../hooks/useNodeMeta";
 import { extractNodeIds } from "../lib/mermaidCompletions";
 import { applyLintFix } from "../lib/lintActions";
 import type { ReportedDiagnostic } from "../lib/mermaidLint";
@@ -713,38 +713,22 @@ export function EditorPage() {
   }, [access, filePath, loaded]);
 
   const renderCancel = useRef(false);
-  const renderClock = useRef(0);
   const [renderOverlay, setRenderOverlay] = useState<string | null>(null);
   const [nodeQuery, setNodeQuery] = useState<string | null>(null);
   const [nodeIndex, setNodeIndex] = useState(0);
-
-  const stopRenderWatch = useCallback(() => {
-    window.clearTimeout(renderClock.current);
-    setRenderOverlay(null);
-  }, []);
-
-  const watchRender = useCallback((source: string) => {
-    renderCancel.current = false;
-    window.clearTimeout(renderClock.current);
-    const started = Date.now();
-    const nodes = countDiagramNodes(source);
-    const tick = () => {
-      if (renderCancel.current) return;
-      const elapsed = Date.now() - started;
-      if (elapsed >= RENDER_PROGRESS_AFTER_MS) setRenderOverlay(renderOverlayText(nodes, elapsed));
-      renderClock.current = window.setTimeout(tick, 500);
-    };
-    renderClock.current = window.setTimeout(tick, RENDER_PROGRESS_AFTER_MS);
-  }, []);
+  const nodeMeta = useNodeMeta(code);
 
   const cancelRender = useCallback(() => {
     renderCancel.current = true;
-    stopRenderWatch();
+    setRenderOverlay(null);
     setRenderError(RENDER_CANCELLED_MESSAGE);
     getEditorView()?.focus();
-  }, [stopRenderWatch]);
+  }, []);
 
-  const nodeMatches = useMemo(() => matchNodes(flowchartNodes(code), nodeQuery ?? ""), [code, nodeQuery]);
+  const nodeMatches = useMemo(
+    () => matchNodes(flowchartNodes(code), nodeQuery ?? "", nodeMeta),
+    [code, nodeMeta, nodeQuery],
+  );
 
   const focusNode = useCallback(
     (match: NodeMatch | undefined) => {
@@ -786,10 +770,17 @@ export function EditorPage() {
 
   const runRender = useCallback(async (source: string) => {
     const generation = renderGen.current;
-    watchRender(source);
+    renderCancel.current = false;
     try {
-      const { svg } = await renderMermaid(source, FALLBACK_THEME);
-      if (!mountedRef.current || generation !== renderGen.current || renderCancel.current) return;
+      const outcome = await renderGuarded({
+        nodeCount: countDiagramNodes(source),
+        showOverlay: setRenderOverlay,
+        hideOverlay: () => setRenderOverlay(null),
+        cancelled: () => renderCancel.current || generation !== renderGen.current,
+        run: () => renderMermaid(source, FALLBACK_THEME),
+      });
+      if (!mountedRef.current || generation !== renderGen.current || renderCancel.current || !outcome.ok) return;
+      const { svg } = outcome.value;
       renderedRef.current = { source, svg };
       setSvgHtml(svg);
       setRenderError(null);
@@ -800,10 +791,8 @@ export function EditorPage() {
       const message = err instanceof Error ? err.message : "Render failed";
       setRenderError(message);
       setPreviewStale(Boolean(renderedRef.current?.svg));
-    } finally {
-      if (generation === renderGen.current) stopRenderWatch();
     }
-  }, [stopRenderWatch, watchRender]);
+  }, []);
 
   useEffect(() => {
     if (!loaded || !autoUpdate) return;
@@ -967,27 +956,32 @@ export function EditorPage() {
       return;
     }
     const parsed = parseDiagram(code);
-    watchRender(code);
+    renderCancel.current = false;
     try {
-      const exported = await exportDiagram(svg, diagramHeading(parsed.title, templateId ? templateTitle : filePath), format, {
-        source: code,
-        fallbackTheme: FALLBACK_THEME,
-        theme: parsed.theme,
-        themeVariables: parsed.themeVariables,
-        transparent,
-        isCancelled: () => renderCancel.current,
+      const outcome = await renderGuarded({
+        nodeCount: countDiagramNodes(code),
+        showOverlay: setRenderOverlay,
+        hideOverlay: () => setRenderOverlay(null),
+        cancelled: () => renderCancel.current,
+        run: () =>
+          exportDiagram(svg, diagramHeading(parsed.title, templateId ? templateTitle : filePath), format, {
+            source: code,
+            fallbackTheme: FALLBACK_THEME,
+            theme: parsed.theme,
+            themeVariables: parsed.themeVariables,
+            transparent,
+            isCancelled: () => renderCancel.current,
+          }),
       });
-      if (renderCancel.current) {
-        setRenderError(RENDER_CANCELLED_MESSAGE);
+      if (renderCancel.current || !outcome.ok) {
+        if (renderCancel.current) setRenderError(RENDER_CANCELLED_MESSAGE);
         return;
       }
       setExportNotice(
-        exported.note ? { title: "Export scaled down", items: [exported.note] } : null,
+        outcome.value.note ? { title: "Export scaled down", items: [outcome.value.note] } : null,
       );
     } catch (err) {
       if (!renderCancel.current) setExportError(err instanceof Error ? err.message : "Export failed");
-    } finally {
-      stopRenderWatch();
     }
   };
 
