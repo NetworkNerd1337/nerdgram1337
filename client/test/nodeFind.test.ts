@@ -58,6 +58,20 @@ describe("node find", () => {
     expect(matchNodes(nodes, "GigabitEthernet1/0/1", meta).map((node) => node.id).sort()).toEqual(["core", "dist"]);
   });
 
+  it("finds spoke-0042 from the address in the data file", () => {
+    const source = ["flowchart LR", 'spoke0042["spoke-0042"]'].join("\n");
+    const sidecar = [
+      "hub#show cdp neighbors detail",
+      "Device ID: spoke-0042",
+      "  IP address: 10.200.1.42",
+      "Platform: cisco ISR, Capabilities: Router",
+      "Interface: Tunnel0, Port ID (outgoing port): Tunnel0",
+    ].join("\n");
+    const nodes = flowchartNodes(source);
+    expect(matchNodes(nodes, "10.200.1.42").map((node) => node.label)).toEqual([]);
+    expect(matchNodes(nodes, "10.200.1.42", metaFromSidecar(sidecar)).map((node) => node.label)).toEqual(["spoke-0042"]);
+  });
+
   it("steps and closes from the keyboard while search is open", () => {
     expect(nodeFindKey({ key: "Escape" }, false)).toBe("ignore");
     expect(nodeFindKey({ key: "Escape" }, true)).toBe("close");

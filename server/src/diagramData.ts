@@ -613,6 +613,24 @@ export function readGeneratedModel(source: string): GraphModel | null {
   return { nodes: [...nodes.values()], edges };
 }
 
+/** The `nerdgram.source.file` string, before extension checks. Empty when the diagram has none. */
+export function recordedSourceFile(source: string): string {
+  try {
+    const loaded = loadYaml(source);
+    if ("error" in loaded) return "";
+    const raw = loaded.doc.toJS();
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "";
+    const nerdgram = (raw as { nerdgram?: unknown }).nerdgram;
+    if (!nerdgram || typeof nerdgram !== "object" || Array.isArray(nerdgram)) return "";
+    const block = (nerdgram as { source?: unknown }).source;
+    if (!block || typeof block !== "object" || Array.isArray(block)) return "";
+    const file = (block as { file?: unknown }).file;
+    return typeof file === "string" ? file.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
 export function readDataSource(source: string): DataSourceConfig | null {
   try {
     const loaded = loadYaml(source);

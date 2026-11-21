@@ -34,6 +34,7 @@ import { NodeFindBar } from "../components/NodeFindBar";
 import { RenderProgress } from "../components/RenderProgress";
 import {
   RENDER_CANCELLED_MESSAGE,
+  cancelledPreviewNotice,
   countDiagramNodes,
   renderGuarded,
 } from "../lib/renderWait";
@@ -716,7 +717,7 @@ export function EditorPage() {
   const [renderOverlay, setRenderOverlay] = useState<string | null>(null);
   const [nodeQuery, setNodeQuery] = useState<string | null>(null);
   const [nodeIndex, setNodeIndex] = useState(0);
-  const nodeMeta = useNodeMeta(code);
+  const nodeMeta = useNodeMeta(filePath, code);
 
   const cancelRender = useCallback(() => {
     renderCancel.current = true;
@@ -1727,7 +1728,12 @@ export function EditorPage() {
                 dangerouslySetInnerHTML={{ __html: svgHtml }}
               />
             ) : null}
-            {previewStale && svgHtml ? (
+            {cancelledPreviewNotice(Boolean(svgHtml), renderError) ? (
+              <div className="preview-cancel-banner" role="status">
+                {cancelledPreviewNotice(Boolean(svgHtml), renderError)}
+              </div>
+            ) : null}
+            {previewStale && svgHtml && renderError !== RENDER_CANCELLED_MESSAGE ? (
               <div className="preview-stale-banner" role="status" title={settingsTitle || undefined}>
                 <strong>Out of date.</strong> The last diagram that rendered is still shown.{" "}
                 {info.malformed ? "Settings error" : shortRenderError(renderError)}

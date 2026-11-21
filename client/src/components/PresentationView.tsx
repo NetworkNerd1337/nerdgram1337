@@ -15,7 +15,7 @@ import { presentTitle } from "../lib/pageTitle";
 import { PRESENTATION_NARROW_QUERY, ROTATE_HINT_KEY } from "../lib/presentationLayout";
 import { settingsBlockTooltip } from "../lib/problemText";
 import { renderMermaid } from "../lib/mermaidRender";
-import { countDiagramNodes, renderGuarded } from "../lib/renderWait";
+import { countDiagramNodes, leaveCancelsRender, renderGuarded } from "../lib/renderWait";
 import {
   flowchartNodes,
   matchNodes,
@@ -99,6 +99,10 @@ export function PresentationView({
   const nodeQueryRef = useRef<string | null>(null);
   const nodeCountRef = useRef(0);
   const renderDrop = useRef(false);
+  const renderBusy = useRef(false);
+  const leftPresent = useRef(false);
+  const onRenderCancelledRef = useRef(onRenderCancelled);
+  onRenderCancelledRef.current = onRenderCancelled;
   const setNodeQueryNow = (value: string | null) => {
     nodeQueryRef.current = value;
     setNodeQuery(value);
@@ -134,7 +138,7 @@ export function PresentationView({
   });
 
   const frame = session.slides[session.index] ?? session.slides[0] ?? slideFor(path, source, fileError);
-  const nodeMeta = useNodeMeta(frame.source);
+  const nodeMeta = useNodeMeta(frame.path || path, frame.source);
   const nodeMatches = useMemo(
     () => matchNodes(flowchartNodes(frame.source ?? ""), nodeQuery ?? "", nodeMeta),
     [frame.source, nodeMeta, nodeQuery],
@@ -233,6 +237,7 @@ export function PresentationView({
         if (alive) setRenderError(null);
         return;
       }
+      renderBusy.current = true;
       void renderGuarded({
         nodeCount: countDiagramNodes(text),
         showOverlay: (label) => {
@@ -243,6 +248,8 @@ export function PresentationView({
         },
         cancelled: () => !alive || renderDrop.current,
         run: () => renderMermaid(text, FALLBACK_THEME),
+      }).finally(() => {
+        renderBusy.current = false;
       }).then(
         (outcome) => {
           if (!alive || renderDrop.current || !outcome.ok) return;
@@ -300,8 +307,7 @@ export function PresentationView({
       const active = currentFullscreen() === element && element.isConnected;
       setNativeFs(active);
       if (engaged.current && element.isConnected && currentFullscreen() !== element) {
-        engaged.current = false;
-        onExitRef.current();
+        finishPresent();
       }
     };
     document.addEventListener("fullscreenchange", onChange);
@@ -388,7 +394,7 @@ export function PresentationView({
       if (action.type === "exit") {
         event.preventDefault();
         event.stopPropagation();
-        leave();
+        finishPresent();
         return;
       }
       event.preventDefault();
@@ -410,10 +416,15 @@ export function PresentationView({
     else if (action.type === "reset") api.reset();
   }
 
-  function leave() {
+  function finishPresent() {
+    if (leftPresent.current) return;
+    leftPresent.current = true;
+    const cancel = leaveCancelsRender(renderBusy.current);
+    if (cancel) renderDrop.current = true;
     engaged.current = false;
     void exitPresentationFullscreen();
-    onExitRef.current();
+    if (cancel && onRenderCancelledRef.current) onRenderCancelledRef.current();
+    else onExitRef.current();
   }
 
   function enterFullscreen() {
@@ -729,7 +740,7 @@ export function PresentationView({
             ) : null}
           </>
         ) : null}
-        <button type="button" className="btn" aria-label="Exit presentation" onClick={leave}>
+        <button type="button" className="btn" aria-label="Exit presentation" onClick={finishPresent}>
           Exit
         </button>
       </div>

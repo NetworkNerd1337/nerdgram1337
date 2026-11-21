@@ -1704,6 +1704,22 @@ body.is-col-resizing * {
   user-select: text;
 }
 
+.preview-cancel-banner {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: min(640px, calc(100% - 1.5rem));
+  color: var(--ink);
+  background: var(--bg-elevated, #fff);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
 .preview-stale-banner {
   position: absolute;
   top: 0.75rem;

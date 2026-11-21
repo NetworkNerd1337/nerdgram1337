@@ -4,6 +4,17 @@ export const SLOW_RENDER_NODES = 200;
 export const RENDER_CANCELLED_MESSAGE =
   "Render cancelled. The diagram source is still in the editor.";
 
+/** The notice stays over a picture that was already drawn. A later success clears the message. */
+export function cancelledPreviewNotice(hasPicture: boolean, message: string | null): string | null {
+  if (!hasPicture || message !== RENDER_CANCELLED_MESSAGE) return null;
+  return RENDER_CANCELLED_MESSAGE;
+}
+
+/** Leaving Present while a draw is still running is the same as Cancel. */
+export function leaveCancelsRender(renderInFlight: boolean): boolean {
+  return renderInFlight;
+}
+
 /** `Rendering 1,001 nodes…` The clock does not tick while Mermaid blocks the page. */
 export function renderOverlayText(nodeCount: number): string {
   const count = Math.max(0, Math.round(nodeCount)).toLocaleString("en-US");

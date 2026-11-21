@@ -28,6 +28,7 @@ import * as thumbnails from "./thumbnails.js";
 import * as updates from "./updates/service.js";
 import { getVersionInfo } from "./updates/versionInfo.js";
 import { importDiagramData } from "./diagramData.js";
+import { readDiagramSidecar } from "./diagramSidecar.js";
 import { createGeneratedDiagram, importInputFromBody, refreshGeneratedDiagram } from "./diagramDataFiles.js";
 import { normalizeLintRules, type LintRuleId } from "./diagramLint.js";
 import { lintDiagramSource } from "./mermaidSyntax.js";
@@ -587,6 +588,19 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       }
       const file = await store.readFile(filePath);
       res.json(file);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  app.get("/api/diagram-sidecar", async (req, res) => {
+    try {
+      const diagramPath = String(req.query.path || "");
+      if (!diagramPath) {
+        res.status(400).json({ error: "path is required" });
+        return;
+      }
+      res.json(await readDiagramSidecar(diagramPath));
     } catch (err) {
       sendError(res, err);
     }

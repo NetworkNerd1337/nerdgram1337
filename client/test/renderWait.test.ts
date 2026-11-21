@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   RENDER_CANCELLED_MESSAGE,
   SLOW_RENDER_NODES,
+  cancelledPreviewNotice,
   countDiagramNodes,
+  leaveCancelsRender,
   renderGuarded,
   renderOverlayText,
   slowRenderLabel,
@@ -62,5 +64,17 @@ describe("render progress", () => {
   it("names the cancelled render", () => {
     expect(RENDER_CANCELLED_MESSAGE).toMatch(/cancelled/i);
     expect(RENDER_CANCELLED_MESSAGE).toMatch(/editor/i);
+  });
+
+  it("keeps the cancelled notice over a picture that is already showing", () => {
+    expect(cancelledPreviewNotice(true, RENDER_CANCELLED_MESSAGE)).toBe(RENDER_CANCELLED_MESSAGE);
+    expect(cancelledPreviewNotice(false, RENDER_CANCELLED_MESSAGE)).toBeNull();
+    expect(cancelledPreviewNotice(true, null)).toBeNull();
+    expect(cancelledPreviewNotice(true, "Mermaid could not read the diagram.")).toBeNull();
+  });
+
+  it("treats leaving Present during a draw as Cancel", () => {
+    expect(leaveCancelsRender(true)).toBe(true);
+    expect(leaveCancelsRender(false)).toBe(false);
   });
 });

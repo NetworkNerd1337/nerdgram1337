@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { readDataSource } from "../../../server/src/diagramData.ts";
+import { recordedSourceFile } from "../../../server/src/diagramData.ts";
 import { api } from "../api";
 import { metaFromSidecar, type NodeMeta } from "../lib/nodeMeta";
 
-/** Addresses and interfaces from the diagram's data file. Empty when it has none. */
-export function useNodeMeta(diagramSource: string | null): NodeMeta[] {
-  const file = useMemo(() => (diagramSource ? readDataSource(diagramSource)?.file ?? "" : ""), [diagramSource]);
+/**
+ * Addresses and interfaces from the data file named on this diagram.
+ * Empty when the diagram has no data file, or that file cannot be read.
+ */
+export function useNodeMeta(diagramPath: string, diagramSource: string | null): NodeMeta[] {
+  const hasSource = useMemo(() => Boolean(diagramSource && recordedSourceFile(diagramSource)), [diagramSource]);
   const [meta, setMeta] = useState<NodeMeta[]>([]);
   useEffect(() => {
-    if (!file) {
+    if (!diagramPath || !hasSource) {
       setMeta([]);
       return;
     }
     let cancelled = false;
-    void api.readFile(file).then(
+    void api.readDiagramSidecar(diagramPath).then(
       (payload) => {
         if (!cancelled) setMeta(metaFromSidecar(payload.content));
       },
@@ -24,6 +27,6 @@ export function useNodeMeta(diagramSource: string | null): NodeMeta[] {
     return () => {
       cancelled = true;
     };
-  }, [file]);
+  }, [diagramPath, hasSource]);
   return meta;
 }
