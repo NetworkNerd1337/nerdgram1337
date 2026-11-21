@@ -1,5 +1,5 @@
 import { detectNeighborKind } from "../../../server/src/neighbors/index.ts";
-import { looksLikeIpRoute } from "../../../server/src/routing/ipRoute.ts";
+import { looksLikeArpMac, looksLikeIpRoute } from "../../../server/src/routing/ipRoute.ts";
 
 /** Shown on the Import button. Extension is only a hint; content decides. */
 export const MERMAID_IMPORT_HINT =
@@ -25,6 +25,7 @@ export type ImportKind =
   | "cdp"
   | "lldp"
   | "route"
+  | "arpmac"
   | "network"
   | "lucidchart"
   | "drawio"
@@ -47,7 +48,7 @@ export type ImportRecognition = {
   action: ImportAction;
   diagramText: string;
   /** Wizard format when the file opens in From data. */
-  dataFormat: "" | "csv" | "json" | "cdp" | "lldp" | "network" | "route";
+  dataFormat: "" | "csv" | "json" | "cdp" | "lldp" | "network" | "route" | "arpmac";
   message: string;
 };
 
@@ -60,6 +61,7 @@ const LABELS: Record<ImportKind, string> = {
   cdp: "Cisco CDP output",
   lldp: "LLDP output",
   route: "Cisco routing table",
+  arpmac: "Cisco ARP and MAC tables",
   network: "Network JSON",
   lucidchart: "Lucidchart JSON",
   drawio: "draw.io / diagrams.net",
@@ -266,6 +268,7 @@ function classifyText(name: string, text: string): ImportRecognition {
   if (neighbor === "cdp") return named("cdp", "from-data", { dataFormat: "cdp" });
   if (neighbor === "lldp") return named("lldp", "from-data", { dataFormat: "lldp" });
   if (looksLikeIpRoute(trimmed) || extension(name) === ".route") return named("route", "from-data", { dataFormat: "route" });
+  if (looksLikeArpMac(trimmed) || extension(name) === ".arpmac") return named("arpmac", "from-data", { dataFormat: "arpmac" });
 
   const fences = mermaidFences(trimmed);
   if (fences.length > 0) {

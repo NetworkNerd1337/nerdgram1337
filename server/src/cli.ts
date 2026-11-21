@@ -107,8 +107,9 @@ Flags
                   cdp and lldp: platform or capability.
                   network with --view l3: vrf.
                   network with --view l2: site, role, or platform.
-  --hosts <value> Routing tables. ports places each host. port-counts and
-                  vlan-counts draw a count per port or per VLAN.
+  --hosts <value> route and arpmac. ports places each host. port-counts and
+                  vlan-counts draw a count per port or per VLAN. ARP alone
+                  does not draw links.
   --view <l3|l2>  generate --format network only. l3 is subnets. l2 is VLANs,
                   trunks, and LAGs. refresh rejects --view. The view is stored
                   in the diagram.
@@ -786,7 +787,7 @@ async function generateCommand(parsed: Parsed, io: Io): Promise<void> {
   const dataFile = flagString(parsed.flags, "data");
   if (!diagramPath || !dataFile) {
     throw new CliError(
-      "generate needs --path Diagram.mmd and --data file.csv, file.json, file.network.json, file.cdp, file.lldp, or file.route.",
+      "generate needs --path Diagram.mmd and --data file.csv, file.json, file.network.json, file.cdp, file.lldp, file.route, or file.arpmac.",
     );
   }
   const format = flagString(parsed.flags, "format");

@@ -332,7 +332,7 @@ Shipped files live in `templates/` at the project root, next to `reference/`. Th
 
 ## Syntax reference
 
-NerdGram1337 ships a local mirror of the Mermaid diagram syntax docs so you can look up syntax with no internet connection. In the sidebar, **Open Syntax Reference Library**, or the same link in the editor top bar, or the command palette entry, opens `/reference` in a new tab. The dashboard or editor stays where it was.
+NerdGram1337 ships a local mirror of the Mermaid diagram syntax docs so you can look up syntax with no internet connection. In the sidebar, **Syntax reference** sits in **Your space**, after **Dashboard** and **Diagram health**. The same link in the editor top bar, and **Syntax reference** in the command palette, open `/reference` in a new tab. The dashboard or editor stays where it was.
 
 - Bundled mirror: `reference/manifest.json` and `reference/pages/*.md`, checked into the repo and copied read-only into the image.
 - When `NERDGRAM_DATA_DIR` is set, a sync writes to `<data>/.meta/reference`. Reads use that copy when it has a manifest, and the bundled tree otherwise.
@@ -349,7 +349,7 @@ Mirrored content is from the Mermaid documentation (MIT License). Each page keep
 
 ## Generate from data
 
-**From data** on the dashboard, and **Generate diagram from data** in the command palette, open `/generate`. The source list starts with **Auto-detect**, then CSV, JSON, network JSON, CDP, LLDP, and a Cisco routing table, and adds each installed translator beside those. A routing-table paste uses the same 4 MiB limit as the other sources. Prefixes that share a next hop collapse to one edge. Hosts from ARP and a MAC table can be drawn on ports or as counts. The list is loaded from the server. A note above the input says the diagram reflects that export, and **Don't show again** hides it for that translator. The steps are in [Generate from data](generate-from-data.md). The field tables are in [Translators](translators.md).
+**From data** on the dashboard, and **Generate diagram from data** in the command palette, open `/generate`. The source list starts with **Auto-detect**, then CSV, JSON, network JSON, CDP, LLDP, **Routing table (L3)**, and **ARP and MAC tables (L2)**, and adds each installed translator beside those. Every source shows the same note, **Your diagram reflects your data**, with a tip that opens that source's section. **Don't show again** remembers the choice for that source. A routing-table paste uses the same 4 MiB limit as the other sources. Prefixes that share a next hop collapse to one edge. The layer 2 source places hosts from a MAC table, and a busy port is an uplink stub. The list is loaded from the server. A note above the input says the diagram reflects that export, and **Don't show again** hides it for that translator. The steps are in [Generate from data](generate-from-data.md). The field tables are in [Translators](translators.md).
 
 ## See also
 

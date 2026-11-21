@@ -113,7 +113,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Template gallery](docs/features.md#template-gallery).** Templates are grouped by category. **Create as template** saves the open diagram under User created.
 - **[GitHub sync](docs/github-sync.md).** GitHub sync is optional.
 - **[In-app updates](docs/upgrading.md#in-app-updates).** The running version is the **About** button in the top-right header, next to **Support**, and **About NerdGram1337** in the command palette.
-- **[Syntax reference](docs/features.md#syntax-reference).** NerdGram1337 ships a local mirror of the Mermaid diagram syntax docs. **Open Syntax Reference Library** opens it in a new tab.
+- **[Syntax reference](docs/features.md#syntax-reference).** NerdGram1337 ships a local mirror of the Mermaid diagram syntax docs. **Syntax reference** in **Your space** opens it in a new tab.
 - **[MCP server](docs/mcp.md).** An MCP client can list, read, lint, render, and update diagrams.
 
 ## Documentation

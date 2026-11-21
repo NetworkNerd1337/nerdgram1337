@@ -375,7 +375,7 @@ export const api = {
     edgesFile?: string;
   }) =>
     request<{
-      format: "csv" | "json" | "cdp" | "lldp" | "network" | "route";
+      format: "csv" | "json" | "cdp" | "lldp" | "network" | "route" | "arpmac";
       shape: "links" | "nodes" | "edges" | "graph";
       headers: string[];
       edgesHeaders: string[];

@@ -14,9 +14,25 @@ The data file is saved next to the diagram (`Campus.mmd` and `Campus.csv`, `Core
 
 A file can be up to 4 MiB, the same cap for CSV, JSON, CDP, LLDP, a routing table, and network JSON. That is about 3,000 CDP detail neighbors, or a full BGP or OSPF table plus ARP and MAC output from many devices. A paste over that size is refused with the same message as the other inputs: it is larger than 4 MiB. There is no smaller cap on the routing-table parser, the generate or refresh request, the paste box, or the MCP tool. The HTTP body parser allows 5mb, so the 4 MiB check is the one that answers. A diagram still stops at 2,000 nodes and 5,000 edges. The app sets Mermaid's text limit to 4 MiB and its edge limit to 5,000. A diagram's front matter, or an `%%{init}%%` directive, cannot raise those. A hub with many leaf neighbors can be drawn as a compact grid or as rings. In **Diagram info**, set **Hub layout** to **Compact grid** or **Radial rings**. That writes `nerdgram.hubLayout` in the file. Leave it unset and the diagram keeps the usual rank layout. The preview step says so before you create the file when the diagram has 200 nodes or more, or a hub with 50 or more leaf neighbors. Choose **Default rank**, **Compact hub layout**, or **Radial hub layout**. Compact and radial write the same `nerdgram.hubLayout` field. A smaller import does not ask. A bad row, or a neighbor block that cannot be parsed, names its row or line and does not create the diagram. Labels are escaped so a cell or a hostname cannot close a Mermaid string or add a directive.
 
-## Cisco CDP and LLDP
+## Auto-detect
 
-**From data** also accepts pasted or uploaded command output. Choose **Cisco CDP** or **LLDP neighbors**. CDP is Cisco IOS, IOS-XE, and NX-OS. LLDP is vendor-agnostic: the parser reads the standard LLDP fields (local port, chassis ID, port ID, port description, system name, system description, system capabilities, and management address) whatever order or spelling the CLI uses. A link seen from both ends becomes one edge. `Gi1/0/1` and `GigabitEthernet1/0/1` are the same interface. Grouping can follow platform or capability. The raw output is the data file (`.cdp` or `.lldp`), and **Refresh from data** parses it again.
+**Source** starts on **Auto-detect**. It looks at the paste and chooses CSV, JSON, network JSON, Cisco CDP, LLDP neighbors, a routing table, or ARP and MAC tables. A routing table wins when the paste also contains ARP or MAC output. A paste that matches none of those says the format was not recognized and lists the supported inputs.
+
+## CSV
+
+Choose **CSV** for a links table or a node list. Map the columns, then preview. A column you do not map is ignored. The stored file is `.csv`.
+
+## JSON
+
+Choose **JSON** for an object with `nodes` and `edges`, or a `links` array. Network JSON is a different source. The stored file is `.json`.
+
+## Cisco CDP
+
+**From data** accepts pasted or uploaded `show cdp neighbors detail`. Choose **Cisco CDP**. CDP is Cisco IOS, IOS-XE, and NX-OS. The diagram shows the neighbors those devices report. A link seen from both ends becomes one edge. `Gi1/0/1` and `GigabitEthernet1/0/1` are the same interface. Grouping can follow platform or capability. The raw output is a `.cdp` file, and **Refresh from data** parses it again.
+
+## LLDP neighbors
+
+Choose **LLDP neighbors**. LLDP is vendor-agnostic: the parser reads the standard LLDP fields (local port, chassis ID, port ID, port description, system name, system description, system capabilities, and management address) whatever order or spelling the CLI uses. A neighbor the command did not report is not drawn. The raw output is a `.lldp` file, and **Refresh from data** parses it again.
 
 The hostname comes from the CLI prompt. If the paste has no prompt, type the local device name. You can paste several devices one after another.
 
@@ -46,24 +62,32 @@ nerdgram generate --path Edge.mmd --data docs/samples/neighbors/lldpd.json --for
 
 ## Routing tables
 
-**From data** accepts pasted `show ip route` from Cisco IOS, IOS-XE, and NX-OS. Choose **Routing table**, or leave **Source** on **Auto-detect** when the paste contains that command. Several devices can sit in one paste. A prompt such as `core-rtr#show ip route` or `nx-core# show ip route` starts a device and supplies the hostname. One file per device also works. Output with no prompt is one unnamed device, and the notice says so. You can type a local device name for that case.
+Layer 3 and layer 2 are separate sources. A paste that contains both still works under **Routing table (L3)**, and the preview says so.
+
+### Routing table (L3)
+
+**From data** accepts pasted `show ip route` from Cisco IOS, IOS-XE, and NX-OS. Choose **Routing table (L3)**, or leave **Source** on **Auto-detect** when the paste contains that command. Several devices can sit in one paste. A prompt such as `core-rtr#show ip route` or `nx-core# show ip route` starts a device and supplies the hostname. One file per device also works. Output with no prompt is one unnamed device, and the notice says so. You can type a local device name for that case.
 
 Connected (`C`) and local (`L`) routes, and NX-OS `direct` and `local` lines, give each device's interface addresses and subnets. A subnet shared by two or more devices is a segment those devices attach to. A `/30` or `/31` with exactly two devices is a direct link. A next hop that belongs to another pasted device, because that device has the address as a local route, is a router adjacency. The edge is labeled with the destination prefix and the protocol, such as OSPF, BGP, or static. Thousands of prefixes behind the same next hop and protocol become one edge labeled with the prefix count, not one edge per prefix. A next hop that no pasted device owns, such as an ISP or a firewall that was not included, is an **unknown next hop** stub. The notice says how many next hops did not match.
 
 One device still draws. The notice says this is only that device's view, and that pasting neighbors' routing tables builds the adjacency map.
 
-`show ip arp` or `show arp`, together with `show mac address-table`, can place hosts. ARP alone never infers a link. The MAC table resolves IP to MAC to switchport. A port with 8 or more MAC addresses is an uplink and is not a host port. **Hosts** can be **On switchports**, **Counts per port**, or **Counts per VLAN**, so a large access layer does not have to become a starburst. A diagram of about 200 nodes, or a hub of 50 or more leaf neighbors, still offers **Default rank**, **Compact hub layout**, or **Radial hub layout** before the file is created.
+A paste that also includes `show ip arp` and `show mac address-table` still places hosts, and the preview notes that. Host counts are chosen on **ARP and MAC tables (L2)**. A diagram of about 200 nodes, or a hub of 50 or more leaf neighbors, still offers **Default rank**, **Compact hub layout**, or **Radial hub layout** before the file is created.
 
-Other routing-table formats are rejected with a message that names IOS, IOS-XE, and NX-OS. Nothing is logged in, polled, or fetched. The paste is the whole input. The stored file is `.route`. Refresh parses that file again. CDP and LLDP behavior is unchanged.
+Other routing-table formats are rejected with a message that names IOS, IOS-XE, and NX-OS. Nothing is logged in, polled, or fetched. The paste is the whole input. The stored file is `.route`, and `nerdgram.source.format` is `route`. Refresh parses that file again. An existing `.route` file that already mixes routes with ARP and MAC refreshes the same way. CDP and LLDP behavior is unchanged.
 
-Samples are under [docs/samples/routes](samples/routes): [cisco-ios-routes.route](samples/routes/cisco-ios-routes.route), [cisco-iosxe-routes.route](samples/routes/cisco-iosxe-routes.route), [cisco-nxos-routes.route](samples/routes/cisco-nxos-routes.route), and [campus-arp-mac.route](samples/routes/campus-arp-mac.route).
+### ARP and MAC tables (L2)
+
+Choose **ARP and MAC tables (L2)** for `show ip arp` or `show arp`, plus `show mac address-table`, from one or more switches. This source does not need a routing table. The MAC table places hosts on switchports. **Hosts** can be **On switchports**, **Counts per port**, or **Counts per VLAN**. A port with 8 or more MAC addresses is an uplink and is drawn as an uplink stub, not as host ports. ARP alone does not draw links. The notice says a MAC address table is needed. When ARP is present, a host is labeled with its IP. A MAC with no ARP entry is labeled with the MAC. The stored file is `.arpmac`, and `nerdgram.source.format` is `arpmac`.
+
+Samples are under [docs/samples/routes](samples/routes): [cisco-ios-routes.route](samples/routes/cisco-ios-routes.route), [cisco-iosxe-routes.route](samples/routes/cisco-iosxe-routes.route), [cisco-nxos-routes.route](samples/routes/cisco-nxos-routes.route), [campus-arp-mac.route](samples/routes/campus-arp-mac.route) (routes plus ARP and MAC), and [campus-arp-mac.arpmac](samples/routes/campus-arp-mac.arpmac) (layer 2 only).
 
 ```bash
 nerdgram generate --path Routes.mmd --data docs/samples/routes/cisco-ios-routes.route --format route
-nerdgram generate --path Hosts.mmd --data docs/samples/routes/campus-arp-mac.route --format route --hosts port-counts
+nerdgram generate --path Hosts.mmd --data docs/samples/routes/campus-arp-mac.arpmac --format arpmac --hosts port-counts
 ```
 
-## Layer 3 and Layer 2 from network data
+## Network data (JSON)
 
 CDP and LLDP draw physical neighbors. `show ip route` draws the adjacencies in a pasted Cisco routing table, as described above. A Layer 2 design, or a Layer 3 design that is not a routing-table paste, still needs addresses, VLANs, and bundles, and those commands differ by platform. NerdGram does not log in and does not parse other vendor configuration. It reads one vendor-neutral JSON document, `format: "network"`, `schemaVersion: 1`, and draws the diagram from that document only. The same file always produces the same generated block. A later refresh replaces that block. It does not invent a link that is not in the file.
 

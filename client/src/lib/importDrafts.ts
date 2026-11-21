@@ -33,7 +33,7 @@ export type ImportDraft = {
   formatLabel?: string;
   kind?: ImportKind;
   route?: Extract<ImportAction, "from-data" | "style-presets">;
-  dataFormat?: "" | "csv" | "json" | "cdp" | "lldp" | "network" | "route";
+  dataFormat?: "" | "csv" | "json" | "cdp" | "lldp" | "network" | "route" | "arpmac";
   suggestFromData?: boolean;
   pages?: ImportPageDraft[];
   pageChoice?: "all" | string;

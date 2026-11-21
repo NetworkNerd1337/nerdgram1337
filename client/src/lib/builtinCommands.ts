@@ -117,9 +117,9 @@ const builtin: PaletteCommand[] = [
   },
   {
     id: "nav.reference",
-    title: "Open Syntax Reference Library",
+    title: "Syntax reference",
     section: "Navigate",
-    keywords: ["docs", "mermaid", "help"],
+    keywords: ["docs", "mermaid", "help", "syntax reference library"],
     order: 80,
     run: () => {
       window.open("/reference", "_blank", "noopener");
@@ -270,6 +270,8 @@ const builtin: PaletteCommand[] = [
     }),
   ),
 ];
+
+export const builtinCommands = builtin;
 
 registerCommands(builtin);
 

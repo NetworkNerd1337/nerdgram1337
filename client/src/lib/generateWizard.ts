@@ -340,9 +340,9 @@ export function previewRequest(state: WizardState): {
   return {
     text: translated ? state.documentText : state.text,
     format: translated ? "network" : state.format,
-    shape: isNeighborSource(state) || isRouteSource(state) || network ? "links" : state.shape,
+    shape: isNeighborSource(state) || isRouteSource(state) || isArpMacSource(state) || network ? "links" : state.shape,
     mapping: state.mapping,
-    edgesText: isNeighborSource(state) || isRouteSource(state) || network || !state.edgesText.trim() ? undefined : state.edgesText,
+    edgesText: isNeighborSource(state) || isRouteSource(state) || isArpMacSource(state) || network || !state.edgesText.trim() ? undefined : state.edgesText,
     edgesMapping: state.edgesMapping,
     direction: state.direction,
     grouping: state.grouping,
@@ -353,7 +353,7 @@ export function previewRequest(state: WizardState): {
     vlan,
     title: state.title.trim() || state.diagramName.trim() || "Diagram",
     sourceFile: dataFilePath(state),
-    hosts: isRouteSource(state) ? state.hosts : undefined,
+    hosts: isRouteSource(state) || isArpMacSource(state) ? state.hosts : undefined,
   };
 }
 
@@ -361,6 +361,13 @@ export function isRouteSource(state: WizardState): boolean {
   if (state.translatorId) return false;
   if (state.format === "route") return true;
   if (state.format === "auto") return state.detectedFormat === "route";
+  return false;
+}
+
+export function isArpMacSource(state: WizardState): boolean {
+  if (state.translatorId) return false;
+  if (state.format === "arpmac") return true;
+  if (state.format === "auto") return state.detectedFormat === "arpmac";
   return false;
 }
 
@@ -404,7 +411,7 @@ export function dataFilePath(state: WizardState): string {
   const ext =
     selected === "network"
       ? "network.json"
-      : selected === "json" || selected === "cdp" || selected === "lldp" || selected === "route"
+      : selected === "json" || selected === "cdp" || selected === "lldp" || selected === "route" || selected === "arpmac"
         ? selected
         : state.fileName.toLowerCase().endsWith(".network.json")
           ? "network.json"
@@ -432,7 +439,7 @@ function setColumn(mapping: ColumnMapping, field: string, column: string): Colum
 function stemFromFile(fileName: string | undefined): string {
   if (!fileName) return "";
   const base = fileName.split(/[/\\]/).pop() ?? "";
-  return base.replace(/\.network\.json$/i, "").replace(/\.(csv|json|txt|cdp|lldp|route)$/i, "").trim();
+  return base.replace(/\.network\.json$/i, "").replace(/\.(csv|json|txt|cdp|lldp|route|arpmac)$/i, "").trim();
 }
 
 function formatFromName(fileName: string | undefined): WizardFormat | null {
@@ -440,6 +447,7 @@ function formatFromName(fileName: string | undefined): WizardFormat | null {
   if (lower.endsWith(".network.json")) return "network";
   if (lower.endsWith(".cdp")) return "cdp";
   if (lower.endsWith(".lldp")) return "lldp";
+  if (lower.endsWith(".arpmac")) return "arpmac";
   if (lower.endsWith(".route")) return "route";
   if (lower.endsWith(".json")) return "json";
   if (lower.endsWith(".csv")) return "csv";
