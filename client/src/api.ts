@@ -75,6 +75,15 @@ export type LockConflict = {
   sameInstance: boolean;
 };
 
+export type ForeignImportPage = {
+  id: string;
+  title: string;
+  mermaid: string;
+  warnings: string[];
+  nodes: number;
+  edges: number;
+};
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
@@ -445,6 +454,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ folder, files }),
     }),
+  importForeign: (name: string, bytes: Uint8Array) => {
+    const body = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(body).set(bytes);
+    return request<{ ok: true; kind: string; label: string; pages: ForeignImportPage[] }>(
+      `/api/import/foreign?name=${encodeURIComponent(name)}`,
+      {
+        method: "POST",
+        body,
+        headers: { "Content-Type": "application/octet-stream" },
+      },
+    );
+  },
   delete: (path: string, confirmLinks = false, deleteData?: boolean) =>
     request<{
       path?: string;

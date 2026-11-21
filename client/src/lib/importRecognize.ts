@@ -2,10 +2,14 @@ import { detectNeighborKind } from "../../../server/src/neighbors/index.ts";
 import { looksLikeIpRoute } from "../../../server/src/routing/ipRoute.ts";
 
 /** Shown on the Import button. Extension is only a hint; content decides. */
-export const MERMAID_IMPORT_HINT = "Mermaid: .mmd, .mermaid, .md, .markdown, .txt";
+export const MERMAID_IMPORT_HINT =
+  "Mermaid: .mmd, .mermaid, .md, .markdown, .txt. Lucid CSV or JSON. Visio .vsdx.";
 
 export const SUPPORTED_IMPORT_LINE =
-  "Supported files: Mermaid (.mmd, .mermaid, .md, .markdown, .txt). CSV, JSON, CDP/LLDP, routing tables, and .network.json open in From data.";
+  "Supported files: Mermaid (.mmd, .mermaid, .md, .markdown, .txt). Lucid CSV or JSON and Visio .vsdx become diagrams. CSV, JSON, CDP/LLDP, routing tables, and .network.json open in From data.";
+
+export const VISIO_BINARY_MESSAGE =
+  "Save this file as .vsdx in Visio. Older .vsd and .vss files are not imported.";
 
 export const IMPORT_DATA_KEY = "nerdgram-import-data";
 export const IMPORT_PRESET_KEY = "nerdgram-import-presets";
@@ -35,7 +39,7 @@ export type ImportKind =
   | "pdf"
   | "unknown";
 
-export type ImportAction = "diagram" | "from-data" | "style-presets" | "unsupported";
+export type ImportAction = "diagram" | "from-data" | "style-presets" | "convert" | "unsupported";
 
 export type ImportRecognition = {
   kind: ImportKind;
@@ -72,7 +76,7 @@ const LABELS: Record<ImportKind, string> = {
 };
 
 function supportedTail(): string {
-  return " NerdGram imports Mermaid (.mmd, .mermaid, .md, .markdown, .txt). CSV, JSON, CDP/LLDP, and .network.json open in From data.";
+  return " NerdGram imports Mermaid (.mmd, .mermaid, .md, .markdown, .txt), Lucid CSV or JSON, and Visio .vsdx. CSV, JSON, CDP/LLDP, routing tables, and .network.json open in From data.";
 }
 
 function named(kind: ImportKind, action: ImportAction, extra: Partial<ImportRecognition> = {}): ImportRecognition {
@@ -84,7 +88,9 @@ function named(kind: ImportKind, action: ImportAction, extra: Partial<ImportReco
         ? `${label} opens in From data.`
         : action === "style-presets"
           ? `${label} opens in Style presets.`
-          : kind === "unknown"
+          : action === "convert"
+            ? `${label} will be imported as a diagram.`
+            : kind === "unknown"
             ? `This file is not a recognized format.${supportedTail()}`
             : `${label} is not supported yet.${supportedTail()}`;
   return {
@@ -139,6 +145,12 @@ function mermaidFences(text: string): string[] {
     if (body) blocks.push(body);
   }
   return blocks;
+}
+
+function looksLikeLucidCsv(text: string): boolean {
+  const header = text.split(/\r?\n/).find((line) => line.trim().length > 0) ?? "";
+  const cells = header.split(",").map((cell) => cell.trim().toLowerCase().replace(/[^a-z0-9]+/g, ""));
+  return cells.includes("linesource") && cells.includes("linedestination");
 }
 
 function looksLikeCsv(text: string): boolean {
@@ -208,7 +220,7 @@ function looksLikeLucid(value: Record<string, unknown>): boolean {
 
 function classifyJson(value: unknown, name: string): ImportRecognition | null {
   if (!isRecord(value)) return named("json", "from-data", { dataFormat: "json" });
-  if (looksLikeLucid(value)) return named("lucidchart", "unsupported");
+  if (looksLikeLucid(value)) return named("lucidchart", "convert");
   if (typeof value.mxGraphModel === "object" || typeof value.mxfile === "string" || value.type === "diagrams.net") {
     return named("drawio", "unsupported");
   }
@@ -260,6 +272,7 @@ function classifyText(name: string, text: string): ImportRecognition {
     return named("markdown", "diagram", { diagramText: fences.join("\n\n") });
   }
   if (looksLikeMermaid(trimmed)) return named("mermaid", "diagram", { diagramText: trimmed });
+  if (looksLikeLucidCsv(trimmed)) return named("lucidchart", "convert", { label: "Lucid CSV" });
   if (extension(name) === ".csv" || looksLikeCsv(trimmed)) return named("csv", "from-data", { dataFormat: "csv" });
   if (extension(name) === ".mmd" || extension(name) === ".mermaid") {
     return named("mermaid", "diagram", { diagramText: trimmed });
@@ -273,12 +286,14 @@ export function recognizeImport(name: string, bytes: Uint8Array): ImportRecognit
   if (startsWith(bytes, [0xff, 0xd8, 0xff])) return named("jpg", "unsupported");
   if (startsWith(bytes, [0x25, 0x50, 0x44, 0x46])) return named("pdf", "unsupported");
   if (startsWith(bytes, [0xd0, 0xcf, 0x11, 0xe0])) {
-    if (extension(name) === ".vsd" || /visio/i.test(asciiHead(bytes, 8192))) return named("visio", "unsupported");
+    if (extension(name) === ".vsd" || extension(name) === ".vss" || extension(name) === ".vst" || /visio/i.test(asciiHead(bytes, 8192))) {
+      return { ...named("visio", "unsupported"), message: VISIO_BINARY_MESSAGE };
+    }
     return named("unknown", "unsupported");
   }
   if (startsWith(bytes, [0x50, 0x4b, 0x03, 0x04])) {
     const head = asciiHead(bytes, 65536);
-    if (extension(name) === ".vsdx" || /visio|vnd\.ms-visio/i.test(head)) return named("visio", "unsupported");
+    if (extension(name) === ".vsdx" || /visio|vnd\.ms-visio/i.test(head)) return named("visio", "convert");
     return named("unknown", "unsupported");
   }
   if (hasNull(bytes)) return named("unknown", "unsupported");

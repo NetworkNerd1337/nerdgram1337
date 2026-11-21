@@ -10,7 +10,7 @@ Run NerdGram with Docker, or with Node.js on the machine. Docker is the install 
 
 The app is for you, on your personal machine. It is a single-user tool, not a client/server product. The API is a tool port: a conduit other programs can call on demand, not an always-on multi-user server. The [security model](security.md#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset unless you want that tool port on the local network.
 
-The Docker `pull` and `run` commands in this file use `v2.1.0`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](../compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](releases.md#versioning-and-releases) fails if an image pin in the README or the docs, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](releases.md#versioning-and-releases).
+The Docker `pull` and `run` commands in this file use `v2.1.5`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](../compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](releases.md#versioning-and-releases) fails if an image pin in the README or the docs, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](releases.md#versioning-and-releases).
 
 ### Docker
 
@@ -22,10 +22,10 @@ The package is public, so `docker pull` does not need a login. If a new package 
 
 **1. Install Docker.** Install Docker Engine and the Compose plugin from [Docker's documentation](https://docs.docker.com/get-docker/). `docker version` and `docker compose version` should both print a version.
 
-**2. Pull the image.** The command uses `v2.1.0`, the tag for this tree (the same pin as [`compose.yaml`](../compose.yaml)). Use the current tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when it differs. `:latest` is the newest full release.
+**2. Pull the image.** The command uses `v2.1.5`, the tag for this tree (the same pin as [`compose.yaml`](../compose.yaml)). Use the current tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when it differs. `:latest` is the newest full release.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.0
+docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.5
 ```
 
 ```bash
@@ -42,7 +42,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.0
+  ghcr.io/networknerd1337/nerdgram1337:v2.1.5
 ```
 
 **About → Show upgrade steps** prints the run command with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. Updating an install you already have is [Update a Docker install](upgrading.md#update-a-docker-install).
@@ -61,14 +61,90 @@ If the directory is owned by root, the process exits and the log says it cannot 
 
 The published host port has to equal `PORT` inside the container (the image sets `8787`). The browser sends that port in the `Host` header. To use another port, set `PORT` in the container and publish `127.0.0.1:THAT:THAT`.
 
-**Compose.** [`compose.yaml`](../compose.yaml) publishes the same loopback port and mounts the same volume. It also sets a read-only root filesystem (`read_only: true`), `tmpfs` on `/tmp`, and `no-new-privileges`. The `docker run` above does not. The `image:` line is the published tag. From the directory that contains `compose.yaml`:
+**Docker Compose.** [`compose.yaml`](../compose.yaml) is the same install as the `docker run` above, plus a read-only root filesystem, a `tmpfs` on `/tmp`, and `no-new-privileges`. The sample below matches that file and is pinned to this tree's tag. Building from a checkout uses [`compose.build.yaml`](../compose.build.yaml) instead of changing this image line. That override is described under [Build from this repository instead](#docker).
+
+```yaml
+name: nerdgram1337
+
+services:
+  nerdgram:
+    image: ghcr.io/networknerd1337/nerdgram1337:v2.1.5
+    container_name: nerdgram1337
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      NERDGRAM_DATA_DIR: /data
+      NERDGRAM_INSTALL: docker
+      NERDGRAM_GITHUB_CLIENT_ID: ${NERDGRAM_GITHUB_CLIENT_ID:-}
+      NERDGRAM_GITHUB_TOKEN: ${NERDGRAM_GITHUB_TOKEN:-}
+      NERDGRAM_ALLOWED_HOSTS: ${NERDGRAM_ALLOWED_HOSTS:-}
+      NERDGRAM_CORS_ORIGINS: ${NERDGRAM_CORS_ORIGINS:-}
+    volumes:
+      - nerdgram-data:/data
+
+volumes:
+  nerdgram-data:
+    name: nerdgram-data
+```
+
+| Key or variable | What it does |
+| --- | --- |
+| `name` | The Compose project name. It keeps this stack separate from other projects. |
+| `image` | The published image. `v2.1.5` is this tree's tag and does not move. `:latest` is the newest full release and changes when a release is published. |
+| `container_name` | The container is always `nerdgram1337`, so `docker logs nerdgram1337` finds it. |
+| `restart` | `unless-stopped` starts the container again after a reboot, until you stop it yourself. |
+| `read_only` | The container's own filesystem cannot be written. Diagrams live on the volume, not in the image. |
+| `tmpfs: /tmp` | A small writable `/tmp` in memory, because the root filesystem is read-only. |
+| `security_opt` | `no-new-privileges` stops a process in the container from gaining extra privileges. |
+| `ports` | `127.0.0.1:8787:8787` publishes the tool port on this machine only. Use `<lan-ip>:8787:8787` when another machine on that network should call the API. Do not publish `8787:8787`. The browser routes have no token. |
+| `NERDGRAM_DATA_DIR` | Where diagrams are stored inside the container. Keep this `/data`, the path the volume is mounted on. |
+| `NERDGRAM_INSTALL` | `docker` tells the app this is a container, so **Update now** prints Docker steps instead of running git. |
+| `NERDGRAM_GITHUB_CLIENT_ID` | Optional GitHub OAuth client id for GitHub sync. An empty value is unset. |
+| `NERDGRAM_GITHUB_TOKEN` | Optional GitHub token for sync. The token file inside the volume is `/data/.meta/github-token`. An empty value is unset. |
+| `NERDGRAM_ALLOWED_HOSTS` | Extra hostname or address callers use. A LAN publish needs the host's address here, because the container cannot see the host's interfaces. |
+| `NERDGRAM_CORS_ORIGINS` | Browser origin allowed to call the API when it is not the published host. Saving from `http://diagrams.home:8787` needs that origin. |
+| `nerdgram-data` | The named volume. Compose and `docker run` both use the name `nerdgram-data`. Keep it mounted on `/data`. |
+
+There is no environment variable for the automation token. Create that in Settings. It is stored as a hash under `/data`. MCP uses the same token. Do not put it in the compose file.
+
+Optional values can live in a `.env` file next to `compose.yaml`. Compose reads `${NERDGRAM_GITHUB_TOKEN:-}` from that file. The file is gitignored. Use placeholders, and do not commit a real token:
+
+```text
+NERDGRAM_GITHUB_CLIENT_ID=your-github-oauth-client-id
+NERDGRAM_GITHUB_TOKEN=your-github-token
+NERDGRAM_ALLOWED_HOSTS=
+NERDGRAM_CORS_ORIGINS=
+```
+
+A bind mount instead of the named volume has to be writable by uid **1001**, gid **1001** (user `nerdgram`):
+
+```yaml
+    volumes:
+      - /path/to/nerdgram-data:/data
+```
+
+```bash
+sudo chown -R 1001:1001 /path/to/nerdgram-data
+```
+
+From the directory that contains `compose.yaml`:
 
 ```bash
 docker compose pull
 docker compose up -d
+docker compose logs
+docker compose down
 ```
 
-Keep the volume mounted on `/data`. Compose and `docker run` both use the volume name `nerdgram-data`. If Compose warns that the volume already exists and was not created by Compose, that is the volume from an earlier `docker run`. Keep it.
+`pull` fetches the pinned tag. `up -d` creates or replaces the container and leaves it running. `logs` shows the server log. `down` stops and removes the container and keeps the named volume, so the diagrams stay. To move to a newer tag, change the `image:` line, then `docker compose pull` and `docker compose up -d` again. The same `nerdgram-data` volume is mounted on `/data`.
+
+If Compose warns that the volume already exists and was not created by Compose, that is the volume from an earlier `docker run`. Keep it.
 
 **Build from this repository instead.** Pulling the published image is the usual install. Build locally when you want an image from a checkout or a ZIP. Clone is only for this path.
 

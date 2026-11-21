@@ -8,6 +8,13 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 _No unreleased items._
 
+## 2.1.5 "Azimuth" - 2026-11-21
+
+First release on the Azimuth line. 2.1.0 through 2.1.4 stay Zenith.
+
+- **Added:** Import reads a Lucid CSV of shape data or Lucid JSON, and a Visio `.vsdx` drawing, into a Mermaid flowchart. Each page can be its own diagram, or you pick one page. Shapes with no text and connectors with a missing end are listed. A free end is a stub. Older `.vsd` and `.vss` files ask you to save as `.vsdx`. A large result still offers the hub layouts (#258).
+- **Added:** The Docker install docs show a sample `compose.yaml` and explain each key, the `.env` placeholders, a bind mount owned by uid 1001, and the everyday Compose commands.
+
 ## 2.1.0 "Zenith" - 2026-11-21
 
 First release on the Zenith line.
