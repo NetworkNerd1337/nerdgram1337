@@ -12,6 +12,7 @@ import {
   initialWizardState,
   issueListTitle,
   listedIssueText,
+  mermaidPreviewScrollLines,
   previewRequest,
   wizardReducer,
   type WizardInspection,
@@ -516,6 +517,34 @@ describe("translator picker", () => {
     setValue(document.querySelector<HTMLSelectElement>("#generate-format")!, "translator:nautobot");
     page.render();
     expect(document.querySelector(".data-notice")).toBeNull();
+  });
+
+  it("opens the Mermaid preview at the first line", () => {
+    const mermaid = `flowchart LR\n${"  a --> b\n".repeat(40)}`;
+    let state = { ...initialWizardState("Sites"), step: "preview" as const, mermaid, diagramName: "Campus", counts: { nodes: 2, edges: 1, groups: 0 } };
+    const dispatch = (action: Parameters<typeof wizardReducer>[1]) => {
+      state = wizardReducer(state, action);
+    };
+    const render = () => {
+      act(() => {
+        if (!root) {
+          const host = document.createElement("div");
+          document.body.appendChild(host);
+          root = createRoot(host);
+        }
+        root?.render(<GenerateWizard state={state} dispatch={dispatch} busy={false} onInspect={() => undefined} onCreate={() => undefined} />);
+      });
+    };
+    render();
+    const box = document.querySelector<HTMLElement>("#generate-preview");
+    expect(box?.textContent?.startsWith("flowchart LR")).toBe(true);
+    if (box) box.scrollTop = 120;
+    state = { ...state, mermaid: `flowchart TD\n${"  a --> b\n".repeat(40)}` };
+    render();
+    expect(document.querySelector<HTMLElement>("#generate-preview")?.scrollTop).toBe(0);
+    const headed = `---\ntitle: Campus\n---\nflowchart LR\n  a --> b\n`;
+    expect(mermaidPreviewScrollLines(headed)).toBe(3);
+    expect(mermaidPreviewScrollLines("flowchart LR\n  a --> b\n")).toBe(0);
   });
 });
 

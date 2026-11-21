@@ -8,6 +8,14 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 _No unreleased items._
 
+## 2.1.6 "Azimuth" - 2026-11-21
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
+- **Fixed:** After Rename, or Rename all, the import row shows the free name it will save and drops "This name is taken". The warning stays only while the choice would still collide.
+- **Fixed:** Editor preview **Fit** keeps a very tall or wide diagram readable. It fits the shorter side, or stops at 25%, and you pan. A hub of 50 or more leaf neighbors says Default rank is one long column and points at Compact or Radial.
+- **Fixed:** From data, the import dialog, and the summaries name ARP and MAC tables with the other inputs. The Mermaid preview on the confirm step shows the flowchart line in full.
+
 ## 2.1.5 "Azimuth" - 2026-11-21
 
 First release on the Azimuth line. 2.1.0 through 2.1.4 stay Zenith.

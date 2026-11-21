@@ -14,7 +14,7 @@ export function usePreviewViewport(svgHtml: string) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [content, setContent] = useState<Size | null>(null);
   const viewport = useStageSize(stageRef);
-  const camera = useDiagramView(viewport, content);
+  const camera = useDiagramView(viewport, content, { readable: true });
   const gestures = useViewGestures({
     stageRef,
     wheelTargetRef: stageRef,
@@ -33,13 +33,7 @@ export function usePreviewViewport(svgHtml: string) {
   }, [svgHtml]);
 
   const ready = content != null && viewport != null && viewport.width > 0 && viewport.height > 0;
-  const revealed =
-    ready &&
-    (camera.atFit ||
-      camera.view.x !== 0 ||
-      camera.view.y !== 0 ||
-      camera.view.rotation !== 0 ||
-      camera.view.scale !== 1);
+  const revealed = ready && camera.placed;
   const canvasStyle = content
     ? {
         width: content.width,

@@ -111,6 +111,12 @@ export function capAxisFit(scale: number): number {
 }
 
 /**
+ * Editor Fit stays at least this large. Below it, a tall or wide diagram is a
+ * sliver, so Fit uses the longer axis or this floor and leaves the rest to pan.
+ */
+export const READABLE_ZOOM = 0.25;
+
+/**
  * Scale that fits the rotated diagram on the chosen axis, centered.
  * Page uses the smaller axis so the whole diagram is visible, with no cap.
  * Width and height use one axis, so the other direction can be panned, and
@@ -132,6 +138,39 @@ export function fitTo(viewport: Size, content: Size, rotation: number, mode: Fit
 /** Largest scale that fits the whole rotated diagram in the viewport. */
 export function fit(viewport: Size, content: Size, rotation: number): ViewTransform {
   return fitTo(viewport, content, rotation, "page");
+}
+
+/**
+ * Editor preview Fit. The whole diagram is shown when that scale stays
+ * readable. A very tall diagram fits the width and pans vertically. A very
+ * wide one fits the height and pans sideways. If both axes are still below
+ * {@link READABLE_ZOOM}, the scale stops there and both directions pan.
+ * Presentation keeps {@link fit} so Fit page still shows the whole slide.
+ */
+export function readableFit(
+  viewport: Size,
+  content: Size,
+  rotation: number,
+): { mode: FitMode; view: ViewTransform } {
+  const bounds = rotatedContentSize(content, rotation);
+  const aspect = Math.max(bounds.width, bounds.height) / Math.max(Math.min(bounds.width, bounds.height), 1);
+  const page = fitTo(viewport, content, rotation, "page");
+  if (aspect >= 3) {
+    const along: FitMode = bounds.height >= bounds.width ? "width" : "height";
+    const fitted = fitTo(viewport, content, rotation, along);
+    const scale = fitted.scale >= READABLE_ZOOM ? fitted.scale : Math.min(MAX_ZOOM, READABLE_ZOOM);
+    return { mode: along, view: { ...fitted, scale, rotation: normalizeDegrees(rotation) } };
+  }
+  if (page.scale >= READABLE_ZOOM) return { mode: "page", view: page };
+  return {
+    mode: "page",
+    view: {
+      x: 0,
+      y: 0,
+      scale: Math.min(MAX_ZOOM, READABLE_ZOOM),
+      rotation: normalizeDegrees(rotation),
+    },
+  };
 }
 
 /**
@@ -266,8 +305,13 @@ export function viewAfterMeasure(
   viewport: Size,
   content: Size,
   mode: FitMode = "page",
-): { view: ViewTransform; baseline: ViewTransform } | null {
+  readable = false,
+): { view: ViewTransform; baseline: ViewTransform; mode?: FitMode } | null {
   if (baseline && !viewsClose(current, baseline)) return null;
+  if (readable) {
+    const chosen = readableFit(viewport, content, baseline ? current.rotation : 0);
+    return { view: chosen.view, baseline: chosen.view, mode: chosen.mode };
+  }
   const next = fitTo(viewport, content, baseline ? current.rotation : 0, mode);
   return { view: next, baseline: next };
 }

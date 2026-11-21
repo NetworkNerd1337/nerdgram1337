@@ -8,7 +8,7 @@ Guides for installing NerdGram1337, using it, and working on it.
 
 - [Install](install.md). Run NerdGram with Docker, or with Node.js on the machine.
 - [Features](features.md). The dashboard lists folders and diagrams in a tree, with search and grid or list view.
-- [Generate from data](generate-from-data.md). A CSV, JSON, network JSON, or Cisco routing-table paste can build the diagram.
+- [Generate from data](generate-from-data.md). A CSV, JSON, network JSON, routing table, or ARP and MAC paste can build the diagram.
 - [Translators](translators.md). A saved export becomes network JSON. The command does not log in.
 - [Design exports](exports.md). A diagram and its network JSON can be written as a pyATS testbed, a lab file, or an inventory. Credentials are placeholders.
 - [Schema compatibility](schema/README.md). Network JSON stays on schemaVersion 1 when a change only adds optional fields, and moves to 2 when a field's meaning changes.
@@ -24,7 +24,7 @@ Guides for installing NerdGram1337, using it, and working on it.
 - [Data and backups](data-and-backups.md). By default, diagrams live in `diagrams/` inside the project.
 - [Upgrading](upgrading.md). Stop the app before you replace it.
 - [Versioning and releases](releases.md). Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix.
-- [Roadmap](roadmap.md). Planned work after v2.1.5. 2.1.0 through 2.1.4 are Zenith. 2.1.5 is Azimuth. Future ideas at the end are not committed.
+- [Roadmap](roadmap.md). Planned work after v2.1.6. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Future ideas at the end are not committed.
 - [Troubleshooting](troubleshooting.md). If the API port is taken, the server exits and prints the listen error.
 - [Developing](developing.md). The project folders, the npm scripts, and what CI runs.
 

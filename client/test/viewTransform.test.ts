@@ -7,6 +7,8 @@ import {
   fit,
   fitCycle,
   fitTo,
+  READABLE_ZOOM,
+  readableFit,
   identityView,
   isFitted,
   nextFitMode,
@@ -164,6 +166,40 @@ describe("view transform", () => {
     expect(isFitted(stillFitted!.view, viewport, tall)).toBe(true);
     const first = viewAfterMeasure(identityView(), null, viewport, wide);
     expect(first?.view).toEqual(fit(viewport, wide, 0));
+  });
+
+  it("keeps a readable zoom for a very tall or wide diagram", () => {
+    const stage: Size = { width: 800, height: 600 };
+    const ordinary = readableFit(stage, { width: 900, height: 500 }, 0);
+    expect(ordinary.mode).toBe("page");
+    expect(ordinary.view.scale).toBeGreaterThanOrEqual(READABLE_ZOOM);
+
+    const streak = readableFit(stage, { width: 400, height: 20000 }, 0);
+    const page = fit(stage, { width: 400, height: 20000 }, 0);
+    expect(page.scale).toBeLessThan(READABLE_ZOOM);
+    expect(streak.mode).toBe("width");
+    expect(streak.view.scale).toBeGreaterThanOrEqual(READABLE_ZOOM);
+    expect(streak.view.scale).toBeGreaterThan(page.scale * 5);
+    expect(streak.view.x).toBe(0);
+    expect(streak.view.y).toBe(0);
+
+    const banner = readableFit(stage, { width: 20000, height: 400 }, 0);
+    expect(banner.mode).toBe("height");
+    expect(banner.view.scale).toBeGreaterThanOrEqual(READABLE_ZOOM);
+
+    const both = readableFit(stage, { width: 20000, height: 20000 }, 0);
+    expect(both.view.scale).toBe(READABLE_ZOOM);
+    const wideColumn = readableFit({ width: 800, height: 600 }, { width: 5000, height: 16000 }, 0);
+    expect(wideColumn.mode).toBe("width");
+    expect(wideColumn.view.scale).toBeGreaterThanOrEqual(READABLE_ZOOM);
+    expect(wideColumn.view.scale).toBeGreaterThan(fit({ width: 800, height: 600 }, { width: 5000, height: 16000 }, 0).scale);
+    const column = readableFit({ width: 1000, height: 800 }, { width: 800, height: 2400 }, 0);
+    expect(column.mode).toBe("width");
+    expect(column.view.scale).toBeGreaterThan(fit({ width: 1000, height: 800 }, { width: 800, height: 2400 }, 0).scale * 2);
+    const again = viewAfterMeasure(identityView(), null, stage, { width: 400, height: 20000 }, "page", true);
+    expect(again?.mode).toBe("width");
+    expect(again?.view.scale).toBeGreaterThanOrEqual(READABLE_ZOOM);
+    expect(viewAfterMeasure({ ...again!.view, y: 40 }, again!.view, stage, { width: 420, height: 20000 }, "page", true)).toBeNull();
   });
 
   it("fits a wide phone diagram to its height and a tall one to its width", () => {

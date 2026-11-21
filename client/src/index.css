@@ -4388,6 +4388,25 @@ body[data-presenting="true"] .support-link {
 .generate-panel textarea {
   font-family: var(--font-mono);
   font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+#generate-preview {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-elevated);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  overflow: auto;
+  max-height: 24rem;
+  margin: 0;
+  white-space: pre;
+  scroll-padding-top: 0;
 }
 
 .generate-file {
