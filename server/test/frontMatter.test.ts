@@ -16,6 +16,8 @@ import {
   thumbnailCacheKey,
   FALLBACK_THEME,
   DEFAULT_FONT_FAMILY,
+  MERMAID_MAX_EDGES,
+  MERMAID_MAX_TEXT_SIZE,
 } from "../src/frontMatter.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -50,6 +52,8 @@ describe("front matter parsing", () => {
       suppressErrorRendering: true,
       theme: "dark",
       fontFamily: DEFAULT_FONT_FAMILY,
+      maxTextSize: MERMAID_MAX_TEXT_SIZE,
+      maxEdges: MERMAID_MAX_EDGES,
     });
     const room = withNodeLabelRoom(diagramInitConfig(source, "dark"));
     expect(room.flowchart).toEqual({ wrappingWidth: NODE_LABEL_WRAP_WIDTH });
@@ -226,10 +230,24 @@ describe("front matter parsing", () => {
     expect(init.theme).toBe("forest");
     expect(init.look).toBe("handDrawn");
     expect(init.securityLevel).toBe("loose");
-    expect(init.maxTextSize).toBeUndefined();
+    expect(init.maxTextSize).toBe(MERMAID_MAX_TEXT_SIZE);
+    expect(init.maxEdges).toBe(MERMAID_MAX_EDGES);
 
     const scoped = `---\nconfig:\n  theme: dark\n  flowchart:\n    theme: forest\n---\n${BODY}`;
     expect(diagramInitConfig(scoped, "dark").theme).toBe("forest");
+  });
+
+  it("does not let front matter or an init directive raise the Mermaid limits", () => {
+    const raised = `---\nconfig:\n  theme: forest\n  maxTextSize: 99999999\n  maxEdges: 99999\n---\n${BODY}`;
+    const fromMatter = diagramInitConfig(raised, "dark");
+    expect(fromMatter.maxTextSize).toBe(MERMAID_MAX_TEXT_SIZE);
+    expect(fromMatter.maxEdges).toBe(MERMAID_MAX_EDGES);
+    expect(fromMatter.theme).toBe("forest");
+
+    const directive = `%%{init: {"maxTextSize": 99999999, "maxEdges": 99999, "theme": "forest"}}%%\n${BODY}`;
+    const fromDirective = diagramInitConfig(directive, "dark");
+    expect(fromDirective.maxTextSize).toBe(MERMAID_MAX_TEXT_SIZE);
+    expect(fromDirective.maxEdges).toBe(MERMAID_MAX_EDGES);
   });
 
   it("changes the thumbnail cache key when only the theme, look, layout, or title changes", () => {

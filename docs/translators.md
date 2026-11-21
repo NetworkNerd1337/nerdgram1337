@@ -72,7 +72,7 @@ curl -fsS -X POST "http://127.0.0.1:8787/api/v1/convert/librenms?path=Campus-L3.
 
 ## Limits and warnings
 
-A convert body or file can be at most 4 MiB (4,194,304 bytes). A larger one is **413** with `too_large`. The JSON parser stops at 5 MB, so the convert cap is the one a normal body hits. Generate still refuses a network file over 512 KB, and a diagram still stops at 2,000 nodes and 5,000 edges. A converted document that is larger than that can be written to a file. Upsert refuses it until it is smaller.
+A convert body or file can be at most 4 MiB (4,194,304 bytes). A larger one is **413** with `too_large`. The JSON parser stops at 5 MB, so the convert cap is the one a normal body hits. Generate refuses a network file over 4 MiB, and a diagram still stops at 2,000 nodes and 5,000 edges. A converted document that is larger than that can be written to a file. Upsert refuses it until it is smaller.
 
 A field the mapper does not copy produces one warning for that field name. The value is dropped. It is not turned into a device or a link. A file with no links still converts. The warning says no links were created, and `links` is `[]`. A `next` URL in a saved page is not fetched. The warning says so.
 

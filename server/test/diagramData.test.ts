@@ -96,8 +96,14 @@ describe("diagram data import", () => {
     expect(() => importDiagramData({ text: "device,port\n", format: "yaml" })).toThrow(/network JSON/);
   });
 
-  it("refuses data larger than 512 KB", () => {
-    expect(() => importDiagramData({ text: `id,label\n${"a".repeat(512 * 1024)}` })).toThrow(/512 KB/);
+  it("refuses data larger than 4 MiB", () => {
+    expect(() => importDiagramData({ text: `id,label\n${"a".repeat(4 * 1024 * 1024)}` })).toThrow(
+      /Data is larger than 4 MiB \(about 3,000 CDP detail neighbors\)/,
+    );
+  });
+
+  it("accepts a paste above the old 512 KB cap", () => {
+    expect(() => importDiagramData({ text: "a".repeat(600 * 1024) })).not.toThrow(/4 MiB/);
   });
 
   it("refreshes between markers and keeps hand edits, notes, and theme", () => {

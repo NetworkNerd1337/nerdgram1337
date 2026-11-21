@@ -26,7 +26,7 @@ import { sanitizeThumbnailSvg } from "./thumbnails.js";
 const require = createRequire(import.meta.url);
 
 export const MAX_RENDER_SOURCE_CHARS = 512 * 1024;
-export const MAX_RENDER_SVG_CHARS = 2_000_000;
+export const MAX_RENDER_SVG_CHARS = 8_000_000;
 
 export type RenderFormat = "svg" | "png";
 

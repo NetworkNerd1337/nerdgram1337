@@ -19,8 +19,16 @@ import { importNetworkFormat } from "./network/import.js";
 export const GENERATED_START = "%% nerdgram:generated";
 export const GENERATED_END = "%% nerdgram:generated end";
 
+/** Generate and stored data files. Convert uses the same 4 MiB. Node and edge caps stay below. */
+export const DATA_MAX_CHARS = 4 * 1024 * 1024;
+
+/** Shown when a paste or data file is over {@link DATA_MAX_CHARS}. */
+export function dataTooLargeMessage(subject = "Data"): string {
+  return `${subject} is larger than 4 MiB (about 3,000 CDP detail neighbors).`;
+}
+
 export const DATA_LIMITS = {
-  maxChars: 512 * 1024,
+  maxChars: DATA_MAX_CHARS,
   maxRows: 5_000,
   maxNodes: 2_000,
   maxEdges: 5_000,
@@ -817,7 +825,7 @@ function requireText(value: unknown, label: string): string {
   if (typeof value !== "string") throw dataFail(400, `${label} must be text.`, "invalid");
   if (value.includes("\0")) throw dataFail(400, `${label} is not a text file.`, "invalid");
   if (value.length > DATA_LIMITS.maxChars) {
-    throw dataFail(400, `${label} is larger than 512 KB.`, "invalid");
+    throw dataFail(400, dataTooLargeMessage(label), "invalid");
   }
   if (!value.trim()) throw dataFail(400, `Paste or upload a CSV, JSON, CDP, LLDP, or network JSON ${label.toLowerCase()} file.`, "invalid");
   return value.replace(/^\uFEFF/, "");

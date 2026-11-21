@@ -40,6 +40,7 @@ export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose 
   const [leftSvg, setLeftSvg] = useState("");
   const [rightSvg, setRightSvg] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [exportNote, setExportNote] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [presenting, setPresenting] = useState(false);
@@ -126,6 +127,7 @@ export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose 
   const exportImage = async (format: ExportFormat) => {
     if (!diff?.visualSource) return;
     setError(null);
+    setExportNote(null);
     let svgText = mergedSvg;
     if (!svgText) {
       try {
@@ -144,7 +146,8 @@ export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose 
       return;
     }
     try {
-      await exportDiagram(svg, `${fileStem(path)}-diff`, format);
+      const exported = await exportDiagram(svg, `${fileStem(path)}-diff`, format);
+      setExportNote(exported.note);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not export the diff");
     }
@@ -200,6 +203,11 @@ export function RevisionDiff({ path, revisions, initialFrom, initialTo, onClose 
       </div>
       <p className="diff-readonly">This comparison is read-only. It does not change the diagram.</p>
       {error && <div className="error-banner">{error}</div>}
+      {exportNote && (
+        <div className="editor-banner" role="status">
+          {exportNote}
+        </div>
+      )}
       {busy && <p>Comparing…</p>}
       {diff && (
         <>

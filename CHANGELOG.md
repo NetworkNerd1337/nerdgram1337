@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Changed:** **From data** accepts a file up to 4 MiB, about 3,000 CDP detail neighbors. Mermaid's text limit is 4 MiB and its edge limit is 5,000, and a diagram cannot raise those from front matter. Rendered pictures and thumbnails can be up to 8,000,000 characters. PNG, JPG, and PDF scale down when the canvas would be too large, and the editor says so (#240).
 
 ## 1.8.15 "Meridian" - 2026-11-20
 

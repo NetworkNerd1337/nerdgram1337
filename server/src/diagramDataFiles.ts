@@ -5,6 +5,7 @@ import {
   assertDataPath,
   dataFail,
   DATA_LIMITS,
+  dataTooLargeMessage,
   diffModels,
   importDiagramData,
   isSafeDataPath,
@@ -65,7 +66,7 @@ export async function readDataFile(relativePath: string): Promise<string> {
   if (stat.isSymbolicLink() || !stat.isFile()) {
     throw dataFail(400, "The data file is not a regular file.", "invalid");
   }
-  if (stat.size > DATA_LIMITS.maxChars) throw dataFail(400, "The data file is larger than 512 KB.", "invalid");
+  if (stat.size > DATA_LIMITS.maxChars) throw dataFail(400, dataTooLargeMessage("The data file"), "invalid");
   const text = await fs.readFile(abs, "utf8");
   if (text.includes("\0") || text.length > DATA_LIMITS.maxChars) {
     throw dataFail(400, "The data file is not usable text.", "invalid");
@@ -76,7 +77,7 @@ export async function readDataFile(relativePath: string): Promise<string> {
 export async function writeDataFile(relativePath: string, text: string): Promise<string> {
   const normalized = assertDataPath(relativePath);
   if (typeof text !== "string" || text.includes("\0")) throw dataFail(400, "The data file is not text.", "invalid");
-  if (text.length > DATA_LIMITS.maxChars) throw dataFail(400, "The data file is larger than 512 KB.", "invalid");
+  if (text.length > DATA_LIMITS.maxChars) throw dataFail(400, dataTooLargeMessage("The data file"), "invalid");
   const abs = resolveSafePath(normalized);
   let stat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
   try {

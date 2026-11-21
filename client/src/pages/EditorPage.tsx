@@ -877,13 +877,16 @@ export function EditorPage() {
     }
     const parsed = parseDiagram(code);
     try {
-      await exportDiagram(svg, diagramHeading(parsed.title, templateId ? templateTitle : filePath), format, {
+      const exported = await exportDiagram(svg, diagramHeading(parsed.title, templateId ? templateTitle : filePath), format, {
         source: code,
         fallbackTheme: FALLBACK_THEME,
         theme: parsed.theme,
         themeVariables: parsed.themeVariables,
         transparent,
       });
+      setExportNotice(
+        exported.note ? { title: "Export scaled down", items: [exported.note] } : null,
+      );
     } catch (err) {
       setExportError(err instanceof Error ? err.message : "Export failed");
     }
