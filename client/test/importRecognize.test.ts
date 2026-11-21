@@ -68,6 +68,28 @@ describe("import recognition", () => {
     expect(recognizeImport("page.pdf", new TextEncoder().encode("%PDF-1.7")).kind).toBe("pdf");
     expect(recognizeImport("net.vsdx", new Uint8Array([0x50, 0x4b, 0x03, 0x04])).kind).toBe("visio");
     expect(recognizeImport("net.vsd", new Uint8Array([0xd0, 0xcf, 0x11, 0xe0])).kind).toBe("visio");
+    const visioZip = new Uint8Array([0x50, 0x4b, 0x03, 0x04, ...new TextEncoder().encode("vnd.ms-visio.drawing")]);
+    expect(recognizeImport("drawing.bin", visioZip).kind).toBe("visio");
+    expect(textFile("board.drawio", "<mxGraphModel><root><mxCell id='0'/></root></mxGraphModel>").kind).toBe("drawio");
+  });
+
+  it("names a structure-only Lucid export and does not open it in From data", () => {
+    const lucid = {
+      pages: [
+        {
+          shapes: [
+            { class: "FreehandBlock", id: "s1" },
+            { type: "ProcessBlock", id: "s2" },
+          ],
+          lines: [{ endpoint1: { x: 0, y: 0 }, endpoint2: { x: 40, y: 20 }, style: { stroke: "#111" } }],
+        },
+      ],
+    };
+    const found = textFile("export.txt", JSON.stringify(lucid));
+    expect(found.kind).toBe("lucidchart");
+    expect(found.action).toBe("unsupported");
+    expect(found.action).not.toBe("from-data");
+    expect(found.message).toMatch(/not supported yet/i);
   });
 
   it("says when a file is not a recognized format", () => {

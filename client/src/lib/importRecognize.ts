@@ -118,8 +118,7 @@ function startsWith(bytes: Uint8Array, magic: number[]): boolean {
 }
 
 function asciiHead(bytes: Uint8Array, count = 2048): string {
-  const slice = bytes.subarray(0, Math.min(bytes.length, count));
-  return String.fromCharCode(...slice);
+  return new TextDecoder("latin1").decode(bytes.subarray(0, Math.min(bytes.length, count)));
 }
 
 function looksLikeMermaid(text: string): boolean {
@@ -167,10 +166,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function shapeIsLucidBlock(shape: Record<string, unknown>): boolean {
+  const kind = `${typeof shape.class === "string" ? shape.class : ""} ${typeof shape.type === "string" ? shape.type : ""}`;
+  return /block\b/i.test(kind);
+}
+
+function lineHasEndpoint(line: Record<string, unknown>): boolean {
+  return Object.keys(line).some((key) => /endpoint/i.test(key));
+}
+
+/** Lucidchart names itself, or exports pages of block shapes and endpoint lines. */
+function looksLikeLucid(value: Record<string, unknown>): boolean {
+  const product = typeof value.product === "string" ? value.product.toLowerCase() : "";
+  if (product.includes("lucidchart") || "lucidchart" in value) return true;
+  if (!Array.isArray(value.pages)) return false;
+  return value.pages.some((page) => {
+    if (!isRecord(page) || !Array.isArray(page.shapes) || !Array.isArray(page.lines)) return false;
+    const blocks = page.shapes.some((shape) => isRecord(shape) && shapeIsLucidBlock(shape));
+    const linked = page.lines.some((line) => isRecord(line) && lineHasEndpoint(line));
+    return blocks && linked;
+  });
+}
+
 function classifyJson(value: unknown, name: string): ImportRecognition | null {
   if (!isRecord(value)) return named("json", "from-data", { dataFormat: "json" });
-  const product = typeof value.product === "string" ? value.product.toLowerCase() : "";
-  if (product.includes("lucidchart") || "lucidchart" in value) return named("lucidchart", "unsupported");
+  if (looksLikeLucid(value)) return named("lucidchart", "unsupported");
+  if (typeof value.mxGraphModel === "object" || typeof value.mxfile === "string" || value.type === "diagrams.net") {
+    return named("drawio", "unsupported");
+  }
   if (value.type === "excalidraw" || (Array.isArray(value.elements) && isRecord(value.appState))) {
     return named("excalidraw", "unsupported");
   }
@@ -195,7 +218,7 @@ function classifyJson(value: unknown, name: string): ImportRecognition | null {
 function classifyText(name: string, text: string): ImportRecognition {
   const trimmed = text.trim();
   if (!trimmed) return named("unknown", "unsupported");
-  if (/<mxfile[\s>]|<mxGraphModel[\s>]/i.test(trimmed)) return named("drawio", "unsupported");
+  if (/<mxfile[\s>]|<mxGraphModel[\s>]|<mxCell[\s>]/i.test(trimmed)) return named("drawio", "unsupported");
   if (/^\s*(?:<\?xml[^>]*>\s*)?<svg[\s>]/i.test(trimmed)) return named("svg", "unsupported");
   if (/@startuml\b/i.test(trimmed)) return named("plantuml", "unsupported");
   if (looksLikeGraphviz(trimmed)) return named("graphviz", "unsupported");
@@ -230,10 +253,13 @@ export function recognizeImport(name: string, bytes: Uint8Array): ImportRecognit
   if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47])) return named("png", "unsupported");
   if (startsWith(bytes, [0xff, 0xd8, 0xff])) return named("jpg", "unsupported");
   if (startsWith(bytes, [0x25, 0x50, 0x44, 0x46])) return named("pdf", "unsupported");
-  if (startsWith(bytes, [0xd0, 0xcf, 0x11, 0xe0])) return named("visio", "unsupported");
+  if (startsWith(bytes, [0xd0, 0xcf, 0x11, 0xe0])) {
+    if (extension(name) === ".vsd" || /visio/i.test(asciiHead(bytes, 8192))) return named("visio", "unsupported");
+    return named("unknown", "unsupported");
+  }
   if (startsWith(bytes, [0x50, 0x4b, 0x03, 0x04])) {
-    const head = asciiHead(bytes);
-    if (extension(name) === ".vsdx" || /visio/i.test(head)) return named("visio", "unsupported");
+    const head = asciiHead(bytes, 65536);
+    if (extension(name) === ".vsdx" || /visio|vnd\.ms-visio/i.test(head)) return named("visio", "unsupported");
     return named("unknown", "unsupported");
   }
   if (hasNull(bytes)) return named("unknown", "unsupported");

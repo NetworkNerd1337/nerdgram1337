@@ -112,6 +112,14 @@ describe("Support button", () => {
 
     const css = readFileSync(path.join(clientSrc, "index.css"), "utf8");
     expect(css).toContain('body[data-presenting="true"] .support-link');
+    expect(source("components/WorkspaceShell.tsx")).toContain('className="narrow-app-bar"');
+    expect(source("components/WorkspaceShell.tsx")).toContain("<AboutButton />");
+    expect(source("components/WorkspaceShell.tsx")).toContain("<SupportLink />");
+    const narrow = css.slice(css.indexOf("@media (max-width: 960px)"), css.indexOf(".modal.wide"));
+    expect(narrow).toContain(".narrow-app-bar");
+    expect(narrow).toContain("display: flex");
+    expect(narrow).toContain("position: sticky");
+    expect(narrow).toContain(".main .page-header-actions .about-link");
     expect(css).toContain(".about-link .about-link-label");
     expect(css).toContain(".support-link:not(.support-link-text) .support-link-label");
   });
