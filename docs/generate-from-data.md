@@ -4,7 +4,7 @@ A CSV, JSON, or network JSON file can build the diagram.
 
 [Back to the documentation index](README.md)
 
-A CSV, JSON, or network JSON file can build the diagram. **From data** on the dashboard opens `/generate`. Paste the file or upload it, map columns, choose a flowchart direction and whether groups become subgraphs, preview the Mermaid, then create the diagram. Network JSON skips the column map and asks for a Layer 3 or Layer 2 view instead. The same action is **Generate diagram from data** in the command palette.
+A CSV, JSON, CDP or LLDP `show` paste, or network JSON file can build the diagram. **From data** on the dashboard opens `/generate`. Dropping one of those files on the dashboard opens this page with the file already loaded. Paste the file or upload it, map columns, choose a flowchart direction and whether groups become subgraphs, preview the Mermaid, then create the diagram. Network JSON skips the column map and asks for a Layer 3 or Layer 2 view instead. The same action is **Generate diagram from data** in the command palette.
 
 Two shapes are accepted. A links table has a local device, a local port, a remote device, and a remote port. A node list has an id and a label, and an optional second file of edges with source, target, and label. JSON can carry both lists in one object (`nodes` and `edges`) or a `links` array. Optional columns are group, type, style class, and a child diagram path. A group becomes a Mermaid `subgraph`. A type or style class becomes a `classDef` and a `class` line. A child diagram path becomes a `click` line such as `click Atlanta "nerdgram:Sites/Atlanta.mmd"`. The path has to be a `.mmd` file inside the workspace. `javascript:` and a path that leaves the workspace are rejected, and the error names the row.
 

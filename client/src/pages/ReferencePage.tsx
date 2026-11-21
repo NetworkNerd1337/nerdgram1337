@@ -3,7 +3,7 @@ import Markdown from "react-markdown";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Brand } from "../components/Brand";
-import { SupportLink } from "../components/SupportLink";
+import { AboutButton, SupportLink } from "../components/SupportLink";
 import { CommandsButton } from "../components/CommandPalette";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -178,6 +178,7 @@ export function ReferencePage() {
           </div>
         </div>
         <div className="reference-top-actions">
+          <AboutButton />
           <SupportLink />
           <CommandsButton />
           <Link className="btn btn-ghost" to="/">

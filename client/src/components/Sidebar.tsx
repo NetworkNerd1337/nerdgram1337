@@ -6,11 +6,9 @@ import { Brand } from "./Brand";
 import { BookmarksSection } from "./BookmarksSection";
 import { CommandsButton } from "./CommandPalette";
 import { FolderTree } from "./FolderTree";
-import { useUpdate } from "./updateContext";
 import { displayName } from "../lib/paths";
 import { RECENT_OPEN_KEY } from "../lib/recent";
 import { readFlag, writeFlag, type BookmarkState } from "../lib/bookmarks";
-import { formatVersionLabel } from "../lib/versionLabel";
 import type { RecentEntry } from "../lib/recent";
 
 type SidebarProps = {
@@ -74,10 +72,6 @@ export function Sidebar({
   onTrashDrop,
   healthActive = false,
 }: SidebarProps) {
-  const updates = useUpdate();
-  const version = updates.status
-    ? formatVersionLabel(updates.status.currentVersion, updates.status.codename)
-    : null;
   const [recentOpen, setRecentOpen] = useState(() => readFlag(browserStorage(), RECENT_OPEN_KEY, true));
   const rootDrop =
     dropHighlight?.path === ""
@@ -243,10 +237,6 @@ export function Sidebar({
         </Link>
       </div>
 
-      <button type="button" className="sidebar-about" onClick={updates.openAbout}>
-        <span>About</span>
-        <span>{version ?? "version"}</span>
-      </button>
     </aside>
   );
 }

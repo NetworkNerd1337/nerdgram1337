@@ -16,7 +16,7 @@ import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
 import { Sidebar } from "../components/Sidebar";
 import { WorkspaceShell } from "../components/WorkspaceShell";
-import { SupportLink } from "../components/SupportLink";
+import { AboutButton, SupportLink } from "../components/SupportLink";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useSidebarWidth } from "../hooks/useSidebarWidth";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -31,6 +31,7 @@ import {
 import { attentionBadgeCount, attentionProblemLabel } from "../lib/attention";
 import { dataMoveSentence, deleteDataPrompt, duplicateDataPrompt, duplicateStatus } from "../lib/dataFiles";
 import { draftsFromFiles, type ImportDraft } from "../lib/importDrafts";
+import { IMPORT_DATA_KEY, IMPORT_PRESET_KEY, MERMAID_IMPORT_HINT, SUPPORTED_IMPORT_LINE } from "../lib/importRecognize";
 import {
   collectPaths,
   dropMoveState,
@@ -636,13 +637,27 @@ export function DashboardPage() {
       setStatus(null);
       setActionError(
         sawDirectory
-          ? "Import individual .mmd, .md, or .txt files. Folders are not imported."
+          ? "Import individual files. Folders are not imported."
           : "Nothing in that drop can be imported.",
       );
       return;
     }
     try {
       const drafts = await draftsFromFiles(picked);
+      const only = drafts.length === 1 ? drafts[0] : null;
+      if (only?.route === "from-data") {
+        sessionStorage.setItem(
+          IMPORT_DATA_KEY,
+          JSON.stringify({ text: only.text, fileName: only.sourceName, format: only.dataFormat || "auto" }),
+        );
+        navigate(`/generate?folder=${encodeURIComponent(toFolder)}`);
+        return;
+      }
+      if (only?.route === "style-presets") {
+        sessionStorage.setItem(IMPORT_PRESET_KEY, only.text);
+        navigate("/settings#style-presets");
+        return;
+      }
       setImportFolder(toFolder);
       setImportDrafts(drafts);
       setShowTrash(false);
@@ -922,10 +937,11 @@ export function DashboardPage() {
       />
       }
     >
-      <main className={`main${paneClass}`} onDragOver={markPane} onDrop={dropOnPane}>
+      <main className={`main${paneClass}`} title={SUPPORTED_IMPORT_LINE} onDragOver={markPane} onDrop={dropOnPane}>
         <header className="page-header">
           <h1>{heading}</h1>
           <div className="page-header-actions">
+            <AboutButton />
             <SupportLink />
             <Link className="btn btn-ghost" to="/new">
               Paste Mermaid
@@ -939,7 +955,7 @@ export function DashboardPage() {
         </div>
         <p id="drag-help" className="sr-only">
           Drag a diagram or folder onto a folder to move it. Move to… does the same thing from the
-          keyboard. Dropping .mmd, .md, or .txt files imports them. Trash is not a drop target.
+          keyboard. {SUPPORTED_IMPORT_LINE} Trash is not a drop target.
         </p>
 
         <div className="toolbar">
@@ -966,7 +982,12 @@ export function DashboardPage() {
               <button type="button" className="btn btn-ghost" onClick={openCreateFolder}>
                 New folder
               </button>
-              <button type="button" className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                title={MERMAID_IMPORT_HINT}
+                onClick={() => fileInputRef.current?.click()}
+              >
                 Import
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => openWorkspaceReplace({ folder })}>
@@ -975,10 +996,10 @@ export function DashboardPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".mmd,.md,.txt,text/plain,text/markdown"
                 multiple
                 hidden
                 aria-label="Import diagram files"
+                title={MERMAID_IMPORT_HINT}
                 onChange={(event) => {
                   const picked = Array.from(event.target.files ?? []);
                   event.target.value = "";
@@ -1041,7 +1062,9 @@ export function DashboardPage() {
         )}
         {dragPath ? (
           <p className="drop-hint">Drop on a folder to move. A highlighted folder can take the item.</p>
-        ) : null}
+        ) : showTrash || showAttention ? null : (
+          <p className="import-hint">{SUPPORTED_IMPORT_LINE}</p>
+        )}
         {!showTrash && !showAttention && summary?.status === "ready" && summary.stale ? (
           <p className="health-stale">Diagrams have changed since the last check.</p>
         ) : null}

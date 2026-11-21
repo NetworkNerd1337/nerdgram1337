@@ -17,7 +17,7 @@ export const MAX_IMPORT_FILE_CHARS = 512 * 1024;
 /** Combined text limit, kept under the 5mb JSON body cap once the payload is encoded. */
 export const MAX_IMPORT_TOTAL_CHARS = 3_000_000;
 
-const IMPORT_EXTENSIONS = [".mmd", ".md", ".txt"];
+const IMPORT_EXTENSIONS = [".markdown", ".mermaid", ".mmd", ".md", ".txt"];
 
 export type ImportCollisionAction = "rename" | "skip" | "replace";
 
@@ -56,7 +56,7 @@ export function diagramNameFromImport(rawName: string): string {
   const lower = base.toLowerCase();
   const ext = IMPORT_EXTENSIONS.find((item) => lower.endsWith(item));
   if (!ext) {
-    throw httpFail(400, "Only .mmd, .md, and .txt files can be imported.", "invalid");
+    throw httpFail(400, "Only .mmd, .mermaid, .md, .markdown, and .txt files can be imported as diagrams.", "invalid");
   }
   const stem = base.slice(0, -ext.length).trim().replace(/[. ]+$/g, "");
   if (!stem || stem.startsWith(".")) {

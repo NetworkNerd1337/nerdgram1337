@@ -453,6 +453,7 @@ describe("move, duplicate, and import", () => {
     expect(diagramNameFromImport("..\\..\\Notes.md")).toBe("Notes.mmd");
     expect(diagramNameFromImport("rack/Firewall Rules.TXT")).toBe("Firewall Rules.mmd");
     expect(() => diagramNameFromImport(".secret.mmd")).toThrow(/not allowed/);
-    expect(() => diagramNameFromImport("photo.png")).toThrow(/\.mmd, \.md, and \.txt/);
+    expect(() => diagramNameFromImport("photo.png")).toThrow(/\.mmd, \.mermaid/);
+    expect(diagramNameFromImport("Site.markdown")).toBe("Site.mmd");
   });
 });

@@ -1,9 +1,10 @@
 import { useEffect, useReducer, useState } from "react";
+import { IMPORT_DATA_KEY } from "../lib/importRecognize";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
-import { SupportLink } from "../components/SupportLink";
+import { AboutButton, SupportLink } from "../components/SupportLink";
 import { FolderPicker } from "../components/FolderPicker";
 import { GenerateWizard } from "../components/GenerateWizard";
 import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
@@ -33,6 +34,21 @@ export function GeneratePage() {
   const [busy, setBusy] = useState(false);
   const [preset, setPreset] = useState<PresetChoice>({ id: "", style: null });
   const [translators, setTranslators] = useState<TranslatorChoice[]>([]);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(IMPORT_DATA_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(IMPORT_DATA_KEY);
+    try {
+      const payload = JSON.parse(raw) as { text?: string; fileName?: string; format?: WizardState["format"] };
+      if (typeof payload.text === "string" && payload.text) {
+        dispatch({ type: "text", text: payload.text, fileName: payload.fileName });
+        if (payload.format && payload.format !== "auto") dispatch({ type: "format", format: payload.format });
+      }
+    } catch {
+      // A bad handoff is ignored. The page still opens empty.
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +138,7 @@ export function GeneratePage() {
             <Brand />
           </Link>
           <div className="paste-top-actions">
+            <AboutButton />
             <SupportLink />
             <CommandsButton />
           </div>

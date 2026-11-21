@@ -110,7 +110,7 @@ export function explainOrganizeError(err: unknown): string {
   return "Something went wrong.";
 }
 
-const IMPORT_EXTENSIONS = [".mmd", ".md", ".txt"];
+const IMPORT_EXTENSIONS = [".markdown", ".mermaid", ".mmd", ".md", ".txt"];
 
 function hasForbiddenNameChar(value: string): boolean {
   for (const char of value) {
@@ -136,7 +136,7 @@ export function diagramNameFromImport(rawName: string): { name?: string; error?:
   const lower = base.toLowerCase();
   const ext = IMPORT_EXTENSIONS.find((item) => lower.endsWith(item));
   if (!ext) {
-    return { error: "Only .mmd, .md, and .txt files can be imported." };
+    return { error: "Only .mmd, .mermaid, .md, .markdown, and .txt files can be imported as diagrams." };
   }
   const stem = base.slice(0, -ext.length).trim().replace(/[. ]+$/g, "");
   if (!stem || stem.startsWith(".")) {
