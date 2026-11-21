@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
 import { renderForExport } from "./mermaidRender";
+import { rasterExportScale, rasterScaleNote } from "./rasterScale";
 import { backgroundFromSvg, themeBackground } from "./svgBackground";
 import { exportBackgroundColor, svgHasForeignObject } from "./exportSvg";
 
@@ -67,8 +68,9 @@ function paintBackground(svg: SVGSVGElement, color: string | null): SVGSVGElemen
 async function svgToCanvas(
   svg: SVGSVGElement,
   background: string | null,
-): Promise<HTMLCanvasElement> {
+): Promise<{ canvas: HTMLCanvasElement; note: string | null; scale: number }> {
   const { width, height } = measureSvg(svg);
+  const scale = rasterExportScale(width, height);
 
   const clone = cloneSvg(svg);
   clone.setAttribute("width", String(width));
@@ -84,10 +86,9 @@ async function svgToCanvas(
     img.src = url;
   });
 
-  const scale = 2;
   const canvas = document.createElement("canvas");
-  canvas.width = width * scale;
-  canvas.height = height * scale;
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas unsupported");
   ctx.scale(scale, scale);
@@ -96,7 +97,7 @@ async function svgToCanvas(
     ctx.fillRect(0, 0, width, height);
   }
   ctx.drawImage(image, 0, 0, width, height);
-  return canvas;
+  return { canvas, note: rasterScaleNote(scale), scale };
 }
 
 /** Margin around the diagram in PDF points (1pt ≈ 1 CSS px at 72dpi). */
@@ -138,9 +139,9 @@ async function svgToPdfBlob(svg: SVGSVGElement): Promise<Blob> {
   }
 }
 
-async function canvasToPdfBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  const width = Math.max(1, canvas.width / 2);
-  const height = Math.max(1, canvas.height / 2);
+async function canvasToPdfBlob(canvas: HTMLCanvasElement, scale: number): Promise<Blob> {
+  const width = Math.max(1, canvas.width / scale);
+  const height = Math.max(1, canvas.height / scale);
   const pageWidth = width + PDF_MARGIN_PT * 2;
   const pageHeight = height + PDF_MARGIN_PT * 2;
   const pdf = new jsPDF({
@@ -172,12 +173,17 @@ export type ExportOptions = {
   transparent?: boolean;
 };
 
+export type DiagramExportResult = {
+  /** Set when PNG, JPG, or a canvas PDF was drawn below 2×. */
+  note: string | null;
+};
+
 export async function exportDiagram(
   svg: SVGSVGElement,
   baseName: string,
   format: ExportFormat,
   options: ExportOptions = {},
-): Promise<void> {
+): Promise<DiagramExportResult> {
   const safe = (baseName || "diagram").replace(/[^\w.-]+/g, "_");
   const liveText = svgToString(svg);
   const fill = exportBackgroundColor({
@@ -202,35 +208,34 @@ export async function exportDiagram(
       new Blob([svgToString(painted)], { type: "image/svg+xml;charset=utf-8" }),
       `${safe}.svg`,
     );
-    return;
+    return { note: null };
   }
 
   if (format === "pdf") {
     const painted = paintBackground(vector ?? svg, fill);
-    let blob: Blob;
     if (vector) {
       try {
-        blob = await svgToPdfBlob(painted);
+        const blob = await svgToPdfBlob(painted);
+        triggerDownload(blob, `${safe}.pdf`);
+        return { note: null };
       } catch {
-        const canvas = await svgToCanvas(paintBackground(svg, fill), fill);
-        blob = await canvasToPdfBlob(canvas);
+        // The vector PDF could not be built. Fall through to the scaled canvas.
       }
-    } else {
-      const canvas = await svgToCanvas(paintBackground(svg, fill), fill);
-      blob = await canvasToPdfBlob(canvas);
     }
-    triggerDownload(blob, `${safe}.pdf`);
-    return;
+    const drawn = await svgToCanvas(paintBackground(svg, fill), fill);
+    triggerDownload(await canvasToPdfBlob(drawn.canvas, drawn.scale), `${safe}.pdf`);
+    return { note: drawn.note };
   }
 
-  const canvas = await svgToCanvas(paintBackground(svg, fill), fill);
+  const drawn = await svgToCanvas(paintBackground(svg, fill), fill);
   const mime = format === "jpg" ? "image/jpeg" : "image/png";
   const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
+    drawn.canvas.toBlob(
       (b) => (b ? resolve(b) : reject(new Error("Export failed"))),
       mime,
       0.92,
     );
   });
   triggerDownload(blob, `${safe}.${format === "jpg" ? "jpg" : "png"}`);
+  return { note: drawn.note };
 }

@@ -593,7 +593,7 @@ function operationBody(operationId: string): Record<string, unknown> | undefined
       );
     case "exportTarget":
       return jsonBody(
-        "The network document, or a wrapper. input is the document. path loads a workspace diagram or a .network.json file. mapping is optional rows or a mapping document. The body is at most 512 KB.",
+        "The network document, or a wrapper. input is the document. path loads a workspace diagram or a .network.json file. mapping is optional rows or a mapping document. The body is at most 4 MiB.",
         {
           input: { description: "Canonical network document. Use this, or send the document as the body." },
           path: { type: "string", description: "Workspace path of a .mmd diagram or a .network.json file." },
@@ -712,7 +712,7 @@ export function buildOpenApiSpec(): Record<string, unknown> {
         content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
       };
       responses["413"] = {
-        description: "The network document is larger than 512 KB, or it has too many devices or links.",
+        description: "The network document is larger than 4 MiB, or it has too many devices or links.",
         content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
       };
     }

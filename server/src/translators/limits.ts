@@ -1,4 +1,4 @@
-/** A bundled export is larger than the 512 KB generate file cap. Convert stops here. Upsert still uses the generate cap. */
+/** Convert and generate both stop at 4 MiB. A diagram still stops at 2,000 nodes and 5,000 edges. */
 export const CONVERT_MAX_INPUT_BYTES = 4 * 1024 * 1024;
 
 export function translatorFail(status: number, message: string, code = "invalid"): Error {

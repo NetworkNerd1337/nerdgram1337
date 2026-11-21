@@ -31,7 +31,7 @@ import {
 export const THUMBS_DIR_NAME = "thumbs";
 
 /** Reject thumbnails larger than this. Mermaid output for a normal diagram is far smaller. */
-export const MAX_THUMBNAIL_SVG_CHARS = 1_500_000;
+export const MAX_THUMBNAIL_SVG_CHARS = 8_000_000;
 
 type StoredThumbnail = {
   cacheKey: string;

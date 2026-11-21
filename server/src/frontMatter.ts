@@ -61,6 +61,10 @@ export const FALLBACK_THEME = "dark";
 /** Same family the renderer already passed to `mermaid.initialize`. */
 export const DEFAULT_FONT_FAMILY = '"IBM Plex Sans", system-ui, sans-serif';
 
+/** App Mermaid limits. Front matter and `%%{init}%%` cannot raise these. */
+export const MERMAID_MAX_TEXT_SIZE = 4 * 1024 * 1024;
+export const MERMAID_MAX_EDGES = 5_000;
+
 const NERDGRAM = "nerdgram";
 
 /** Keys Mermaid refuses from front matter. Never offer these in the UI. */
@@ -606,6 +610,8 @@ export function diagramInitConfig(
   else delete init.layout;
   const fontFamily = asString(effective.fontFamily);
   init.fontFamily = fontFamily || DEFAULT_FONT_FAMILY;
+  init.maxTextSize = MERMAID_MAX_TEXT_SIZE;
+  init.maxEdges = MERMAID_MAX_EDGES;
   return init;
 }
 

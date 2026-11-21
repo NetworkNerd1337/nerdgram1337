@@ -6,6 +6,8 @@ import {
   parseDiagram,
   thumbnailCacheKey,
   DEFAULT_FONT_FAMILY,
+  MERMAID_MAX_EDGES,
+  MERMAID_MAX_TEXT_SIZE,
 } from "../src/lib/frontMatter";
 import { commentEdit, toggleCommentLines } from "../src/lib/mermaidComments";
 
@@ -26,6 +28,8 @@ describe("client front matter helper", () => {
       suppressErrorRendering: true,
       theme: "dark",
       fontFamily: DEFAULT_FONT_FAMILY,
+      maxTextSize: MERMAID_MAX_TEXT_SIZE,
+      maxEdges: MERMAID_MAX_EDGES,
     });
   });
 

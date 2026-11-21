@@ -70,7 +70,7 @@ There are two JSON shapes, and that distinction matters. A generic CSV or JSON f
 | LLDP | One vendor-agnostic parser for detail output, plus `lldpctl` text, keyvalue, and JSON. | `server/src/neighbors/lldp.ts`, [docs/samples/neighbors](samples/neighbors) |
 | Network JSON | Closed schema, `schemaVersion` 1. Used for Layer 3 (subnets) and Layer 2 (VLANs, trunks, and LAGs). | [docs/schema/network.schema.json](schema/network.schema.json), `server/src/network/`, [docs/samples/network/campus.network.json](samples/network/campus.network.json) |
 
-Shared limits, from `DATA_LIMITS` in `diagramData.ts` and [Generate from data](generate-from-data.md): 512 KB per file, 5,000 rows, 2,000 nodes, 5,000 edges, 40 columns. A data file is stored beside the diagram (`.csv`, `.json`, `.cdp`, `.lldp`, or `.network.json`). Refresh rewrites only the block between `%% nerdgram:generated` markers. Notes and hand-edited nodes outside those markers stay.
+Shared limits, from `DATA_LIMITS` in `diagramData.ts` and [Generate from data](generate-from-data.md): 4 MiB per file, 5,000 rows, 2,000 nodes, 5,000 edges, 40 columns. A data file is stored beside the diagram (`.csv`, `.json`, `.cdp`, `.lldp`, or `.network.json`). Refresh rewrites only the block between `%% nerdgram:generated` markers. Notes and hand-edited nodes outside those markers stay.
 
 API and CLI entry points that accept this data:
 

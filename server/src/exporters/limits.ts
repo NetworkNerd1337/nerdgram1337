@@ -17,6 +17,6 @@ export function assertExportInputSize(bytes: number): void {
     throw exporterFail(400, "The network document size is not valid.");
   }
   if (bytes > EXPORT_MAX_INPUT_BYTES) {
-    throw exporterFail(413, "The network document is larger than 512 KB.", "too_large");
+    throw exporterFail(413, "The network document is larger than 4 MiB.", "too_large");
   }
 }

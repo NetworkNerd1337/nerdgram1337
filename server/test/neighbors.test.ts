@@ -455,9 +455,40 @@ Chassis id: 0011.2233.4455
     }
   });
 
-  it("refuses neighbor output larger than 512 KB", () => {
-    expect(() => importDiagramData({ text: `core#show cdp neighbors detail\n${"A".repeat(512 * 1024)}`, format: "cdp" })).toThrow(
-      /512 KB/,
-    );
+  it("refuses neighbor output larger than 4 MiB", () => {
+    expect(() =>
+      importDiagramData({ text: `core#show cdp neighbors detail\n${"A".repeat(4 * 1024 * 1024)}`, format: "cdp" }),
+    ).toThrow(/Data is larger than 4 MiB \(about 3,000 CDP detail neighbors\)/);
+  });
+
+  it("parses 500 synthetic CDP neighbors", () => {
+    const version = `Cisco IOS Software, C3900 Software (C3900-UNIVERSALK9-M), Version 15.4(3)M9, RELEASE SOFTWARE (fc1)
+Technical Support: http://www.cisco.com/techsupport
+Copyright (c) 1986-2018 by Cisco Systems, Inc.
+Compiled ${"X".repeat(700)}`;
+    const blocks = Array.from({ length: 500 }, (_, index) => {
+      const n = String(index + 1).padStart(4, "0");
+      return `-------------------------
+Device ID: spoke-${n}
+Entry address(es):
+  IP address: 10.1.${index % 200}.1
+Platform: cisco ISR4451,  Capabilities: Router Switch
+Interface: Tunnel${index + 1},  Port ID (outgoing port): Tunnel0
+Holdtime : 145 sec
+
+Version :
+${version}
+
+advertisement version: 2
+`;
+    });
+    const text = `hub#show cdp neighbors detail\n${blocks.join("\n")}\n`;
+    expect(text.length).toBeGreaterThan(512 * 1024);
+    expect(text.length).toBeLessThan(4 * 1024 * 1024);
+    const result = importDiagramData({ text, format: "cdp" });
+    expect(result.errors).toEqual([]);
+    expect(result.counts.edges).toBe(500);
+    expect(result.mermaid).toContain("spoke-0001");
+    expect(result.mermaid).toContain("spoke-0500");
   });
 });
