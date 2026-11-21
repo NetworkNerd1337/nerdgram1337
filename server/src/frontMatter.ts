@@ -111,6 +111,8 @@ export type DiagramPatch = {
   /** `null` or `""` deletes that ELK option. Absent keys are left alone. */
   elk?: Record<string, Scalar | undefined> | null;
   flowchartCurve?: string | null;
+  /** Opt-in hub-and-spoke layout. Stored under `nerdgram`, which Mermaid ignores. */
+  hubLayout?: string | null;
 };
 
 export type DiagramDocument = {
@@ -136,6 +138,8 @@ export type DiagramDocument = {
   themeCSS: string | null;
   themeVariables: Record<string, Scalar>;
   flowchartCurve: string | null;
+  /** `compact` or `radial` when the file asks for a hub layout. Null otherwise. */
+  hubLayout: string | null;
   elk: Record<string, Scalar>;
   /** Parsed `config` object. Empty when the header failed or was absent. */
   config: Record<string, unknown>;
@@ -390,6 +394,7 @@ function emptyDocument(): DiagramDocument {
     themeCSS: null,
     themeVariables: {},
     flowchartCurve: null,
+    hubLayout: null,
     elk: {},
     config: {},
     initConfig: {},
@@ -524,6 +529,7 @@ export function parseDiagram(source: string): DiagramDocument {
     notes: asString(nerdgram.notes) ?? "",
     tags: asTags(nerdgram.tags),
     category: (asString(nerdgram.category) ?? "").trim(),
+    hubLayout: asString(nerdgram.hubLayout),
     displayMode: asString(data.displayMode),
     ...config,
   };
@@ -703,6 +709,10 @@ function applyToDocument(doc: Document, patch: DiagramPatch): void {
     setOrClear(doc, [NERDGRAM, "tags"], tags);
   }
   if ("category" in patch) setOrClear(doc, [NERDGRAM, "category"], patch.category?.trim() ?? null);
+  if ("hubLayout" in patch) {
+    const value = patch.hubLayout?.trim() ?? "";
+    setOrClear(doc, [NERDGRAM, "hubLayout"], value === "compact" || value === "radial" ? value : null);
+  }
   if ("theme" in patch) setOrClear(doc, ["config", "theme"], patch.theme?.trim() ?? null);
   if ("look" in patch) setOrClear(doc, ["config", "look"], patch.look?.trim() ?? null);
   if ("layout" in patch) setOrClear(doc, ["config", "layout"], patch.layout?.trim() ?? null);

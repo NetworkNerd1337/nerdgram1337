@@ -35,19 +35,21 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Meridian title and the 1.8.15 section without the heading", () => {
-    const title = notes(["--title", "v1.8.15"]);
+  it("prints the Meridian title and the 1.8.16 section without the heading", () => {
+    const title = notes(["--title", "v1.8.16"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v1.8.15 "Meridian"\n');
-    const body = notes(["v1.8.15"]);
+    expect(title.stdout).toBe('v1.8.16 "Meridian"\n');
+    const body = notes(["v1.8.16"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Meridian line.")).toBe(true);
-    expect(body.stdout).toContain("another window");
-    expect(body.stdout).toContain("Fit");
-    expect(body.stdout).toContain("#227");
-    expect(body.stdout).toContain("#236");
-    expect(body.stdout).toContain("200%");
-    expect(body.stdout).not.toContain('## 1.8.15 "Meridian"');
+    expect(body.stdout).toContain("4 MiB");
+    expect(body.stdout).toContain("maxTextSize");
+    expect(body.stdout).toContain("maxEdges");
+    expect(body.stdout).toContain("8,000,000");
+    expect(body.stdout).toContain("#240");
+    expect(body.stdout).toContain("#242");
+    expect(body.stdout).toContain("Hub layout");
+    expect(body.stdout).not.toContain('## 1.8.16 "Meridian"');
     expect(body.stdout).not.toContain("Future ideas");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });

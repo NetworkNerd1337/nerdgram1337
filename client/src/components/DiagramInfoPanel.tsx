@@ -313,6 +313,19 @@ export function DiagramInfoPanel({
         disabled={locked}
         onChange={(layout) => commit({ layout })}
       />
+      {diagramKey === "flowchart" && (
+        <SelectField
+          label="Hub layout"
+          value={info.hubLayout ?? ""}
+          emptyLabel="Default rank"
+          options={[
+            ["compact", "Compact grid"],
+            ["radial", "Radial rings"],
+          ]}
+          disabled={locked}
+          onChange={(hubLayout) => commit({ hubLayout })}
+        />
+      )}
       <FontFamilyField
         value={info.fontFamily}
         disabled={locked}
