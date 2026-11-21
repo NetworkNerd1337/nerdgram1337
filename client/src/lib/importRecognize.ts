@@ -166,25 +166,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function records(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) return value.filter(isRecord);
+  if (isRecord(value)) return Object.values(value).filter(isRecord);
+  return [];
+}
+
 function shapeIsLucidBlock(shape: Record<string, unknown>): boolean {
-  const kind = `${typeof shape.class === "string" ? shape.class : ""} ${typeof shape.type === "string" ? shape.type : ""}`;
-  return /block\b/i.test(kind);
+  return (
+    (typeof shape.class === "string" && /Block$/.test(shape.class)) ||
+    (typeof shape.type === "string" && /Block$/.test(shape.type))
+  );
 }
 
-function lineHasEndpoint(line: Record<string, unknown>): boolean {
-  return Object.keys(line).some((key) => /endpoint/i.test(key));
+function lineIsLucid(line: Record<string, unknown>): boolean {
+  if ("endpoint1" in line || "endpoint2" in line) return true;
+  if ("from" in line && "to" in line) return true;
+  if ("source" in line && "target" in line) return true;
+  return false;
 }
 
-/** Lucidchart names itself, or exports pages of block shapes and endpoint lines. */
+/**
+ * Lucidchart names itself, or exports pages of block shapes and connector lines.
+ * Shapes and lines may be arrays or id-keyed objects. A plain nodes/links or
+ * devices/links document has no such pages and is left alone.
+ */
 function looksLikeLucid(value: Record<string, unknown>): boolean {
   const product = typeof value.product === "string" ? value.product.toLowerCase() : "";
   if (product.includes("lucidchart") || "lucidchart" in value) return true;
   if (!Array.isArray(value.pages)) return false;
   return value.pages.some((page) => {
-    if (!isRecord(page) || !Array.isArray(page.shapes) || !Array.isArray(page.lines)) return false;
-    const blocks = page.shapes.some((shape) => isRecord(shape) && shapeIsLucidBlock(shape));
-    const linked = page.lines.some((line) => isRecord(line) && lineHasEndpoint(line));
-    return blocks && linked;
+    if (!isRecord(page)) return false;
+    const blocks = records(page.shapes).some(shapeIsLucidBlock);
+    const linked = records(page.lines).some(lineIsLucid);
+    return blocks || linked;
   });
 }
 

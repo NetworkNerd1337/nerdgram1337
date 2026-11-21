@@ -92,6 +92,38 @@ describe("import recognition", () => {
     expect(found.message).toMatch(/not supported yet/i);
   });
 
+  it("names an id-keyed Lucid export that links shapes with from and to", () => {
+    const lucid = {
+      pages: [
+        {
+          shapes: {
+            s1: { type: "FreehandBlock" },
+            s2: { class: "ProcessBlock" },
+            s3: { type: "DefaultSquareBlock" },
+          },
+          lines: {
+            l1: { from: "s1", to: "s2" },
+          },
+        },
+      ],
+    };
+    const found = textFile("export.txt", JSON.stringify(lucid));
+    expect(found.kind).toBe("lucidchart");
+    expect(found.action).toBe("unsupported");
+  });
+
+  it("keeps network JSON and a plain nodes and links file on the From data path", () => {
+    const network = textFile(
+      "Campus.network.json",
+      '{"schemaVersion":1,"devices":[{"name":"r1"}],"interfaces":[],"links":[{"source":"a","target":"b"}]}',
+    );
+    expect(network.kind).toBe("network");
+    expect(network.action).toBe("from-data");
+    const plain = textFile("rows.json", '{"nodes":[{"id":"a"}],"links":[{"source":"a","target":"b"}]}');
+    expect(plain.kind).toBe("json");
+    expect(plain.action).toBe("from-data");
+  });
+
   it("says when a file is not a recognized format", () => {
     const found = textFile("notes.txt", "hello from a meeting\n");
     expect(found.kind).toBe("unknown");
