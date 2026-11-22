@@ -10,7 +10,7 @@ Run NerdGram with Docker, or with Node.js on the machine. Docker is the install 
 
 The app is for you, on your personal machine. It is a single-user tool, not a client/server product. The API is a tool port: a conduit other programs can call on demand, not an always-on multi-user server. The [security model](security.md#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset unless you want that tool port on the local network.
 
-The Docker `pull` and `run` commands in this file use `v2.1.7`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](../compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](releases.md#versioning-and-releases) fails if an image pin in the README or the docs, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](releases.md#versioning-and-releases).
+The Docker `pull` and `run` commands in this file use `v2.1.8`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](../compose.yaml) pins. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. [`npm run version:check`](releases.md#versioning-and-releases) fails if an image pin in the README or the docs, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](releases.md#versioning-and-releases).
 
 ### Docker
 
@@ -22,10 +22,10 @@ The package is public, so `docker pull` does not need a login. If a new package 
 
 **1. Install Docker.** Install Docker Engine and the Compose plugin from [Docker's documentation](https://docs.docker.com/get-docker/). `docker version` and `docker compose version` should both print a version.
 
-**2. Pull the image.** The command uses `v2.1.7`, the tag for this tree (the same pin as [`compose.yaml`](../compose.yaml)). Use the current tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when it differs. `:latest` is the newest full release.
+**2. Pull the image.** The command uses `v2.1.8`, the tag for this tree (the same pin as [`compose.yaml`](../compose.yaml)). Use the current tag from the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when it differs. `:latest` is the newest full release.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.7
+docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.8
 ```
 
 ```bash
@@ -42,7 +42,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.7
+  ghcr.io/networknerd1337/nerdgram1337:v2.1.8
 ```
 
 **About → Show upgrade steps** prints the run command with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. Updating an install you already have is [Update a Docker install](upgrading.md#update-a-docker-install).
@@ -68,7 +68,7 @@ name: nerdgram1337
 
 services:
   nerdgram:
-    image: ghcr.io/networknerd1337/nerdgram1337:v2.1.7
+    image: ghcr.io/networknerd1337/nerdgram1337:v2.1.8
     container_name: nerdgram1337
     restart: unless-stopped
     read_only: true
@@ -96,7 +96,7 @@ volumes:
 | Key or variable | What it does |
 | --- | --- |
 | `name` | The Compose project name. It keeps this stack separate from other projects. |
-| `image` | The published image. `v2.1.7` is this tree's tag and does not move. `:latest` is the newest full release and changes when a release is published. |
+| `image` | The published image. `v2.1.8` is this tree's tag and does not move. `:latest` is the newest full release and changes when a release is published. |
 | `container_name` | The container is always `nerdgram1337`, so `docker logs nerdgram1337` finds it. |
 | `restart` | `unless-stopped` starts the container again after a reboot, until you stop it yourself. |
 | `read_only` | The container's own filesystem cannot be written. Diagrams live on the volume, not in the image. |
