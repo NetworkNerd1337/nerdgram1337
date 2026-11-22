@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { DATA_MAX_CHARS } from "../src/diagramData.js";
+import { importNetworkFormat } from "../src/network/import.js";
 import { convertForeign } from "../src/diagramImport/convert.js";
 import { VISIO_BINARY_MESSAGE } from "../src/diagramImport/model.js";
 import { MAX_ZIP_ENTRIES } from "../src/diagramImport/zip.js";
@@ -136,5 +137,12 @@ describe("Lucid and Visio import", () => {
     if (!hub.ok) return;
     expect(hub.pages[0]?.nodes).toBeGreaterThanOrEqual(51);
     expect(hubLeafCount(hub.pages[0]?.mermaid ?? "")).toBeGreaterThanOrEqual(50);
+  });
+
+  it("cleans a huge network import file name quickly", () => {
+    const started = performance.now();
+    const result = importNetworkFormat({ view: "l3", sourceFile: `${"/".repeat(200_000)}x` }, "{}");
+    expect(performance.now() - started).toBeLessThan(200);
+    expect(result.source.file).toBe("data.network.json");
   });
 });

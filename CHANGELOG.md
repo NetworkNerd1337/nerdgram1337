@@ -8,6 +8,17 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 _No unreleased items._
 
+## 2.1.9 "Azimuth" - 2026-11-22
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
+- **Fixed:** A user template id stays inside `.templates/`. `../`, a nested name, `..`, a backslash, and a null byte are rejected, and nothing is written outside that folder.
+- **Fixed:** Trimming slashes from a path, and hyphens from a template name, walks the string once. A long run of `/` no longer stalls the process.
+- **Fixed:** SVG sanitizing repeats until the markup stops changing. A nested or spaced `script` tag, a rebuilt `on…` handler, and a `data:` URL that is not a png, jpeg, gif, or webp image are removed. A raster `data:image/png` URL stays.
+- **Fixed:** The editor preview and SVG, PNG, and PDF export drop a click link that uses `javascript:`, `vbscript:`, or a `data:` URL that is not a png, jpeg, gif, or webp image. An https link, a `nerdgram:` link, and a relative `.mmd` link stay.
+- **Fixed:** An editor tab id uses `crypto.getRandomValues` when `randomUUID` is missing. It does not use `Math.random`.
+- **Docs:** [Security model](docs/security.md) opens with Principles. The owner-settings list includes CodeQL default setup, with Copilot Autofix off.
+
 ## 2.1.8 "Azimuth" - 2026-11-22
 
 Patch on the Azimuth line. The code name stays Azimuth.

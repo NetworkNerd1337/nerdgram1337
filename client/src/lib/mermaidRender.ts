@@ -3,6 +3,7 @@ import { padEdgeLabelSvg } from "../../../server/src/edgeLabelPadding.ts";
 import { relayoutHubSvg } from "../../../server/src/hubLayout.ts";
 import { withSvgTextLabels } from "./exportSvg";
 import { diagramInitConfig, FALLBACK_THEME, withNodeLabelRoom } from "./frontMatter";
+import { stripDangerousSvgUrls } from "./svgClickUrls";
 
 let renderSeq = 0;
 let chain: Promise<unknown> = Promise.resolve();
@@ -25,7 +26,7 @@ function removeMermaidTemp(id: string): void {
 }
 
 function padRenderedSvg(svg: string): string {
-  return padEdgeLabelSvg(svg);
+  return stripDangerousSvgUrls(padEdgeLabelSvg(svg));
 }
 
 function initializeFor(code: string, fallbackTheme: string): void {

@@ -99,13 +99,85 @@ function decodeUrl(value: string): string {
     .toLowerCase();
 }
 
+const RASTER_DATA = /^data:image\/(png|jpe?g|gif|webp)[;,]/;
+
 function isDangerousUrl(value: string): boolean {
   const decoded = decodeUrl(value);
-  return (
-    decoded.startsWith("javascript:") ||
-    decoded.startsWith("vbscript:") ||
-    decoded.startsWith("data:text/html") ||
-    decoded.startsWith("data:application/xhtml")
+  if (decoded.startsWith("javascript:") || decoded.startsWith("vbscript:")) return true;
+  if (decoded.startsWith("data:")) return !RASTER_DATA.test(decoded);
+  return false;
+}
+
+function isNameChar(char: string): boolean {
+  const code = char.charCodeAt(0);
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+function isSpace(char: string): boolean {
+  return char === " " || char === "\n" || char === "\r" || char === "\t";
+}
+
+/** Drop `on…=` attributes, including `ononclick`, without a one-pass regex. */
+function stripOnAttributes(value: string): string {
+  let out = "";
+  let index = 0;
+  while (index < value.length) {
+    if (!isSpace(value[index] ?? "")) {
+      out += value[index];
+      index += 1;
+      continue;
+    }
+    const spaceAt = index;
+    while (index < value.length && isSpace(value[index] ?? "")) index += 1;
+    const nameAt = index;
+    if ((value[index] ?? "").toLowerCase() !== "o" || (value[index + 1] ?? "").toLowerCase() !== "n") {
+      out += value.slice(spaceAt, nameAt);
+      continue;
+    }
+    while (index < value.length && isNameChar(value[index] ?? "")) index += 1;
+    while (index < value.length && isSpace(value[index] ?? "")) index += 1;
+    if (value[index] !== "=") {
+      out += value.slice(spaceAt, nameAt);
+      index = nameAt;
+      continue;
+    }
+    index += 1;
+    while (index < value.length && isSpace(value[index] ?? "")) index += 1;
+    const quote = value[index];
+    if (quote === '"' || quote === "'") {
+      index += 1;
+      while (index < value.length && value[index] !== quote) index += 1;
+      if (index < value.length) index += 1;
+    } else {
+      while (index < value.length && !isSpace(value[index] ?? "") && value[index] !== ">") index += 1;
+    }
+  }
+  return out;
+}
+
+/**
+ * Repeat until `<script` is gone. One replacement is not enough: removing
+ * `</script` from `<scr</script>ipt` builds `<script` again.
+ */
+function sweepMarkup(value: string): string {
+  let current = value;
+  let previous = "";
+  while (current !== previous) {
+    previous = current;
+    while (current.toLowerCase().indexOf("<script") !== -1) {
+      current = current.replace(/<script/gi, "");
+    }
+    while (current.toLowerCase().indexOf("</script") !== -1) {
+      const at = current.toLowerCase().indexOf("</script");
+      const end = current.indexOf(">", at);
+      current = end === -1 ? current.slice(0, at) : current.slice(0, at) + current.slice(end + 1);
+    }
+  }
+  return stripOnAttributes(current).replace(
+    /(\s(?:href|xlink:href|src)\s*=\s*)(["'])([^"']*)\2/gi,
+    (match, prefix: string, quote: string, url: string) => {
+      return isDangerousUrl(url) ? `${prefix}${quote}#${quote}` : match;
+    },
   );
 }
 
@@ -158,14 +230,7 @@ export function sanitizeThumbnailSvg(svg: string): string {
     }
   });
   const structured = changed ? $.xml().trim() : trimmed;
-  const swept = structured
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<script\b[^>]*\/?>/gi, "")
-    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(
-      /(\s(?:href|xlink:href|src)\s*=\s*)(["'])\s*(?:javascript|vbscript):[^"']*\2/gi,
-      '$1$2#$2',
-    );
+  const swept = sweepMarkup(structured);
   const cleaned = swept === svg || swept === trimmed ? svg : swept;
   return svgForImage(cleaned);
 }

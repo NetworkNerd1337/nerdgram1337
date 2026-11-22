@@ -13,6 +13,7 @@ import {
   type RowIssue,
 } from "../diagramData.js";
 import { buildNetwork, type BuiltEdge, type BuiltNode } from "./generate.js";
+import { trimSlashes } from "../trim.js";
 import { validateNetwork } from "./validate.js";
 
 const VIEWS = new Set<NetworkView>(["l3", "l2"]);
@@ -175,7 +176,7 @@ function cleanLocalDevice(value: string | undefined): string {
 
 function cleanStoredName(value: string | undefined): string {
   if (!value) return "";
-  const normalized = value.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const normalized = trimSlashes(value.replace(/\\/g, "/"));
   if (!normalized || normalized.split("/").some((part) => part === "." || part === ".." || part.startsWith("."))) return "";
   return normalized.toLowerCase().endsWith(".network.json") ? normalized : "";
 }

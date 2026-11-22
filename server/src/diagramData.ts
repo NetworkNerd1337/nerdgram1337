@@ -1,5 +1,6 @@
 import { Document, isMap, parseDocument } from "yaml";
 import { extensionForFormat, isDataFileName } from "./dataFiles.js";
+import { trimSlashes } from "./trim.js";
 import { clickTargetKind, resolveDiagramTarget } from "./diagramLinks.js";
 import { matchFrontMatter, type FrontMatterMatch } from "./frontMatter.js";
 import { detectNeighborKind, parseNeighborSource } from "./neighbors/index.js";
@@ -820,21 +821,27 @@ export function unescapeLabel(raw: string): string {
     .replaceAll("#96;", "`");
 }
 
-export function isSafeDataPath(relativePath: string): boolean {
-  if (typeof relativePath !== "string" || !relativePath || relativePath.includes("\0")) return false;
-  const normalized = relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-  if (!normalized) return false;
+function normalizedSafeDataPath(relativePath: string): string | null {
+  if (typeof relativePath !== "string" || !relativePath || relativePath.includes("\0")) return null;
+  const normalized = trimSlashes(relativePath.replace(/\\/g, "/"));
+  if (!normalized) return null;
   const parts = normalized.split("/");
-  if (parts.some((part) => part.length === 0 || part === "." || part === ".." || part.startsWith("."))) return false;
-  const base = normalized.split("/").pop() ?? "";
-  return isDataFileName(base);
+  if (parts.some((part) => part.length === 0 || part === "." || part === ".." || part.startsWith("."))) return null;
+  const base = parts[parts.length - 1] ?? "";
+  if (!isDataFileName(base)) return null;
+  return normalized;
+}
+
+export function isSafeDataPath(relativePath: string): boolean {
+  return normalizedSafeDataPath(relativePath) != null;
 }
 
 export function assertDataPath(relativePath: string): string {
-  if (!isSafeDataPath(relativePath)) {
+  const normalized = normalizedSafeDataPath(relativePath);
+  if (normalized == null) {
     throw dataFail(400, "Data files have to be a .csv, .json, .network.json, .cdp, or .lldp path inside the workspace.", "invalid");
   }
-  return relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  return normalized;
 }
 
 /** A label must not survive as a `javascript:` click target even if the quotes were misread. */
@@ -1824,8 +1831,8 @@ function mappingFromPlain(value: unknown): ColumnMapping | null {
 }
 
 function cleanStoredName(value: string | undefined): string {
-  if (!value || !isSafeDataPath(value)) return "";
-  return value.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!value) return "";
+  return normalizedSafeDataPath(value) ?? "";
 }
 
 function defaultSourceName(format: DataFormat): string {

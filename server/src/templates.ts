@@ -8,6 +8,8 @@ import {
   normalizeRelative,
   pathExists,
   resolveAvailablePath,
+  resolveUnder,
+  trimChar,
 } from "./storage.js";
 
 /**
@@ -400,13 +402,10 @@ function asRecord(input: unknown): Record<string, unknown> {
 }
 
 function slugFromName(name: string): string {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/\.mmd$/i, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+  const slug = trimChar(
+    name.trim().toLowerCase().replace(/\.mmd$/i, "").replace(/[^a-z0-9]+/g, "-"),
+    "-",
+  ).slice(0, 80);
   if (!ID_PATTERN.test(slug)) throw httpFail(400, "Template name needs a letter or number", "invalid");
   return slug;
 }
@@ -435,7 +434,7 @@ async function refuseBuiltin(id: string): Promise<void> {
 }
 
 function userFilePath(id: string): string {
-  return path.join(getUserTemplatesRoot(), `${assertId(id)}.mmd`);
+  return resolveUnder(getUserTemplatesRoot(), `${assertId(id)}.mmd`);
 }
 
 async function listUserTemplates(): Promise<TemplateRecord[]> {

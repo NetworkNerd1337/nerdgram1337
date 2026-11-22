@@ -4,6 +4,15 @@ NerdGram1337 is a local, single-user personal tool.
 
 [Back to the documentation index](README.md)
 
+## Principles
+
+- NerdGram is a local, single-user tool, and having no login is a deliberate choice.
+- Diagram, import, and template files and request parameters are treated as untrusted input. A crafted file must never escape the data folder, run a script in a rendered SVG, or hang the server.
+- Your data stays in the data folder, and OS permissions are the access control.
+- Opening the port beyond loopback is your choice, and NerdGram warns when it is open.
+- Supply chain: Actions are pinned to SHAs, npm publishes through trusted publishing, and code owners review `.github/` and `package.json` changes.
+- Dependabot and CodeQL run passively and only send alerts. Nothing changes the code automatically, and each finding is triaged: fixed in a release, or dismissed with a written reason.
+
 NerdGram1337 is a local, single-user personal tool. It has no accounts and no login, by design. Diagrams are plain `.mmd` files. An in-app login would not protect anything the operating system does not already protect. Your OS account and the permissions on the data directory are the access control. Automation tokens, described in [Automation API](api.md#automation-api), apply only to `/api/v1`. They do not cover the browser routes.
 
 The browser routes under `/api` have no token. That is on purpose: the page on this computer uses them. Any program already running as you can call `POST /api/tokens` and create a read-write automation token. A token stops other machines, and it stops a web page from another origin. It does not stop software that is already running as you on this computer.
@@ -57,6 +66,7 @@ These are the owner settings. The files in the repo do not turn them on.
 - **Ruleset on `main`.** Require a pull request before merging. Require the **verify** and **docker** checks. Block force pushes. Require a review from code owners so a change under `.github/` or to a `package.json` needs the maintainer.
 - **Actions.** Require approval before a workflow runs from an outside collaborator. That setting is under Settings, Actions, General.
 - **Secret scanning and push protection.** Turn both on under Settings, Code security. Push protection stops a commit that contains a token.
+- **CodeQL.** Default setup is on under Settings, Code security. Copilot Autofix is off. CodeQL sends alerts and does not change the code. Each finding is fixed in a release or dismissed with a written reason.
 - **npm trusted publisher.** This is already set on npmjs.com for `nerdgram1337`: GitHub Actions, owner `NetworkNerd1337`, repository `nerdgram1337`, workflow `release.yml`, environment empty. The publish job tries that OIDC path first. `NPM_TOKEN` is only the fallback when that publish fails. After a trusted publish succeeds, delete the `NPM_TOKEN` repository secret.
 
 ## See also

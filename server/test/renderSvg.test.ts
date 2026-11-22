@@ -8,6 +8,7 @@ import { createApp } from "../src/app.js";
 import { main } from "../src/cli.js";
 import { svgXmlError } from "../src/edgeLabelPadding.js";
 import { closeRenderer, renderDiagram } from "../src/renderDiagram.js";
+import { sanitizeThumbnailSvg } from "../src/thumbnails.js";
 import { makeTempDataDir } from "./helpers.js";
 
 const multi = "flowchart LR\n  Core[Core] -->|line one<br/>line two<br/>line three| Dist[Dist]\n";
@@ -42,6 +43,13 @@ describe("rendered SVG", () => {
     expect(clickSvg).toContain("xmlns:xlink");
     expect(clickSvg).toContain("Gi0/1");
     expect(clickSvg).toContain("data-nerdgram-pad");
+  });
+
+  it("returns a rendered diagram with no script element", async () => {
+    const rendered = await renderDiagram({ source: "flowchart LR\n  A[ok] --> B[ok]\n", format: "svg" });
+    const svg = rendered.body.toString("utf8");
+    expect(svg).not.toMatch(/<script[\s>/]/i);
+    expect(sanitizeThumbnailSvg(sanitizeThumbnailSvg(svg))).toBe(sanitizeThumbnailSvg(svg));
   });
 
   it("fails the CLI when the SVG would not parse, and writes a multi-line label that does", async () => {

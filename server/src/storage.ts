@@ -3,6 +3,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { dataFileExtension } from "./dataFiles.js";
 import { getMetaPath } from "./paths.js";
+import { trimSlashes } from "./trim.js";
+
+export { trimChar, trimSlashes } from "./trim.js";
 
 /**
  * Shared disk helpers for diagram writes.
@@ -77,7 +80,29 @@ export function getLocksRoot(): string {
 }
 
 export function normalizeRelative(input: string): string {
-  return input.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  return trimSlashes(input.replace(/\\/g, "/"));
+}
+
+/**
+ * One file name directly inside `root`. A name with a separator, `.`, or
+ * `..` is rejected, and the resolved path has to stay in that directory.
+ */
+export function resolveUnder(root: string, fileName: string): string {
+  if (
+    fileName.includes("/") ||
+    fileName.includes("\\") ||
+    fileName.includes("\0") ||
+    fileName === "." ||
+    fileName === ".."
+  ) {
+    throw httpFail(400, "Invalid template id", "invalid");
+  }
+  const base = path.resolve(root);
+  const full = path.resolve(base, fileName);
+  if (!full.startsWith(base + path.sep) || path.dirname(full) !== base) {
+    throw httpFail(400, "Invalid template id", "invalid");
+  }
+  return full;
 }
 
 export function hashContent(content: string): string {

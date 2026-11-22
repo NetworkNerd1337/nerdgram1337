@@ -9,6 +9,7 @@ import {
   diffModels,
   escapeLabel,
   importDiagramData,
+  isSafeDataPath,
   readDataSource,
   readGeneratedModel,
   renderRefresh,
@@ -172,5 +173,12 @@ describe("diagram data import", () => {
     expect(
       lintDiagram(merged, { diagramPaths: ["campus.mmd"] }).filter((item) => item.ruleId !== "unconnected-node"),
     ).toEqual([]);
+  });
+
+  it("rejects a long run of slashes in a data path quickly", () => {
+    const value = `${"/".repeat(200_000)}x`;
+    const started = performance.now();
+    expect(isSafeDataPath(value)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(200);
   });
 });

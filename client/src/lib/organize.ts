@@ -1,3 +1,4 @@
+import { trimSlashes } from "../../../server/src/trim.ts";
 import { basename, joinPath, parentPath } from "./paths";
 import type { TreeNode } from "../types";
 
@@ -7,7 +8,7 @@ import type { TreeNode } from "../types";
  * No word yields `Name 2.mmd`, which import uses for an explicit rename.
  */
 export function insertNameSuffix(relativePath: string, suffix: string): string {
-  const normalized = relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const normalized = trimSlashes(relativePath.replace(/\\/g, "/"));
   const slash = normalized.lastIndexOf("/");
   const dir = slash >= 0 ? normalized.slice(0, slash) : "";
   const base = slash >= 0 ? normalized.slice(slash + 1) : normalized;
