@@ -1,7 +1,7 @@
 import type { DiagramCheckFinding } from "./diagramChecks";
 import type { UnreadableDiagram } from "../../../server/src/readError.ts";
 
-/** Diagrams the Needs attention list actually shows. The badge uses this count. */
+/** Diagrams the Diagram health badge counts. */
 export function attentionBadgeCount(
   diagrams: readonly { errors: number; warnings: number }[] | null | undefined,
 ): number {

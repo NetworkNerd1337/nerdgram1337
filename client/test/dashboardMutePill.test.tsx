@@ -268,7 +268,7 @@ describe("dashboard warning pill follows the editor mute toggle", () => {
     await flush();
     expect(document.body.textContent).toContain("Wan");
     expect(document.querySelector(".diagram-card-health")).toBeNull();
-    expect(document.querySelector(".attention-badge")).toBeNull();
+    expect(document.querySelector(".attention-badge")?.textContent).toContain("(0)");
     expect(document.querySelector(".card.is-health-warning")).toBeNull();
 
     await act(async () => {
@@ -323,7 +323,7 @@ describe("dashboard warning pill follows the editor mute toggle", () => {
     await flush();
     expect(document.querySelector(".diagram-card-health")).toBeNull();
     expect(document.querySelector(".is-health-warning")).toBeNull();
-    expect(document.querySelector(".attention-badge")).toBeNull();
+    expect(document.querySelector(".attention-badge")?.textContent).toContain("(0)");
     expect(document.body.textContent).toContain("Clean");
   });
 });

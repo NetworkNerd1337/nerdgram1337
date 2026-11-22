@@ -18,9 +18,8 @@ type SidebarProps = {
   knownPaths: ReadonlySet<string>;
   recent: RecentEntry[];
   onClearRecent: () => void;
-  attentionCount: number;
-  attentionActive?: boolean;
-  onOpenAttention?: () => void;
+  /** Null until a check has run. Zero is shown only after a check that found nothing. */
+  attentionCount: number | null;
   currentFolder: string;
   search: string;
   onSearch: (value: string) => void;
@@ -54,8 +53,6 @@ export function Sidebar({
   recent,
   onClearRecent,
   attentionCount,
-  attentionActive = false,
-  onOpenAttention,
   currentFolder,
   search,
   onSearch,
@@ -114,19 +111,13 @@ export function Sidebar({
         <div className="nav-label">Your space</div>
         <button
           type="button"
-          className={`nav-link${currentFolder === "" && !trashActive && !attentionActive && !healthActive ? " active" : ""}${rootDrop}`}
+          className={`nav-link${currentFolder === "" && !trashActive && !healthActive ? " active" : ""}${rootDrop}`}
           onClick={() => onSelectFolder("")}
           onDragOver={onFolderDragOver ? (event) => onFolderDragOver("", event) : undefined}
           onDrop={onFolderDrop ? (event) => onFolderDrop("", event) : undefined}
         >
           Dashboard
         </button>
-        <Link className={`nav-link${healthActive ? " active" : ""}`} to="/health">
-          Diagram health
-        </Link>
-        <Link className="nav-link" to="/reference" target="_blank" rel="noopener">
-          Syntax reference
-        </Link>
         <section className="sidebar-block" aria-label="Recent">
           <div className="sidebar-block-head">
             <button
@@ -168,14 +159,19 @@ export function Sidebar({
           ) : null}
         </section>
         <BookmarksSection state={bookmarks} knownPaths={knownPaths} onChange={onBookmarks} />
-        <button
-          type="button"
-          className={`nav-link${attentionActive ? " active" : ""}`}
-          onClick={() => onOpenAttention?.()}
-        >
-          Needs attention
-          {attentionCount > 0 ? <span className="attention-badge"> ({attentionCount})</span> : null}
-        </button>
+        <Link className="nav-link" to="/templates">
+          Template gallery
+        </Link>
+        <Link className={`nav-link${healthActive ? " active" : ""}`} to="/health">
+          Diagram health
+          {attentionCount != null ? <span className="attention-badge"> ({attentionCount})</span> : null}
+        </Link>
+        <Link className="nav-link" to="/reference" target="_blank" rel="noopener">
+          Syntax reference
+        </Link>
+        <Link className="nav-link" to="/settings">
+          Settings
+        </Link>
         <button
           type="button"
           className={`nav-link${trashActive ? " active" : ""}`}
@@ -193,44 +189,6 @@ export function Sidebar({
           onFolderDragOver={onFolderDragOver}
           onFolderDrop={onFolderDrop}
         />
-      </div>
-
-      <div className="nav-section">
-        <div className="nav-label">Templates</div>
-        <Link className="nav-link" to="/templates">
-          Template gallery
-        </Link>
-      </div>
-
-      <div className="nav-section">
-        <div className="nav-label">Settings</div>
-        <Link className="nav-link" to="/settings#appearance">
-          Appearance
-        </Link>
-        <Link className="nav-link" to="/settings#style-presets">
-          Style presets
-        </Link>
-        <Link className="nav-link" to="/settings#host">
-          Host
-        </Link>
-        <Link className="nav-link" to="/settings#diagram-folder">
-          Diagram folder
-        </Link>
-        <Link className="nav-link" to="/settings#instance">
-          Instance name
-        </Link>
-        <Link className="nav-link" to="/settings#github-sync">
-          GitHub sync
-        </Link>
-        <Link className="nav-link" to="/settings#tokens">
-          Automation tokens
-        </Link>
-        <Link className="nav-link" to="/settings#diagram-checks">
-          Check rules
-        </Link>
-        <Link className="nav-link" to="/settings#bookmarks">
-          Bookmarks
-        </Link>
       </div>
 
     </aside>

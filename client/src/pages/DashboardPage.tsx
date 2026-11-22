@@ -29,7 +29,7 @@ import {
   type DragItem,
   type DragPayload,
 } from "../lib/drag";
-import { attentionBadgeCount, attentionProblemLabel } from "../lib/attention";
+import { attentionBadgeCount } from "../lib/attention";
 import { dataMoveSentence, deleteDataPrompt, duplicateDataPrompt, duplicateStatus } from "../lib/dataFiles";
 import { draftsFromFiles, type ImportDraft } from "../lib/importDrafts";
 import { IMPORT_DATA_KEY, IMPORT_PRESET_KEY, MERMAID_IMPORT_HINT, SUPPORTED_IMPORT_LINE } from "../lib/importRecognize";
@@ -146,7 +146,6 @@ export function DashboardPage() {
   const [dataBusy, setDataBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [showTrash, setShowTrash] = useState(false);
-  const [showAttention, setShowAttention] = useState(false);
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof api.diagramLintSummary>> | null>(null);
   const [recent, setRecent] = useState<RecentEntry[]>(() => readRecent(browserStore()));
   const [trash, setTrash] = useState<TrashItem[]>([]);
@@ -167,11 +166,8 @@ export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedFolder = searchParams.get("folder") ?? "";
   useEffect(() => {
-    if (searchParams.get("attention") === "1") {
-      setShowAttention(true);
-      setShowTrash(false);
-    }
-  }, [searchParams]);
+    if (searchParams.get("attention") === "1") navigate("/health", { replace: true });
+  }, [navigate, searchParams]);
   useEffect(() => {
     let cancelled = false;
     void api.diagramLintSummary().then(
@@ -884,8 +880,8 @@ export function DashboardPage() {
   const diagramNameIssue = modal?.type === "diagram" ? fileNameIssue(nameValue, folderNames) : null;
 
   const problemCount =
-    summary?.status === "ready" && summary.checked != null ? attentionBadgeCount(summary.diagrams) : 0;
-  const heading = showAttention ? "Needs attention" : showTrash ? "Trash" : search.trim() ? "Search" : title;
+    summary?.status === "ready" && summary.checked != null ? attentionBadgeCount(summary.diagrams) : null;
+  const heading = showTrash ? "Trash" : search.trim() ? "Search" : title;
   usePageTitle(pageTitle(heading));
 
   return (
@@ -903,33 +899,22 @@ export function DashboardPage() {
           setRecent([]);
         }}
         attentionCount={problemCount}
-        attentionActive={showAttention}
-        onOpenAttention={() => {
-          setShowAttention(true);
-          setShowTrash(false);
-          setSearch("");
-        }}
-        currentFolder={showTrash || showAttention ? "__other__" : folder}
+        currentFolder={showTrash ? "__other__" : folder}
         search={search}
         namesOnly={namesOnly}
         onNamesOnly={setNamesOnly}
         onSearch={(value) => {
           setSearch(value);
-          if (value.trim()) {
-            setShowTrash(false);
-            setShowAttention(false);
-          }
+          if (value.trim()) setShowTrash(false);
         }}
         onSelectFolder={(path) => {
           setShowTrash(false);
-          setShowAttention(false);
           setFolder(path);
         }}
         trashCount={trash.length}
         trashActive={showTrash}
         onOpenTrash={() => {
           setShowTrash(true);
-          setShowAttention(false);
           setSearch("");
         }}
         dropHighlight={folderHighlight}
@@ -1026,7 +1011,7 @@ export function DashboardPage() {
               />
             </>
           )}
-          {!showTrash && !showAttention && (
+          {!showTrash && (
             <div className="view-toggle" role="group" aria-label="View mode">
               <button
                 type="button"
@@ -1047,7 +1032,7 @@ export function DashboardPage() {
         </div>
 
         {loading ? <p>Loading workspace…</p> : null}
-        {!showTrash && !showAttention && (allTags.length > 0 || tagCatalog.length > 0) && (
+        {!showTrash && (allTags.length > 0 || tagCatalog.length > 0) && (
           <div className="tag-filter" role="group" aria-label="Filter by tag">
             <TagCombobox
               catalog={tagCatalog}
@@ -1079,16 +1064,14 @@ export function DashboardPage() {
         )}
         {dragPath ? (
           <p className="drop-hint">Drop on a folder to move. A highlighted folder can take the item.</p>
-        ) : showTrash || showAttention ? null : (
+        ) : showTrash ? null : (
           <p className="import-hint">{SUPPORTED_IMPORT_LINE}</p>
         )}
-        {!showTrash && !showAttention && summary?.status === "ready" && summary.stale ? (
+        {!showTrash && summary?.status === "ready" && summary.stale ? (
           <p className="health-stale">Diagrams have changed since the last check.</p>
         ) : null}
 
-        {showAttention ? (
-          <AttentionView summary={summary} />
-        ) : showTrash ? (
+        {showTrash ? (
           <TrashList
             items={trash}
             onRestore={(id) => void restoreItem(id)}
@@ -1428,57 +1411,6 @@ export function DashboardPage() {
         />
       ) : null}
     </WorkspaceShell>
-  );
-}
-
-function AttentionView({
-  summary,
-}: {
-  summary: Awaited<ReturnType<typeof api.diagramLintSummary>> | null;
-}) {
-  if (!summary || summary.status === "not-checked" || summary.checked == null) {
-    return (
-      <div className="empty-state">
-        <p>Not checked yet. Open Diagram health.</p>
-        <Link className="btn btn-primary" to="/health">
-          Diagram health
-        </Link>
-      </div>
-    );
-  }
-  const when = summary.checkedAt ? new Date(summary.checkedAt).toLocaleString() : "";
-  const rows = (summary.diagrams ?? []).filter((item) => item.errors > 0 || item.warnings > 0);
-  return (
-    <div>
-      <p className="health-stale">
-        Last checked {when || "earlier"}.
-        {summary.stale ? " Diagrams have changed since then." : ""} <Link to="/health">Open Diagram health</Link>
-      </p>
-      {summary.unreadable ? (
-        <p>
-          {summary.unreadable} file{summary.unreadable === 1 ? "" : "s"} could not be read.
-        </p>
-      ) : null}
-      {rows.length === 0 && !summary.unreadable ? (
-        <div className="empty-state attention-clear">
-          <span className="attention-check" aria-hidden="true">
-            ✓
-          </span>
-          <p>All diagrams look good.</p>
-        </div>
-      ) : (
-        <ul className="attention-list">
-          {rows.map((row) => (
-            <li key={row.path}>
-              <Link className="attention-row" to={`/health?path=${encodeURIComponent(row.path)}`}>
-                <strong>{displayName(row.path)}</strong>
-                <span>{attentionProblemLabel(row.errors, row.warnings)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }
 

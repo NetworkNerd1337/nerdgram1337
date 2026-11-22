@@ -96,7 +96,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 
 - **[Preview](docs/features.md#preview).** Drag the preview to pan, and use the wheel to zoom toward the pointer. **Fit** keeps a readable zoom on a very tall or wide diagram.
 - **[Editing](docs/features.md#editing).** Opening a diagram takes a lock for that browser tab.
-- **[Files](docs/features.md#files).** **Your space** lists Recent, Bookmarks, and Needs attention, then Trash, then a Folders heading and the folder tree. Drag the edge of the sidebar to widen it. **Move to…** is on every diagram and folder, next to Rename and Delete.
+- **[Files](docs/features.md#files).** **Your space** lists Dashboard, Recent, Bookmarks, Template gallery, Diagram health, Syntax reference, Settings, and Trash, then a Folders heading and the folder tree. Drag the edge of the sidebar to widen it. **Move to…** is on every diagram and folder, next to Rename and Delete.
 - **[Import](docs/features.md#files).** Lucid CSV or JSON and Visio `.vsdx` become Mermaid diagrams. Mermaid files are copied in. CSV, JSON, CDP, LLDP, routing tables, ARP and MAC tables, and network JSON open in From data.
 - **[Trash and history](docs/features.md#trash-and-history).** Delete moves a diagram or a folder into the trash. The confirm follows the theme. Compare stays on screen, and side-by-side and text mark what changed.
 - **[Titles, themes, and notes](docs/features.md#titles-themes-and-notes).** A diagram can start with [Mermaid's YAML front matter](https://mermaid.js.org/config/configuration.html). Cards show the file name, and a different title on a second line.
