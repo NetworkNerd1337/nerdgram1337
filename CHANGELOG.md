@@ -6,7 +6,14 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- **Docs:** Support policy. 1.7.4 and older are deprecated. 1.7.5 and later are supported and should upgrade to the latest 2.1.x for security fixes.
+_No unreleased items._
+
+## 2.1.10 "Azimuth" - 2026-11-22
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
+- **Changed:** Your space is the only sidebar section. The order is Dashboard, Recent, Bookmarks, Template gallery, Diagram health, Syntax reference, Settings, and Trash, then Folders. Needs attention is gone. Its problem-count badge is on Diagram health: no count until a check has run, and zero only after a check that found nothing. An old `?attention=1` link opens Diagram health. Settings is one link to `/settings`. On a wide window the shorter settings cards flow down two columns, and GitHub sync is the full-width card at the bottom. Below about 1100 pixels the cards stack in one column (#273).
+- **Docs:** Support policy in `SECURITY.md`. 1.7.5 and later are supported. 1.7.4 and older are deprecated on npm, and their container images are removed from GHCR. GitHub releases and tags stay. Security fixes land in the latest release, so a supported copy should upgrade to the latest 2.1.x (#272).
 
 ## 2.1.9 "Azimuth" - 2026-11-22
 
