@@ -20,7 +20,7 @@
     "express": "^4.21.2",
     "isomorphic-git": "^1.44.13",
     "mermaid": "^12.3.0",
-    "puppeteer": "^24.43.1",
+    "puppeteer": "^25.18.1",
     "turndown": "^7.2.5",
     "yaml": "^2.9.1",
     "zod": "^3.25.76"
