@@ -46,10 +46,13 @@ services:
       # Optional. An empty value is treated as unset.
       NERDGRAM_GITHUB_CLIENT_ID: ${NERDGRAM_GITHUB_CLIENT_ID:-}
       NERDGRAM_GITHUB_TOKEN: ${NERDGRAM_GITHUB_TOKEN:-}
-      # Extra hostname, only if you mean to use one. Saving from the browser
-      # also needs the origin. This does not make a shared server supported.
-      #   NERDGRAM_ALLOWED_HOSTS=diagrams.home
-      #   NERDGRAM_CORS_ORIGINS=http://diagrams.home:8787
+      # LAN publish: change ports to "<lan-ip>:8787:8787", then set both.
+      # The container cannot see the host's addresses. ALLOWED_HOSTS lets the
+      # browser open the page. CORS_ORIGINS is required for saves from that
+      # same address, because this list does not add an origin. There is no
+      # login. This does not make a shared server supported.
+      #   NERDGRAM_ALLOWED_HOSTS=<lan-ip>
+      #   NERDGRAM_CORS_ORIGINS=http://<lan-ip>:8787
       NERDGRAM_ALLOWED_HOSTS: ${NERDGRAM_ALLOWED_HOSTS:-}
       NERDGRAM_CORS_ORIGINS: ${NERDGRAM_CORS_ORIGINS:-}
     volumes:

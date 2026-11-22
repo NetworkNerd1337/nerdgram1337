@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { renderForbiddenHostPage, wantsForbiddenHostPage } from "./forbiddenHostPage.js";
 import net from "node:net";
 import cors from "cors";
 
@@ -257,11 +258,27 @@ export function createHostGuard(options: {
   getPort: () => number;
   bindHosts: readonly string[];
   extraHosts: readonly string[];
+  /** Docker install copy on the browser 403. Read per request so tests can flip it. */
+  isDocker?: () => boolean;
 }): (req: Request, res: Response, next: NextFunction) => void {
   const allowedHostnames = buildAllowedHostnames(options.bindHosts, options.extraHosts);
   return (req, res, next) => {
     const host = singleHeader(req.headers.host);
     if (!isAllowedHostHeader(host, allowedHostnames, allowedPortsFor(req, options.getPort()))) {
+      if (wantsForbiddenHostPage(req)) {
+        res
+          .status(403)
+          .type("html")
+          .set("Cache-Control", "no-store")
+          .send(
+            renderForbiddenHostPage({
+              hostHeader: host ?? "",
+              port: options.getPort(),
+              docker: options.isDocker?.() ?? false,
+            }),
+          );
+        return;
+      }
       res.status(403).json({ error: "Forbidden host" });
       return;
     }
