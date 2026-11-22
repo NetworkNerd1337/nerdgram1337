@@ -19,12 +19,12 @@ Guides for installing NerdGram1337, using it, and working on it.
 - [MCP server](mcp.md). `/mcp` and `nerdgram mcp` let an MCP client use those tools.
 - [Command-line tool](cli.md). `nerdgram` is the command-line client for NerdGram1337.
 - [FAQ](faq.md). Short answers to the questions that come up first, with a link to the page that has the detail.
-- [Security model](security.md). NerdGram1337 is a local, single-user personal tool. How to report a vulnerability is in the [security policy](../SECURITY.md).
+- [Security model](security.md). NerdGram1337 is a local, single-user personal tool. How to report a vulnerability is in the [security policy](../SECURITY.md). Actions pins and the owner settings are in that security page.
 - [Questions and ideas](https://github.com/NetworkNerd1337/NerdGram1337/discussions). Discussions is where questions and ideas go. Issues stay bugs and features.
 - [Data and backups](data-and-backups.md). By default, diagrams live in `diagrams/` inside the project.
 - [Upgrading](upgrading.md). Stop the app before you replace it.
 - [Versioning and releases](releases.md). Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix.
-- [Roadmap](roadmap.md). Planned work after v2.1.6. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Future ideas at the end are not committed.
+- [Roadmap](roadmap.md). Planned work after v2.1.7. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Future ideas at the end are not committed.
 - [Troubleshooting](troubleshooting.md). If the API port is taken, the server exits and prints the listen error.
 - [Developing](developing.md). The project folders, the npm scripts, and what CI runs.
 
