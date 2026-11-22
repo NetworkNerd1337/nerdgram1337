@@ -178,7 +178,14 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   ];
 
   const app = express();
-  app.use(createHostGuard({ getPort, bindHosts, extraHosts }));
+  app.use(
+    createHostGuard({
+      getPort,
+      bindHosts,
+      extraHosts,
+      isDocker: () => detectInstallKind() === "docker",
+    }),
+  );
   if (mode === "development") {
     app.use(createDevCors({ getPort, extraOrigins, extraHosts: originHosts }));
   }

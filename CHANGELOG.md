@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Fixed:** A browser page whose Host is not allowed gets a self-contained HTML 403 that names that host and the Docker or Node fix. `/api`, MCP, and other non-HTML requests still get `{"error":"Forbidden host"}` (#276).
 
 ## 2.1.10 "Azimuth" - 2026-11-22
 

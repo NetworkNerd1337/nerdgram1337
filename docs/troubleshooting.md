@@ -13,6 +13,7 @@ If the API port is taken, the server exits and prints the listen error.
 - [The page opens, but diagrams do not load](#the-page-opens-but-diagrams-do-not-load)
 - [Can't read file](#cant-read-file)
 - [A save returns 403 or 415](#a-save-returns-403-or-415)
+- [The browser says NerdGram blocked this address](#the-browser-says-nerdgram-blocked-this-address)
 - [The container exits immediately, or the volume looks empty](#the-container-exits-immediately-or-the-volume-looks-empty)
 - [localhost opens the dev UI, and 127.0.0.1 does not](#localhost-opens-the-dev-ui-and-127001-does-not)
 - [Corporate TLS inspection](#corporate-tls-inspection)
@@ -65,7 +66,15 @@ This often means the diagram folder is on iCloud Drive, OneDrive, Dropbox, or Go
 
 ## A save returns 403 or 415
 
-**403** means the `Host` or `Origin` is not on the allow-list. **415** means a change was sent without `Content-Type: application/json`. The [curl example](security.md#security-model) has both headers. A Vite port other than 5173 needs `NERDGRAM_CORS_ORIGINS`. On a Node install, the machine's own IP is allowed after you save it as Host and start again, or when the bind is `0.0.0.0` or `::` and that IP was on an interface at startup. A DNS name still needs `NERDGRAM_ALLOWED_HOSTS`. In Docker, the published host address needs `NERDGRAM_ALLOWED_HOSTS` too.
+**403** means the `Host` or `Origin` is not on the allow-list. **415** means a change was sent without `Content-Type: application/json`. The [curl example](security.md#security-model) has both headers. A Vite port other than 5173 needs `NERDGRAM_CORS_ORIGINS`. On a Node install, the machine's own IP is allowed after you save it as Host and start again, or when the bind is `0.0.0.0` or `::` and that IP was on an interface at startup. A DNS name still needs `NERDGRAM_ALLOWED_HOSTS`. In Docker, the published host address needs `NERDGRAM_ALLOWED_HOSTS` too. A browser page that fails the Host check shows [NerdGram blocked this address](#the-browser-says-nerdgram-blocked-this-address). The Docker steps are [Publish on a LAN](install.md#publish-on-a-lan).
+
+## The browser says NerdGram blocked this address
+
+A browser page request (`GET` with `Accept: text/html`) whose `Host` is not allowed gets a self-contained **403** page. It names the host the browser used and the Docker or Node fix. `/api`, MCP, and any request that does not ask for HTML still get `{"error":"Forbidden host"}`. The page does not list other allowed hosts or environment values.
+
+![NerdGram blocked this address, for a Docker install opened at a LAN address](images/forbidden-host.png)
+
+The full Docker steps, including when `NERDGRAM_CORS_ORIGINS` is required for that same address, are [Publish on a LAN](install.md#publish-on-a-lan). On a Node install, save that IP as Host in Settings and restart. A DNS name goes in `NERDGRAM_ALLOWED_HOSTS`, and browser saves from that name also need `NERDGRAM_CORS_ORIGINS`. Opening the port on a network lets anyone who can reach it use the app. There is no login.
 
 ## The container exits immediately, or the volume looks empty
 

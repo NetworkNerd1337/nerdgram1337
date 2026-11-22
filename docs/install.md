@@ -108,8 +108,27 @@ volumes:
 | `NERDGRAM_GITHUB_CLIENT_ID` | Optional GitHub OAuth client id for GitHub sync. An empty value is unset. |
 | `NERDGRAM_GITHUB_TOKEN` | Optional GitHub token for sync. The token file inside the volume is `/data/.meta/github-token`. An empty value is unset. |
 | `NERDGRAM_ALLOWED_HOSTS` | Extra hostname or address callers use. A LAN publish needs the host's address here, because the container cannot see the host's interfaces. |
-| `NERDGRAM_CORS_ORIGINS` | Browser origin allowed to call the API when it is not the published host. Saving from `http://diagrams.home:8787` needs that origin. |
+| `NERDGRAM_CORS_ORIGINS` | Origin allowed for browser saves. Required for a Docker LAN address, including `http://<lan-ip>:8787`, because `NERDGRAM_ALLOWED_HOSTS` does not add an origin. Also required when the origin is a different name. See [Publish on a LAN](#publish-on-a-lan). |
 | `nerdgram-data` | The named volume. Compose and `docker run` both use the name `nerdgram-data`. Keep it mounted on `/data`. |
+
+### Publish on a LAN
+
+Keep the published port on one address. Anyone who can open that port can use the app. There is no login.
+
+1. Publish `<lan-ip>:8787:8787`. Do not publish `8787:8787` or `0.0.0.0:8787`.
+2. Set `NERDGRAM_ALLOWED_HOSTS` to that same IP. The container cannot see the host's network addresses, so a request whose `Host` is the LAN IP is **403** until this is set. A browser page request then shows a short HTML page naming that host. `/api`, MCP, and any request that does not ask for HTML still get `{"error":"Forbidden host"}`.
+3. Set `NERDGRAM_CORS_ORIGINS` to `http://<lan-ip>:8787`. This is required for saves from that address. It is not optional when the origin equals the published host: a name added only in `NERDGRAM_ALLOWED_HOSTS` passes the Host check and does not become an allowed origin. A Node install that saves that IP as Host, or that binds `0.0.0.0` and discovers the address, does allow `http://<that-ip>:<port>` without this variable. A DNS name still needs both variables on either install.
+4. Run `docker compose up -d`.
+
+```yaml
+ports:
+  - "<lan-ip>:8787:8787"
+environment:
+  NERDGRAM_ALLOWED_HOSTS: "<lan-ip>"
+  NERDGRAM_CORS_ORIGINS: "http://<lan-ip>:8787"
+```
+
+The same two lines can live in `.env` next to `compose.yaml` when the compose file already interpolates them. The blocked-address page fills in the host and port from the request so those lines can be copied as they are.
 
 There is no environment variable for the automation token. Create that in Settings. It is stored as a hash under `/data`. MCP uses the same token. Do not put it in the compose file.
 
@@ -179,7 +198,7 @@ That tags the image `nerdgram1337:local`. It does not label the local build with
 Optional variables go on `docker run -e`, or in a `.env` file next to `compose.yaml` (that file is gitignored):
 
 - `NERDGRAM_GITHUB_CLIENT_ID` for GitHub sync. `NERDGRAM_GITHUB_TOKEN` is optional. The token file is `/data/.meta/github-token` with mode `0600`. The git working copy is `/data/.nerdgram-git`.
-- `NERDGRAM_ALLOWED_HOSTS` and `NERDGRAM_CORS_ORIGINS` when callers use a DNS name, or when the published host address is not an address the container can see. Saving from `diagrams.home` needs `NERDGRAM_ALLOWED_HOSTS=diagrams.home` and `NERDGRAM_CORS_ORIGINS=http://diagrams.home:8787`. A LAN IP published as `<lan-ip>:8787:8787` needs that IP in `NERDGRAM_ALLOWED_HOSTS` because interface discovery inside the container is the container's own addresses, not the host's. That is still a single-user tool port, not a shared server. See [Security model](security.md#security-model).
+- `NERDGRAM_ALLOWED_HOSTS` and `NERDGRAM_CORS_ORIGINS` for a LAN address or a DNS name. The steps are [Publish on a LAN](#publish-on-a-lan). That is still a single-user tool port, not a shared server. See [Security model](security.md#security-model).
 
 **Corporate TLS inspection.** Update checks and GitHub sync run inside the container. A proxy that re-signs HTTPS, such as Zscaler, uses a corporate root CA the container does not trust. Export that root as a PEM, mount it read-only, and set `NODE_EXTRA_CA_CERTS` to the path inside the container. The `docker run` and Compose steps are [Corporate TLS inspection](troubleshooting.md#corporate-tls-inspection).
 
