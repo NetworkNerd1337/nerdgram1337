@@ -3793,26 +3793,29 @@ body.is-col-resizing * {
   max-width: 860px;
 }
 
-/* Wide windows flow cards down two columns. A row of pairs would leave a gap beside a short card. */
+.settings-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Wide windows flow the short cards down two columns. GitHub sync stays full width under that block, so a spanning card does not leave an empty column above it. */
 @media (min-width: 1100px) {
   .settings-screen .sync-page {
-    display: block;
     max-width: none;
+  }
+
+  .settings-screen .settings-columns {
+    display: block;
     columns: 2;
     column-gap: 1rem;
   }
 
-  .settings-screen .sync-page > .sync-card {
+  .settings-screen .settings-columns > .sync-card {
     display: inline-block;
     width: 100%;
     margin: 0 0 1rem;
     break-inside: avoid;
-  }
-
-  .settings-screen .sync-page > #github-sync {
-    display: block;
-    width: auto;
-    column-span: all;
   }
 }
 

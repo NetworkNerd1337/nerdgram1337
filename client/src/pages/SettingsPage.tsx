@@ -113,12 +113,11 @@ export function SettingsPage() {
           <div>
             <h1>Settings</h1>
             <p className="reference-meta">
-              Appearance, style presets, GitHub sync, the listen host, the diagram folder, the instance name, automation tokens, and diagram checks.
+              Appearance, style presets, the listen host, the diagram folder, the instance name, automation tokens, diagram checks, bookmarks, app updates, and GitHub sync.
             </p>
             <nav className="settings-nav" aria-label="Settings sections">
               <a href="#appearance">Appearance</a>
               <a href="#style-presets">Style presets</a>
-              <a href="#github-sync">GitHub sync</a>
               <a href="#host">Host</a>
               <a href="#diagram-folder">Diagram folder</a>
               <a href="#instance">Instance name</a>
@@ -126,6 +125,7 @@ export function SettingsPage() {
               <a href="#diagram-checks">Diagram checks</a>
               <a href="#bookmarks">Bookmarks</a>
               <a href="#app-updates">App updates</a>
+              <a href="#github-sync">GitHub sync</a>
             </nav>
           </div>
         </div>
@@ -140,8 +140,24 @@ export function SettingsPage() {
       </header>
 
       <main className="sync-page">
+        <div className="settings-columns">
         <AppearanceSettings />
         <StylePresetsSettings />
+        <HostSettings />
+        <DiagramFolderSettings githubSync={status?.enabled === true} />
+        <InstanceSettings />
+        <TokenSettings />
+        <LintSettings />
+        <BookmarkManager />
+        <section className="sync-card" id="app-updates">
+          <h2>App updates</h2>
+          <p>
+            Version checks are separate from GitHub sync. The sync token is not used. The server
+            asks the public GitHub releases API whether a newer stable version of NerdGram exists.
+          </p>
+          <UpdateSettingsFields />
+        </section>
+        </div>
         <section className="sync-card" id="github-sync">
           <h2>GitHub sync</h2>
           <p>
@@ -449,20 +465,6 @@ export function SettingsPage() {
             ))}
           </section>
         ) : null}
-        <HostSettings />
-        <DiagramFolderSettings githubSync={status?.enabled === true} />
-        <InstanceSettings />
-        <TokenSettings />
-        <LintSettings />
-        <BookmarkManager />
-        <section className="sync-card" id="app-updates">
-          <h2>App updates</h2>
-          <p>
-            Version checks are separate from GitHub sync. The sync token is not used. The server
-            asks the public GitHub releases API whether a newer stable version of NerdGram exists.
-          </p>
-          <UpdateSettingsFields />
-        </section>
       </main>
 
       {disconnectOpen ? (

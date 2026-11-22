@@ -161,9 +161,9 @@ Color fields under Theme variables show a row of swatches. Workspace colors come
 
 ## Appearance
 
-**Appearance** on the settings page (`/settings#appearance`) is **Light**, **Dark**, or **Match system**. Match system is the default. The choice is saved in this browser. It is not an account, and it is not stored on the server. On a wide window the settings cards flow down two columns, and **GitHub sync** spans both. Below about 1100 pixels the cards stack in one column. The jump links at the top of the page still scroll to the matching card.
+**Appearance** on the settings page (`/settings#appearance`) is **Light**, **Dark**, or **Match system**. Match system is the default. The choice is saved in this browser. It is not an account, and it is not stored on the server. On a wide window the shorter settings cards flow down two columns. **GitHub sync** is the full-width card at the bottom, after that block. Below about 1100 pixels every card stacks in one column, and GitHub sync is still last. The jump links at the top of the page follow that order and still scroll to the matching card.
 
-![Settings cards in two columns, with GitHub sync across both.](images/settings.png)
+![Settings cards in two columns, with GitHub sync full width at the bottom.](images/settings.png)
 
 The dashboard, sidebar, settings, dialogs, the reference, and the editor, including the code pane, follow that choice. The page is painted with the saved choice before the first frame, so a dark choice does not flash light. Match system follows the computer, including when the computer changes.
 
