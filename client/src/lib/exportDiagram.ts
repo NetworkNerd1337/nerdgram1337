@@ -5,6 +5,7 @@ import { yieldToInput } from "./renderWait";
 import { rasterExportScale, rasterScaleNote } from "./rasterScale";
 import { backgroundFromSvg, themeBackground } from "./svgBackground";
 import { exportBackgroundColor, svgHasForeignObject } from "./exportSvg";
+import { stripDangerousSvgElement } from "./svgClickUrls";
 
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -17,6 +18,7 @@ function triggerDownload(blob: Blob, filename: string) {
 
 function cloneSvg(svg: SVGSVGElement): SVGSVGElement {
   const clone = svg.cloneNode(true) as SVGSVGElement;
+  stripDangerousSvgElement(clone);
   if (!clone.getAttribute("xmlns")) {
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   }
