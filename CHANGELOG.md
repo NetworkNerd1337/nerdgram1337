@@ -8,6 +8,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 _No unreleased items._
 
+## 2.1.7 "Azimuth" - 2026-11-22
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
+- **Changed:** GitHub Actions stay pinned to a commit SHA. Dependabot opens a weekly update. Checkout does not keep a push token. A workflow starts at read permission and a job raises it only to publish. npm publish prefers trusted publishing and still uses `NPM_TOKEN` until that publisher is configured. CI rejects an unpinned Action and a package install hook.
+
 ## 2.1.6 "Azimuth" - 2026-11-21
 
 Patch on the Azimuth line. The code name stays Azimuth.

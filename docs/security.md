@@ -46,6 +46,19 @@ Production does not enable cross-origin browser access, because the UI and the A
 
 **GitHub and updates.** The sync token is stored as described in [GitHub sync](github-sync.md#github-sync). Sync and **Update now** use the same Host, Origin, and JSON checks as other changes. Update checks call the public Releases API with no token. Treat the data directory, `.meta`, and `.nerdgram-git` as personal documents: use your OS permissions, and do not share that folder casually.
 
+## Repository supply chain
+
+Actions in `.github/workflows` are pinned to a full commit SHA, with the version in a comment on the same line. `node scripts/check-supply-chain.mjs` fails CI when a `uses:` line is not a 40-character SHA, and when any `package.json` adds a `preinstall`, `install`, or `postinstall` script. Checkout steps set `persist-credentials: false` because no job pushes with the checkout token. Each workflow starts at `contents: read`. The release job raises `contents: write` to publish the GitHub Release. The npm job raises `id-token: write` for provenance. The Docker publish job raises `packages: write` to push the image. Dependabot opens a weekly pull request for Actions and one grouped pull request per npm directory (root, client, server). `.github/CODEOWNERS` names `@NetworkNerd1337` for `.github/` and the four `package.json` files.
+
+The npm publish prefers [trusted publishing](https://docs.npmjs.com/trusted-publishers). The job still uses the `NPM_TOKEN` secret when that secret is set, so a tag publishes before the trusted publisher exists. After trusted publishing works once, delete `NPM_TOKEN`.
+
+These are the owner settings. The files in the repo do not turn them on.
+
+- **Ruleset on `main`.** Require a pull request before merging. Require the **verify** and **docker** checks. Block force pushes. Require a review from code owners so a change under `.github/` or to a `package.json` needs the maintainer.
+- **Actions.** Require approval before a workflow runs from an outside collaborator. That setting is under Settings, Actions, General.
+- **Secret scanning and push protection.** Turn both on under Settings, Code security. Push protection stops a commit that contains a token.
+- **npm trusted publisher.** On npmjs.com, open the `nerdgram1337` package, then Trusted Publisher. Add GitHub Actions with owner `NetworkNerd1337`, repository `nerdgram1337`, workflow `release.yml`, and leave the environment empty. The publish job has no GitHub environment. After one publish from that workflow succeeds, delete the `NPM_TOKEN` repository secret.
+
 ## See also
 
 - [Security policy](../SECURITY.md)

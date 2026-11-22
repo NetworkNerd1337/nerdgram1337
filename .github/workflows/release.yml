@@ -4,8 +4,11 @@
 # docker-publish.yml pushes ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z
 # from this same tag. Keep that image workflow on this version.
 # The npm job publishes cli/ as the public package nerdgram1337. The command
-# name stays nerdgram. Provenance is requested only here: GitHub Actions can
-# mint the id-token it needs. A missing NPM_TOKEN skips that publish.
+# name stays nerdgram. Preferred auth is npm trusted publishing (GitHub OIDC).
+# id-token: write is only on that job. If NPM_TOKEN is still set, that token
+# publishes instead, so a release works before the trusted publisher exists.
+# Delete NPM_TOKEN after trusted publishing succeeds. Provenance is requested
+# on both paths.
 
 name: Release
 
@@ -15,13 +18,17 @@ on:
       - "v*.*.*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -58,9 +65,9 @@ jobs:
           # "What's Changed" list would be appended after it.
           generate_release_notes: false
 
-  # The CLI version has to match the tag or this job fails. A missing
-  # NPM_TOKEN does not fail the GitHub Release. Create the secret from an
-  # npm token that can publish nerdgram1337.
+  # The CLI version has to match the tag or this job fails. Trusted publishing
+  # is preferred. NPM_TOKEN remains a fallback and does not fail the GitHub
+  # Release job. This job is separate, so a skipped publish leaves the release.
   npm:
     runs-on: ubuntu-latest
     permissions:
@@ -68,6 +75,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -88,14 +97,24 @@ jobs:
       - name: Publish nerdgram1337 to npm
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "${NPM_TOKEN}" ]; then
-            echo "::warning::NPM_TOKEN is not set. Skipping npm publish of nerdgram1337. Add the NPM_TOKEN repository secret (an npm token that can publish nerdgram1337) and re-run this workflow. The GitHub Release is not affected."
-            exit 0
-          fi
+          npm install -g npm@11.6.2
           npm ci
           cd cli
-          printf '%s\n' 'registry=https://registry.npmjs.org' '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' > .npmrc
-          npm publish --provenance --access public
-          rm -f .npmrc
+          # Trusted publishing uses the job's OIDC token. A project .npmrc with
+          # an auth token would hide that path, so the token file is written
+          # only for the fallback.
+          if [ -n "${NPM_TOKEN}" ]; then
+            echo "NPM_TOKEN is set. Publishing with that token. Trusted publishing is preferred. After the npm trusted publisher for this workflow succeeds once, delete the NPM_TOKEN repository secret."
+            printf '%s\n' 'registry=https://registry.npmjs.org' '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc
+            npm publish --provenance --access public
+            rm -f .npmrc
+            exit 0
+          fi
+          echo "NPM_TOKEN is not set. Publishing with npm trusted publishing."
+          rm -f .npmrc "${GITHUB_WORKSPACE:-}/.npmrc"
+          if npm publish --provenance --access public; then
+            exit 0
+          fi
+          echo "::warning::npm trusted publishing failed and NPM_TOKEN is not set. On npmjs.com, add a trusted publisher for GitHub Actions: owner NetworkNerd1337, repository nerdgram1337, workflow release.yml, environment left empty. Until that exists, set NPM_TOKEN (an npm token that can publish nerdgram1337) and re-run this job. The GitHub Release is not affected."
+          exit 0

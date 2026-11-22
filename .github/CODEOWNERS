@@ -1,0 +1,8 @@
+# Workflow and package-manifest changes need the maintainer.
+# A ruleset has to require a review from code owners before this file is enforced.
+
+/.github/ @NetworkNerd1337
+/package.json @NetworkNerd1337
+/client/package.json @NetworkNerd1337
+/server/package.json @NetworkNerd1337
+/cli/package.json @NetworkNerd1337
