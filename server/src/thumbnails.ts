@@ -99,14 +99,23 @@ function decodeUrl(value: string): string {
     .toLowerCase();
 }
 
+const RASTER_DATA = /^data:image\/(png|jpe?g|gif|webp)[;,]/;
+
 function isDangerousUrl(value: string): boolean {
   const decoded = decodeUrl(value);
-  return (
-    decoded.startsWith("javascript:") ||
-    decoded.startsWith("vbscript:") ||
-    decoded.startsWith("data:text/html") ||
-    decoded.startsWith("data:application/xhtml")
-  );
+  if (decoded.startsWith("javascript:") || decoded.startsWith("vbscript:")) return true;
+  if (decoded.startsWith("data:")) return !RASTER_DATA.test(decoded);
+  return false;
+}
+
+function sweepOnce(value: string): string {
+  return value
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, "")
+    .replace(/<script\b[^>]*\/?>/gi, "")
+    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/(\s(?:href|xlink:href|src)\s*=\s*)(["'])([^"']*)\2/gi, (match, prefix: string, quote: string, url: string) => {
+      return isDangerousUrl(url) ? `${prefix}${quote}#${quote}` : match;
+    });
 }
 
 /**
@@ -158,14 +167,12 @@ export function sanitizeThumbnailSvg(svg: string): string {
     }
   });
   const structured = changed ? $.xml().trim() : trimmed;
-  const swept = structured
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<script\b[^>]*\/?>/gi, "")
-    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(
-      /(\s(?:href|xlink:href|src)\s*=\s*)(["'])\s*(?:javascript|vbscript):[^"']*\2/gi,
-      '$1$2#$2',
-    );
+  let swept = structured;
+  let previous = "";
+  for (let pass = 0; pass < 10 && swept !== previous; pass += 1) {
+    previous = swept;
+    swept = sweepOnce(swept);
+  }
   const cleaned = swept === svg || swept === trimmed ? svg : swept;
   return svgForImage(cleaned);
 }

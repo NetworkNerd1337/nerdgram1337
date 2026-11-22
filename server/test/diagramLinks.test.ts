@@ -10,6 +10,7 @@ import {
   inboundLinkFiles,
   linksFor,
   planLinkRewrites,
+  normalizeWorkspacePath,
   resolveDiagramTarget,
 } from "../src/diagramLinks.js";
 import { resolveSafePath } from "../src/paths.js";
@@ -227,5 +228,14 @@ describe("link API", () => {
     expect(removed.status).toBe(204);
     const after = await request(app).get("/api/file").query({ path: "Regions/Sites/Atlanta.mmd" }).set("Host", HOST);
     expect(after.status).toBe(404);
+  });
+});
+
+describe("workspace path trimming", () => {
+  it("drops a long run of slashes quickly", () => {
+    const value = `${"/".repeat(200_000)}x`;
+    const started = performance.now();
+    expect(normalizeWorkspacePath(value)).toBe("x");
+    expect(performance.now() - started).toBeLessThan(200);
   });
 });

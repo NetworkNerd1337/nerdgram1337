@@ -4,6 +4,7 @@ import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { thumbnailCacheKey } from "../src/frontMatter.js";
+import { sanitizeThumbnailSvg } from "../src/thumbnails.js";
 import { makeTempDataDir } from "./helpers.js";
 
 const HOST = "127.0.0.1:8787";
@@ -225,5 +226,45 @@ describe("thumbnail cache", () => {
     expect(hit.body.svg.toLowerCase()).not.toContain("<script");
     expect(hit.body.svg.toLowerCase()).not.toMatch(/\son[a-z]+\s*=/);
     expect(hit.body.svg).toContain("rect");
+  });
+});
+
+describe("svg sanitizer", () => {
+  const clean = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>';
+  const png = "data:image/png;base64,iVBORw0KGgo=";
+  const fixtures = [
+    "<svg><scr<script></script>ipt>alert(1)</script></svg>",
+    "<svg><script>alert(1)</script ></svg>",
+    "<svg><script>alert(1)</script foo></svg>",
+    '<svg><g ononclick=x click="y"/></svg>',
+    '<svg><g onononclick=x/></svg>',
+    '<svg><a href="data:image/svg+xml;base64,PHN2Zy8+"></a></svg>',
+    '<svg><a xlink:href="data:text/javascript,alert(1)"></a></svg>',
+    `<svg><image href="${png}"/></svg>`,
+    '<svg><a href="&#x6a;avascript:alert(1)"></a></svg>',
+  ];
+
+  it("removes nested scripts, rebuilt handlers, and non-raster data urls", () => {
+    for (const fixture of fixtures) {
+      const once = sanitizeThumbnailSvg(fixture);
+      expect(once.toLowerCase(), fixture).not.toMatch(/<script/);
+      expect(once, fixture).not.toMatch(/\son[a-z]+\s*=/i);
+      expect(sanitizeThumbnailSvg(once)).toBe(once);
+    }
+    const svgXml = sanitizeThumbnailSvg(fixtures[5] ?? "");
+    const scriptUrl = sanitizeThumbnailSvg(fixtures[6] ?? "");
+    expect(svgXml).not.toContain("data:image/svg+xml");
+    expect(svgXml).not.toMatch(/\shref\s*=/i);
+    expect(scriptUrl).not.toContain("data:text/javascript");
+    expect(scriptUrl).not.toMatch(/xlink:href/i);
+    const kept = sanitizeThumbnailSvg(fixtures[7] ?? "");
+    expect(kept).toContain(png);
+    const entity = sanitizeThumbnailSvg(fixtures[8] ?? "");
+    expect(entity.toLowerCase()).not.toContain("javascript:");
+  });
+
+  it("returns a clean svg unchanged", () => {
+    expect(sanitizeThumbnailSvg(clean)).toBe(clean);
+    expect(sanitizeThumbnailSvg(sanitizeThumbnailSvg(clean))).toBe(clean);
   });
 });

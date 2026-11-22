@@ -9,10 +9,17 @@ function lockStorageKey(path: string): string {
   return `nerdgram-lock:${path}`;
 }
 
+function randomSessionId(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export function editorSessionId(): string {
   const existing = sessionStorage.getItem(SESSION_KEY);
   if (existing) return existing;
-  const created = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+  const created = randomSessionId();
   sessionStorage.setItem(SESSION_KEY, created);
   return created;
 }

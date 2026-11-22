@@ -57,6 +57,7 @@ import {
   hashContent,
   httpFail,
   normalizeRelative,
+  trimSlashes,
   pathExists,
   resolveAvailablePath,
   type DiskState,
@@ -263,7 +264,7 @@ export async function readFile(relativePath: string): Promise<{
  * The path has to stay inside the data directory. Diagram routes still reject this extension.
  */
 export async function readNetworkJson(relativePath: string): Promise<string> {
-  const normalized = relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const normalized = trimSlashes(relativePath.replace(/\\/g, "/"));
   if (!normalized.toLowerCase().endsWith(".network.json") || !isSafeDataPath(normalized)) {
     throw httpFail(400, "Only a .network.json file inside the workspace can be read here.", "invalid");
   }

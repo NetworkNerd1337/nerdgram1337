@@ -1,4 +1,5 @@
 import { parseDiagram } from "./frontMatter.js";
+import { trimSlashes } from "./storage.js";
 
 /**
  * Diagram links stored as Mermaid `click` directives.
@@ -186,7 +187,7 @@ export function resolveDiagramTarget(raw: string, sourcePath = ""): ResolvedDiag
  * left unresolved so a later confine check still rejects it.
  */
 export function normalizeWorkspacePath(raw: string): string {
-  const trimmed = raw.trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const trimmed = trimSlashes(raw.trim().replace(/\\/g, "/"));
   if (!trimmed) return "";
   const parts: string[] = [];
   for (const part of trimmed.split("/")) {

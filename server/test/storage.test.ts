@@ -1,13 +1,18 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createApp } from "../src/app.js";
 import {
   atomicWriteText,
   decodeStorageKey,
   encodeStorageKey,
   evaluateWrite,
   hashContent,
+  normalizeRelative,
   resolveAvailablePath,
+  trimChar,
+  trimSlashes,
   type DiskState,
 } from "../src/storage.js";
 import { makeTempDataDir } from "./helpers.js";
@@ -135,5 +140,49 @@ describe("storage keys and atomic writes", () => {
     expect(await fs.readFile(target, "utf8")).toBe(content);
     const names = await fs.readdir(dir);
     expect(names.filter((name) => name.includes(".tmp"))).toEqual([]);
+  });
+});
+
+describe("linear slash and dash trimming", () => {
+  function oldNormalize(input: string): string {
+    return input.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  }
+
+  it("matches the old regex on short paths and dash runs", () => {
+    for (const input of ["/a/b/", "//a//", "\\a\\b\\", "", "/", "a", "--x--"]) {
+      expect(normalizeRelative(input)).toBe(oldNormalize(input));
+      expect(trimSlashes(input.replace(/\\/g, "/"))).toBe(input.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""));
+      expect(trimChar(input, "-")).toBe(input.replace(/^-+|-+$/g, ""));
+    }
+  });
+
+  it("trims a long run of slashes without stalling", () => {
+    const value = `${"/".repeat(200_000)}x`;
+    const started = performance.now();
+    expect(normalizeRelative(value)).toBe("x");
+    expect(performance.now() - started).toBeLessThan(200);
+  });
+
+  it("rejects a posted path of slashes quickly", async () => {
+    const temp = await makeTempDataDir();
+    try {
+      const api = createApp({
+        mode: "production",
+        port: 8787,
+        bindHosts: ["127.0.0.1", "::1"],
+        allowedHosts: [],
+        allowedOrigins: [],
+      });
+      const started = performance.now();
+      const response = await request(api)
+        .put("/api/file")
+        .set("Host", "127.0.0.1:8787")
+        .set("Content-Type", "application/json")
+        .send({ path: `${"/".repeat(200_000)}x`, content: "flowchart LR\n  A-->B\n" });
+      expect(performance.now() - started).toBeLessThan(200);
+      expect(response.status).toBe(400);
+    } finally {
+      await temp.cleanup();
+    }
   });
 });

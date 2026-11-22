@@ -6,8 +6,16 @@ import type { TreeNode } from "../types";
  * `word: "copy"` yields `Name (copy).mmd`, then `Name (copy 2).mmd`.
  * No word yields `Name 2.mmd`, which import uses for an explicit rename.
  */
+function trimSlashes(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === "/") start += 1;
+  while (end > start && value[end - 1] === "/") end -= 1;
+  return value.slice(start, end);
+}
+
 export function insertNameSuffix(relativePath: string, suffix: string): string {
-  const normalized = relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const normalized = trimSlashes(relativePath.replace(/\\/g, "/"));
   const slash = normalized.lastIndexOf("/");
   const dir = slash >= 0 ? normalized.slice(0, slash) : "";
   const base = slash >= 0 ? normalized.slice(slash + 1) : normalized;

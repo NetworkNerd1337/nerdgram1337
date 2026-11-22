@@ -7,6 +7,7 @@ import { createApp } from "../src/app.js";
 import { MERMAID_THEMES, parseDiagram } from "../src/frontMatter.js";
 import { getDataRoot } from "../src/paths.js";
 import { lintDiagram } from "../src/diagramLint.js";
+import { resolveUnder } from "../src/storage.js";
 import { getTemplatesRoot, listTemplates, readTemplate } from "../src/templates.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -416,12 +417,85 @@ flowchart LR
     expect(gone.status).toBe(404);
   });
 
+  it("turns a dashed name into the same id as before", async () => {
+    const api = app();
+    const created = await request(api)
+      .post("/api/templates")
+      .set("Host", HOST)
+      .set("Content-Type", "application/json")
+      .send({ content: source, name: "--Lab--" });
+    expect(created.status).toBe(201);
+    expect(created.body.id).toBe("lab");
+  });
+
+  it("rejects template ids that would leave .templates", async () => {
+    const api = app();
+    const dataRoot = getDataRoot();
+    const outside = path.dirname(dataRoot);
+    const ids = ["../evil", "a/../../b", "..", "a\\b", "%2e%2e", "x\u0000"];
+    for (const id of ids) {
+      const created = await request(api)
+        .post("/api/templates")
+        .set("Host", HOST)
+        .set("Content-Type", "application/json")
+        .send({ content: source, id, name: "Nope" });
+      expect(created.status, `create ${JSON.stringify(id)}`).toBe(400);
+
+      const encoded = encodeURIComponent(id);
+      const saved = await request(api)
+        .put(`/api/templates/${encoded}`)
+        .set("Host", HOST)
+        .set("Content-Type", "application/json")
+        .send({ content: source });
+      expect(saved.status, `save ${JSON.stringify(id)}`).toBe(400);
+
+      const renamed = await request(api)
+        .post(`/api/templates/${encoded}/rename`)
+        .set("Host", HOST)
+        .set("Content-Type", "application/json")
+        .send({ id, name: "Nope" });
+      expect(renamed.status, `rename ${JSON.stringify(id)}`).toBe(400);
+
+      const removed = await request(api)
+        .delete(`/api/templates/${encoded}`)
+        .set("Host", HOST)
+        .set("Content-Type", "application/json")
+        .send({});
+      expect(removed.status, `delete ${JSON.stringify(id)}`).toBe(400);
+    }
+
+    const walked: string[] = [];
+    const walk = async (current: string) => {
+      const entries = await fs.readdir(current, { withFileTypes: true });
+      for (const entry of entries) {
+        const full = path.join(current, entry.name);
+        if (entry.isDirectory()) await walk(full);
+        else walked.push(path.relative(dataRoot, full));
+      }
+    };
+    await walk(dataRoot);
+    expect(walked.every((rel) => rel.startsWith(`.templates${path.sep}`) || rel.startsWith(".templates/"))).toBe(true);
+    await expect(fs.stat(path.join(outside, "evil.mmd"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(path.join(outside, "b.mmd"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("keeps every shipped template free of diagram-check warnings", async () => {
     const listed = await listTemplates();
     expect(listed.length).toBeGreaterThan(6);
     for (const template of listed) {
       const hits = lintDiagram(template.source);
       expect(hits, template.id).toEqual([]);
+    }
+  });
+});
+
+describe("resolveUnder", () => {
+  const root = path.join(os.tmpdir(), "nerdgram-resolve-under");
+
+  it("accepts one file name and rejects a name that leaves the directory", () => {
+    expect(resolveUnder(root, "lab.mmd")).toBe(path.resolve(root, "lab.mmd"));
+    for (const name of ["..", "nested/name.mmd", "/etc/passwd"]) {
+      expect(() => resolveUnder(root, name), name).toThrowError(expect.objectContaining({ status: 400, code: "invalid" }));
     }
   });
 });

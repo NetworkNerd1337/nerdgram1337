@@ -76,8 +76,47 @@ export function getLocksRoot(): string {
   return path.join(getMetaPath(), LOCKS_DIR_NAME);
 }
 
+/**
+ * Drop `ch` from both ends. A character walk stays linear when `ch` is
+ * repeated. A regex such as `/^\/+|\/+$/` retries the unanchored end
+ * alternative at every character.
+ */
+export function trimChar(value: string, ch: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === ch) start += 1;
+  while (end > start && value[end - 1] === ch) end -= 1;
+  return value.slice(start, end);
+}
+
+export function trimSlashes(value: string): string {
+  return trimChar(value, "/");
+}
+
 export function normalizeRelative(input: string): string {
-  return input.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  return trimSlashes(input.replace(/\\/g, "/"));
+}
+
+/**
+ * One file name directly inside `root`. A name with a separator, `.`, or
+ * `..` is rejected, and the resolved path has to stay in that directory.
+ */
+export function resolveUnder(root: string, fileName: string): string {
+  if (
+    fileName.includes("/") ||
+    fileName.includes("\\") ||
+    fileName.includes("\0") ||
+    fileName === "." ||
+    fileName === ".."
+  ) {
+    throw httpFail(400, "Invalid template id", "invalid");
+  }
+  const base = path.resolve(root);
+  const full = path.resolve(base, fileName);
+  if (!full.startsWith(base + path.sep) || path.dirname(full) !== base) {
+    throw httpFail(400, "Invalid template id", "invalid");
+  }
+  return full;
 }
 
 export function hashContent(content: string): string {
