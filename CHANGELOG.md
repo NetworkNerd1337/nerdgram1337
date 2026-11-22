@@ -6,7 +6,14 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-- **Fixed:** A browser page whose Host is not allowed gets a self-contained HTML 403 that names that host and the Docker or Node fix. `/api`, MCP, and other non-HTML requests still get `{"error":"Forbidden host"}` (#276).
+_No unreleased items._
+
+## 2.1.11 "Azimuth" - 2026-11-22
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
+- **Fixed:** A browser page whose Host is not allowed gets a self-contained HTML 403 that names that host and the Docker or Node fix. `/api`, MCP, and other non-HTML requests still get `{"error":"Forbidden host"}` (#276, #277).
+- **Docs:** The Docker LAN steps are in one place. Publish the address as `<lan-ip>:8787:8787`, set `NERDGRAM_ALLOWED_HOSTS` to that address, and set `NERDGRAM_CORS_ORIGINS` to `http://<lan-ip>:8787`. That origin is required for saves even when it equals the published host, because a name added only in `NERDGRAM_ALLOWED_HOSTS` is not an allowed origin. Troubleshooting points at those steps (#276, #277).
 
 ## 2.1.10 "Azimuth" - 2026-11-22
 
