@@ -19,6 +19,8 @@ Paths in this document use two placeholders, always in code formatting so GitHub
 
 Stop the app before you replace it. Diagrams stay where they are when you keep the same data directory or the same volume. Do not run `docker volume rm` on a volume you still want. There is no updater inside the container.
 
+A copy on 1.7.5 or later is supported. Move it to the latest 2.1.x to pick up security fixes. 1.7.4 and older are deprecated on npm, and their container images are removed from GHCR. The GitHub releases and tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
+
 ## Update a Docker install
 
 The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.9`, the tag for this tree. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you are moving to a different release. If your names differ, keep the names you already use.

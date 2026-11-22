@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Docs:** Support policy. 1.7.4 and older are deprecated. 1.7.5 and later are supported and should upgrade to the latest 2.1.x for security fixes.
 
 ## 2.1.9 "Azimuth" - 2026-11-22
 
