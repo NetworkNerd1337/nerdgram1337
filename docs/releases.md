@@ -7,6 +7,7 @@ Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffi
 ## Contents
 
 - [Version numbers and code names](#version-numbers-and-code-names)
+- [Supported versions](#supported-versions)
 - [Where the version is shown](#where-the-version-is-shown)
 - [Pin a version or move to another](#pin-a-version-or-move-to-another)
 - [What the update check offers](#what-the-update-check-offers)
@@ -39,6 +40,10 @@ Which number moves:
 - **Major (`X`).** A new line. It starts at minor 0. 2.0 is not named. 2.1.0 through 2.1.4 are Zenith. 2.1.5 is Azimuth.
 
 The running app shows the version and the code name together. A 1.0.y through 1.4.y build is Atlas. A 1.5.y build is Compass. A 1.6.y build is Galileo. A 1.7.y build is Navigator. A 1.8.y build is Meridian. A 2.1.0 through 2.1.4 build is Zenith. A 2.1.5 or later 2.1 patch is Azimuth. 2.0.y is not named. The `codenames` map in the root `package.json` is the source of truth (`"1.0"` is Atlas, `"1.5"` is Compass, `"1.6"` is Galileo, `"1.7"` is Navigator, `"1.8"` is Meridian, `"2.1"` is Zenith, `"2.1.5"` is Azimuth). The key is the major and the minor where the name starts, or a later patch when the name changes inside that minor. A release whose minor has no entry fails `npm run version:check`. 1.9 and 2.0 have no entry. A later 2.y has no entry until it is added. The GitHub Release title for a tag is `vX.Y.Z "Code name"`.
+
+## Supported versions
+
+Security fixes land in the latest release. A copy on 1.7.5 or later is supported. Upgrade it to the latest 2.1.x to get those fixes. 1.7.4 and older are deprecated. Those versions are deprecated on npm, and their container images are removed from GHCR. The GitHub releases and tags stay for history. The table is in the [security policy](../SECURITY.md#supported-versions).
 
 ## Where the version is shown
 
