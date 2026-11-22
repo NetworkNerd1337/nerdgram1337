@@ -15,7 +15,7 @@ export type DiagramLintSnapshot = {
 const DiagramLintContext = createContext<DiagramLintSnapshot | null>(null);
 
 /**
- * One workspace check shared by Diagram checks and Needs attention.
+ * One workspace check shared by Diagram checks and the Diagram health badge.
  * A change in `revision` runs the check again, after a short wait so a bulk
  * action does not start one check per file.
  */

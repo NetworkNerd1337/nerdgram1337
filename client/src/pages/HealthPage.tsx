@@ -164,8 +164,7 @@ export function HealthPage() {
             writeRecent(browserStore(), []);
             setRecent([]);
           }}
-          attentionCount={findings == null ? 0 : attentionDiagrams}
-          onOpenAttention={() => navigate("/?attention=1")}
+          attentionCount={findings == null ? null : attentionDiagrams}
           currentFolder="__health__"
           healthActive
           search=""

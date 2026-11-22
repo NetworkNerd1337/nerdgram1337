@@ -37,7 +37,7 @@ describe("sidebar syntax reference", () => {
             knownPaths={new Set()}
             recent={[]}
             onClearRecent={() => undefined}
-            attentionCount={0}
+            attentionCount={null}
             currentFolder=""
             search=""
             onSearch={() => undefined}
@@ -47,14 +47,28 @@ describe("sidebar syntax reference", () => {
       );
     });
     const labels = [...document.querySelectorAll(".nav-label")].map((item) => item.textContent);
-    expect(labels).toContain("Your space");
-    expect(labels).not.toContain("Reference");
-    const space = [...document.querySelectorAll(".nav-section")].find((section) => section.textContent?.includes("Your space"));
-    const links = [...(space?.querySelectorAll("a,button") ?? [])].map((item) => item.textContent?.trim());
-    expect(links.slice(0, 3)).toEqual(["Dashboard", "Diagram health", "Syntax reference"]);
+    expect(labels).toEqual(["Your space", "Folders"]);
+    expect(document.body.textContent).not.toContain("Needs attention");
+    const space = document.querySelector(".nav-section");
+    const order = [...(space?.querySelectorAll(".nav-link, .sidebar-block-title") ?? [])].map((item) =>
+      item.textContent?.replace(/\s+/g, " ").trim(),
+    );
+    expect(order.slice(0, 8)).toEqual([
+      "Dashboard",
+      "Recent",
+      "Bookmarks",
+      "Template gallery",
+      "Diagram health",
+      "Syntax reference",
+      "Settings",
+      "Trash",
+    ]);
+    expect(space?.querySelector('a[href="/settings"]')?.textContent).toBe("Settings");
+    expect(space?.querySelector('.nav-link[href^="/settings#"]')).toBeNull();
     const reference = space?.querySelector('a[href="/reference"]');
     expect(reference?.getAttribute("target")).toBe("_blank");
     expect(reference?.textContent).toBe("Syntax reference");
+    expect(document.querySelector(".attention-badge")).toBeNull();
     expect(builtinCommands.find((command) => command.id === "nav.reference")?.title).toBe("Syntax reference");
   });
 });
