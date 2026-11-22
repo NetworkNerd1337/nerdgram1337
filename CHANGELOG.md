@@ -13,6 +13,7 @@ _No unreleased items._
 Patch on the Azimuth line. The code name stays Azimuth.
 
 - **Changed:** Server dependencies move to the versions from the open Dependabot updates: `@redocly/cli` 2.82.0, `puppeteer` 25.18.1, and `zod` 4.6.7. `@faker-js/faker` and `basic-ftp` leave the tree. `js-yaml` is no longer pulled in at 4.1.0.
+- **Fixed:** The image installs `unzip` before the Puppeteer 25 browser download, and the amd64 build stops if chrome-headless-shell is missing. Without that, SVG and PNG render in the container answered 503.
 - **Changed:** The npm publish job tries trusted publishing (OIDC) first, with no `NODE_AUTH_TOKEN` on that attempt. `NPM_TOKEN` is used only if that publish fails. The log names which method published the package.
 
 ## 2.1.7 "Azimuth" - 2026-11-22
