@@ -1,6 +1,6 @@
 import { Document, isMap, parseDocument } from "yaml";
 import { extensionForFormat, isDataFileName } from "./dataFiles.js";
-import { trimSlashes } from "./storage.js";
+import { trimSlashes } from "./trim.js";
 import { clickTargetKind, resolveDiagramTarget } from "./diagramLinks.js";
 import { matchFrontMatter, type FrontMatterMatch } from "./frontMatter.js";
 import { detectNeighborKind, parseNeighborSource } from "./neighbors/index.js";

@@ -1,5 +1,5 @@
 import { parseDiagram } from "./frontMatter.js";
-import { trimSlashes } from "./storage.js";
+import { trimSlashes } from "./trim.js";
 
 /**
  * Diagram links stored as Mermaid `click` directives.

@@ -3,6 +3,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { dataFileExtension } from "./dataFiles.js";
 import { getMetaPath } from "./paths.js";
+import { trimSlashes } from "./trim.js";
+
+export { trimChar, trimSlashes } from "./trim.js";
 
 /**
  * Shared disk helpers for diagram writes.
@@ -74,23 +77,6 @@ export function getVersionsRoot(): string {
 
 export function getLocksRoot(): string {
   return path.join(getMetaPath(), LOCKS_DIR_NAME);
-}
-
-/**
- * Drop `ch` from both ends. A character walk stays linear when `ch` is
- * repeated. A regex such as `/^\/+|\/+$/` retries the unanchored end
- * alternative at every character.
- */
-export function trimChar(value: string, ch: string): string {
-  let start = 0;
-  let end = value.length;
-  while (start < end && value[start] === ch) start += 1;
-  while (end > start && value[end - 1] === ch) end -= 1;
-  return value.slice(start, end);
-}
-
-export function trimSlashes(value: string): string {
-  return trimChar(value, "/");
 }
 
 export function normalizeRelative(input: string): string {

@@ -13,7 +13,7 @@ import {
   type RowIssue,
 } from "../diagramData.js";
 import { buildNetwork, type BuiltEdge, type BuiltNode } from "./generate.js";
-import { trimSlashes } from "../storage.js";
+import { trimSlashes } from "../trim.js";
 import { validateNetwork } from "./validate.js";
 
 const VIEWS = new Set<NetworkView>(["l3", "l2"]);
