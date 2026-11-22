@@ -8,7 +8,8 @@ describe("dashboard does not run a library check", () => {
     expect(source).not.toContain("diagramLint(");
     expect(source).not.toContain("DiagramLintProvider");
     expect(source).not.toContain("<DiagramChecks");
+    expect(source).not.toContain("Needs attention");
     expect(source).toContain("diagramLintSummary");
-    expect(source).toContain("Not checked yet");
+    expect(source).toContain('navigate("/health", { replace: true })');
   });
 });
