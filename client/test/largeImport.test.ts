@@ -20,6 +20,9 @@ describe("large import advice", () => {
     expect(byNodes?.message).toMatch(/a while/i);
     const byLeaves = largeImportAdvice(hub(LARGE_IMPORT_LEAVES), LARGE_IMPORT_LEAVES + 1);
     expect(byLeaves?.message).toMatch(/51 nodes/);
+    expect(byLeaves?.message).toMatch(/Compact or Radial/);
+    expect(byNodes?.message).not.toMatch(/Compact or Radial/);
+    expect(largeImportAdvice(hub(160), 0)?.message).toMatch(/161 nodes/);
   });
 
   it("stores compact or radial on the new file and leaves the default unset", () => {

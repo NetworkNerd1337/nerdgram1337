@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import type { ImportCollisionChoice, ImportDraft, ImportHubLayout, ImportUnit } from "../lib/importDrafts";
-import { FOREIGN_IMPORT_MAX_BYTES, MAX_IMPORT_FILE_CHARS, MAX_IMPORT_FILES, unitsFromDraft } from "../lib/importDrafts";
+import {
+  FOREIGN_IMPORT_MAX_BYTES,
+  importChoiceCollides,
+  importSavePath,
+  MAX_IMPORT_FILE_CHARS,
+  MAX_IMPORT_FILES,
+  unitsFromDraft,
+} from "../lib/importDrafts";
 import { largeImportAdvice } from "../lib/largeImport";
 import { parseMermaid } from "../lib/mermaidRender";
 import { IMPORT_DATA_KEY, IMPORT_PRESET_KEY, SUPPORTED_IMPORT_LINE } from "../lib/importRecognize";
@@ -261,12 +268,19 @@ export function ImportDialog({
                 </p>
               ) : null}
               {!item.draft.error && item.path ? (
-                <p className="import-meta">Saves as {item.path}</p>
+                <p className="import-meta">
+                  Saves as{" "}
+                  {importSavePath(item.path, item.unit ? choices[item.unit.id] : "", item.suggested)}
+                </p>
               ) : null}
               {item.unit && warnings[item.unit.id] ? <p className="import-warning">{warnings[item.unit.id]}</p> : null}
               {item.conflict && item.unit ? (
                 <label>
-                  This name is taken
+                  {importChoiceCollides(item.conflict, choices[item.unit.id], item.suggested) ? (
+                    <span>This name is taken</span>
+                  ) : (
+                    <span className="sr-only">Name already in this folder</span>
+                  )}
                   <select
                     aria-label={`What to do with ${item.unit.sourceName}`}
                     value={choices[item.unit.id] ?? ""}

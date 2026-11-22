@@ -1,3 +1,4 @@
+import { countDiagramNodes } from "./renderWait";
 import { applyDiagramPatch } from "./frontMatter";
 import { api } from "../api";
 import {
@@ -23,6 +24,31 @@ export type ImportPageDraft = {
 export type ImportHubLayout = "" | "compact" | "radial";
 
 export type ImportCollisionChoice = "rename" | "skip" | "replace";
+
+/** The path the row will write. Rename uses the free name. Other choices keep the original. */
+export function importSavePath(
+  path: string,
+  choice: ImportCollisionChoice | "" | undefined,
+  suggested: string | null,
+): string {
+  if (choice === "rename" && suggested) return suggested;
+  return path;
+}
+
+/**
+ * True while the current choice would still write onto a name that is taken.
+ * Rename to a free name, Skip, and Replace have already answered the clash.
+ */
+export function importChoiceCollides(
+  nameTaken: boolean,
+  choice: ImportCollisionChoice | "" | undefined,
+  suggested: string | null,
+): boolean {
+  if (!nameTaken) return false;
+  if (choice === "skip" || choice === "replace") return false;
+  if (choice === "rename") return !suggested;
+  return true;
+}
 
 export type ImportDraft = {
   id: string;
@@ -174,7 +200,7 @@ export function unitsFromDraft(draft: ImportDraft): ImportUnit[] {
         diagramName: draft.diagramName,
         text: withHub(draft.text, draft.hubLayout),
         warnings: draft.warnings ?? [],
-        nodes: 0,
+        nodes: countDiagramNodes(draft.text),
       },
     ];
   }

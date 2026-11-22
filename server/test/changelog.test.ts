@@ -35,16 +35,15 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Azimuth title and the 2.1.5 section without the heading", () => {
-    const title = notes(["--title", "v2.1.5"]);
+  it("prints the Azimuth title and the 2.1.6 section without the heading", () => {
+    const title = notes(["--title", "v2.1.6"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v2.1.5 "Azimuth"\n');
-    const body = notes(["v2.1.5"]);
+    expect(title.stdout).toBe('v2.1.6 "Azimuth"\n');
+    const body = notes(["v2.1.6"]);
     expect(body.code).toBe(0);
-    expect(body.stdout.startsWith("First release on the Azimuth line.")).toBe(true);
-    expect(body.stdout).toContain("#258");
-    expect(body.stdout).toContain(".vsdx");
-    expect(body.stdout).not.toContain('## 2.1.5 "Azimuth"');
+    expect(body.stdout.startsWith("Patch on the Azimuth line.")).toBe(true);
+    expect(body.stdout).toContain("ARP and MAC");
+    expect(body.stdout).not.toContain('## 2.1.6 "Azimuth"');
     expect(body.stdout).not.toContain("Future ideas");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });

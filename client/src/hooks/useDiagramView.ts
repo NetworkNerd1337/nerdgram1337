@@ -9,6 +9,7 @@ import {
   nextFitMode,
   normalizeDegrees,
   panBy,
+  readableFit,
   resetView,
   rotateView,
   toggleFitAndActual,
@@ -27,11 +28,14 @@ import {
  * only while the user is still on the fitted view for the previous size.
  * A source refresh that does not change that fit leaves pan, zoom, and rotation.
  */
-export function useDiagramView(viewport: Size | null, content: Size | null) {
+export function useDiagramView(viewport: Size | null, content: Size | null, options?: { readable?: boolean }) {
   const [view, setView] = useState<ViewTransform>(identityView);
   const [fitMode, setFitMode] = useState<FitMode>("page");
+  const [placed, setPlaced] = useState(false);
+  const readable = options?.readable === true;
   const viewRef = useRef(view);
   const fitModeRef = useRef<FitMode>("page");
+  const placedRef = useRef(false);
   const fittedBaseline = useRef<ViewTransform | null>(null);
   const viewportRef = useRef<Size | null>(null);
   const contentRef = useRef<Size | null>(null);
@@ -64,16 +68,25 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
       nextViewport,
       nextContent,
       fitModeRef.current,
+      readable,
     );
     if (!decision) return;
     fittedBaseline.current = decision.baseline;
+    if (decision.mode && decision.mode !== fitModeRef.current) {
+      fitModeRef.current = decision.mode;
+      setFitMode(decision.mode);
+    }
+    if (!placedRef.current) {
+      placedRef.current = true;
+      setPlaced(true);
+    }
     if (viewsClose(current, decision.view)) {
       viewRef.current = decision.view;
       return;
     }
     viewRef.current = decision.view;
     setView(decision.view);
-  }, [ready, vw, vh, cw, ch]);
+  }, [ready, vw, vh, cw, ch, readable]);
 
   const limitsFor = useCallback(() => {
     const vp = viewportRef.current;
@@ -142,9 +155,17 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
     const vp = viewportRef.current;
     const ct = contentRef.current;
     if (!vp || !ct) return;
+    if (readable) {
+      const chosen = readableFit(vp, ct, 0);
+      rememberMode(chosen.mode);
+      fittedBaseline.current = chosen.view;
+      viewRef.current = chosen.view;
+      setView(chosen.view);
+      return;
+    }
     rememberMode("page");
     commit(resetView(vp, ct));
-  }, [commit, rememberMode]);
+  }, [commit, rememberMode, readable]);
 
   const cycleFit = useCallback(() => {
     const vp = viewportRef.current;
@@ -186,5 +207,5 @@ export function useDiagramView(viewport: Size | null, content: Size | null) {
     return isFitted(viewRef.current, vp, ct);
   }, []);
 
-  return { view, fitMode, atFit, isAtFit, zoomAtPoint, pan, rotate, rotateFree, reset, cycleFit, toggleActual, centerOn };
+  return { view, fitMode, atFit, placed, isAtFit, zoomAtPoint, pan, rotate, rotateFree, reset, cycleFit, toggleActual, centerOn };
 }

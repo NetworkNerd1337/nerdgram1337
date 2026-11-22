@@ -14,7 +14,7 @@ Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffi
 
 Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. `X` is the major line, `Y` is the maintenance line, and `Z` is the patch. The root `package.json` `version` is the version of the tree you have. A GitHub Release and its git tag use the same numbers with a leading `v`.
 
-This tree is v2.1.5, code name Azimuth. v1.0.5 was the first release, code name Atlas, and v1.0.6 was the patch after it. Each published tag has a GitHub Release and a container image. Both are listed on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). The image for this tree is `ghcr.io/networknerd1337/nerdgram1337:v2.1.5` once the `v2.1.5` tag is pushed.
+This tree is v2.1.6, code name Azimuth. v1.0.5 was the first release, code name Atlas, and v1.0.6 was the patch after it. Each published tag has a GitHub Release and a container image. Both are listed on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). The image for this tree is `ghcr.io/networknerd1337/nerdgram1337:v2.1.6` once the `v2.1.6` tag is pushed.
 
 ## Version numbers and code names
 
@@ -30,7 +30,7 @@ A code name belongs to a milestone. The key in the map is the major and the mino
 | 2.1.0 through 2.1.4 | Zenith | 2.1.0 |
 | 2.1.5 and later 2.1.y | Azimuth | 2.1.5 |
 
-v1.0.5 was the first release, code name Atlas. 1.4.8 is the last Atlas release. This tree is v2.1.5, code name Azimuth. There was no separate 1.8.0 tag. 1.8.5 ships milestone 1.8.0 and milestone 1.8.5. Compass is the name of every 1.5.y release. Galileo is every 1.6.y release. Navigator is every 1.7.y release, including 1.7.0 and 1.7.5. Meridian is every 1.8.y release, including 1.8.0 and 1.8.5. 1.9 is not named. 2.0 is not named. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. 2.1.0 is the first Zenith release. 2.1.5 is the first Azimuth release.
+v1.0.5 was the first release, code name Atlas. 1.4.8 is the last Atlas release. This tree is v2.1.6, code name Azimuth. There was no separate 1.8.0 tag. 1.8.5 ships milestone 1.8.0 and milestone 1.8.5. Compass is the name of every 1.5.y release. Galileo is every 1.6.y release. Navigator is every 1.7.y release, including 1.7.0 and 1.7.5. Meridian is every 1.8.y release, including 1.8.0 and 1.8.5. 1.9 is not named. 2.0 is not named. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. 2.1.0 is the first Zenith release. 2.1.5 is the first Azimuth release.
 
 Which number moves:
 
@@ -42,7 +42,7 @@ The running app shows the version and the code name together. A 1.0.y through 1.
 
 ## Where the version is shown
 
-- **About** is in the top-right header, next to **Support**. Its tooltip is the version with its code name, written `v2.1.5 "Azimuth"`. The sidebar does not have an About row. On a narrow dashboard, About and Support stay in a bar above the sidebar.
+- **About** is in the top-right header, next to **Support**. Its tooltip is the version with its code name, written `v2.1.6 "Azimuth"`. The sidebar does not have an About row. On a narrow dashboard, About and Support stay in a bar above the sidebar.
 - **About NerdGram1337** in the command palette opens the same panel: that same version line, commit when there is one, and the install kind (git clone, Docker, ZIP, or unknown). It also links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi in a new tab and is hidden during presentation.
 - `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`.
 - `GET /api/health` returns those fields plus `"ok": true` and `dataDir`.
@@ -52,11 +52,11 @@ The running app shows the version and the code name together. A 1.0.y through 1.
 
 ## Pin a version or move to another
 
-The Docker `pull` and `run` commands use `v2.1.5`, the Azimuth tag for this tree, so they can be copied. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. Git and ZIP examples in this section still write the tag as `vX.Y.Z`. Substitute the release you want. `:latest` is not a version. It is the newest full release the image workflow has pushed.
+The Docker `pull` and `run` commands use `v2.1.6`, the Azimuth tag for this tree, so they can be copied. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. Git and ZIP examples in this section still write the tag as `vX.Y.Z`. Substitute the release you want. `:latest` is not a version. It is the newest full release the image workflow has pushed.
 
-**Docker, stay on one release.** Use the immutable tag `ghcr.io/networknerd1337/nerdgram1337:v2.1.5` in `docker run` and as the `image:` line in `compose.yaml`. `docker pull` of that tag gets that release again. Recreate the container on the same `nerdgram-data` volume when you change tags. The steps are [Update a Docker install](upgrading.md#update-a-docker-install). The workflow also pushes `sha-<commit>` for that build. Pin the `sha-` tag when you need that exact image rather than the version tag.
+**Docker, stay on one release.** Use the immutable tag `ghcr.io/networknerd1337/nerdgram1337:v2.1.6` in `docker run` and as the `image:` line in `compose.yaml`. `docker pull` of that tag gets that release again. Recreate the container on the same `nerdgram-data` volume when you change tags. The steps are [Update a Docker install](upgrading.md#update-a-docker-install). The workflow also pushes `sha-<commit>` for that build. Pin the `sha-` tag when you need that exact image rather than the version tag.
 
-**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins `v2.1.5`, which matches `package.json`, not `:latest`. Change that pin when you want a different release, then `docker compose pull` and `docker compose up -d`.
+**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins `v2.1.6`, which matches `package.json`, not `:latest`. Change that pin when you want a different release, then `docker compose pull` and `docker compose up -d`.
 
 **Git, track `main`.** Check out `main` and pull. You get the commits on `main`. That history can contain commits the latest release tag does not. The update check's **ahead** state compares the `version` in this tree's `package.json` with the latest stable release tag. It is not a count of extra commits. **Update now** runs only when this is a clean checkout of the official origin, on `main` or a detached release tag, and the release tag is a fast-forward. On `main` it merges that tag with `--ff-only`, then runs `npm ci` and `npm run build`. You are still on `main` afterwards. If the tag is not a fast-forward from this checkout, **Update now** refuses it as not a fast-forward and does not reset you back to the tag.
 

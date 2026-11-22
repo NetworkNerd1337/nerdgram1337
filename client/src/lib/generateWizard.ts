@@ -454,6 +454,16 @@ function formatFromName(fileName: string | undefined): WizardFormat | null {
   return null;
 }
 
+/** Lines above the first diagram declaration. The preview starts on that line. */
+export function mermaidPreviewScrollLines(value: string): number {
+  const match =
+    /^(?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|sankey-beta|xychart-beta|block-beta|packet-beta|architecture-beta|kanban)\b/m.exec(
+      value,
+    );
+  if (!match || match.index === 0) return 0;
+  return value.slice(0, match.index).split("\n").length - 1;
+}
+
 function groupForFormat(state: WizardState, format: WizardFormat): WizardGroupBy {
   const networkGroups = new Set<WizardGroupBy>(["", "vrf", "site", "role"]);
   if (state.view === "l2") networkGroups.add("platform");

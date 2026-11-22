@@ -614,7 +614,7 @@ export function AboutSummary({
       </div>
       <dl className="about-facts">
         <dt>Version</dt>
-        <dd>{runningLabel(status)}</dd>
+        <dd>{status.currentVersion.trim().startsWith("v") ? status.currentVersion.trim() : `v${status.currentVersion.trim()}`}</dd>
         {codeName ? (
           <>
             <dt>Code name</dt>

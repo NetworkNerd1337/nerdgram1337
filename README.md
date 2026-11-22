@@ -4,7 +4,7 @@
 
 [![Ko-fi: Support the developer](https://img.shields.io/badge/Ko--fi-Support%20the%20developer-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/networknerd1337)
 
-NerdGram1337 is a local, code-first app for network diagrams in [Mermaid](https://mermaid.js.org/). Generate a diagram from CSV, JSON, network JSON, or CDP and LLDP text you already have, keep hand edits outside the generated block, and export **SVG**, **PNG**, **JPG**, or **PDF**. It is [MIT](LICENSE) licensed, © Ryan Thomas Huff. You edit a diagram, preview it live, and keep it as a real `.mmd` file on disk. Exports use the diagram theme and background. JPG and PDF are exports from the browser. The API and the CLI render SVG or PNG. There is no account, no hosted service, no AI generation, and no paywall. Optional GitHub sync can copy those diagrams to a private repository you own.
+NerdGram1337 is a local, code-first app for network diagrams in [Mermaid](https://mermaid.js.org/). Generate a diagram from CSV, JSON, network JSON, CDP and LLDP, a routing table, or ARP and MAC tables you already have, keep hand edits outside the generated block, and export **SVG**, **PNG**, **JPG**, or **PDF**. It is [MIT](LICENSE) licensed, © Ryan Thomas Huff. You edit a diagram, preview it live, and keep it as a real `.mmd` file on disk. Exports use the diagram theme and background. JPG and PDF are exports from the browser. The API and the CLI render SVG or PNG. There is no account, no hosted service, no AI generation, and no paywall. Optional GitHub sync can copy those diagrams to a private repository you own.
 
 The **client** is a React app: the dashboard, the paste page, and the split editor. The **server** is an Express API that reads and writes the files. In development they run side by side. A production build, including the Docker image, serves the built client and the API from one process.
 
@@ -34,10 +34,10 @@ The full install is in [Install](docs/install.md).
 
 ### Docker
 
-The command uses `v2.1.5`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)).
+The command uses `v2.1.6`, the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)).
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.5
+docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.6
 ```
 
 ```bash
@@ -48,7 +48,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.5
+  ghcr.io/networknerd1337/nerdgram1337:v2.1.6
 ```
 
 Open [http://127.0.0.1:8787](http://127.0.0.1:8787) or [http://localhost:8787](http://localhost:8787).
@@ -94,17 +94,17 @@ The full Node.js steps are in [Install](docs/install.md#nodejs).
 
 The dashboard lists folders and diagrams in a tree, with search and grid or list view.
 
-- **[Preview](docs/features.md#preview).** Drag the preview to pan, and use the wheel to zoom toward the pointer. **Fit** resets that view.
+- **[Preview](docs/features.md#preview).** Drag the preview to pan, and use the wheel to zoom toward the pointer. **Fit** keeps a readable zoom on a very tall or wide diagram.
 - **[Editing](docs/features.md#editing).** Opening a diagram takes a lock for that browser tab.
 - **[Files](docs/features.md#files).** **Your space** lists Recent, Bookmarks, and Needs attention, then Trash, then a Folders heading and the folder tree. Drag the edge of the sidebar to widen it. **Move to…** is on every diagram and folder, next to Rename and Delete.
-- **[Import](docs/features.md#files).** Lucid CSV or JSON and Visio `.vsdx` become Mermaid diagrams. Mermaid files are copied in. CSV, JSON, CDP, LLDP, routing tables, and network JSON open in From data.
+- **[Import](docs/features.md#files).** Lucid CSV or JSON and Visio `.vsdx` become Mermaid diagrams. Mermaid files are copied in. CSV, JSON, CDP, LLDP, routing tables, ARP and MAC tables, and network JSON open in From data.
 - **[Trash and history](docs/features.md#trash-and-history).** Delete moves a diagram or a folder into the trash. The confirm follows the theme. Compare stays on screen, and side-by-side and text mark what changed.
 - **[Titles, themes, and notes](docs/features.md#titles-themes-and-notes).** A diagram can start with [Mermaid's YAML front matter](https://mermaid.js.org/config/configuration.html). Cards show the file name, and a different title on a second line.
 - **[Style presets](docs/features.md#style-presets).** Save a diagram's theme, colors, and font as a named preset, and copy it onto another diagram or a new one.
 - **[Appearance](docs/features.md#appearance).** Light, Dark, or Match system. The choice stays in this browser. It does not change a diagram's theme.
 - **[Diagram checks](docs/features.md#diagram-checks).** The code pane checks the diagram while you type. Mute warnings for one diagram from the editor. Errors stay. A link to a subgraph id is not reported as a typo.
 - **[Linked diagrams](docs/features.md#linked-diagrams).** A node can open another diagram.
-- **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, network JSON, CDP, LLDP, or Cisco `show ip route` paste can build the diagram.
+- **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, network JSON, CDP, LLDP, Cisco `show ip route`, or ARP and MAC paste can build the diagram.
 - **[Translators](docs/translators.md).** `nerdgram convert` turns a saved export into network JSON. It does not log in or call out.
 - **[Design exports](docs/exports.md).** **Export as** can write a pyATS testbed, a containerlab or CML or GNS3 or EVE-NG lab, or an Ansible or Nornir inventory. Passwords and images are placeholders. NerdGram does not connect.
 - **[Thumbnails, find, and shortcuts](docs/features.md#thumbnails-find-and-shortcuts).** Dashboard cards keep a thumbnail of each diagram.
@@ -123,7 +123,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Security policy](SECURITY.md).** How to report a vulnerability in private.
 - **[Install](docs/install.md).** Run NerdGram with Docker, or with Node.js on the machine.
 - **[Features](docs/features.md).** The dashboard lists folders and diagrams in a tree, with search and grid or list view.
-- **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, network JSON, CDP, LLDP, or Cisco `show ip route` paste can build the diagram.
+- **[Generate from data](docs/generate-from-data.md).** A CSV, JSON, network JSON, CDP, LLDP, Cisco `show ip route`, or ARP and MAC paste can build the diagram.
 - **[Translators](docs/translators.md).** A saved export becomes network JSON. The command does not log in.
 - **[Design exports](docs/exports.md).** A diagram and its network JSON can be written as a pyATS testbed, a lab file, or an inventory. Credentials are placeholders.
 - **[Schema compatibility](docs/schema/README.md).** Network JSON stays on schemaVersion 1 when a change only adds optional fields, and moves to 2 when a field's meaning changes.
@@ -137,7 +137,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Data and backups](docs/data-and-backups.md).** By default, diagrams live in `diagrams/` inside the project.
 - **[Upgrading](docs/upgrading.md).** Stop the app before you replace it.
 - **[Versioning and releases](docs/releases.md).** Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix.
-- **[Roadmap](docs/roadmap.md).** Planned work after v2.1.5. 2.1.0 through 2.1.4 are Zenith. 2.1.5 is Azimuth. Future ideas at the end are not committed.
+- **[Roadmap](docs/roadmap.md).** Planned work after v2.1.6. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Future ideas at the end are not committed.
 - **[Troubleshooting](docs/troubleshooting.md).** If the API port is taken, the server exits and prints the listen error.
 - **[Developing](docs/developing.md).** The project folders, the npm scripts, and what CI runs.
 

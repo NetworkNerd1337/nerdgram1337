@@ -111,6 +111,12 @@ export function capAxisFit(scale: number): number {
 }
 
 /**
+ * Editor Fit stays at least this large. Below it, a tall or wide diagram is a
+ * sliver, so Fit uses the longer axis or this floor and leaves the rest to pan.
+ */
+export const READABLE_ZOOM = 0.25;
+
+/**
  * Scale that fits the rotated diagram on the chosen axis, centered.
  * Page uses the smaller axis so the whole diagram is visible, with no cap.
  * Width and height use one axis, so the other direction can be panned, and
@@ -132,6 +138,28 @@ export function fitTo(viewport: Size, content: Size, rotation: number, mode: Fit
 /** Largest scale that fits the whole rotated diagram in the viewport. */
 export function fit(viewport: Size, content: Size, rotation: number): ViewTransform {
   return fitTo(viewport, content, rotation, "page");
+}
+
+/**
+ * Editor preview Fit. Use the whole page when that scale stays at or above
+ * {@link READABLE_ZOOM}, and never past {@link FIT_AXIS_MAX}. A page fit below
+ * the floor uses the short side instead, so a very tall diagram pans vertically
+ * and a very wide one pans sideways. Presentation keeps {@link fit}.
+ */
+export function readableFit(
+  viewport: Size,
+  content: Size,
+  rotation: number,
+): { mode: FitMode; view: ViewTransform } {
+  const page = fitTo(viewport, content, rotation, "page");
+  if (page.scale >= READABLE_ZOOM) {
+    return { mode: "page", view: { ...page, scale: Math.min(page.scale, FIT_AXIS_MAX) } };
+  }
+  const bounds = rotatedContentSize(content, rotation);
+  const along: FitMode = bounds.height >= bounds.width ? "width" : "height";
+  const fitted = fitTo(viewport, content, rotation, along);
+  const scale = fitted.scale >= READABLE_ZOOM ? fitted.scale : Math.min(MAX_ZOOM, READABLE_ZOOM);
+  return { mode: along, view: { ...fitted, scale, rotation: normalizeDegrees(rotation) } };
 }
 
 /**
@@ -266,8 +294,13 @@ export function viewAfterMeasure(
   viewport: Size,
   content: Size,
   mode: FitMode = "page",
-): { view: ViewTransform; baseline: ViewTransform } | null {
+  readable = false,
+): { view: ViewTransform; baseline: ViewTransform; mode?: FitMode } | null {
   if (baseline && !viewsClose(current, baseline)) return null;
+  if (readable) {
+    const chosen = readableFit(viewport, content, baseline ? current.rotation : 0);
+    return { view: chosen.view, baseline: chosen.view, mode: chosen.mode };
+  }
   const next = fitTo(viewport, content, baseline ? current.rotation : 0, mode);
   return { view: next, baseline: next };
 }

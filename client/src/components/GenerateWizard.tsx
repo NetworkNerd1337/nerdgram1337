@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type Dispatch, type ReactNode } from "react";
 import { largeImportAdvice } from "../lib/largeImport";
 import { builtinSourceNotice, translatorSourceNotice, type SourceNotice } from "../lib/sourceNotice";
 import type { FlowDirection, NetworkView } from "../../../server/src/diagramData.ts";
@@ -6,6 +6,7 @@ import {
   canCreate,
   canInspect,
   edgeFields,
+  mermaidPreviewScrollLines,
   fieldsFor,
   isNeighborSource,
   isArpMacSource,
@@ -386,7 +387,7 @@ export function GenerateWizard({
           </p>
           <LargeImportChoice state={state} dispatch={dispatch} />
           <label htmlFor="generate-preview">Mermaid preview</label>
-          <textarea id="generate-preview" readOnly value={state.mermaid} spellCheck={false} rows={16} />
+          <MermaidPreview value={state.mermaid} />
           <div className="generate-actions">
             <button type="button" className="btn btn-ghost" onClick={() => dispatch({ type: "back" })}>
               Back
@@ -398,6 +399,38 @@ export function GenerateWizard({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function previewScrollTop(node: HTMLElement, value: string): number {
+  const lines = mermaidPreviewScrollLines(value);
+  if (lines <= 0 || node.scrollHeight <= node.clientHeight) return 0;
+  const total = Math.max(value.split("\n").length, 1);
+  const line = (node.scrollHeight - node.clientHeight) / Math.max(total - 1, 1);
+  return lines * line;
+}
+
+function MermaidPreview({ value }: { value: string }) {
+  const ref = useRef<HTMLPreElement>(null);
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const pin = () => {
+      node.scrollTop = previewScrollTop(node, value);
+      node.scrollLeft = 0;
+    };
+    pin();
+    const frame = requestAnimationFrame(pin);
+    const timer = window.setTimeout(pin, 50);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [value]);
+  return (
+    <pre ref={ref} id="generate-preview" tabIndex={0}>
+      {value}
+    </pre>
   );
 }
 
