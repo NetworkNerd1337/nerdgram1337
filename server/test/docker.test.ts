@@ -66,8 +66,8 @@ describe("docker packaging", () => {
     expect(release).toContain("NPM_TOKEN");
     expect(release).toContain("--provenance");
     expect(release).toContain("cli/package.json");
-    expect(release).toContain("trusted publishing");
-    expect(release).toContain("delete the NPM_TOKEN repository secret");
+    expect(release).toContain("Published nerdgram1337 with npm trusted publishing (OIDC).");
+    expect(release).toContain("Falling back to NPM_TOKEN.");
     expect(ci).toContain("scripts/pack-cli-smoke.sh");
     expect(ci).toContain("scripts/check-supply-chain.mjs");
     expect(ci).toContain("persist-credentials: false");

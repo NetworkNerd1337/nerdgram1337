@@ -17,18 +17,30 @@ ARG TARGETARCH
 WORKDIR /src
 # chrome-headless-shell only (see server/.puppeteerrc.cjs). Full Chrome is not
 # downloaded. The cache has to live somewhere the runtime stage can copy.
+# Puppeteer 25 extracts that archive with the system unzip. bookworm-slim does
+# not ship it, and Puppeteer's install script exits 0 when extraction fails,
+# which leaves an empty cache and a 503 from the renderer. amd64 checks that
+# the shell binary is present before this stage is copied.
 COPY server/package.json server/package-lock.json server/.puppeteerrc.cjs server/
 ENV PUPPETEER_CACHE_DIR=/opt/puppeteer
 # cosmiconfig (via Puppeteer) depends on the TypeScript compiler so it can
 # load a .ts config. This image uses server/.puppeteerrc.cjs at install time
 # and PUPPETEER_CACHE_DIR at runtime, so the compiler is not needed. The
 # runtime image is not a development environment.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+ && apt-get install -y --no-install-recommends unzip
 RUN --mount=type=cache,target=/root/.npm \
     case "$TARGETARCH" in amd64|arm64) ;; *) echo "unsupported TARGETARCH: ${TARGETARCH:-empty}" >&2; exit 1 ;; esac \
  && mkdir -p /opt/puppeteer \
  && if [ "$TARGETARCH" = "arm64" ]; then export PUPPETEER_SKIP_DOWNLOAD=1; fi \
  && npm ci --omit=dev --prefix server \
- && rm -rf server/node_modules/typescript
+ && rm -rf server/node_modules/typescript \
+ && if [ "$TARGETARCH" = "amd64" ]; then \
+      test -n "$(find /opt/puppeteer -type f -name chrome-headless-shell -print -quit)" \
+        || { echo "chrome-headless-shell was not installed" >&2; exit 1; }; \
+    fi
 
 # Client and server builds. The client bundle is static files. The server
 # compile needs TypeScript, which stays in this stage. Both are plain
@@ -50,7 +62,7 @@ COPY templates templates
 COPY reference reference
 COPY diagrams diagrams
 COPY Dockerfile compose.yaml compose.build.yaml README.md CHANGELOG.md LICENSE SECURITY.md ./
-ARG NERDGRAM_VERSION=2.1.7
+ARG NERDGRAM_VERSION=2.1.8
 ARG NERDGRAM_CODENAME=Azimuth
 ENV NERDGRAM_VERSION=${NERDGRAM_VERSION} \
     NERDGRAM_CODENAME=${NERDGRAM_CODENAME}
@@ -126,7 +138,7 @@ RUN chmod -R a-w /app/templates /app/reference /app/diagrams /app/docs/schema /a
  && printf '%s\n' '#!/bin/sh' 'exec node /app/server/dist/cli.js "$@"' > /usr/local/bin/nerdgram \
  && chmod 755 /usr/local/bin/nerdgram
 
-ARG NERDGRAM_VERSION=2.1.7
+ARG NERDGRAM_VERSION=2.1.8
 ARG NERDGRAM_CODENAME=Azimuth
 ARG NERDGRAM_COMMIT=
 ENV NODE_ENV=production \

@@ -50,14 +50,14 @@ Production does not enable cross-origin browser access, because the UI and the A
 
 Actions in `.github/workflows` are pinned to a full commit SHA, with the version in a comment on the same line. `node scripts/check-supply-chain.mjs` fails CI when a `uses:` line is not a 40-character SHA, and when any `package.json` adds a `preinstall`, `install`, or `postinstall` script. Checkout steps set `persist-credentials: false` because no job pushes with the checkout token. Each workflow starts at `contents: read`. The release job raises `contents: write` to publish the GitHub Release. The npm job raises `id-token: write` for provenance. The Docker publish job raises `packages: write` to push the image. Dependabot opens a weekly pull request for Actions and one grouped pull request per npm directory (root, client, server). `.github/CODEOWNERS` names `@NetworkNerd1337` for `.github/` and the four `package.json` files.
 
-The npm publish prefers [trusted publishing](https://docs.npmjs.com/trusted-publishers). The job still uses the `NPM_TOKEN` secret when that secret is set, so a tag publishes before the trusted publisher exists. After trusted publishing works once, delete `NPM_TOKEN`.
+The npm publish tries [trusted publishing](https://docs.npmjs.com/trusted-publishers) first. The job's `id-token: write` permission lets npm mint the OIDC token. `NODE_AUTH_TOKEN` is unset for that attempt, and any project `.npmrc` from setup-node is removed so a stored token cannot hide the OIDC path. The job logs `Published nerdgram1337 with npm trusted publishing (OIDC).` If that publish fails and `NPM_TOKEN` is set, the job logs the fallback and publishes with the token. If both fail, the npm job fails. The GitHub Release job is separate. After a trusted publish succeeds, delete the `NPM_TOKEN` repository secret.
 
 These are the owner settings. The files in the repo do not turn them on.
 
 - **Ruleset on `main`.** Require a pull request before merging. Require the **verify** and **docker** checks. Block force pushes. Require a review from code owners so a change under `.github/` or to a `package.json` needs the maintainer.
 - **Actions.** Require approval before a workflow runs from an outside collaborator. That setting is under Settings, Actions, General.
 - **Secret scanning and push protection.** Turn both on under Settings, Code security. Push protection stops a commit that contains a token.
-- **npm trusted publisher.** On npmjs.com, open the `nerdgram1337` package, then Trusted Publisher. Add GitHub Actions with owner `NetworkNerd1337`, repository `nerdgram1337`, workflow `release.yml`, and leave the environment empty. The publish job has no GitHub environment. After one publish from that workflow succeeds, delete the `NPM_TOKEN` repository secret.
+- **npm trusted publisher.** This is already set on npmjs.com for `nerdgram1337`: GitHub Actions, owner `NetworkNerd1337`, repository `nerdgram1337`, workflow `release.yml`, environment empty. The publish job tries that OIDC path first. `NPM_TOKEN` is only the fallback when that publish fails. After a trusted publish succeeds, delete the `NPM_TOKEN` repository secret.
 
 ## See also
 
