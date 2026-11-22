@@ -181,8 +181,8 @@ export function renderForbiddenHostPage(input: {
   }
   code {
     background: var(--code);
-    padding: 0.08em 0.35em;
-    border-radius: 6px;
+    padding: 0.05em 0.16em;
+    border-radius: 5px;
   }
   pre {
     margin: 0 0 1rem;
