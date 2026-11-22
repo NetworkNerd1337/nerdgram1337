@@ -1,6 +1,6 @@
 {
   "name": "nerdgram1337",
-  "version": "2.1.9",
+  "version": "2.1.10",
   "description": "Command-line client for a local NerdGram1337 server",
   "type": "module",
   "license": "MIT",
