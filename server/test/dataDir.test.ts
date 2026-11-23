@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app.js";
 import {
@@ -242,5 +242,33 @@ describe("diagram folder setting", () => {
       .send({ name: "  " });
     expect(cleared.body.nameIsDefault).toBe(true);
     expect(cleared.body.instanceName).toBe(cleared.body.hostname);
+  });
+
+  it("keeps a hostname longer than 32 characters and rejects a typed name over that cap", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    const instanceFile = path.join(temp.dir, "instance.json");
+    process.env.NERDGRAM_INSTANCE_FILE = instanceFile;
+    clearInstanceIdentityCache();
+    const hostname = "h".repeat(50);
+    const spy = vi.spyOn(os, "hostname").mockReturnValue(hostname);
+    try {
+      const status = await request(app()).get("/api/instance").set("Host", HOST);
+      expect(status.status).toBe(200);
+      expect(status.body.configuredName).toBeNull();
+      expect(status.body.hostname).toBe(hostname);
+      expect(status.body.instanceName).toBe(hostname);
+      const saved = await request(app())
+        .post("/api/instance")
+        .set("Host", HOST)
+        .set("Content-Type", "application/json")
+        .send({ name: "n".repeat(33) });
+      expect(saved.status).toBe(400);
+      expect(saved.body.error).toMatch(/32 characters/);
+    } finally {
+      spy.mockRestore();
+      delete process.env.NERDGRAM_INSTANCE_FILE;
+      clearInstanceIdentityCache();
+    }
   });
 });

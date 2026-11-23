@@ -104,6 +104,17 @@ describe("automation token settings", () => {
     return found;
   }
 
+  it("caps a token name at 40 characters and shows the count", async () => {
+    mockFetch();
+    await render();
+    const input = document.querySelector("#token-name");
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect((input as HTMLInputElement).maxLength).toBe(40);
+    expect(document.querySelector("#token-name-count")?.textContent).toContain("0/40");
+    const label = [...(container?.querySelectorAll(".clipped-name") ?? [])].find((node) => node.textContent === "CI render");
+    expect(label?.getAttribute("title")).toBe("CI render");
+  });
+
   it("shows a one-time panel with Copy and keeps Delete off active tokens", async () => {
     mockFetch();
     await render();

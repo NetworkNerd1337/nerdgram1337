@@ -20,7 +20,13 @@ import {
 
 export const STYLE_PRESET_VERSION = 1;
 export const MAX_PRESETS = 100;
-export const MAX_PRESET_NAME = 80;
+/** What a person types for a new or renamed preset. */
+export const MAX_PRESET_NAME = 40;
+/**
+ * Names already stored, or brought in by an import file, are kept.
+ * The previous cap was 80. A longer stored name still loads.
+ */
+export const STORED_PRESET_NAME_MAX = 200;
 export const MAX_FONT_FAMILY = 300;
 export const MAX_THEME_CSS = 20_000;
 export const MAX_THEME_VARIABLES = 80;
@@ -238,12 +244,25 @@ export function parseStyleSnapshot(value: unknown): StyleSnapshot {
   };
 }
 
-export function readPresetName(value: unknown): string {
+function cleanPresetName(value: unknown): string {
   if (typeof value !== "string") throw stylePresetError("name must be a string.");
   const name = value.replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim();
   if (!name) throw stylePresetError("name is required.");
-  if (name.length > MAX_PRESET_NAME) throw stylePresetError("name is too long.");
   if (/[<>:"|?*\\/]/.test(name)) throw stylePresetError("name cannot include : \\ * ? \" < > |.");
+  return name;
+}
+
+/** A name someone is creating or renaming. */
+export function readPresetName(value: unknown): string {
+  const name = cleanPresetName(value);
+  if (name.length > MAX_PRESET_NAME) throw stylePresetError(`name must be ${MAX_PRESET_NAME} characters or fewer.`);
+  return name;
+}
+
+/** A name already in a preset file, or in an import. It is not cut down to the typing cap. */
+export function readStoredPresetName(value: unknown): string {
+  const name = cleanPresetName(value);
+  if (name.length > STORED_PRESET_NAME_MAX) throw stylePresetError("name is too long.");
   return name;
 }
 
@@ -312,7 +331,7 @@ export function parseImportBody(value: unknown): {
       if (typeof item.id !== "string" || !isPresetId(item.id)) throw stylePresetError("preset id is not valid.");
       id = item.id;
     }
-    return { id, name: readPresetName(item.name), style: parseStyleSnapshot(item.style) };
+    return { id, name: readStoredPresetName(item.name), style: parseStyleSnapshot(item.style) };
   });
   const names = new Set<string>();
   const ids = new Set<string>();

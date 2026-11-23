@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api, type InstanceStatus } from "../api";
 import { SettingsCard } from "./SettingsCard";
 
+const NAME_MAX = 32;
+
 function messageOf(err: unknown): string {
   if (err instanceof Error) return err.message;
   return "Could not save the instance name";
@@ -35,7 +37,19 @@ export function InstanceSettings() {
     <SettingsCard id="instance" title="Instance name" summary={status?.configuredName ? `Name: ${status.configuredName}` : "Name: hostname"}>
       <p>
         Other NerdGram instances use this name when a diagram is open here. Leave it blank to use
-        the hostname{status ? ` (${status.hostname})` : ""}. The name is stored with this install,
+        the hostname
+        {status ? (
+          <>
+            {" ("}
+            <span className="clipped-name" title={status.hostname}>
+              {status.hostname}
+            </span>
+            {"). "}
+          </>
+        ) : (
+          ". "
+        )}
+        The name is stored with this install,
         not in the diagram folder. It applies the next time a diagram is opened. It does not need
         a restart.
       </p>
@@ -46,16 +60,34 @@ export function InstanceSettings() {
         id="instance-name"
         value={draft}
         disabled={busy || status == null}
-        onChange={(event) => setDraft(event.target.value)}
+        maxLength={draft.length > NAME_MAX ? undefined : NAME_MAX}
+        onChange={(event) => {
+          const next = event.target.value;
+          if (next.length <= NAME_MAX || next.length < draft.length) setDraft(next);
+        }}
         autoComplete="off"
         spellCheck={false}
         placeholder={status?.hostname ?? "hostname"}
         aria-describedby="instance-name-help"
       />
-      <p id="instance-name-help">
-        {status
-          ? `Showing as ${status.instanceName}. The hostname is ${status.hostname}.`
-          : "The hostname is the default."}
+      <p className="field-count" id="instance-name-help">
+        {draft.length}/{NAME_MAX}. Leave blank to use the hostname.
+        {status ? (
+          <>
+            {" "}
+            Showing as{" "}
+            <span className="clipped-name" title={status.instanceName}>
+              {status.instanceName}
+            </span>
+            . The hostname is{" "}
+            <span className="clipped-name" title={status.hostname}>
+              {status.hostname}
+            </span>
+            .
+          </>
+        ) : (
+          " The hostname is the default."
+        )}
       </p>
       <div className="modal-actions">
         <button

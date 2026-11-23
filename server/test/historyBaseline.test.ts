@@ -173,6 +173,33 @@ describe("named baselines and revision diffs", () => {
     expect(read.body.name).toBeNull();
   });
 
+  it("keeps a stored instance name that is longer than the 32 character typing cap", async () => {
+    await writeNew("Long.mmd", "flowchart LR\n  A --> B\n");
+    const versionDir = path.join(getVersionsRoot(), encodeStorageKey("Long.mmd"));
+    await fs.mkdir(versionDir, { recursive: true });
+    await fs.writeFile(path.join(versionDir, "long.mmd"), "flowchart LR\n  A --> B\n");
+    const instanceName = "N".repeat(50);
+    await fs.writeFile(
+      path.join(versionDir, "index.json"),
+      JSON.stringify({
+        path: "Long.mmd",
+        revisions: [
+          {
+            id: "long",
+            createdAt: "2020-01-01T00:00:00.000Z",
+            mtimeMs: 1,
+            size: 22,
+            hash: "abc",
+            instanceName,
+          },
+        ],
+      }),
+    );
+    const history = await request(app).get("/api/history").query({ path: "Long.mmd" }).set("Host", HOST);
+    const found = history.body.revisions.find((revision: { id: string }) => revision.id === "long");
+    expect(found.instanceName).toBe(instanceName);
+  });
+
   it("keeps named baselines when unnamed revisions are pruned and states the cap", async () => {
     let saved = await writeNew("Cap.mmd", "flowchart LR\n  A --> B\n");
     const first = await request(app).post("/api/history/baseline").set(json).send({

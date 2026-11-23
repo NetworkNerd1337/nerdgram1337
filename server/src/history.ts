@@ -114,7 +114,14 @@ function readRevisionMeta(value: unknown): RevisionMeta | null {
   return meta;
 }
 
-/** Keep a stored name that fits the instance-name rules. Anything else is absent. */
+/**
+ * Keep a stored history name. This stays at 80, not the 32-character typing cap,
+ * so a revision saved under the older limit does not become Unknown instance.
+ */
+/**
+ * Keep a stored history name. This stays at 80, not the 32-character typing cap,
+ * so a revision saved under the older limit does not become Unknown instance.
+ */
 function readInstanceName(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const name = value.trim();

@@ -167,8 +167,10 @@ export function StylePresetBar({
           aria-label="Preset name"
           value={name}
           disabled={locked}
+          maxLength={40}
           placeholder="House style"
-          onChange={(event) => setName(event.target.value)}
+          aria-describedby="preset-save-count"
+          onChange={(event) => setName(event.target.value.slice(0, 40))}
           onKeyDown={(event) => {
             if (event.key !== "Enter") return;
             event.preventDefault();
@@ -176,6 +178,9 @@ export function StylePresetBar({
           }}
         />
       </label>
+      <p className="field-count" id="preset-save-count">
+        {name.length}/40
+      </p>
       <div className="style-preset-actions">
         <button type="button" className="btn btn-ghost" disabled={locked} onClick={() => void save()}>
           Save as preset
