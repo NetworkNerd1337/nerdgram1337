@@ -740,6 +740,23 @@ function operationsPath(): string {
   return path.join(getMetaPath(), "replace", "operations.json");
 }
 
+function parseOperations(value: unknown): OperationFile | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as OperationFile;
+  if (record.version !== 1 || !Array.isArray(record.operations)) return null;
+  return record;
+}
+
+/** Startup audit. Uses the same operations parser as replace undo. */
+export async function auditReplaceState(): Promise<void> {
+  await safeReadState({
+    file: operationsPath(),
+    name: "replace/operations.json",
+    fallback: null,
+    parse: parseOperations,
+  });
+}
+
 async function recordOperation(files: StoredFile[]): Promise<string> {
   return queued(async () => {
     const id = createId();
@@ -747,12 +764,7 @@ async function recordOperation(files: StoredFile[]): Promise<string> {
       file: operationsPath(),
       name: "replace/operations.json",
       fallback: null,
-      parse: (value) => {
-        if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-        const record = value as OperationFile;
-        if (record.version !== 1 || !Array.isArray(record.operations)) return null;
-        return record;
-      },
+      parse: parseOperations,
     });
     const operations = stored?.version === 1 && Array.isArray(stored.operations) ? stored.operations : [];
     operations.push({ id, createdAt: new Date().toISOString(), files });
@@ -768,12 +780,7 @@ async function loadOperation(id: string): Promise<StoredOperation | null> {
       file: operationsPath(),
       name: "replace/operations.json",
       fallback: null,
-      parse: (value) => {
-        if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-        const record = value as OperationFile;
-        if (record.version !== 1 || !Array.isArray(record.operations)) return null;
-        return record;
-      },
+      parse: parseOperations,
     });
     if (!stored || stored.version !== 1 || !Array.isArray(stored.operations)) return null;
     return stored.operations.find((item) => item && item.id === id) ?? null;

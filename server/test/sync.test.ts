@@ -408,7 +408,10 @@ describe("GitHub sync", () => {
     await fs.writeFile(path.join(dir, "Notes.txt"), "do not sync text");
     await fs.writeFile(path.join(dir, ".hidden.mmd"), "flowchart LR\n  hidden-->x\n");
     await fs.writeFile(path.join(dir, ".secret", "Nope.mmd"), "flowchart LR\n  secret-->x\n");
-    await fs.writeFile(path.join(dir, ".meta", "favorites.json"), '{"favorites":["FAVORITE_MARKER"]}\n');
+    await fs.writeFile(
+      path.join(dir, ".meta", "favorites.json"),
+      `${JSON.stringify({ version: 1, folders: [], items: [{ path: "FAVORITE_MARKER", folderId: null }] })}\n`,
+    );
     await fs.writeFile(path.join(outside, "Secret.mmd"), "flowchart LR\n  template-->x\n");
     await fs.symlink(path.join(outside, "Secret.mmd"), path.join(dir, "Link.mmd"));
     const before = await fingerprint(dir);

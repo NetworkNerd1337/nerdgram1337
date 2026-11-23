@@ -92,13 +92,13 @@ async function readManifest(id: string): Promise<TrashManifest | null> {
     fallback: null,
     parse: (value) => {
       if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-      return value as TrashManifest;
+      const record = value as TrashManifest;
+      if (record.id !== id || (record.type !== "file" && record.type !== "folder")) return null;
+      if (typeof record.originalPath !== "string" || typeof record.deletedAt !== "string") return null;
+      return record;
     },
   });
-  if (!parsed || parsed.id !== id || (parsed.type !== "file" && parsed.type !== "folder")) {
-    return null;
-  }
-  if (typeof parsed.originalPath !== "string" || typeof parsed.deletedAt !== "string") return null;
+  if (!parsed) return null;
   return {
     ...parsed,
     name: parsed.name || path.basename(parsed.originalPath),
@@ -437,4 +437,23 @@ export async function emptyTrash(): Promise<{ purged: number }> {
     await fs.rm(itemDir(item.id), { recursive: true, force: true });
   }
   return { purged: items.length };
+}
+
+/** Startup audit. Uses the same manifest parser as a trash read. */
+export async function auditTrashState(): Promise<void> {
+  let names: string[] = [];
+  try {
+    names = await fs.readdir(itemsRoot());
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw err;
+  }
+  for (const id of names) {
+    try {
+      await fs.access(manifestFile(id));
+    } catch {
+      continue;
+    }
+    await readManifest(id);
+  }
 }

@@ -186,6 +186,7 @@ Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` mea
 | `nerdgram replace --undo` | `POST /api/v1/replace/undo` |
 | `nerdgram template` | local `<data>/.templates` |
 | `nerdgram mcp` | stdio proxy. Each tool calls `/api/v1`. See [MCP](mcp.md). |
+| `nerdgram doctor` | none |
 <!-- /cli-route-map -->
 
 `nerdgram put` sends `force: true`, so it is the overwrite route, not `POST /api/v1/diagrams`. That POST creates a file and fails when the path exists. There is no `nerdgram` command for it, for folders, for linting unsaved source, for `GET /api/v1/render`, for generate preview, for listing history, or for renaming or deleting a baseline. Those are in the endpoint table in [Automation API](api.md).

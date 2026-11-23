@@ -420,61 +420,30 @@ export function noteTreeSkip(relativePath: string, code: string): void {
   });
 }
 
-async function auditFile(file: string, name: string): Promise<void> {
-  await safeReadState({
-    file,
-    name,
-    fallback: null,
-    parse: (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : null),
-  });
-}
-
-async function auditTree(dir: string, name: string): Promise<void> {
-  let entries;
-  try {
-    entries = await fs.readdir(dir, { withFileTypes: true });
-  } catch (err) {
-    if (errnoOf(err) === "ENOENT") return;
-    recordDataIssue({
-      code: "state-dir",
-      severity: "warn",
-      file: name,
-      message: `Could not read ${name} (${errnoOf(err) || "error"}).`,
-    });
-    return;
-  }
-  for (const entry of entries) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory() && !entry.isSymbolicLink()) {
-      await auditTree(full, `${name}/${entry.name}`);
-      continue;
-    }
-    if (!entry.name.endsWith(".json") || entry.name.endsWith(".bak")) continue;
-    await auditFile(full, `${name}/${entry.name}`);
-  }
-}
-
+/**
+ * Same readers the API uses. A loose "any object" check used to leave a
+ * wrong-shape favorites.json in place until the first GET. Doctor and boot
+ * now quarantine it the same way.
+ */
 async function auditStateFiles(): Promise<void> {
-  const meta = getMetaPath();
-  const singles: [string, string][] = [
-    ["updates.json", "updates.json"],
-    ["api-tokens.json", "api-tokens.json"],
-    ["style-presets.json", "style-presets.json"],
-    ["github-sync.json", "github-sync.json"],
-  ];
-  for (const [file, name] of singles) {
-    await auditFile(path.join(meta, file), name);
-  }
-  await safeReadState({
-    file: path.join(meta, "favorites.json"),
-    name: "favorites.json",
-    fallback: null,
-    parse: (value) => (Array.isArray(value) || (value && typeof value === "object") ? value : null),
-  });
-  await auditFile(path.join(meta, "replace", "operations.json"), "replace/operations.json");
-  await auditTree(path.join(meta, "versions"), "versions");
-  await auditTree(path.join(meta, "trash"), "trash");
-  await auditTree(path.join(meta, "locks"), "locks");
+  const updates = await import("./updates/state.js");
+  await updates.loadUpdateFile();
+  const tokens = await import("./tokens.js");
+  await tokens.listTokens();
+  const presets = await import("./stylePresets.js");
+  await presets.listStylePresets();
+  const sync = await import("./sync/configStore.js");
+  await sync.loadConfig();
+  const favorites = await import("./favorites.js");
+  await favorites.getBookmarks();
+  const replace = await import("./replace.js");
+  await replace.auditReplaceState();
+  const history = await import("./history.js");
+  await history.auditHistoryState();
+  const trash = await import("./trash.js");
+  await trash.auditTrashState();
+  const locks = await import("./locks.js");
+  await locks.auditLockState();
 }
 
 /** Check the data folder once. Later quarantines update the same report. */

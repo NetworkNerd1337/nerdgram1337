@@ -129,7 +129,7 @@ async function readLock(relativePath: string): Promise<LockFile | null> {
     file: lockFile(relativePath),
     name: "locks",
     fallback: null,
-    parse: (value) => (value && typeof value === "object" ? value : null),
+    parse: (value) => (isLockRecord(value) ? value : null),
   });
   if (!isLockRecord(parsed)) return null;
   const record = normalizeLock(parsed);
@@ -328,7 +328,7 @@ async function eachLock(): Promise<LockFile[]> {
       file: path.join(getLocksRoot(), name),
       name: `locks/${name}`,
       fallback: null,
-      parse: (value) => (value && typeof value === "object" ? value : null),
+      parse: (value) => (isLockRecord(value) ? value : null),
     });
     if (!isLockRecord(parsed)) continue;
     const itemPath = decoded ?? parsed.path;
@@ -409,4 +409,9 @@ export async function relocateLocks(
       await atomicWriteJson(lockFile(nextPath), next);
     }
   }
+}
+
+/** Startup audit. Uses the same lock parser as a lock read. */
+export async function auditLockState(): Promise<void> {
+  await eachLock();
 }

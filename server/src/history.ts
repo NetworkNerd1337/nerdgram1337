@@ -548,3 +548,31 @@ export async function clearBaseline(
   const kept = index.revisions.find((revision) => revision.id === id);
   return { revision: kept ? publicRevision(kept) : null, pruned: !kept };
 }
+
+/** Startup audit. Uses the same index parser as a history read. */
+export async function auditHistoryState(): Promise<void> {
+  const root = getVersionsRoot();
+  let names: string[] = [];
+  try {
+    names = await fs.readdir(root);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw err;
+  }
+  for (const name of names) {
+    const dir = path.join(root, name);
+    let stat;
+    try {
+      stat = await fs.stat(dir);
+    } catch {
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    try {
+      await fs.access(path.join(dir, "index.json"));
+    } catch {
+      continue;
+    }
+    await loadIndex(dir, name);
+  }
+}

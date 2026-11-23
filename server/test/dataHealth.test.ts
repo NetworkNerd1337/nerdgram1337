@@ -205,6 +205,49 @@ describe("data folder health", () => {
     await fs.rm(home, { recursive: true, force: true });
   });
 
+  it("quarantines a wrong-shape state file at startup for every audited file", async () => {
+    const cases: { rel: string; body: string; file: string }[] = [
+      { rel: "favorites.json", body: '{"not":"favorites"}\n', file: "favorites.json" },
+      { rel: "updates.json", body: "[]\n", file: "updates.json" },
+      { rel: "api-tokens.json", body: '{"not":"tokens"}\n', file: "api-tokens.json" },
+      { rel: "style-presets.json", body: '{"not":"presets"}\n', file: "style-presets.json" },
+      { rel: "github-sync.json", body: "[]\n", file: "github-sync.json" },
+      { rel: "replace/operations.json", body: '{"not":"operations"}\n', file: "replace/operations.json" },
+      { rel: "versions/sample/index.json", body: '{"not":"index"}\n', file: "versions/index.json" },
+      { rel: "trash/items/sample/manifest.json", body: '{"not":"trash"}\n', file: "trash/sample/manifest.json" },
+      { rel: "locks/sample.json", body: '{"not":"lock"}\n', file: "locks/sample.json" },
+    ];
+    for (const item of cases) {
+      resetDataHealthForTests();
+      await fs.rm(path.join(dir, ".meta"), { recursive: true, force: true });
+      const file = path.join(dir, ".meta", item.rel);
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(file, item.body);
+      const stdout: string[] = [];
+      const code = await main(["doctor"], { stdout: (chunk) => stdout.push(chunk) });
+      expect(code, item.rel).not.toBe(0);
+      expect(stdout.join(""), item.rel).toContain("wrong shape");
+      const stamps = await fs.readdir(path.join(dir, ".meta", "quarantine"));
+      const reports = await Promise.all(
+        stamps.map(async (stamp) => {
+          const folder = path.join(dir, ".meta", "quarantine", stamp);
+          const report = JSON.parse(await fs.readFile(path.join(folder, "report.json"), "utf8")) as {
+            reason: string;
+            file: string;
+          };
+          const copyName = (await fs.readdir(folder)).find((name) => name !== "report.json");
+          const copy = copyName ? await fs.readFile(path.join(folder, copyName), "utf8") : "";
+          return { report, copy };
+        }),
+      );
+      const match = reports.find((entry) => entry.report.file === item.file);
+      expect(match, item.rel).toBeTruthy();
+      expect(match?.report.reason, item.rel).toContain("wrong shape");
+      expect(match?.copy, item.rel).toBe(item.body);
+      expect(JSON.stringify(match?.report), item.rel).not.toContain(item.body.trim());
+    }
+  });
+
   it("refuses a save and exits doctor with 2 when the data folder is not writable", async () => {
     await fs.chmod(dir, 0o555);
     try {
