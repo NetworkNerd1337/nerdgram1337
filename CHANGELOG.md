@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 2.1.12 "Azimuth" - 2026-11-23
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
 - **Changed:** Diagram health in the sidebar shows a count only when there is at least one issue. A check that has not run, or that found nothing, leaves the link as Diagram health. The accessible name is Diagram health, or Diagram health, N issues (#281).
 - **Fixed:** The published CLI depends on zod ^4.6.6, and its Puppeteer range matches the server so the install does not also pull zod 3. zod before 4.6.6 can accumulate validation issues without a bound (GHSA-mrhx-c7xc-m3w5, #279).
 - **Changed:** Version labels show the code name without quotes, as in v2.1.11 Azimuth. That includes About, the upgrade panel, toasts, `nerdgram --version`, the startup log, and the generated GitHub release title. An up-to-date install says it is running that version, the latest release. A newer release is named on its own. The dialog does not say up to date twice (#283).
