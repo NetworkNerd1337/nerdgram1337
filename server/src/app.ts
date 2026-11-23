@@ -277,8 +277,11 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     }
   });
 
-  app.get("/api/health", (_req, res) => {
+  app.get("/api/health", async (_req, res) => {
     const version = getVersionInfo();
+    const { ensureDataPrepared, dataHealthReport } = await import("./dataHealth.js");
+    await ensureDataPrepared();
+    const data = dataHealthReport();
     res.json({
       ok: true,
       name: "NerdGram1337",
@@ -287,6 +290,33 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       codename: version.codename,
       commit: version.commit,
       installKind: version.installKind,
+      data: {
+        status: data.status,
+        issues: data.issues,
+        syncFolder: data.syncFolder,
+        instanceConflict: data.instanceConflict,
+        freeBytes: data.freeBytes,
+        quarantined: data.quarantined,
+        writable: data.writable,
+      },
+    });
+  });
+
+  app.get("/api/doctor", async (_req, res) => {
+    const { ensureDataPrepared, dataHealthReport } = await import("./dataHealth.js");
+    await ensureDataPrepared();
+    const data = dataHealthReport();
+    res.json({
+      ok: true,
+      dataDir: data.dataDir,
+      status: data.status,
+      issues: data.issues,
+      syncFolder: data.syncFolder,
+      instanceConflict: data.instanceConflict,
+      freeBytes: data.freeBytes,
+      quarantined: data.quarantined,
+      writable: data.writable,
+      tempsRemoved: data.tempsRemoved,
     });
   });
 

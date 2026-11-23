@@ -1,11 +1,11 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import type { Express, Request, Response } from "express";
+import { safeReadState } from "./dataHealth.js";
 import { getMetaPath } from "./paths.js";
 import { httpFail } from "./storage.js";
 import { sendError } from "./httpError.js";
 import { writePrivateFile } from "./sync/layout.js";
-import fs from "node:fs/promises";
 
 /**
  * Automation tokens for `/api/v1`.
@@ -69,19 +69,21 @@ function normalizeName(value: unknown): string {
   return name;
 }
 
+const EMPTY_TOKENS: TokenFile = { version: 1, tokens: [] };
+
 async function readFileAt(filePath: string): Promise<TokenFile> {
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    const parsed = JSON.parse(raw) as Partial<TokenFile>;
-    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.tokens)) {
-      return { version: 1, tokens: [] };
-    }
-    return { version: 1, tokens: parsed.tokens.filter(isStoredToken) };
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") return { version: 1, tokens: [] };
-    throw err;
-  }
+  return safeReadState({
+    file: filePath,
+    name: "api-tokens.json",
+    fallback: EMPTY_TOKENS,
+    restore: EMPTY_TOKENS,
+    parse: (value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+      const parsed = value as Partial<TokenFile>;
+      if (parsed.version !== 1 || !Array.isArray(parsed.tokens)) return null;
+      return { version: 1, tokens: parsed.tokens.filter(isStoredToken) };
+    },
+  });
 }
 
 async function readFile(): Promise<TokenFile> {

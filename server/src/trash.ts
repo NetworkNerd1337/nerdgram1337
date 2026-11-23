@@ -6,6 +6,7 @@ import { addFavorites, favoritePathsFor, getFavorites, takeFavorites } from "./f
 import { archiveHistory, unarchiveHistory } from "./history.js";
 import { archiveThumbnails, unarchiveThumbnails } from "./thumbnails.js";
 import { assertUnlocked, discardLocks } from "./locks.js";
+import { safeReadState } from "./dataHealth.js";
 import { ensureDataRoot, resolveSafePath, toRelativePath } from "./paths.js";
 import { invalidateDiagramLint } from "./diagramLintCache.js";
 import {
@@ -85,7 +86,15 @@ async function writeManifest(manifest: TrashManifest): Promise<void> {
 }
 
 async function readManifest(id: string): Promise<TrashManifest | null> {
-  const parsed = await readJsonFile<TrashManifest>(manifestFile(id));
+  const parsed = await safeReadState<TrashManifest | null>({
+    file: manifestFile(id),
+    name: `trash/${id}/manifest.json`,
+    fallback: null,
+    parse: (value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+      return value as TrashManifest;
+    },
+  });
   if (!parsed || parsed.id !== id || (parsed.type !== "file" && parsed.type !== "folder")) {
     return null;
   }

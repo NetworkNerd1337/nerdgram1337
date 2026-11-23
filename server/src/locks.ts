@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { safeReadState } from "./dataHealth.js";
 import { getInstanceIdentity, type InstanceIdentity } from "./instanceConfig.js";
 import {
   LOCK_HEARTBEAT_MS,
@@ -124,7 +125,12 @@ export function lockedMessage(record: LockRecord, identity: InstanceIdentity): s
 }
 
 async function readLock(relativePath: string): Promise<LockFile | null> {
-  const parsed = await readJsonFile<unknown>(lockFile(relativePath));
+  const parsed = await safeReadState<unknown>({
+    file: lockFile(relativePath),
+    name: "locks",
+    fallback: null,
+    parse: (value) => (value && typeof value === "object" ? value : null),
+  });
   if (!isLockRecord(parsed)) return null;
   const record = normalizeLock(parsed);
   const identity = await getInstanceIdentity();
@@ -318,7 +324,12 @@ async function eachLock(): Promise<LockFile[]> {
   for (const name of names) {
     if (!name.endsWith(".json")) continue;
     const decoded = decodeStorageKey(name.slice(0, -".json".length));
-    const parsed = await readJsonFile<unknown>(path.join(getLocksRoot(), name));
+    const parsed = await safeReadState<unknown>({
+      file: path.join(getLocksRoot(), name),
+      name: `locks/${name}`,
+      fallback: null,
+      parse: (value) => (value && typeof value === "object" ? value : null),
+    });
     if (!isLockRecord(parsed)) continue;
     const itemPath = decoded ?? parsed.path;
     if (!itemPath) continue;

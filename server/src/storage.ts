@@ -308,6 +308,38 @@ async function syncDirectory(dir: string): Promise<void> {
   }
 }
 
+/** One previous copy of a `.meta` state file. Diagrams, including revision `.mmd` files, are left alone. */
+function isMetaStateFile(absolutePath: string): boolean {
+  if (!absolutePath.endsWith(".json")) return false;
+  const meta = getMetaPath();
+  const prefix = meta.endsWith(path.sep) ? meta : `${meta}${path.sep}`;
+  if (!absolutePath.startsWith(prefix)) return false;
+  if (absolutePath.includes(`${path.sep}quarantine${path.sep}`)) return false;
+  if (absolutePath.endsWith(".bak")) return false;
+  return true;
+}
+
+async function keepStateBak(absolutePath: string): Promise<void> {
+  if (!isMetaStateFile(absolutePath)) return;
+  let source: fs.FileHandle | null = null;
+  let out: fs.FileHandle | null = null;
+  try {
+    source = await fs.open(absolutePath, "r");
+    const data = await source.readFile();
+    out = await fs.open(`${absolutePath}.bak`, "w");
+    await out.writeFile(data);
+    await out.sync();
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      console.warn(`Could not keep a backup of ${path.basename(absolutePath)} (${code ?? "error"}).`);
+    }
+  } finally {
+    await source?.close().catch(() => undefined);
+    await out?.close().catch(() => undefined);
+  }
+}
+
 /** Write a file by renaming a temp file into place. Callers on the same disk get an atomic replace. */
 export async function atomicWriteText(absolutePath: string, content: string): Promise<void> {
   const dir = path.dirname(absolutePath);
@@ -320,6 +352,7 @@ export async function atomicWriteText(absolutePath: string, content: string): Pr
     await handle.sync();
     await handle.close();
     handle = null;
+    await keepStateBak(absolutePath);
     await replaceFile(tmp, absolutePath);
     await syncDirectory(dir);
   } catch (err) {

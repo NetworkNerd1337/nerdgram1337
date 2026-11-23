@@ -7,6 +7,7 @@ import { useCommandHost } from "../components/commandPaletteContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { pageTitle } from "../lib/pageTitle";
 import { Modal } from "../components/Modal";
+import { DataFolderSettings } from "../components/DataFolderSettings";
 import { AppearanceSettings } from "../components/AppearanceSettings";
 import { StylePresetsSettings } from "../components/StylePresetsSettings";
 import { DiagramFolderSettings } from "../components/DiagramFolderSettings";
@@ -24,6 +25,7 @@ import { githubSyncStatusCopy } from "../lib/githubSyncStatus";
 const DOCS = "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/github-sync.md";
 
 const SETTINGS_LINKS = [
+  ["data-folder", "Data folder"],
   ["appearance", "Appearance"],
   ["style-presets", "Style presets"],
   ["host", "Host"],
@@ -165,6 +167,7 @@ export function SettingsPage() {
 
       <main className="sync-page">
         <SettingsColumns>
+        <DataFolderSettings />
         <AppearanceSettings />
         <StylePresetsSettings />
         <HostSettings />

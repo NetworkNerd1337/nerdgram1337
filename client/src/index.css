@@ -249,6 +249,32 @@ a {
   background: var(--line);
 }
 
+.data-health-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.75rem 1rem 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  color: var(--ink);
+}
+
+.data-health-banner p {
+  margin: 0;
+}
+
+.data-health-dialog {
+  max-width: 36rem;
+}
+
+.data-health-dialog ul {
+  margin: 0.75rem 0;
+  padding-left: 1.1rem;
+}
+
 .folders-section {
   display: flex;
   flex-direction: column;

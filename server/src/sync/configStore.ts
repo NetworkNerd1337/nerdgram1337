@@ -1,4 +1,4 @@
-import fs from "node:fs/promises";
+import { safeReadState } from "../dataHealth.js";
 import { BRANCH } from "./constants.js";
 import { configPath, writePrivateFile } from "./layout.js";
 
@@ -39,33 +39,32 @@ export function emptyConfig(): SyncConfig {
 }
 
 export async function loadConfig(): Promise<SyncConfig> {
-  try {
-    const raw = await fs.readFile(configPath(), "utf8");
-    const parsed = JSON.parse(raw) as Partial<SyncConfig>;
-    const config = emptyConfig();
-    config.enabled = parsed.enabled === true;
-    config.clientId = typeof parsed.clientId === "string" ? parsed.clientId : null;
-    config.login = typeof parsed.login === "string" ? parsed.login : null;
-    config.owner = typeof parsed.owner === "string" ? parsed.owner : null;
-    config.repo = typeof parsed.repo === "string" ? parsed.repo : null;
-    config.private = parsed.private !== false;
-    config.htmlUrl = typeof parsed.htmlUrl === "string" ? parsed.htmlUrl : null;
-    config.remoteUrl = typeof parsed.remoteUrl === "string" ? parsed.remoteUrl : null;
-    config.branch = typeof parsed.branch === "string" && parsed.branch ? parsed.branch : BRANCH;
-    config.lastSyncAt = typeof parsed.lastSyncAt === "string" ? parsed.lastSyncAt : null;
-    config.lastPushedOid = typeof parsed.lastPushedOid === "string" ? parsed.lastPushedOid : null;
-    config.ahead = typeof parsed.ahead === "number" ? parsed.ahead : 0;
-    config.behind = typeof parsed.behind === "number" ? parsed.behind : 0;
-    if (configContainsSecret(raw)) {
-      throw new Error("GitHub sync config is damaged");
-    }
-    return config;
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") return emptyConfig();
-    if (err instanceof SyntaxError) return emptyConfig();
-    throw err;
-  }
+  return safeReadState({
+    file: configPath(),
+    name: "github-sync.json",
+    fallback: emptyConfig(),
+    restore: emptyConfig(),
+    parse: (value, raw) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+      if (configContainsSecret(raw)) return null;
+      const parsed = value as Partial<SyncConfig>;
+      const config = emptyConfig();
+      config.enabled = parsed.enabled === true;
+      config.clientId = typeof parsed.clientId === "string" ? parsed.clientId : null;
+      config.login = typeof parsed.login === "string" ? parsed.login : null;
+      config.owner = typeof parsed.owner === "string" ? parsed.owner : null;
+      config.repo = typeof parsed.repo === "string" ? parsed.repo : null;
+      config.private = parsed.private !== false;
+      config.htmlUrl = typeof parsed.htmlUrl === "string" ? parsed.htmlUrl : null;
+      config.remoteUrl = typeof parsed.remoteUrl === "string" ? parsed.remoteUrl : null;
+      config.branch = typeof parsed.branch === "string" && parsed.branch ? parsed.branch : BRANCH;
+      config.lastSyncAt = typeof parsed.lastSyncAt === "string" ? parsed.lastSyncAt : null;
+      config.lastPushedOid = typeof parsed.lastPushedOid === "string" ? parsed.lastPushedOid : null;
+      config.ahead = typeof parsed.ahead === "number" ? parsed.ahead : 0;
+      config.behind = typeof parsed.behind === "number" ? parsed.behind : 0;
+      return config;
+    },
+  });
 }
 
 export async function saveConfig(config: SyncConfig): Promise<void> {

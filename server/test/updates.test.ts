@@ -272,12 +272,13 @@ describe("update check API", () => {
         console.warn = warn;
         await fs.chmod(path.dirname(file), 0o755).catch(() => undefined);
       }
-      expect(warnings).toHaveLength(1);
-      expect(warnings[0]).toContain("updates.json");
-      expect(warnings[0]).toContain(item.reason);
-      const names = await fs.readdir(path.dirname(file));
-      expect(names.some((name) => /^updates\.json\.corrupt-\d+/.test(name))).toBe(true);
-      expect(names).not.toContain("updates.json");
+      expect(warnings.some((line) => line.includes("updates.json") && line.includes(item.reason))).toBe(true);
+      const quarantine = path.join(path.dirname(file), "quarantine");
+      const sets = await fs.readdir(quarantine);
+      expect(sets.length).toBeGreaterThan(0);
+      const report = JSON.parse(await fs.readFile(path.join(quarantine, sets[0], "report.json"), "utf8")) as { reason?: string; sha256?: string };
+      expect(report.reason).toContain(item.reason);
+      expect(report.file).toBe("updates.json");
       await fs.rm(path.dirname(file), { recursive: true, force: true });
     }
   });

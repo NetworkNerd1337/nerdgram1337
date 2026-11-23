@@ -199,6 +199,26 @@ export type SyncStatus = {
 
 export type InstallKind = "git" | "docker" | "zip" | "unknown";
 
+export type DataHealthIssue = {
+  code: string;
+  severity: "warn" | "degraded";
+  message: string;
+  file?: string;
+};
+
+export type DataDoctorReport = {
+  ok: boolean;
+  dataDir: string;
+  status: "ok" | "warn" | "degraded";
+  issues: DataHealthIssue[];
+  syncFolder: boolean;
+  instanceConflict: null;
+  freeBytes: number | null;
+  quarantined: number;
+  writable: boolean;
+  tempsRemoved: number;
+};
+
 export type VersionInfo = {
   name: string;
   version: string;
