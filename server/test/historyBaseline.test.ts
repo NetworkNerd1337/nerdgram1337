@@ -4,6 +4,7 @@ import path from "node:path";
 import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { clearInstanceIdentityCache } from "../src/instanceConfig.js";
 import { main } from "../src/cli.js";
 import { closeRenderer } from "../src/renderDiagram.js";
 import { REVISION_RETENTION, encodeStorageKey, getVersionsRoot } from "../src/storage.js";
@@ -119,6 +120,37 @@ describe("named baselines and revision diffs", () => {
     expect(bare.status).toBe(415);
   });
 
+  it("records the configured instance name and omits it when the name is blank", async () => {
+    const instanceFile = path.join(dir, "instance.json");
+    process.env.NERDGRAM_INSTANCE_FILE = instanceFile;
+    clearInstanceIdentityCache();
+    try {
+      const named = await request(app).post("/api/instance").set(json).send({ name: "Engineer A" });
+      expect(named.status).toBe(200);
+      let saved = await writeNew("Who.mmd", "flowchart LR\n  A --> B\n");
+      saved = await writeNext(saved, "flowchart LR\n  A --> C\n");
+      const first = await request(app).get("/api/history").query({ path: "Who.mmd" }).set("Host", HOST);
+      expect(first.body.revisions[0].instanceName).toBe("Engineer A");
+
+      const baseline = await request(app).post("/api/history/baseline").set(json).send({
+        path: "Who.mmd",
+        name: "Before",
+      });
+      expect(baseline.status).toBe(201);
+      expect(baseline.body.instanceName).toBe("Engineer A");
+
+      const cleared = await request(app).post("/api/instance").set(json).send({ name: "" });
+      expect(cleared.body.configuredName).toBeNull();
+      await writeNext(saved, "flowchart LR\n  A --> D\n");
+      const again = await request(app).get("/api/history").query({ path: "Who.mmd" }).set("Host", HOST);
+      expect(again.body.revisions[0].instanceName).toBeNull();
+      expect(again.body.revisions.some((revision: { instanceName: string | null }) => revision.instanceName === "Engineer A")).toBe(true);
+    } finally {
+      delete process.env.NERDGRAM_INSTANCE_FILE;
+      clearInstanceIdentityCache();
+    }
+  });
+
   it("reads an older revision index that has no baseline fields", async () => {
     await writeNew("Old.mmd", "flowchart LR\n  A --> B\n");
     const versionDir = path.join(getVersionsRoot(), encodeStorageKey("Old.mmd"));
@@ -134,7 +166,7 @@ describe("named baselines and revision diffs", () => {
     const history = await request(app).get("/api/history").query({ path: "Old.mmd" }).set("Host", HOST);
     expect(history.status).toBe(200);
     const legacy = history.body.revisions.find((revision: { id: string }) => revision.id === "legacy");
-    expect(legacy).toMatchObject({ name: null, note: null, namedAt: null });
+    expect(legacy).toMatchObject({ name: null, note: null, namedAt: null, instanceName: null });
     const read = await request(app).get("/api/history/revision").query({ path: "Old.mmd", id: "legacy" }).set("Host", HOST);
     expect(read.status).toBe(200);
     expect(read.body.content).toContain("A --> B");

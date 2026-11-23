@@ -248,7 +248,7 @@ const TOOLS: ToolDef[] = [
     scope: "read",
     title: "List revisions",
     annotations: readHints,
-    description: `List revisions for one diagram, including baseline name and note. The file is not modified. ${PATH_RULES}`,
+    description: `List revisions for one diagram, including baseline name, note, and instanceName. instanceName is null when that save had no instance name. The file is not modified. ${PATH_RULES}`,
     inputSchema: { path: z.string().describe(PATH_RULES) },
     run: (backend, args) => toolCall(() => backend.history(String(args.path))),
   },

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { getInstanceIdentity } from "./instanceConfig.js";
 import {
   BASELINE_CAP,
   REVISION_RETENTION,
@@ -27,6 +28,11 @@ export type RevisionMeta = {
   name?: string;
   note?: string;
   namedAt?: string;
+  /**
+   * Instance name saved with this revision. Absent on older history and when
+   * that install had no instance name set.
+   */
+  instanceName?: string;
 };
 
 export type PublicRevision = {
@@ -38,6 +44,8 @@ export type PublicRevision = {
   name: string | null;
   note: string | null;
   namedAt: string | null;
+  /** Null when the revision has no stored instance name. */
+  instanceName: string | null;
 };
 
 const NAME_MAX = 120;
@@ -101,7 +109,24 @@ function readRevisionMeta(value: unknown): RevisionMeta | null {
   if (typeof revision.name === "string" && revision.name.trim()) meta.name = revision.name;
   if (typeof revision.note === "string" && revision.note.trim()) meta.note = revision.note;
   if (typeof revision.namedAt === "string" && revision.namedAt.trim()) meta.namedAt = revision.namedAt;
+  const instanceName = readInstanceName(revision.instanceName);
+  if (instanceName) meta.instanceName = instanceName;
   return meta;
+}
+
+/** Keep a stored name that fits the instance-name rules. Anything else is absent. */
+function readInstanceName(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const name = value.trim();
+  if (!name || name.length > 80) return undefined;
+  if (/[\u0000-\u001f\u007f]/.test(name)) return undefined;
+  return name;
+}
+
+/** The configured instance name, or undefined when this install is still using the hostname. */
+async function savingInstanceName(): Promise<string | undefined> {
+  const identity = await getInstanceIdentity();
+  return readInstanceName(identity.configuredName);
 }
 
 export function isNamedRevision(revision: RevisionMeta): boolean {
@@ -118,6 +143,7 @@ export function publicRevision(revision: RevisionMeta): PublicRevision {
     name: revision.name ?? null,
     note: revision.note ?? null,
     namedAt: revision.namedAt ?? null,
+    instanceName: revision.instanceName ?? null,
   };
 }
 
@@ -165,12 +191,14 @@ export async function snapshotPrevious(
   const id = createId();
   await atomicWriteText(path.join(dir, `${id}.mmd`), previous.content);
   index.path = normalized;
+  const instanceName = await savingInstanceName();
   index.revisions.push({
     id,
     createdAt: new Date().toISOString(),
     mtimeMs: previous.mtimeMs,
     size: previous.size,
     hash: previous.hash,
+    ...(instanceName ? { instanceName } : {}),
   });
   await prune(dir, index);
   await saveIndex(dir, index);
@@ -398,6 +426,7 @@ export async function captureBaseline(
   assertUniqueName(index, name);
   const id = createId();
   await atomicWriteText(path.join(dir, `${id}.mmd`), current.content);
+  const instanceName = await savingInstanceName();
   const meta: RevisionMeta = {
     id,
     createdAt: new Date().toISOString(),
@@ -406,6 +435,7 @@ export async function captureBaseline(
     hash: current.hash,
     name,
     namedAt: new Date().toISOString(),
+    ...(instanceName ? { instanceName } : {}),
   };
   if (note) meta.note = note;
   index.path = normalized;

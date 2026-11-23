@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Added:** History records the instance name that saved each revision. The History list shows that name next to the time. A revision with no name, including an older one, says Unknown instance (#307).
 
 ## 2.1.20 "Azimuth" - 2026-11-23
 
