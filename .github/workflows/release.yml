@@ -1,6 +1,6 @@
 # Publishing a GitHub Release for a vX.Y.Z tag.
 # The tag must match the root package.json version. The release title is
-# vX.Y.Z "Code name" from the codenames map. The body is the CHANGELOG section.
+# vX.Y.Z Code name from the codenames map. The body is the CHANGELOG section.
 # docker-publish.yml pushes ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z
 # from this same tag. Keep that image workflow on this version.
 # The npm job publishes cli/ as the public package nerdgram1337. The command

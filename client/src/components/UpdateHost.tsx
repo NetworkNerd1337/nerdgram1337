@@ -43,19 +43,7 @@ function shortCommit(commit: string | null): string | null {
 
 function manualCheckMessage(next: UpdateStatus): string | null {
   if (next.error) return next.error.message;
-  if (next.phase === "disabled") return "Update checks are turned off.";
-  if (next.updateAvailable && !next.dismissed) return null;
-  if (next.matchesLatest || next.phase === "current") {
-    return `NerdGram ${runningLabel(next)} is up to date.`;
-  }
-  if (next.phase === "ahead") {
-    return `This build (${next.currentVersion}) is newer than the latest stable release.`;
-  }
-  if (next.phase === "no_release") return "No stable release has been published yet.";
-  if (next.skipped) {
-    return `Version ${next.latest?.version ?? ""} is skipped. Reset skipped versions in About to see it again.`.trim();
-  }
-  return "The update check finished.";
+  return null;
 }
 
 function UpdateErrorMessage({ message }: { message: string }) {
@@ -90,7 +78,7 @@ export function UpdateHost({ children }: { children: ReactNode }) {
     const target = sessionStorage.getItem(TARGET_KEY);
     if (target && next.currentVersion === target) {
       sessionStorage.removeItem(TARGET_KEY);
-      setNotice(`NerdGram ${runningLabel(next)} is running. This install matches the release you updated to.`);
+      setNotice(`This install is running ${runningLabel(next)}, the release you updated to.`);
     }
   }, []);
 
@@ -320,8 +308,8 @@ export function UpdateHost({ children }: { children: ReactNode }) {
       {showBanner && status?.latest ? (
         <div className="update-banner" role="status">
           <p>
-            NerdGram <strong>{releaseLabel(status.latest)}</strong> is available. This install is{" "}
-            <strong>{runningLabel(status)}</strong>.
+            This install is running <strong>{runningLabel(status)}</strong>. The latest release is{" "}
+            <strong>{releaseLabel(status.latest)}</strong>.
           </p>
           <div className="update-banner-actions">
             <button type="button" className="btn" onClick={() => setPanel("notes")}>
@@ -359,8 +347,8 @@ export function UpdateHost({ children }: { children: ReactNode }) {
       {panel === "notes" && status?.latest ? (
         <Dialog title={`Release ${releaseLabel(status.latest)}`} onClose={() => setPanel(null)}>
           <p className="update-version-line">
-            Running {runningLabel(status)}
-            {shortCommit(status.commit) ? ` (${shortCommit(status.commit)})` : ""}. Release{" "}
+            This install is running {runningLabel(status)}
+            {shortCommit(status.commit) ? ` (${shortCommit(status.commit)})` : ""}. The latest release is{" "}
             {releaseLabel(status.latest)}.
           </p>
           <p>
@@ -373,11 +361,7 @@ export function UpdateHost({ children }: { children: ReactNode }) {
       ) : null}
       {panel === "docker" && dockerGuide && status ? (
         <Dialog title={`Upgrade to ${dockerGuide.tag}`} onClose={() => setPanel(null)}>
-          <p className="update-version-line">
-            This container is running {runningLabel(status)}. The release is{" "}
-            {formatVersionLabel(dockerGuide.tag, status.latest?.tag === dockerGuide.tag ? status.latest.codename : status.codename)}.
-            NerdGram will not change the container from the inside.
-          </p>
+          <p className="update-version-line">NerdGram will not change the container from the inside.</p>
           {status.latest ? <ReleaseMarkdown markdown={status.latest.body || "This release has no notes."} /> : null}
           {status.latest ? (
             <p>
@@ -407,15 +391,7 @@ export function UpdateHost({ children }: { children: ReactNode }) {
             </p>
           ) : null}
           {actionError ? <p className="update-error">{actionError}</p> : null}
-          {status.currentVersion === dockerGuide.tag.replace(/^v/, "") ? (
-            <p role="status">This install is running {runningLabel(status)}, which matches {dockerGuide.tag}.</p>
-          ) : (
-            <p role="status">
-              This process is still running {runningLabel(status)}. The release is{" "}
-              {formatVersionLabel(dockerGuide.tag, status.latest?.tag === dockerGuide.tag ? status.latest.codename : status.codename)}.
-              Recreate the container with the steps above, then check again.
-            </p>
-          )}
+          <p role="status">{dockerStatusLine(status, dockerGuide.tag)}</p>
         </Dialog>
       ) : null}
       {panel === "manual" && status ? (
@@ -579,14 +555,50 @@ function AboutBody() {
 }
 
 function updateSummary(status: UpdateStatus): string | null {
-  if (status.updateAvailable && status.latest && !status.skipped) {
-    return `Update available: ${releaseLabel(status.latest)}.`;
-  }
-  if (status.matchesLatest || status.phase === "current") return "You're up to date.";
-  if (status.phase === "ahead") return "This build is newer than the latest stable release.";
-  if (status.phase === "no_release") return "No stable release has been published yet.";
+  return installStatusLine(status);
+}
+
+/** One plain sentence for About, the banner, and the upgrade panel. */
+export function installStatusLine(status: UpdateStatus): string | null {
+  const running = runningLabel(status);
+  const latest = status.latest ? releaseLabel(status.latest) : null;
+  const latestKind = status.latest?.prerelease ? "prerelease" : "release";
   if (status.phase === "disabled") return "Update checks are turned off.";
+  if (status.error) {
+    const reach = status.error.code === "offline" || status.error.code === "tls";
+    return reach
+      ? `This install is running ${running}. The update check could not reach GitHub.`
+      : `This install is running ${running}. The update check did not finish.`;
+  }
+  if (status.matchesLatest || status.phase === "current") {
+    return `This install is running ${running}, the latest release.`;
+  }
+  if (status.updateAvailable && latest && !status.skipped) {
+    return `This install is running ${running}. The latest ${latestKind} is ${latest}.`;
+  }
+  if (status.phase === "ahead") {
+    return latest
+      ? `This install is running ${running}, which is newer than the latest ${latestKind} ${latest}.`
+      : `This install is running ${running}, which is newer than the latest stable release.`;
+  }
+  if (status.phase === "no_release") {
+    return `This install is running ${running}. No stable release has been published yet.`;
+  }
+  if (status.skipped && latest) {
+    return `This install is running ${running}. ${latest} is skipped. Reset skipped versions in About to see it again.`;
+  }
+  if (status.phase === "unknown") {
+    return `This install is running ${running}. NerdGram has not checked for a newer release.`;
+  }
   return null;
+}
+
+function dockerStatusLine(status: UpdateStatus, tag: string): string {
+  const running = runningLabel(status);
+  const same = status.currentVersion === tag.replace(/^v/, "");
+  if (same) return `This install is running ${running}, the latest release.`;
+  const name = formatVersionLabel(tag, status.latest?.tag === tag ? status.latest.codename : status.codename);
+  return `This install is running ${running}. The latest release is ${name}. Recreate the container with the steps above, then check again.`;
 }
 
 export function AboutSummary({
@@ -708,8 +720,8 @@ function ManualCopy({ status }: { status: UpdateStatus }) {
   return (
     <>
       <p>
-        This copy is {runningLabel(status)}
-        {latest ? `, and ${releaseLabel(latest)} is the latest release.` : "."} Update now is not available for a{" "}
+        This install is running {runningLabel(status)}
+        {latest ? `. The latest release is ${releaseLabel(latest)}.` : "."} Update now is not available for a{" "}
         {status.installKind} install.
       </p>
       {status.installKind === "zip" ? (

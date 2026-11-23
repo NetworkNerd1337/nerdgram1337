@@ -89,4 +89,4 @@ if (nextChangelog !== changelog.replace(/\r\n/g, "\n") && nextChangelog !== chan
   console.log(`CHANGELOG.md Unreleased set for ${rootVersion}`);
 }
 
-console.log(`Dockerfile, compose.yaml, compose.build.yaml, and lockfiles -> ${rootVersion} "${codename}"`);
+console.log(`Dockerfile, compose.yaml, compose.build.yaml, and lockfiles -> ${rootVersion} ${codename}`);

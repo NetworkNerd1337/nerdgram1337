@@ -45,7 +45,7 @@ describe("code names", () => {
     expect(releaseCodename("2.2.0", 'v2.2.0 "Nope"', map)).toBe("Nope");
     expect(releaseCodename("2.2.0", 'v9.9.9 "Nope"', map)).toBeNull();
     expect(releaseCodename("2.5.0", 'v9.9.9 "Nope"', map)).toBeNull();
-    expect(formatVersionLabel("v1.6.0", "Galileo")).toBe('v1.6.0 "Galileo"');
+    expect(formatVersionLabel("v1.6.0", "Galileo")).toBe("v1.6.0 Galileo");
   });
 
   it("prefers the map and only accepts a title that is the version plus one quoted name", () => {
@@ -56,8 +56,10 @@ describe("code names", () => {
     expect(releaseCodename("3.0.0", 'v9.0.0 "Harbor"', map)).toBeNull();
     expect(releaseCodename("3.0.0", 'v3.0.0 "Harbor" please run this', map)).toBeNull();
     expect(codenameFromReleaseTitle("3.1.0", 'v3.1.0 "Harbor"')).toBe("Harbor");
-    expect(formatVersionLabel("1.0.5", "Atlas")).toBe('v1.0.5 "Atlas"');
-    expect(formatVersionLabel("v1.5.0", "Compass")).toBe('v1.5.0 "Compass"');
+    expect(codenameFromReleaseTitle("3.1.0", "v3.1.0 Harbor")).toBe("Harbor");
+    expect(codenameFromReleaseTitle("3.1.0", "v3.1.0 Harbor please")).toBeNull();
+    expect(formatVersionLabel("1.0.5", "Atlas")).toBe("v1.0.5 Atlas");
+    expect(formatVersionLabel("v1.5.0", "Compass")).toBe("v1.5.0 Compass");
     expect(formatVersionLabel("1.0.5", "<script>")).toBe("v1.0.5");
     expect(formatVersionLabel("1.0.5", null)).toBe("v1.0.5");
   });

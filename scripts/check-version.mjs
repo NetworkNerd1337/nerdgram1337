@@ -181,7 +181,7 @@ for (const file of versionedMarkdown(root)) {
 assertMarkdownLinks(root);
 
 console.log(
-  `Version ${expected} "${codename}" matches in root, client, server, cli (${CLI_PACKAGE_NAME}), Dockerfile, compose.yaml, compose.build.yaml, CHANGELOG.md, README.md, and the docs. Markdown links resolve.`,
+  `Version ${expected} ${codename} matches in root, client, server, cli (${CLI_PACKAGE_NAME}), Dockerfile, compose.yaml, compose.build.yaml, CHANGELOG.md, README.md, and the docs. Markdown links resolve.`,
 );
 }
 

@@ -138,7 +138,9 @@ describe("About dialog content", () => {
     expect(text).toContain("Atlas");
     expect(text).toContain("git clone");
     expect(text).toContain("abc1234def5678901234567890abcdef12345678");
-    expect(text).toContain("You're up to date.");
+    expect(text).toContain("This install is running v1.4.8 Atlas, the latest release.");
+    expect(text).not.toContain("You're up to date.");
+    expect(text).not.toContain('"Atlas"');
     expect(text).toContain("Ryan Thomas Huff");
     expect(text).toContain("NetworkNerd1337");
     expect(text).toContain("Report a bug or request a feature");
@@ -171,6 +173,7 @@ describe("About dialog content", () => {
     expect(text).not.toContain("Code name");
     expect(text).not.toContain("Atlas");
     expect(text).not.toContain("Commit");
+    expect(text).toContain("This install is running v1.4.8. NerdGram has not checked for a newer release.");
     expect(text).not.toContain("You're up to date.");
   });
 
@@ -205,7 +208,8 @@ describe("About dialog content", () => {
     ),
     );
     expect(docker).toContain("Docker");
-    expect(docker).toContain('Update available: v1.2.0 "Atlas".');
+    expect(docker).toContain("This install is running v1.4.8 Atlas. The latest release is v1.2.0 Atlas.");
+    expect(docker).not.toContain('"Atlas"');
     expect(docker).toContain("Show upgrade steps");
 
     expect(visibleText(renderAbout({ installKind: "zip" }))).toContain("ZIP download");
