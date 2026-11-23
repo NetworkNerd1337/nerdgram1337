@@ -103,4 +103,104 @@ if ! grep -q "repair-links" "$work/npx-help.txt"; then
   exit 1
 fi
 
+if [ ! -f "$root/server/dist/index.js" ]; then
+  echo "server/dist/index.js is missing. Run npm run build before the CLI pack smoke." >&2
+  exit 1
+fi
+
+mcp_data="$work/mcp-data"
+mkdir -p "$mcp_data"
+mcp_port=8791
+echo "API for the packed nerdgram mcp handshake"
+NERDGRAM_DATA_DIR="$mcp_data" PORT="$mcp_port" HOST=127.0.0.1 \
+  node "$root/server/dist/index.js" > "$work/mcp-server.log" 2>&1 &
+mcp_server_pid=$!
+cleanup_mcp() {
+  if [ -n "${mcp_server_pid:-}" ]; then
+    kill "$mcp_server_pid" >/dev/null 2>&1 || true
+    wait "$mcp_server_pid" >/dev/null 2>&1 || true
+  fi
+}
+trap 'cleanup_mcp; cleanup' EXIT
+
+ready=0
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  if curl -fsS -H "Host: 127.0.0.1:${mcp_port}" "http://127.0.0.1:${mcp_port}/api/health" >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 0.25
+done
+if [ "$ready" != 1 ]; then
+  echo "The API did not start for the MCP smoke." >&2
+  cat "$work/mcp-server.log" >&2
+  exit 1
+fi
+
+token_json="$(curl -fsS -X POST "http://127.0.0.1:${mcp_port}/api/tokens" \
+  -H "Host: 127.0.0.1:${mcp_port}" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"mcp-smoke","scope":"read"}')"
+mcp_token="$(printf '%s' "$token_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const b=JSON.parse(s); if(!b.token){process.stderr.write("no token\n"); process.exit(1);} process.stdout.write(b.token);})')"
+
+echo "nerdgram mcp initialize and tools/list from the installed tarball"
+NERDGRAM_URL="http://127.0.0.1:${mcp_port}" NERDGRAM_TOKEN="$mcp_token" \
+  node --input-type=module <<EOF
+import { spawn } from "node:child_process";
+
+const child = spawn("$install/node_modules/.bin/nerdgram", ["mcp"], {
+  env: { ...process.env, NERDGRAM_URL: "http://127.0.0.1:${mcp_port}", NERDGRAM_TOKEN: process.env.NERDGRAM_TOKEN },
+  stdio: ["pipe", "pipe", "pipe"],
+});
+let out = "";
+let err = "";
+child.stdout.on("data", (chunk) => { out += chunk.toString("utf8"); });
+child.stderr.on("data", (chunk) => { err += chunk.toString("utf8"); });
+const send = (message) => child.stdin.write(JSON.stringify(message) + "\n");
+send({
+  jsonrpc: "2.0",
+  id: 1,
+  method: "initialize",
+  params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "smoke", version: "0.0.0" } },
+});
+const started = Date.now();
+while (!out.split("\n").some((line) => { try { return JSON.parse(line).id === 1; } catch { return false; } })) {
+  if (Date.now() - started > 20000) {
+    console.error(err || out || "initialize timed out");
+    process.exit(1);
+  }
+  await new Promise((resolve) => setTimeout(resolve, 50));
+}
+if (err.includes("Cannot find module")) {
+  console.error(err);
+  process.exit(1);
+}
+send({ jsonrpc: "2.0", method: "notifications/initialized" });
+send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+const listedAt = Date.now();
+let tools = null;
+while (!tools) {
+  for (const line of out.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const message = JSON.parse(line);
+      if (message.id === 2) tools = message;
+    } catch { /* partial line */ }
+  }
+  if (tools) break;
+  if (Date.now() - listedAt > 20000) {
+    console.error(err || out || "tools/list timed out");
+    process.exit(1);
+  }
+  await new Promise((resolve) => setTimeout(resolve, 50));
+}
+const names = (tools.result?.tools ?? []).map((tool) => tool.name);
+if (!names.some((name) => name.startsWith("nerdgram_"))) {
+  console.error(JSON.stringify(tools));
+  process.exit(1);
+}
+console.log("MCP tools:", names.join(", "));
+child.kill();
+EOF
+
 echo "CLI pack smoke passed."
