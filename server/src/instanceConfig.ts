@@ -149,7 +149,8 @@ export async function getInstanceIdentity(): Promise<InstanceIdentity> {
   return identityCache;
 }
 
-const NAME_MAX = 80;
+/** What a person can type. A saved longer name and the hostname fallback are not cut down to this. */
+const NAME_MAX = 32;
 
 export function parseInstanceName(value: unknown): { ok: true; name: string } | { ok: false; error: string } {
   if (typeof value !== "string") return { ok: false, error: "Instance name must be text." };

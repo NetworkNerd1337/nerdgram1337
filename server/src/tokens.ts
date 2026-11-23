@@ -64,7 +64,7 @@ function normalizeScope(value: unknown): TokenScope {
 function normalizeName(value: unknown): string {
   if (typeof value !== "string") throw httpFail(400, "name is required", "invalid");
   const name = value.trim();
-  if (name.length < 1 || name.length > 60) throw httpFail(400, "name must be 1 to 60 characters", "invalid");
+  if (name.length < 1 || name.length > 40) throw httpFail(400, "name must be 1 to 40 characters", "invalid");
   if (/[\u0000-\u001f\u007f]/.test(name)) throw httpFail(400, "name has a control character", "invalid");
   return name;
 }

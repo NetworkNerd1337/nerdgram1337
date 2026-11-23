@@ -7,6 +7,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 ## Unreleased
 
 - **Added:** History records the instance name that saved each revision. The History list shows that name next to the time. A revision with no name, including an older one, says Unknown instance (#307).
+- **Changed:** Instance names you type are at most 32 characters. Token names are 1 to 40. Style preset names you create or rename are at most 40. A hostname, a stored or imported name, and a history name already saved are kept. Duplicating a preset trims the generated Copy of name so it fits (#309).
 - **Docs:** 2.5.5 Theodolite also plans multi-language support. The interface comes from bundled language files and works offline. Diagram labels and descriptions can be translated. Hostnames, addresses, and other identifiers stay as written. Machine translation stays opt-in through the person's own tools.
 
 ## 2.1.20 "Azimuth" - 2026-11-23

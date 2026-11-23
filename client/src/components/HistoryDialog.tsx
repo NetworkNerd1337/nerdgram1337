@@ -256,7 +256,9 @@ export function HistoryDialog({ path, lockToken, canRestore, onClose, onRestored
                       <strong>{revision.name || formatStamp(revision.createdAt)}</strong>
                       <div className="history-meta">
                         {revision.name ? `${formatStamp(revision.createdAt)} · ` : ""}
-                        <span className="history-instance">{instanceLabel(revision.instanceName)}</span>
+                        <span className="history-instance" title={instanceLabel(revision.instanceName)}>
+                          {instanceLabel(revision.instanceName)}
+                        </span>
                         {` · ${revision.size} bytes`}
                         {revision.note ? ` · ${revision.note}` : ""}
                       </div>

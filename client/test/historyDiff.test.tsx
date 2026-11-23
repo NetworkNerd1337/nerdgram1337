@@ -122,6 +122,7 @@ describe("history diff dialog", () => {
 
     expect(container.textContent).toContain("Unknown instance");
     expect(container.querySelector(".history-instance")?.textContent).toBe("Unknown instance");
+    expect(container.querySelector(".history-instance")?.getAttribute("title")).toBe("Unknown instance");
     expect(container.textContent).toContain("Save baseline");
     expect(container.textContent).toContain("Baseline - pre-change");
     expect(container.textContent).toContain("Named baselines are kept");
@@ -211,8 +212,9 @@ describe("history diff dialog", () => {
         <HistoryDialog path="Net.mmd" lockToken={null} canRestore onClose={() => undefined} onRestored={() => undefined} />,
       );
     });
-    const labels = [...container.querySelectorAll(".history-instance")].map((node) => node.textContent);
-    expect(labels).toEqual(["Engineer A", "Unknown instance"]);
+    const labels = [...container.querySelectorAll(".history-instance")];
+    expect(labels.map((node) => node.textContent)).toEqual(["Engineer A", "Unknown instance"]);
+    expect(labels[0]?.getAttribute("title")).toBe("Engineer A");
   });
 });
 

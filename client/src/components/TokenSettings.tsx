@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { SettingsCard } from "./SettingsCard";
+
+const NAME_MAX = 40;
 import { Modal } from "./Modal";
 
 type TokenMeta = {
@@ -97,11 +99,16 @@ export function TokenSettings() {
       <input
         id="token-name"
         value={name}
-        onChange={(event) => setName(event.target.value)}
+        maxLength={NAME_MAX}
+        onChange={(event) => setName(event.target.value.slice(0, NAME_MAX))}
         autoComplete="off"
         spellCheck={false}
         placeholder="CI render"
+        aria-describedby="token-name-count"
       />
+      <p className="field-count" id="token-name-count">
+        {name.length}/{NAME_MAX}. At least 1 character.
+      </p>
       <label htmlFor="token-scope">Scope</label>
       <select id="token-scope" value={scope} onChange={(event) => setScope(event.target.value === "read-write" ? "read-write" : "read")}>
         <option value="read">Read</option>
@@ -139,7 +146,9 @@ export function TokenSettings() {
       {tokens.map((token) => (
         <div className="token-row" key={token.id}>
           <div>
-            <strong>{token.name}</strong>
+            <strong className="clipped-name" title={token.name}>
+              {token.name}
+            </strong>
             <p>
               {token.prefix}… · {token.scope === "read-write" ? "read and write" : "read"}
               {token.revokedAt ? " · revoked" : ""}

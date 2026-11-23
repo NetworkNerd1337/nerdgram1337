@@ -2696,6 +2696,8 @@ body.is-col-resizing * {
 
 .history-instance {
   display: inline-block;
+  max-width: 12rem;
+  overflow: hidden;
   margin: 0 0.15rem;
   padding: 0.05rem 0.4rem;
   border: 1px solid var(--line);
@@ -2705,6 +2707,24 @@ body.is-col-resizing * {
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.clipped-name {
+  display: inline-block;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.field-count {
+  margin: 0.2rem 0 0.65rem;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
 }
 
 .history-actions {

@@ -65,6 +65,11 @@ describe("style preset values", () => {
     expect(initialPresetId("create", { defaultId: null, presets: [] })).toBe("");
     expect(copyPresetName("House", ["House"])).toBe("Copy of House");
     expect(copyPresetName("House", ["House", "Copy of House"])).toBe("Copy of House 2");
+    const forty = "A".repeat(40);
+    const copy = copyPresetName(forty, [forty]);
+    expect(copy.length).toBeLessThanOrEqual(40);
+    expect(copy.startsWith("Copy of ")).toBe(true);
+    expect(copyPresetName(forty, [forty, copy]).length).toBeLessThanOrEqual(40);
   });
 
   it("puts workspace colors before recent picks and remembers a recent color", () => {

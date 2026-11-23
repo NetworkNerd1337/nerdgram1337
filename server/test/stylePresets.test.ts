@@ -4,7 +4,7 @@ import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { diagramInitConfig, parseDiagram, withNodeLabelRoom, NODE_LABEL_WRAP_WIDTH } from "../src/frontMatter.js";
-import { contentWithStyle, initialPresetId, type StyleSnapshot } from "../src/stylePresetModel.js";
+import { contentWithStyle, copyPresetName, initialPresetId, type StyleSnapshot } from "../src/stylePresetModel.js";
 import { clearWorkspaceValueCache } from "../src/workspaceValues.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -177,6 +177,27 @@ describe("style presets", () => {
     expect(replaced.status).toBe(200);
     expect(replaced.body.presets).toHaveLength(1);
     expect(replaced.body.presets[0].name).toBe("Only");
+
+    const tooLong = await request(api).post("/api/style-presets").set(json).send({ name: "P".repeat(41), style });
+    expect(tooLong.status).toBe(400);
+    expect(tooLong.body.error).toMatch(/40 characters/);
+    const storedName = "S".repeat(50);
+    const kept = await request(api).post("/api/style-presets/import").set(json).send({
+      version: 1,
+      mode: "replace",
+      presets: [{ name: storedName, style: { theme: "neutral" } }],
+    });
+    expect(kept.status).toBe(200);
+    expect(kept.body.presets[0].name).toBe(storedName);
+    const forty = "A".repeat(40);
+    const created = await request(api).post("/api/style-presets").set(json).send({ name: forty, style });
+    expect(created.status).toBe(201);
+    const copy = copyPresetName(forty, [forty]);
+    expect(copy.length).toBeLessThanOrEqual(40);
+    expect(copy).not.toBe(forty);
+    const duplicated = await request(api).post("/api/style-presets").set(json).send({ name: copy, style });
+    expect(duplicated.status).toBe(201);
+    expect(duplicated.body.preset.name).toBe(copy);
     expect(replaced.body.defaultId).toBeNull();
 
     const unknown = await request(api).post("/api/style-presets/import").set(json).send({

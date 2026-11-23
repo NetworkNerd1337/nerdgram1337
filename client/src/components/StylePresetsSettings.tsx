@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { IMPORT_PRESET_KEY } from "../lib/importRecognize";
 import { api } from "../api";
 import { SettingsCard } from "./SettingsCard";
+
+const NAME_MAX = 40;
 import { StyleFields } from "./StyleFields";
 import {
   copyPresetName,
@@ -282,7 +284,9 @@ function PresetRow({
   return (
     <article className="style-preset-card" aria-label={preset.name}>
       <div className="style-preset-row">
-        <strong>{preset.name}</strong>
+        <strong className="clipped-name" title={preset.name}>
+          {preset.name}
+        </strong>
         {isDefault ? <span className="style-preset-badge">Default</span> : null}
         <div className="style-preset-actions">
           <button type="button" className="btn btn-ghost" disabled={busy} onClick={onRenameStart}>
@@ -303,7 +307,19 @@ function PresetRow({
         <div className="style-preset-editor">
           <label>
             Name
-            <input aria-label={`Rename ${preset.name}`} value={renameValue} onChange={(event) => onRenameValue(event.target.value)} />
+            <input
+              aria-label={`Rename ${preset.name}`}
+              value={renameValue}
+              maxLength={renameValue.length > NAME_MAX ? undefined : NAME_MAX}
+              aria-describedby="preset-rename-count"
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next.length <= NAME_MAX || next.length < renameValue.length) onRenameValue(next);
+              }}
+            />
+            <span className="field-count" id="preset-rename-count">
+              {renameValue.length}/{NAME_MAX}
+            </span>
           </label>
           <div className="style-preset-actions">
             <button type="button" className="btn btn-primary" disabled={busy} onClick={onRenameSave}>
