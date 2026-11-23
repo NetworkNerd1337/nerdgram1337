@@ -16,6 +16,7 @@ import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
 import { Sidebar } from "../components/Sidebar";
 import { WorkspaceShell } from "../components/WorkspaceShell";
+import { CommandsButton } from "../components/CommandPalette";
 import { AboutButton, SupportLink } from "../components/SupportLink";
 import { confirmChoice } from "../lib/confirmChoice";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -945,9 +946,7 @@ export function DashboardPage() {
           <div className="page-header-actions">
             <AboutButton />
             <SupportLink />
-            <Link className="btn btn-ghost" to="/new">
-              Paste Mermaid
-            </Link>
+            <CommandsButton />
           </div>
         </header>
 
@@ -975,15 +974,18 @@ export function DashboardPage() {
               <button type="button" className="btn btn-primary" onClick={openCreateDiagram}>
                 New diagram
               </button>
+              <button type="button" className="btn btn-ghost" onClick={openCreateFolder}>
+                New folder
+              </button>
               <Link className="btn btn-ghost" to={`/templates?folder=${encodeURIComponent(folder)}`}>
                 Templates
               </Link>
               <Link className="btn btn-ghost" to={`/generate?folder=${encodeURIComponent(folder)}`}>
                 From data
               </Link>
-              <button type="button" className="btn btn-ghost" onClick={openCreateFolder}>
-                New folder
-              </button>
+              <Link className="btn btn-ghost" to="/new">
+                Paste Mermaid
+              </Link>
               <button
                 type="button"
                 className="btn btn-ghost"
@@ -992,6 +994,7 @@ export function DashboardPage() {
               >
                 Import
               </button>
+              <span className="toolbar-split" aria-hidden="true" />
               <button type="button" className="btn btn-ghost" onClick={() => openWorkspaceReplace({ folder })}>
                 Replace across…
               </button>

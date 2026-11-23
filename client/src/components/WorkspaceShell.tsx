@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { useSidebarWidth } from "../hooks/useSidebarWidth";
 import { SIDEBAR_STEP } from "../lib/sidebarWidth";
 import { EditorDivider } from "./EditorDivider";
+import { CommandsButton } from "./CommandPalette";
 import { AboutButton, SupportLink } from "./SupportLink";
 
 type SidebarWidth = ReturnType<typeof useSidebarWidth>;
@@ -42,6 +43,7 @@ export function WorkspaceShell({
       <div className="narrow-app-bar">
         <AboutButton />
         <SupportLink />
+        <CommandsButton />
       </div>
     </div>
   );
