@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AboutSummary } from "../src/components/UpdateHost";
 import { SupportLink } from "../src/components/SupportLink";
+import { mermaidEngineLabel, mermaidEngineReleaseUrl } from "../src/lib/mermaidVersion";
 import { KOFI_URL } from "../src/lib/support";
 import type { UpdateStatus } from "../src/types";
 
@@ -136,6 +137,10 @@ describe("About dialog content", () => {
     expect(text).not.toContain('v1.4.8 "Atlas"');
     expect(text).toContain("Code name");
     expect(text).toContain("Atlas");
+    const engine = mermaidEngineLabel();
+    expect(engine).toMatch(/^Mermaid \d+\.\d+\.\d+/);
+    expect(text).toContain("Engine");
+    expect(text).toContain(engine ?? "");
     expect(text).toContain("git clone");
     expect(text).toContain("abc1234def5678901234567890abcdef12345678");
     expect(text).toContain("This install is running v1.4.8 Atlas, the latest release.");
@@ -161,6 +166,9 @@ describe("About dialog content", () => {
     expect(hrefs).toContain("https://github.com/NetworkNerd1337/NerdGram1337#readme");
     expect(hrefs).toContain("https://github.com/NetworkNerd1337/NerdGram1337/blob/main/LICENSE");
     expect(hrefs).toContain(KOFI_URL);
+    const engineUrl = mermaidEngineReleaseUrl();
+    expect(engineUrl).toMatch(/^https:\/\/github\.com\/mermaid-js\/mermaid\/releases\/tag\/mermaid%40\d+\.\d+\.\d+/);
+    expect(hrefs).toContain(engineUrl);
     for (const link of links) {
       expect(link.target).toBe("_blank");
       expect(link.rel).toBe("noopener noreferrer");

@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
@@ -5,6 +6,17 @@ import { defineConfig } from "vitest/config";
 import { injectAppearanceBoot } from "./src/lib/appearanceBoot.ts";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const require = createRequire(import.meta.url);
+
+/** The mermaid package this client install will bundle. Empty when it cannot be read. */
+function bundledMermaidVersion(): string {
+  try {
+    const pkg = require("mermaid/package.json") as { version?: unknown };
+    return typeof pkg.version === "string" ? pkg.version.trim() : "";
+  } catch {
+    return "";
+  }
+}
 
 export default defineConfig({
   plugins: [
@@ -33,6 +45,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  define: {
+    __NERDGRAM_MERMAID_VERSION__: JSON.stringify(bundledMermaidVersion()),
   },
   test: {
     environment: "node",
