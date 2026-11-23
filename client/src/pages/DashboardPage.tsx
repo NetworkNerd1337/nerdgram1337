@@ -945,9 +945,6 @@ export function DashboardPage() {
           <div className="page-header-actions">
             <AboutButton />
             <SupportLink />
-            <Link className="btn btn-ghost" to="/new">
-              Paste Mermaid
-            </Link>
           </div>
         </header>
 
@@ -977,6 +974,9 @@ export function DashboardPage() {
               </button>
               <Link className="btn btn-ghost" to={`/templates?folder=${encodeURIComponent(folder)}`}>
                 Templates
+              </Link>
+              <Link className="btn btn-ghost" to="/new">
+                Paste Mermaid
               </Link>
               <Link className="btn btn-ghost" to={`/generate?folder=${encodeURIComponent(folder)}`}>
                 From data

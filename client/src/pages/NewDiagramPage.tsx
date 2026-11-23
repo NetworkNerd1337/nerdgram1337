@@ -103,10 +103,7 @@ export function NewDiagramPage() {
           </div>
         </header>
         <h1>What do you want to diagram?</h1>
-        <div className="paste-mode">
-          <span aria-hidden="true">{`</>`}</span>
-          Paste Mermaid code
-        </div>
+        <p className="entry-lead">Paste Mermaid code and save it as a diagram.</p>
 
         {error && <div className="error-banner">{error}</div>}
 

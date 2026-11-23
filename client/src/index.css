@@ -881,16 +881,22 @@ a {
   letter-spacing: -0.03em;
 }
 
-.paste-mode {
+@media (max-width: 640px) {
+  .paste-page {
+    padding: 1.25rem 0.85rem 2rem;
+  }
+
+  .paste-shell h1 {
+    font-size: 1.85rem;
+  }
+}
+
+.entry-lead {
   align-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  background: var(--ink);
-  color: var(--bg);
-  border-radius: 999px;
-  padding: 0.45rem 0.9rem;
-  font-size: 0.92rem;
+  max-width: 40rem;
+  margin: 0;
+  color: var(--ink-soft);
+  text-align: center;
 }
 
 .paste-box {
@@ -4322,11 +4328,6 @@ body[data-presenting="true"] .support-link {
 
 .generate-shell {
   width: min(880px, 100%);
-}
-
-.generate-lead {
-  color: var(--ink-soft);
-  margin-top: 0;
 }
 
 .generate-hint {
