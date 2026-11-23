@@ -23,7 +23,7 @@ Guides for installing NerdGram1337, using it, and working on it.
 - [Questions and ideas](https://github.com/NetworkNerd1337/NerdGram1337/discussions). Discussions is where questions and ideas go. Issues stay bugs and features.
 - [Data and backups](data-and-backups.md). By default, diagrams live in `diagrams/` inside the project.
 - [Upgrading](upgrading.md). Stop the app before you replace it.
-- [Versioning and releases](releases.md). Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. Only 2.1.13, the latest release, is supported. Everything before 2.1.13 is deprecated.
+- [Versioning and releases](releases.md). Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. Only 2.1.13, the latest release, is supported. Everything before 2.1.13 is deprecated. A pull request adds to Unreleased and does not bump the version.
 - [Roadmap](roadmap.md). Planned work after v2.1.13. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Future ideas at the end are not committed.
 - [Troubleshooting](troubleshooting.md). If the API port is taken, the server exits and prints the listen error.
 - [Developing](developing.md). The project folders, the npm scripts, and what CI runs.
@@ -31,6 +31,8 @@ Guides for installing NerdGram1337, using it, and working on it.
 ## Adding documentation
 
 A new feature gets a section in the right page, or a new page when it is a whole topic, and a link from this index. The README only gets a one-line feature bullet and a link, never the reference detail.
+
+A pull request does not bump the version or set a code name. Add the change under `## Unreleased` in `CHANGELOG.md`. The version, the code name, the git tag, npm, and the container image move only at a milestone release. See [Release policy](releases.md#release-policy).
 
 ### Page template
 

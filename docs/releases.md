@@ -11,6 +11,7 @@ Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffi
 - [Where the version is shown](#where-the-version-is-shown)
 - [Pin a version or move to another](#pin-a-version-or-move-to-another)
 - [What the update check offers](#what-the-update-check-offers)
+- [Release policy](#release-policy)
 - [Cutting a release](#cutting-a-release)
 
 Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. `X` is the major line, `Y` is the maintenance line, and `Z` is the patch. The root `package.json` `version` is the version of the tree you have. A GitHub Release and its git tag use the same numbers with a leading `v`.
@@ -89,9 +90,17 @@ There is no **Update now**. Extract it, run `npm run install:all`, and keep your
 
 With the default settings the check asks GitHub for the latest full release and ignores prereleases. **Update now** and **Show upgrade steps** accept only a stable `vX.Y.Z` tag. A tag with a prerelease suffix is not applied. About has an **Include prereleases** checkbox, and `NERDGRAM_UPDATE_INCLUDE_PRERELEASE=true` (also `1`, `yes`, or `on`) includes prereleases in the lookup. Leave both off. They do not make **Update now** install a prerelease.
 
+## Release policy
+
+Changes merge to `main` through issues and pull requests. A pull request does not bump the version or set a code name. It adds a note under `## Unreleased` in `CHANGELOG.md`.
+
+Those notes are on `main` as soon as the pull request merges. Anyone who runs NerdGram from a cloned repository on `main` gets them. They are not in the npm package or the GHCR images until the next milestone release.
+
+The version bump, the code name, the git tag, the npm publish, and the GHCR image happen only at a milestone release. That path is [Cutting a release](#cutting-a-release).
+
 ## Cutting a release
 
-This is the maintainer path. It is not part of installing the app. v1.0.5, code name Atlas, was the first release and is already tagged. A later release keeps the code name of its minor when that minor is already named, and moves `Y` or `Z`. A minor with its own map entry takes that name. Do not invent a second numbering scheme for the image. Do not mark the GitHub Release as a prerelease. The update check offers full releases and reads the version from the tag.
+This is the maintainer path for a milestone release. A normal pull request does not do these steps. It is not part of installing the app. v1.0.5, code name Atlas, was the first release and is already tagged. A later release keeps the code name of its minor when that minor is already named, and moves `Y` or `Z`. A minor with its own map entry takes that name. Do not invent a second numbering scheme for the image. Do not mark the GitHub Release as a prerelease. The update check offers full releases and reads the version from the tag.
 
 1. Set the root `package.json` `version` to `X.Y.Z`. The `codenames` map in that file names each milestone (`"1.0"` is Atlas, `"1.5"` is Compass, `"1.6"` is Galileo, `"1.7"` is Navigator, `"1.8"` is Meridian, `"2.1"` is Zenith, `"2.1.5"` is Azimuth). The current minor has to have an entry, or be covered by an earlier key in that major until the next one. A minor with no code name fails the check when it is the version you are cutting. 1.9 and 2.0 are not named. 2.1.0 through 2.1.4 are Zenith. 2.1.5 is Azimuth.
 2. Run `npm run version:sync`. That copies the version into `client/package.json`, `server/package.json`, `cli/package.json`, the root version fields of the three lockfiles, the `ARG NERDGRAM_VERSION` lines in the Dockerfile, and the published image tag in `compose.yaml`. It also cuts `CHANGELOG.md` as described in step 4. The local build args live in `compose.build.yaml`, tagged `nerdgram1337:local`. It also writes `ARG NERDGRAM_CODENAME` and the `NERDGRAM_CODENAME` build arg from the map. It does not rewrite this README. Update every real image tag in the README and the docs to the new version, including the Docker `pull` and `run` examples, the published image in [Data and backups](data-and-backups.md#data-and-backups), and the pin under [Pin a version or move to another](#pin-a-version-or-move-to-another). `npm run version:check` requires an image pin written out as `ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` with real numbers, or a `nerdgram1337@` example, to match `package.json`. The names v1.0.5, v1.0.6, and v2.0.0 are allowed in this section.
