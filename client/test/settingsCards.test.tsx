@@ -4,7 +4,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { SettingsCard, SettingsCardsProvider, chooseSpySection, defaultCardOpen, useSettingsCards } from "../src/components/SettingsCard";
+import { SettingsCard, SettingsCardsProvider, chooseSpySection, defaultCardOpen, headerScrollTop, useSettingsCards } from "../src/components/SettingsCard";
 
 const ids = ["appearance", "style-presets", "host", "bookmarks"];
 
@@ -173,10 +173,67 @@ describe("settings cards", () => {
     });
     expect(marked()).toBe("host");
     act(() => {
-      window.dispatchEvent(new Event("scrollend"));
-      window.dispatchEvent(new WheelEvent("wheel", { deltaY: 48 }));
       window.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("scrollend"));
+    });
+    expect(marked()).toBe("host");
+    act(() => {
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: 48 }));
     });
     expect(marked()).toBe("appearance");
+  });
+
+  it("keeps a body-click mark when expanding shifts the layout", () => {
+    root = render();
+    const card = document.getElementById("host");
+    act(() => {
+      card?.click();
+    });
+    expect(marked()).toBe("host");
+    expect(document.getElementById("host-panel")?.hidden).toBe(false);
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("scrollend"));
+    });
+    expect(marked()).toBe("host");
+  });
+
+  it("marks a deep link on the first frame and keeps it through the jump", () => {
+    root = render("#host");
+    expect(marked()).toBe("host");
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("scrollend"));
+    });
+    expect(marked()).toBe("host");
+  });
+
+  it("scrolls the header to the sticky bar, or as far as the page allows", async () => {
+    expect(headerScrollTop({ scrollTop: 0, headerTop: 373, barBottom: 68, maxScroll: 1000 })).toBe(305);
+    expect(headerScrollTop({ scrollTop: 0, headerTop: 373, barBottom: 68, maxScroll: 163 })).toBe(163);
+
+    const scrolled: number[] = [];
+    const originalScroll = window.scrollTo;
+    const originalRect = HTMLElement.prototype.getBoundingClientRect;
+    window.scrollTo = ((options?: ScrollToOptions | number) => {
+      scrolled.push(typeof options === "number" ? options : (options?.top ?? 0));
+    }) as typeof window.scrollTo;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      if (this.classList.contains("settings-nav")) return new DOMRect(0, 0, 1280, 68);
+      if (this.classList.contains("settings-card-heading") && this.closest("#host")) return new DOMRect(0, 373, 400, 36);
+      return new DOMRect(0, 0, 0, 0);
+    };
+    Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: window.innerHeight + 1000 });
+    root = render();
+    act(() => {
+      document.querySelector<HTMLAnchorElement>("a[href='#host']")?.click();
+    });
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    });
+    expect(scrolled.at(-1)).toBe(305);
+
+    window.scrollTo = originalScroll;
+    HTMLElement.prototype.getBoundingClientRect = originalRect;
   });
 });

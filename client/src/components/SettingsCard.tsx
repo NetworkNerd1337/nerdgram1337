@@ -7,6 +7,7 @@ type CardsContext = {
   toggle: (id: string) => void;
   expand: (id: string) => void;
   focus: (id: string) => void;
+  pin: (id: string) => void;
   setAll: (ids: readonly string[], open: boolean) => void;
   activeId: string | null;
   activate: (id: string | null) => void;
@@ -39,6 +40,13 @@ export function chooseSpySection(
 }
 
 const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "]);
+
+/** Scroll offset that puts the header on the sticky bar's bottom edge, clamped to the page. */
+export function headerScrollTop(input: { scrollTop: number; headerTop: number; barBottom: number; maxScroll: number }): number {
+  const desired = input.scrollTop + (input.headerTop - input.barBottom);
+  const max = Math.max(0, input.maxScroll);
+  return Math.min(max, Math.max(0, desired));
+}
 
 const SettingsCardsContext = createContext<CardsContext | null>(null);
 
@@ -86,8 +94,7 @@ export function SettingsCardsProvider({
   const hashId = initialHash.replace(/^#/, "");
   const [spyId, setSpyId] = useState<string | null>(ids.includes(hashId) ? hashId : (ids[0] ?? null));
   const pinned = useRef<string | null>(ids.includes(hashId) ? hashId : null);
-  const fromUs = useRef(false);
-  const userScroll = useRef(false);
+  const alignGen = useRef(0);
 
   const persist = useCallback((next: Record<string, boolean>) => {
     setStored(next);
@@ -100,11 +107,39 @@ export function SettingsCardsProvider({
     setSpyId(id);
   }, []);
 
-  const scrollUnderBar = useCallback((id: string) => {
-    fromUs.current = true;
-    userScroll.current = false;
-    document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "smooth" });
+  const alignHeader = useCallback((id: string) => {
+    const bar = document.querySelector(".settings-nav");
+    const header = document.getElementById(id)?.querySelector(".settings-card-heading");
+    if (!(header instanceof HTMLElement)) return;
+    const barHeight = bar instanceof HTMLElement ? bar.getBoundingClientRect().height : 0;
+    const barBottom = bar instanceof HTMLElement ? bar.getBoundingClientRect().bottom : 0;
+    document.documentElement.style.setProperty("--settings-nav-height", `${Math.ceil(barHeight) + 8}px`);
+    const scrolling = document.scrollingElement ?? document.documentElement;
+    const scrollTop = window.scrollY || scrolling.scrollTop;
+    const maxScroll = Math.max(0, scrolling.scrollHeight - window.innerHeight);
+    const top = headerScrollTop({ scrollTop, headerTop: header.getBoundingClientRect().top, barBottom, maxScroll });
+    window.scrollTo({ top, behavior: "smooth" });
   }, []);
+
+  const reveal = useCallback(
+    (id: string) => {
+      mark(id);
+      setStored((current) => {
+        if (current[id] === true) return current;
+        const next = { ...current, [id]: true };
+        writeStored(next);
+        return next;
+      });
+      const gen = ++alignGen.current;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (gen !== alignGen.current || pinned.current !== id) return;
+          alignHeader(id);
+        });
+      });
+    },
+    [alignHeader, mark],
+  );
 
   const expand = useCallback(
     (id: string) => {
@@ -116,11 +151,9 @@ export function SettingsCardsProvider({
 
   const focus = useCallback(
     (id: string) => {
-      persist({ ...stored, [id]: true });
-      mark(id);
-      scrollUnderBar(id);
+      reveal(id);
     },
-    [mark, persist, scrollUnderBar, stored],
+    [reveal],
   );
 
   useEffect(() => {
@@ -142,10 +175,8 @@ export function SettingsCardsProvider({
       writeStored(next);
       return next;
     });
-    mark(id);
-    const frame = window.requestAnimationFrame(() => scrollUnderBar(id));
-    return () => window.cancelAnimationFrame(frame);
-  }, [ids, initialHash, mark, scrollUnderBar]);
+    reveal(id);
+  }, [ids, initialHash, reveal]);
 
   useEffect(() => {
     const bar = document.querySelector(".settings-nav");
@@ -177,38 +208,37 @@ export function SettingsCardsProvider({
       const next = chooseSpySection(cards, probe, { top, max });
       if (next) setSpyId(next);
     };
-    const onScroll = () => {
-      if (fromUs.current && !userScroll.current) return;
-      fromUs.current = false;
-      userScroll.current = false;
+    const release = () => {
+      if (!pinned.current) return;
       pinned.current = null;
       measure();
-    };
-    const onScrollEnd = () => {
-      fromUs.current = false;
-    };
-    const armUserScroll = () => {
-      fromUs.current = false;
-      userScroll.current = true;
     };
     const onKey = (event: KeyboardEvent) => {
       if (!SCROLL_KEYS.has(event.key)) return;
       const target = event.target;
       if (target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable='true']")) return;
-      armUserScroll();
+      release();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(".settings-card, .settings-nav, input, textarea, select")) return;
+      const scroller = document.scrollingElement ?? document.documentElement;
+      if (target !== scroller && target !== document.documentElement && target !== document.body) return;
+      release();
     };
     measure();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("scrollend", onScrollEnd);
-    window.addEventListener("wheel", armUserScroll, { passive: true });
-    window.addEventListener("touchmove", armUserScroll, { passive: true });
+    window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("wheel", release, { passive: true });
+    window.addEventListener("touchmove", release, { passive: true });
     window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointerDown);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("scrollend", onScrollEnd);
-      window.removeEventListener("wheel", armUserScroll);
-      window.removeEventListener("touchmove", armUserScroll);
+      window.removeEventListener("scroll", measure);
+      window.removeEventListener("wheel", release);
+      window.removeEventListener("touchmove", release);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointerDown);
     };
   }, [ids, stored]);
 
@@ -223,16 +253,19 @@ export function SettingsCardsProvider({
       },
       expand,
       focus,
+      pin: mark,
       activeId,
       activate: (id) => {
-        setActiveId(id);
-        if (!id) return;
-        mark(id);
+        if (!id) {
+          setActiveId(null);
+          return;
+        }
+        reveal(id);
       },
       spyId,
       setSpy: setSpyId,
     }),
-    [activeId, expand, focus, mark, persist, spyId, stored],
+    [activeId, expand, focus, mark, persist, reveal, spyId, stored],
   );
 
   return <SettingsCardsContext.Provider value={value}>{children}</SettingsCardsContext.Provider>;
@@ -282,8 +315,12 @@ export function SettingsCard({
           onClick={(event) => {
             event.stopPropagation();
             if (!cards) return;
-            cards.toggle(id);
-            cards.activate(id);
+            if (cards.isOpen(id)) {
+              cards.toggle(id);
+              cards.pin(id);
+              return;
+            }
+            cards.focus(id);
           }}
         >
           <span className="settings-card-chevron" data-open={open ? "true" : "false"} aria-hidden="true" />
