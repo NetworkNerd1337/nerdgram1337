@@ -4,12 +4,12 @@ NerdGram handles API tokens, GitHub sync credentials, and network inventory on y
 
 ## Supported versions
 
-Security fixes land only in the latest release. That release is 2.1.13. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Every npm version before 2.1.13 is deprecated, and every container image older than `v2.1.13` is removed from GHCR. `v2.1.13` and `:latest` stay. GitHub releases and tags stay for history. The version list is [Versioning and releases](docs/releases.md). How Actions and npm publishing are pinned is in [Repository supply chain](docs/security.md#repository-supply-chain).
+Support covers the life of a major.minor line. The supported line is 2.1. Every 2.1.x patch is supported until the next minor or major release, for example 2.2.0 or 3.0.0. After that release, 2.1.x gets no support and no fixes. Within the line, only the newest patch is published. That patch is 2.1.13. Security fixes land there. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new milestone is published, the previous release is deprecated and removed immediately: the npm version is deprecated and unpublished where npm allows it, and the old GHCR version tag is removed. Pinning an older version is not supported. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Git tags stay for history. The version list is [Versioning and releases](docs/releases.md). How Actions and npm publishing are pinned is in [Repository supply chain](docs/security.md#repository-supply-chain).
 
 | Version | Supported |
 | --- | --- |
-| 2.1.13 (latest) | Yes |
-| Everything before 2.1.13 | No (deprecated) |
+| 2.1.x | Yes |
+| Everything below 2.1 | No |
 
 ## How to report
 

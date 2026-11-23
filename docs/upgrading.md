@@ -19,11 +19,11 @@ Paths in this document use two placeholders, always in code formatting so GitHub
 
 Stop the app before you replace it. Diagrams stay where they are when you keep the same data directory or the same volume. Do not run `docker volume rm` on a volume you still want. There is no updater inside the container.
 
-Only 2.1.13, the latest release, is supported. Security fixes land only there. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. Every npm version before 2.1.13 is deprecated, and every container image older than `v2.1.13` is removed from GHCR. `v2.1.13` and `:latest` stay. GitHub releases and tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
+The 2.1 line is supported until the next minor or major release. Only the newest patch is published. That patch is 2.1.13. Security fixes land there. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new milestone is published, the previous release's npm package is deprecated and unpublished where npm allows it, and its GHCR version tag is removed. Pinning an older version is not supported. Git tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
 
 ## Update a Docker install
 
-The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.13`, the tag for this tree. Pull `:latest` or `v2.1.13`. An image tag older than `v2.1.13` is removed from GHCR. If your names differ, keep the names you already use.
+The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.13`, the newest published patch and the tag for this tree. Pull `:latest` or `v2.1.13`. An older version tag is removed, so pinning it is not supported. If your names differ, keep the names you already use.
 
 1. Pull the new image.
 

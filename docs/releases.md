@@ -44,7 +44,7 @@ The running app shows the version and the code name together. A 1.0.y through 1.
 
 ## Supported versions
 
-Security fixes land only in the latest release. That release is 2.1.13. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. Every version before 2.1.13 is deprecated on npm, and every container image older than `v2.1.13` is removed from GHCR. `v2.1.13` and `:latest` stay. GitHub releases and tags stay for history. The table is in the [security policy](../SECURITY.md#supported-versions).
+Support covers the life of a major.minor line. Every 2.1.x patch is supported until the next minor or major release, for example 2.2.0 or 3.0.0. After that release, 2.1.x gets no support and no fixes. Within a line, only the newest patch is published. That patch is 2.1.13. Security fixes land there. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. Versions below 2.1 are not supported. When a new milestone is published, the previous release's packages are removed, so pinning an older version is not supported. Git tags stay for a checkout. The table is in the [security policy](../SECURITY.md#supported-versions).
 
 ## Where the version is shown
 
@@ -58,11 +58,11 @@ Security fixes land only in the latest release. That release is 2.1.13. Upgrade 
 
 ## Pin a version or move to another
 
-The Docker `pull` and `run` commands use `v2.1.13`, the Azimuth tag for this tree, so they can be copied. GHCR keeps that tag and `:latest`. An image tag older than `v2.1.13` is removed, so do not pull one. Git and ZIP examples in this section still write the tag as `vX.Y.Z`. Those GitHub tags stay. Substitute the release you want for a git or ZIP checkout. `:latest` is not a version. It is the newest full release the image workflow has pushed.
+The Docker `pull` and `run` commands use `v2.1.13`, the Azimuth tag for this tree, so they can be copied. GHCR keeps that tag and `:latest`. An older version tag is removed when the next milestone is published, so pinning an old version is not supported. Git and ZIP examples in this section still write the tag as `vX.Y.Z`. Those Git tags stay. Substitute the release you want for a git or ZIP checkout. `:latest` is not a version. It is the newest full release the image workflow has pushed.
 
 **Docker, stay on one release.** Use the immutable tag `ghcr.io/networknerd1337/nerdgram1337:v2.1.13` in `docker run` and as the `image:` line in `compose.yaml`. `docker pull` of that tag gets that release again. Recreate the container on the same `nerdgram-data` volume when you change tags. The steps are [Update a Docker install](upgrading.md#update-a-docker-install). The workflow also pushes `sha-<commit>` for that build. GHCR keeps `v2.1.13` and `:latest`. An older image tag, including an older `sha-` tag, is removed.
 
-**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins `v2.1.13`, which matches `package.json`, not `:latest`. Change that pin to `:latest` when you want each new full release, then `docker compose pull` and `docker compose up -d`. Do not pin an image tag older than `v2.1.13`. That tag is removed.
+**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins `v2.1.13`, which matches `package.json`, not `:latest`. Change that pin to `:latest` when you want each new full release, then `docker compose pull` and `docker compose up -d`. Do not pin an image tag older than the newest patch. That tag is removed, and pinning it is not supported.
 
 **Git, track `main`.** Check out `main` and pull. You get the commits on `main`. That history can contain commits the latest release tag does not. The update check's **ahead** state compares the `version` in this tree's `package.json` with the latest stable release tag. It is not a count of extra commits. **Update now** runs only when this is a clean checkout of the official origin, on `main` or a detached release tag, and the release tag is a fast-forward. On `main` it merges that tag with `--ff-only`, then runs `npm ci` and `npm run build`. You are still on `main` afterwards. If the tag is not a fast-forward from this checkout, **Update now** refuses it as not a fast-forward and does not reset you back to the tag.
 
@@ -97,6 +97,10 @@ Changes merge to `main` through issues and pull requests. A pull request does no
 Those notes are on `main` as soon as the pull request merges. Anyone who runs NerdGram from a cloned repository on `main` gets them. They are not in the npm package or the GHCR images until the next milestone release.
 
 The version bump, the code name, the git tag, the npm publish, and the GHCR image happen only at a milestone release. That path is [Cutting a release](#cutting-a-release).
+
+When that milestone is published, the previous release's packages are deprecated and removed immediately. npm versions are deprecated, and unpublished where npm allows it. The old GHCR version tag is removed. Install or upgrade to the latest release. Pinning an older version is not supported, because that package is gone. Git tags stay, so a checkout of an old tag still works.
+
+Support lasts for one major.minor line. Every 2.1.x patch is supported until the next minor or major release, for example 2.2.0 or 3.0.0. From then on, 2.1.x gets no support and no fixes. Inside the line, only the newest patch is published. The details are under [Supported versions](#supported-versions).
 
 ## Cutting a release
 
