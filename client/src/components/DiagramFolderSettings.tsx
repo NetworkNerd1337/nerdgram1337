@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type DataDirStatus } from "../api";
+import { SettingsCard } from "./SettingsCard";
 
 function messageOf(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -38,8 +39,7 @@ export function DiagramFolderSettings({ githubSync = false }: { githubSync?: boo
   const showRestart = status ? needsRestart(status) : false;
 
   return (
-    <section className="sync-card" id="diagram-folder">
-      <h2>Diagram folder</h2>
+    <SettingsCard id="diagram-folder" title="Diagram folder" summary="Where .mmd files are read after the next start.">
       <p>
         This sets <code>NERDGRAM_DATA_DIR</code>, the folder of <code>.mmd</code> files NerdGram
         reads after the next start. The default is the <code>diagrams</code> folder in this
@@ -131,6 +131,6 @@ export function DiagramFolderSettings({ githubSync = false }: { githubSync?: boo
           </button>
         </div>
       )}
-    </section>
+    </SettingsCard>
   );
 }

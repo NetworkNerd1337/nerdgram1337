@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { SettingsCard } from "./SettingsCard";
 import { Modal } from "./Modal";
 
 type TokenMeta = {
@@ -64,8 +65,7 @@ export function TokenSettings() {
   };
 
   return (
-    <section className="sync-card" id="tokens">
-      <h2>Automation tokens</h2>
+    <SettingsCard id="tokens" title="Automation tokens" summary="Bearer tokens for scripts and CI.">
       <p>
         Scripts and CI call <code>/api/v1</code> with <code>Authorization: Bearer</code>.
         The browser UI does not use a token. A token is shown once. Read can list, search,
@@ -236,6 +236,6 @@ export function TokenSettings() {
           </p>
         </Modal>
       ) : null}
-    </section>
+    </SettingsCard>
   );
 }

@@ -68,10 +68,11 @@ describe("sidebar folder tree", () => {
 
   it("toggles a folder with the chevron and leaves the name as the folder opener", async () => {
     await render();
-    const heading = document.querySelector(".nav-label");
-    expect(heading?.textContent).toBe("Folders");
+    const heading = document.querySelector(".tree");
+    expect(heading?.getAttribute("aria-label")).toBe("Folders");
+    expect(document.querySelector(".nav-label")).toBeNull();
     const firstFolder = document.querySelector(".tree-level");
-    expect(heading?.compareDocumentPosition(firstFolder as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(heading?.contains(firstFolder as Node)).toBe(true);
     expect(toggle("Field Sites").getAttribute("aria-expanded")).toBe("true");
     expect(document.querySelector('[data-testid="folder-link-Field Sites/MTJ"]')).not.toBeNull();
     expect(document.querySelector('[data-testid="folder-toggle-Loose"]')).toBeNull();

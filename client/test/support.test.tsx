@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { AboutSummary } from "../src/components/UpdateHost";
+import { AboutSummary, versionStatusWord } from "../src/components/UpdateHost";
 import { SupportLink } from "../src/components/SupportLink";
 import { mermaidEngineLabel, mermaidEngineReleaseUrl } from "../src/lib/mermaidVersion";
 import { KOFI_URL } from "../src/lib/support";
@@ -132,7 +132,10 @@ describe("About dialog content", () => {
     const html = renderAbout();
     const text = visibleText(html);
     expect(text).toContain("NerdGram1337");
-    expect(text).toContain("A local app for writing Mermaid diagrams as Markdown.");
+    expect(text).toContain("A local Mermaid diagramming tool for network engineers.");
+    expect(text).toContain("latest");
+    expect(text).toContain("© 2026");
+    expect(text).toContain("ryanthomashuff.com");
     expect(text).toContain("v1.4.8");
     expect(text).not.toContain('v1.4.8 "Atlas"');
     expect(text).toContain("Code name");
@@ -151,7 +154,7 @@ describe("About dialog content", () => {
     expect(text).toContain("Report a bug or request a feature");
     expect(text).toContain("Documentation");
     expect(text).toContain("MIT License");
-    expect(text).toContain("© Ryan Thomas Huff");
+    expect(text).toContain("© 2026 Ryan Thomas Huff");
     expect(text).toContain(
       "NerdGram1337 is free and open source, built by one developer. If it's useful to you, you can support continued development.",
     );
@@ -181,6 +184,8 @@ describe("About dialog content", () => {
     expect(text).not.toContain("Code name");
     expect(text).not.toContain("Atlas");
     expect(text).not.toContain("Commit");
+    expect(text).not.toContain("latest");
+    expect(text).not.toContain("upgrade available");
     expect(text).toContain("This install is running v1.4.8. NerdGram has not checked for a newer release.");
     expect(text).not.toContain("You're up to date.");
   });
@@ -224,5 +229,61 @@ describe("About dialog content", () => {
     expect(visibleText(renderAbout({ installKind: "unknown", matchesLatest: false, phase: "unknown" }))).toContain(
       "unknown",
     );
+  });
+
+  it("names latest or upgrade available only after a successful check", () => {
+    const latestRelease = {
+      tag: "v1.4.8",
+      version: "1.4.8",
+      codename: "Atlas",
+      name: "v1.4.8 Atlas",
+      body: "",
+      htmlUrl: "https://example.test/r",
+      publishedAt: null,
+      prerelease: false,
+    };
+    const newer = { ...latestRelease, tag: "v1.4.9", version: "1.4.9", prerelease: false };
+    const prerelease = { ...newer, tag: "v1.4.9-rc.1", version: "1.4.9-rc.1", prerelease: true };
+    expect(versionStatusWord(status({ includePrerelease: false }))).toBe("latest");
+    expect(versionStatusWord(status({ includePrerelease: true, matchesLatest: true, phase: "current" }))).toBe("latest");
+    expect(
+      versionStatusWord(
+        status({
+          includePrerelease: false,
+          matchesLatest: false,
+          phase: "available",
+          updateAvailable: true,
+          latest: newer,
+        }),
+      ),
+    ).toBe("upgrade available");
+    expect(
+      versionStatusWord(
+        status({
+          includePrerelease: true,
+          matchesLatest: false,
+          phase: "available",
+          updateAvailable: true,
+          latest: prerelease,
+        }),
+      ),
+    ).toBe("upgrade available");
+    expect(versionStatusWord(status({ enabled: false, phase: "disabled", matchesLatest: false }))).toBeNull();
+    expect(
+      versionStatusWord(
+        status({ error: { code: "offline", message: "GitHub could not be reached" }, matchesLatest: false, phase: "unknown" }),
+      ),
+    ).toBeNull();
+    expect(versionStatusWord(status({ phase: "ahead", matchesLatest: false, updateAvailable: false }))).toBeNull();
+    const opened = { current: 0 };
+    const html = renderAbout(
+      { matchesLatest: false, phase: "available", updateAvailable: true, latest: newer },
+      null,
+      () => {
+        opened.current += 1;
+      },
+    );
+    expect(html).toContain("upgrade available");
+    expect(html).toContain('class="about-version-status is-upgrade"');
   });
 });

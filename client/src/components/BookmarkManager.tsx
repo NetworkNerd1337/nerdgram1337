@@ -16,6 +16,7 @@ import {
 } from "../lib/bookmarks";
 import { displayName, flattenFiles } from "../lib/paths";
 import { useWorkspace } from "../hooks/useWorkspace";
+import { SettingsCard } from "./SettingsCard";
 
 /** Settings view for every bookmark and folder. The page already loads the saved list. */
 export function BookmarkManager() {
@@ -63,13 +64,14 @@ export function BookmarkManager() {
   const folderRoot = folderDrag.dragging && folderDrag.inside(null);
 
   return (
-    <section
-      className={`sync-card bookmark-manage${folderDrag.dragging ? " is-dragging" : ""}${folderRoot ? " is-folder-drop" : ""}`}
+    <SettingsCard
       id="bookmarks"
+      title="Bookmarks"
+      summary="Folders and diagrams saved in this browser."
+      className={`bookmark-manage${folderDrag.dragging ? " is-dragging" : ""}${folderRoot ? " is-folder-drop" : ""}`}
       onDragOver={(event) => folderDrag.hover(event, null, "inside")}
       onDrop={(event) => folderDrag.drop(event, null, "inside")}
     >
-      <h2>Bookmarks</h2>
       <p>
         Bookmarks are stored in this NerdGram instance, in <code>.meta/favorites.json</code>. They
         are not an account. Folders can sit inside other folders. Rename, move, and remove them
@@ -125,7 +127,7 @@ export function BookmarkManager() {
           </button>
         </p>
       )}
-    </section>
+    </SettingsCard>
   );
 }
 

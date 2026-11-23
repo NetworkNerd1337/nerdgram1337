@@ -1,3 +1,4 @@
+import { SettingsCard } from "./SettingsCard";
 import { useAppearance } from "../hooks/useAppearance";
 import { writeAppearance, type Appearance } from "../lib/appearance";
 
@@ -14,9 +15,9 @@ const CHOICES: { id: Appearance; label: string; detail: string }[] = [
 export function AppearanceSettings() {
   const { preference } = useAppearance();
 
+  const theme = CHOICES.find((choice) => choice.id === preference)?.label ?? "Match system";
   return (
-    <section className="sync-card" id="appearance">
-      <h2>Appearance</h2>
+    <SettingsCard id="appearance" title="Appearance" summary={`Theme: ${theme}`}>
       <p>
         Light, dark, or match this computer. The choice is saved in this browser. It does not
         change a diagram's theme. That still comes from the file's front matter.
@@ -38,6 +39,6 @@ export function AppearanceSettings() {
           </label>
         ))}
       </fieldset>
-    </section>
+    </SettingsCard>
   );
 }

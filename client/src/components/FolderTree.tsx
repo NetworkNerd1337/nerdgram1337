@@ -41,8 +41,7 @@ export function FolderTree({
   const collapseDisabled = fullyCollapsed.size === collapsed.size && [...fullyCollapsed].every((path) => collapsed.has(path));
 
   return (
-    <div className="tree">
-      <div className="nav-label">Folders</div>
+    <div className="tree" role="region" aria-label="Folders">
       {nested ? (
         <div className="tree-toolbar">
           <div className="tree-fold-control" role="group" aria-label="Folder tree">

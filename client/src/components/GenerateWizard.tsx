@@ -21,6 +21,7 @@ import {
   type WizardAction,
   type WizardGroupBy,
   type WizardState,
+  type WizardStep,
 } from "../lib/generateWizard";
 
 const DIRECTIONS: { value: FlowDirection; label: string }[] = [
@@ -41,6 +42,46 @@ type GenerateWizardProps = {
   onInspect: (step: "map" | "preview", patch?: { documentText: string; mapperWarnings: MapperWarning[] }) => void;
   onCreate: () => void;
 };
+
+const STEP_ORDER: WizardStep[] = ["input", "map", "preview"];
+
+export function GenerateStepProgress({
+  step,
+  middle,
+  onFinished,
+}: {
+  step: WizardStep;
+  middle: "Options" | "Columns";
+  onFinished: (step: WizardStep) => void;
+}) {
+  const labels: Record<WizardStep, string> = { input: "Data", map: middle, preview: "Preview" };
+  const current = STEP_ORDER.indexOf(step);
+  return (
+    <div className="generate-steps" role="list" aria-label="Steps">
+      <span className="generate-steps-mark" aria-hidden="true">[</span>
+      {STEP_ORDER.map((id, index) => {
+        const state = index === current ? "current" : index < current ? "done" : "upcoming";
+        const label = labels[id];
+        return (
+          <span key={id} className="generate-steps-item" role="listitem">
+            {index > 0 ? <span className="generate-steps-sep" aria-hidden="true">&gt;&gt;</span> : null}
+            {state === "done" ? (
+              <button type="button" className="generate-step is-done" onClick={() => onFinished(id)}>
+                <span className="generate-step-check" aria-hidden="true">✓</span>
+                {label}
+              </button>
+            ) : (
+              <span className={`generate-step is-${state}`} aria-current={state === "current" ? "step" : undefined}>
+                {label}
+              </span>
+            )}
+          </span>
+        );
+      })}
+      <span className="generate-steps-mark" aria-hidden="true">]</span>
+    </div>
+  );
+}
 
 export function GenerateWizard({
   state,
@@ -88,11 +129,11 @@ export function GenerateWizard({
   };
   return (
     <div className="generate-wizard">
-      <ol className="generate-steps" aria-label="Steps">
-        <li className={state.step === "input" ? "active" : ""}>Data</li>
-        <li className={state.step === "map" ? "active" : ""}>{neighbor || route || layer2 || network ? "Options" : "Columns"}</li>
-        <li className={state.step === "preview" ? "active" : ""}>Preview</li>
-      </ol>
+      <GenerateStepProgress
+        step={state.step}
+        middle={neighbor || route || layer2 || network ? "Options" : "Columns"}
+        onFinished={(step) => dispatch({ type: "go", step })}
+      />
 
       {state.fatal ? <div className="error-banner">{state.fatal}</div> : null}
       <IssueList title={issueListTitle(state.translatorId ? "network" : state.format, state.detectedFormat)} issues={state.errors} />
