@@ -272,6 +272,7 @@ describe("dashboard warning pill follows the editor mute toggle", () => {
     expect(header?.textContent).not.toContain("New folder");
     expect(header?.querySelector(".about-link")).toBeTruthy();
     expect(header?.querySelector(".support-link")).toBeTruthy();
+    expect(header?.querySelector(".commands-button")).toBeTruthy();
     const createLabels = [...(document.querySelector(".toolbar")?.querySelectorAll("a.btn, button.btn") ?? [])].map(
       (item) => item.textContent?.trim(),
     );

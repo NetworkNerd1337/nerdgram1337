@@ -5,6 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { PaletteContext } from "../src/components/commandPaletteContext";
 import { HealthPage } from "../src/pages/HealthPage";
 
 vi.mock("../src/api", async () => {
@@ -58,7 +59,9 @@ describe("Diagram health layout", () => {
     await act(async () => {
       root?.render(
         <MemoryRouter initialEntries={["/health"]}>
-          <HealthPage />
+          <PaletteContext.Provider value={{ setHost: () => undefined, openPalette: () => undefined }}>
+            <HealthPage />
+          </PaletteContext.Provider>
         </MemoryRouter>,
       );
     });

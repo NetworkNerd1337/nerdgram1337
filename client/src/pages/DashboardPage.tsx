@@ -16,6 +16,7 @@ import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
 import { Sidebar } from "../components/Sidebar";
 import { WorkspaceShell } from "../components/WorkspaceShell";
+import { CommandsButton } from "../components/CommandPalette";
 import { AboutButton, SupportLink } from "../components/SupportLink";
 import { confirmChoice } from "../lib/confirmChoice";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -945,6 +946,7 @@ export function DashboardPage() {
           <div className="page-header-actions">
             <AboutButton />
             <SupportLink />
+            <CommandsButton />
           </div>
         </header>
 

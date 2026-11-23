@@ -9,7 +9,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 - **Changed:** Diagram health in the sidebar shows a count only when there is at least one issue. A check that has not run, or that found nothing, leaves the link as Diagram health. The accessible name is Diagram health, or Diagram health, N issues (#281).
 - **Fixed:** The published CLI depends on zod ^4.6.6, and its Puppeteer range matches the server so the install does not also pull zod 3. zod before 4.6.6 can accumulate validation issues without a bound (GHSA-mrhx-c7xc-m3w5, #279).
 - **Changed:** Version labels show the code name without quotes, as in v2.1.11 Azimuth. That includes About, the upgrade panel, toasts, `nerdgram --version`, the startup log, and the generated GitHub release title. An up-to-date install says it is running that version, the latest release. A newer release is named on its own. The dialog does not say up to date twice (#283).
-- **Changed:** Paste Mermaid no longer shows a mode pill under the heading. The heading, description, and spacing match From data. Each screen keeps its own heading. On the dashboard the create row is New diagram, New folder, Templates, From data, Paste Mermaid, Import, then Replace across…. About and Support stay in the top-right, and Commands stays in the sidebar (#285).
+- **Changed:** Paste Mermaid no longer shows a mode pill under the heading. The heading, description, and spacing match From data. Each screen keeps its own heading. On the dashboard the create row is New diagram, New folder, Templates, From data, Paste Mermaid, Import, then Replace across…. About, Support, and Commands stay in the top-right. Commands also stays in the sidebar (#285).
 
 ## 2.1.11 "Azimuth" - 2026-11-22
 
