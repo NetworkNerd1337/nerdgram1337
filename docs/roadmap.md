@@ -41,10 +41,8 @@ The code names below are the names planned for those milestones. They are not in
 | 2.8.0 | Latitude | Features to be determined. |
 | 2.8.5 | Longitude | Features to be determined. |
 | 2.9.0 | Equator | Features to be determined. |
-| 2.9.5 | Zenith | Features to be determined. |
+| 2.9.5 | Sextant | Features to be determined. |
 | 3.0.0 | Horizon | Features to be determined. |
-
-2.9.5 reuses the name Zenith. That name was also used for 2.1.0 through 2.1.4.
 
 ## 2.5.0 Crossstaff
 
@@ -66,7 +64,7 @@ A read-only static HTML export, or a single-file viewer, that you can send to so
 
 ## Later milestones
 
-2.6.0 Astrolabe, 2.6.5 Quadrant, 2.7.0 Octant, 2.7.5 Chronometer, 2.8.0 Latitude, 2.8.5 Longitude, 2.9.0 Equator, 2.9.5 Zenith, and 3.0.0 Horizon do not have features yet. They will be planned later. This page does not invent them.
+2.6.0 Astrolabe, 2.6.5 Quadrant, 2.7.0 Octant, 2.7.5 Chronometer, 2.8.0 Latitude, 2.8.5 Longitude, 2.9.0 Equator, 2.9.5 Sextant, and 3.0.0 Horizon do not have features yet. They will be planned later. This page does not invent them.
 
 ## Future ideas (not committed)
 
