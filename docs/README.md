@@ -24,7 +24,7 @@ Guides for installing NerdGram1337, using it, and working on it.
 - [Data and backups](data-and-backups.md). By default, diagrams live in `diagrams/` inside the project.
 - [Upgrading](upgrading.md). Stop the app before you replace it.
 - [Versioning and releases](releases.md). Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. The 2.1 line is supported until the next minor or major release. Only the newest patch is published. The previous release stays published for 30 days after it is deprecated, then it is removed. Pinning an older version is not supported long term. A pull request adds to Unreleased and does not bump the version.
-- [Roadmap](roadmap.md). Planned work after v2.1.13. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Future ideas at the end are not committed.
+- [Roadmap](roadmap.md). Planned work from 2.5.0 Crossstaff through 3.0.0 Horizon. 2.5.0 and 2.5.5 name the work. Later milestones are not planned yet. Future ideas at the end are not committed.
 - [Troubleshooting](troubleshooting.md). If the API port is taken, the server exits and prints the listen error.
 - [Developing](developing.md). The project folders, the npm scripts, and what CI runs.
 

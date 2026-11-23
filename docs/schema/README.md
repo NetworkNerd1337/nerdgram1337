@@ -64,4 +64,4 @@ A file that omits those keys stays on `schemaVersion` 1 and keeps working. That 
 
 - [Generate from data](../generate-from-data.md)
 - [Network schema file](network.schema.json)
-- [Roadmap](../roadmap.md#150-canonical-json-and-one-upsert)
+- [Roadmap](../roadmap.md)
