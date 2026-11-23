@@ -48,6 +48,14 @@ export function headerScrollTop(input: { scrollTop: number; headerTop: number; b
   return Math.min(max, Math.max(0, desired));
 }
 
+export type AlignSample = { headerTop: number; barBottom: number };
+
+/** True once two samples in a row report the same header and bar. */
+export function alignSampleSettled(previous: AlignSample | null, next: AlignSample): boolean {
+  if (!previous) return false;
+  return previous.headerTop === next.headerTop && previous.barBottom === next.barBottom;
+}
+
 const SettingsCardsContext = createContext<CardsContext | null>(null);
 
 function readStored(): Record<string, boolean> {
@@ -108,9 +116,10 @@ export function SettingsCardsProvider({
   }, []);
 
   const alignHeader = useCallback((id: string) => {
+    if (pinned.current !== id) return false;
     const bar = document.querySelector(".settings-nav");
     const header = document.getElementById(id)?.querySelector(".settings-card-heading");
-    if (!(header instanceof HTMLElement)) return;
+    if (!(header instanceof HTMLElement)) return false;
     const barHeight = bar instanceof HTMLElement ? bar.getBoundingClientRect().height : 0;
     const barBottom = bar instanceof HTMLElement ? bar.getBoundingClientRect().bottom : 0;
     document.documentElement.style.setProperty("--settings-nav-height", `${Math.ceil(barHeight) + 8}px`);
@@ -118,7 +127,9 @@ export function SettingsCardsProvider({
     const scrollTop = window.scrollY || scrolling.scrollTop;
     const maxScroll = Math.max(0, scrolling.scrollHeight - window.innerHeight);
     const top = headerScrollTop({ scrollTop, headerTop: header.getBoundingClientRect().top, barBottom, maxScroll });
+    if (Math.abs(top - scrollTop) < 2) return false;
     window.scrollTo({ top, behavior: "smooth" });
+    return true;
   }, []);
 
   const reveal = useCallback(
@@ -131,12 +142,45 @@ export function SettingsCardsProvider({
         return next;
       });
       const gen = ++alignGen.current;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (gen !== alignGen.current || pinned.current !== id) return;
+      let previous: AlignSample | null = null;
+      let stableFrames = 0;
+      const read = (): AlignSample | null => {
+        const bar = document.querySelector(".settings-nav");
+        const header = document.getElementById(id)?.querySelector(".settings-card-heading");
+        if (!(header instanceof HTMLElement)) return null;
+        return {
+          headerTop: header.getBoundingClientRect().top,
+          barBottom: bar instanceof HTMLElement ? bar.getBoundingClientRect().bottom : 0,
+        };
+      };
+      const tick = () => {
+        if (gen !== alignGen.current || pinned.current !== id) return;
+        const next = read();
+        if (next && alignSampleSettled(previous, next)) stableFrames += 1;
+        else stableFrames = 0;
+        previous = next;
+        if (stableFrames >= 1) {
           alignHeader(id);
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      const card = document.getElementById(id);
+      const bar = document.querySelector(".settings-nav");
+      if (typeof ResizeObserver !== "undefined" && card instanceof HTMLElement) {
+        const observer = new ResizeObserver(() => {
+          if (gen !== alignGen.current || pinned.current !== id) {
+            observer.disconnect();
+            return;
+          }
+          previous = null;
+          stableFrames = 0;
+          requestAnimationFrame(tick);
         });
-      });
+        observer.observe(card);
+        if (bar instanceof HTMLElement) observer.observe(bar);
+      }
+      requestAnimationFrame(tick);
     },
     [alignHeader, mark],
   );
@@ -227,20 +271,27 @@ export function SettingsCardsProvider({
       if (target !== scroller && target !== document.documentElement && target !== document.body) return;
       release();
     };
+    const onScrollEnd = () => {
+      const id = pinned.current;
+      if (!id) return;
+      alignHeader(id);
+    };
     measure();
     window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("scrollend", onScrollEnd);
     window.addEventListener("wheel", release, { passive: true });
     window.addEventListener("touchmove", release, { passive: true });
     window.addEventListener("keydown", onKey);
     window.addEventListener("pointerdown", onPointerDown);
     return () => {
       window.removeEventListener("scroll", measure);
+      window.removeEventListener("scrollend", onScrollEnd);
       window.removeEventListener("wheel", release);
       window.removeEventListener("touchmove", release);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [ids, stored]);
+  }, [alignHeader, ids, stored]);
 
   const value = useMemo<CardsContext>(
     () => ({

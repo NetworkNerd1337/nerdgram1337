@@ -4,7 +4,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { SettingsCard, SettingsCardsProvider, chooseSpySection, defaultCardOpen, headerScrollTop, useSettingsCards } from "../src/components/SettingsCard";
+import { SettingsCard, SettingsCardsProvider, alignSampleSettled, chooseSpySection, defaultCardOpen, headerScrollTop, useSettingsCards } from "../src/components/SettingsCard";
 
 const ids = ["appearance", "style-presets", "host", "bookmarks"];
 
@@ -232,6 +232,48 @@ describe("settings cards", () => {
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     });
     expect(scrolled.at(-1)).toBe(305);
+
+    window.scrollTo = originalScroll;
+    HTMLElement.prototype.getBoundingClientRect = originalRect;
+  });
+
+  it("realigns to the header after the expanded card settles", async () => {
+    expect(alignSampleSettled(null, { headerTop: 255, barBottom: 68 })).toBe(false);
+    expect(alignSampleSettled({ headerTop: 255, barBottom: 68 }, { headerTop: 373, barBottom: 68 })).toBe(false);
+    expect(alignSampleSettled({ headerTop: 373, barBottom: 68 }, { headerTop: 373, barBottom: 68 })).toBe(true);
+
+    const scrolled: number[] = [];
+    const originalScroll = window.scrollTo;
+    const originalRect = HTMLElement.prototype.getBoundingClientRect;
+    let headerTop = 255;
+    window.scrollTo = ((options?: ScrollToOptions | number) => {
+      scrolled.push(typeof options === "number" ? options : (options?.top ?? 0));
+    }) as typeof window.scrollTo;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      if (this.classList.contains("settings-nav")) return new DOMRect(0, 0, 1280, 68);
+      if (this.classList.contains("settings-card-heading") && this.closest("#host")) return new DOMRect(0, headerTop, 400, 36);
+      return new DOMRect(0, 0, 0, 0);
+    };
+    Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: window.innerHeight + 611 });
+    root = render();
+    act(() => {
+      document.querySelector<HTMLAnchorElement>("a[href='#host']")?.click();
+    });
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    });
+    headerTop = 373;
+    act(() => {
+      window.dispatchEvent(new Event("scrollend"));
+    });
+    expect(scrolled.at(-1)).toBe(305);
+    expect(marked()).toBe("host");
+    headerTop = 491;
+    act(() => {
+      window.dispatchEvent(new Event("scrollend"));
+    });
+    expect(scrolled.at(-1)).toBe(headerScrollTop({ scrollTop: 0, headerTop: 491, barBottom: 68, maxScroll: 611 }));
+    expect(marked()).toBe("host");
 
     window.scrollTo = originalScroll;
     HTMLElement.prototype.getBoundingClientRect = originalRect;
