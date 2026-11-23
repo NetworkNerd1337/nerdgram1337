@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { noteTreeSkip, skippedStatCode } from "./dataHealth.js";
+import { assertDataWritable, noteTreeSkip, skippedStatCode } from "./dataHealth.js";
 import { invalidateDiagramLint } from "./diagramLintCache.js";
 import { reportUnreadable, warnUnreadable, type UnreadableDiagram } from "./readError.js";
 import { isSafeDataPath } from "./diagramData.js";
@@ -340,6 +340,7 @@ export async function writeFile(
   unchanged?: boolean;
   revisionId?: string;
 }> {
+  assertDataWritable();
   const normalized = requireDiagram(relativePath);
   const abs = resolveSafePath(normalized);
   const relative = toRelativePath(abs);
@@ -425,6 +426,7 @@ export async function restoreRevision(
 }
 
 export async function createFolder(relativePath: string): Promise<{ path: string }> {
+  assertDataWritable();
   const cleaned = normalizeRelative(relativePath);
   if (!cleaned) throw httpFail(400, "Folder path required", "invalid");
   const abs = resolveSafePath(cleaned);

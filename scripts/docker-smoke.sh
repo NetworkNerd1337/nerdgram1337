@@ -239,7 +239,7 @@ node -e 'const b=JSON.parse(process.argv[1]); if (!String(b.content).includes("P
 test "$(docker exec "$NAME" stat -c %a /data/.meta/github-token)" = "600"
 docker exec "$NAME" cat /data/.nerdgram-git/SMOKE | grep -q mirror
 
-echo "root-owned bind mount must fail to start"
+echo "root-owned bind mount boots degraded and refuses writes"
 docker stop "$NAME" >/dev/null
 ROOT_DIR="$(mktemp -d)"
 # GitHub-hosted runners are uid 1001, the same as the image user. A fresh
@@ -253,20 +253,59 @@ docker run -d \
   -p "127.0.0.1:${PORT}:8787" \
   -v "${ROOT_DIR}:/data" \
   "$IMAGE" >/dev/null
-ROOT_FAILED=0
-for _ in $(seq 1 25); do
-  RUNNING="$(docker inspect -f '{{.State.Running}}' "$ROOT_NAME")"
-  if [ "$RUNNING" != "true" ]; then
-    ROOT_FAILED=1
-    break
-  fi
-  sleep 1
-done
-if [ "$ROOT_FAILED" != "1" ]; then
-  echo "a root-owned bind mount stayed up; the process should have exited" >&2
+if ! wait_http; then
   docker logs "$ROOT_NAME" >&2 || true
   exit 1
 fi
+sleep 2
+test "$(docker inspect -f '{{.State.Running}}' "$ROOT_NAME")" = "true"
+test "$(docker inspect -f '{{.RestartCount}}' "$ROOT_NAME")" = "0"
+ROOT_HEALTH="$(http "http://127.0.0.1:${PORT}/api/health" -H "Host: 127.0.0.1:${PORT}")"
+export ROOT_HEALTH
+node --input-type=module -e '
+const health = JSON.parse(process.env.ROOT_HEALTH);
+if (health.ok !== true) throw new Error("health ok");
+if (!health.data || health.data.status !== "degraded") throw new Error("status " + JSON.stringify(health.data));
+if (health.data.writable !== false) throw new Error("writable");
+const hint = (health.data.issues || []).some((issue) => String(issue.message || "").includes("1001:1001"));
+if (!hint) throw new Error("missing chown hint " + JSON.stringify(health.data.issues));
+'
+WRITE_BODY="$(mktemp)"
+WRITE_CODE="$(curl -sS -o "$WRITE_BODY" -w '%{http_code}' -X PUT "http://127.0.0.1:${PORT}/api/file" \
+  -H "Host: 127.0.0.1:${PORT}" \
+  -H "Origin: http://127.0.0.1:${PORT}" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"Nope.mmd","content":"flowchart LR\n  N[nope]\n"}')"
+if [ "$WRITE_CODE" = "200" ] || [ "$WRITE_CODE" = "500" ]; then
+  echo "unwritable save returned HTTP ${WRITE_CODE}" >&2
+  cat "$WRITE_BODY" >&2
+  exit 1
+fi
+case "$WRITE_CODE" in
+  4*|503) ;;
+  *)
+    echo "unwritable save returned HTTP ${WRITE_CODE}" >&2
+    cat "$WRITE_BODY" >&2
+    exit 1
+    ;;
+esac
+if ! grep -q "not writable\|1001:1001\|read-only\|disk space" "$WRITE_BODY"; then
+  echo "unwritable save did not explain the refusal" >&2
+  cat "$WRITE_BODY" >&2
+  exit 1
+fi
+rm -f "$WRITE_BODY"
+if [ -n "$(find "$ROOT_DIR" -mindepth 1 -print -quit)" ]; then
+  echo "root-owned bind mount was modified" >&2
+  find "$ROOT_DIR" >&2
+  exit 1
+fi
+set +e
+docker exec "$ROOT_NAME" nerdgram doctor >/tmp/nerdgram-doctor.txt
+DOC=$?
+set -e
+test "$DOC" = "2"
+grep -q "1001:1001" /tmp/nerdgram-doctor.txt
 docker rm -f "$ROOT_NAME" >/dev/null
 
 echo "bind mount owned by uid 1001 is writable"

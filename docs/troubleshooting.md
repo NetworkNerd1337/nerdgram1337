@@ -80,7 +80,7 @@ The full Docker steps, including when `NERDGRAM_CORS_ORIGINS` is required for th
 
 ## The container exits immediately, or the volume looks empty
 
-A bind mount owned by root is not writable by uid 1001. `chown` it as in [Docker](install.md#docker). A named volume created by the image is already writable. A fresh volume receives the sample diagrams once, at `/data/Welcome.mmd`, `/data/NetworkMap.mmd`, `/data/Examples/Sequence.mmd`, `/data/WAN.mmd`, and `/data/Sites/Atlanta.mmd`, copied from the image's `diagrams/` folder. A volume that already has files is left as it is, including a volume where you deleted the samples.
+A bind mount owned by root is not writable by uid 1001. The container stays up. The startup log says the data folder is not writable and to `chown` it to `1001:1001`, as in [Docker](install.md#docker). `GET /api/health` still returns ok, with a degraded data report. A save is refused. `docker exec nerdgram1337 nerdgram doctor` prints that report and exits 2. The mount stays empty until it is writable. A named volume created by the image is already writable. A fresh writable volume receives the sample diagrams once, at `/data/Welcome.mmd`, `/data/NetworkMap.mmd`, `/data/Examples/Sequence.mmd`, `/data/WAN.mmd`, and `/data/Sites/Atlanta.mmd`, copied from the image's `diagrams/` folder. A volume that already has files is left as it is, including a volume where you deleted the samples.
 
 ## `localhost` opens the dev UI, and `127.0.0.1` does not
 

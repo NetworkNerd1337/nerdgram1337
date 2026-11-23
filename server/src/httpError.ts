@@ -32,6 +32,14 @@ export function httpError(err: unknown): { status: number; body: Record<string, 
       if (errno === "ENOENT" || message.includes("ENOENT")) {
         status = 404;
         errorMessage = "Not found";
+      } else if (errno === "EACCES" || errno === "EPERM" || errno === "EROFS" || errno === "ENOSPC") {
+        status = 503;
+        errorMessage =
+          errno === "ENOSPC"
+            ? "The data folder is out of disk space."
+            : errno === "EROFS"
+              ? "The data folder is mounted read-only."
+              : "The data folder is not writable. On a Docker bind mount, chown that directory to 1001:1001.";
       } else if (message.includes("escapes") || message.includes("Invalid")) {
         status = 400;
       }
@@ -40,6 +48,9 @@ export function httpError(err: unknown): { status: number; body: Record<string, 
     const body: Record<string, unknown> = { error: errorMessage };
     if (appCode) body.code = appCode;
     else if (nameTooLong) body.code = "invalid";
+    else if (status === 503 && (errno === "EACCES" || errno === "EPERM" || errno === "EROFS" || errno === "ENOSPC")) {
+      body.code = "not_writable";
+    }
     if (details) {
       for (const [key, value] of Object.entries(details)) {
         if (key !== "error" && key !== "status" && key !== "code") body[key] = value;

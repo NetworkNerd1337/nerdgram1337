@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RenderFormat } from "./renderDiagram.js";
+import { dataHealthReport, ensureDataPrepared } from "./dataHealth.js";
 import { codenameForVersion, formatVersionLabel, sanitizeCodenames } from "./updates/codename.js";
 
 /**
@@ -81,6 +82,7 @@ Usage
   nerdgram replace <find> <replace> [--folder path] [--regex] [--whole-word] [--match-case] [--front-matter] [--no-recursive] [--dry-run] [--yes]
   nerdgram replace --undo <id>
   nerdgram mcp
+  nerdgram doctor
 
 A local .mmd file is rendered and linted in this process. convert reads a
 saved export and writes canonical network JSON in this process. export of a
@@ -1094,6 +1096,17 @@ async function convertCommand(parsed: Parsed, io: Io): Promise<void> {
   io.stdout(pretty);
 }
 
+/** Local data-folder report. Exit 0 is ok, 1 is a warning, 2 is degraded. */
+async function doctorCommand(io: Io): Promise<number> {
+  await ensureDataPrepared();
+  const report = dataHealthReport();
+  io.stdout(`Data folder: ${report.status}. Writable: ${report.writable ? "yes" : "no"}.\n`);
+  for (const issue of report.issues) io.stdout(`${issue.message}\n`);
+  if (report.status === "degraded") return 2;
+  if (report.status === "warn") return 1;
+  return 0;
+}
+
 export async function main(argv: string[], io: Partial<Io> = {}): Promise<number> {
   const streams: Io = {
     stdout: io.stdout ?? ((chunk) => process.stdout.write(chunk)),
@@ -1175,6 +1188,8 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
       case "template":
         await templateCommand(parsed, streams);
         return 0;
+      case "doctor":
+        return await doctorCommand(streams);
       case "mcp":
         try {
           await mcpCommand(parsed, streams);

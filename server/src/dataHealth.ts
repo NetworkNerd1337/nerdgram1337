@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { ensureDataRoot, getDataRoot, getMetaPath, META_DIR_NAME } from "./paths.js";
-import { isProcessAlive } from "./storage.js";
+import { httpFail, isProcessAlive } from "./storage.js";
 import { getVersionInfo } from "./updates/versionInfo.js";
 
 const WARN_FREE_BYTES = 200 * 1024 * 1024;
@@ -48,6 +48,17 @@ export function resetDataHealthForTests(): void {
   tempsRemoved = 0;
   prepared = null;
   quarantinedPaths.clear();
+}
+
+/** Refuse a save when the startup check already found the data folder cannot be written. */
+export function assertDataWritable(): void {
+  const report = dataHealthReport();
+  if (report.writable) return;
+  const hint =
+    report.issues.find((issue) => issue.message.includes("1001:1001"))?.message ??
+    report.issues.find((issue) => issue.severity === "degraded")?.message ??
+    "The data folder is not writable.";
+  throw httpFail(503, hint, "not_writable");
 }
 
 export function dataHealthReport(): DataHealthReport {

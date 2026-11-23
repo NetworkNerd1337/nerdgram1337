@@ -18,6 +18,7 @@ import {
 import { buildTree } from "../src/fsStore.js";
 import { getBookmarks, setBookmarks } from "../src/favorites.js";
 import { atomicWriteJson } from "../src/storage.js";
+import { main } from "../src/cli.js";
 import { createToken } from "../src/tokens.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -202,5 +203,26 @@ describe("data folder health", () => {
     restoreEnv();
     clearInstanceIdentityCache();
     await fs.rm(home, { recursive: true, force: true });
+  });
+
+  it("refuses a save and exits doctor with 2 when the data folder is not writable", async () => {
+    await fs.chmod(dir, 0o555);
+    try {
+      const stdout: string[] = [];
+      const code = await main(["doctor"], { stdout: (chunk) => stdout.push(chunk) });
+      expect(code).toBe(2);
+      expect(stdout.join("")).toContain("1001:1001");
+      const saved = await request(app())
+        .put("/api/file")
+        .set("Host", HOST)
+        .set("Origin", "http://127.0.0.1:8787")
+        .send({ path: "Nope.mmd", content: "flowchart LR\n  N[nope]\n" });
+      expect(saved.status).not.toBe(200);
+      expect(saved.status).not.toBe(500);
+      expect(saved.status).toBe(503);
+      expect(String(saved.body.error)).toMatch(/1001:1001|not writable|read-only/);
+    } finally {
+      await fs.chmod(dir, 0o755);
+    }
   });
 });
