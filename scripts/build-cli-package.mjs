@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { currentCodename } from "./codenames.mjs";
 
 /** Keep this list equal to TRANSLATOR_INFRA in server/src/translators/infra.ts. */
 const TRANSLATOR_INFRA = ["bundled", "helpers", "index", "infra", "limits", "registry", "request", "run", "types"];
@@ -60,6 +61,12 @@ function exporterBundlePlugin(repoRoot) {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outdir = join(root, "cli", "dist");
+const named = currentCodename(root);
+if (!named.ok) {
+  console.error(named.error);
+  process.exit(1);
+}
+const versionLabel = `v${named.version} ${named.codename}`;
 
 let esbuild;
 try {
@@ -83,6 +90,9 @@ await esbuild.build({
   outdir,
   chunkNames: "chunk-[hash]",
   packages: "external",
+  define: {
+    __NERDGRAM_VERSION_LABEL__: JSON.stringify(versionLabel),
+  },
   sourcemap: false,
   legalComments: "none",
   logOverride: { "empty-glob": "silent" },

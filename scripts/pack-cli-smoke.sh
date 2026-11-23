@@ -80,6 +80,18 @@ cd "$install"
 npm init -y >/dev/null
 npm install --no-fund --no-audit "$tarball"
 
+echo "nerdgram --version from the installed tarball"
+version_out="$("$install/node_modules/.bin/nerdgram" --version)"
+printf '%s\n' "$version_out"
+expected_name="$(node "$root/scripts/codenames.mjs")"
+case "$version_out" in
+  *" $expected_name"*) ;;
+  *)
+    echo "Packed nerdgram --version did not include the code name ${expected_name}." >&2
+    exit 1
+    ;;
+esac
+
 echo "nerdgram --help from the installed tarball"
 "$install/node_modules/.bin/nerdgram" --help > "$work/help.txt"
 if ! grep -q "repair-links" "$work/help.txt"; then
