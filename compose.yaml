@@ -30,7 +30,7 @@ name: nerdgram1337
 
 services:
   nerdgram:
-    image: ghcr.io/networknerd1337/nerdgram1337:v2.1.13
+    image: ghcr.io/networknerd1337/nerdgram1337:v2.1.20
     container_name: nerdgram1337
     restart: unless-stopped
     read_only: true

@@ -99,7 +99,7 @@ export function releaseCodename(
   return codenameFromReleaseTitle(version, title);
 }
 
-/** `v2.1.13 Azimuth`, or `v2.1.13` when this version has no code name. */
+/** `v2.1.20 Azimuth`, or `v2.1.20` when this version has no code name. */
 export function formatVersionLabel(version: string, codename: string | null | undefined): string {
   const trimmed = version.trim();
   const base = trimmed.startsWith("v") ? trimmed : `v${trimmed}`;

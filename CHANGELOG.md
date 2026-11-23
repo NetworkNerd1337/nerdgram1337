@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 2.1.20 "Azimuth" - 2026-11-23
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
 - **Fixed:** Overlapping token writes no longer drop a token. Creating a token and recording that it was used share one queue per token file, and a write stays in the directory it read.
 - **Fixed:** Duplicating a folder copies its regular files and nested folders, not only diagrams. Hidden names such as `.meta` and `.git` are left out, symlinks are not followed, and a file that cannot be read is skipped. Companion data files still follow the copy or share choice (#302).
 - **Fixed:** Settings cards on a wide window fill two columns of about the same height, including when cards are expanded. Below about 1100 pixels they stay in one column. The anchor bar and scroll-spy are unchanged (#303).
@@ -16,7 +22,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 - **Changed:** Settings cards collapse to a title, a one-line summary, and a chevron. Appearance starts open and the others start collapsed. The choice is remembered in this browser. The anchor bar stays pinned. It marks the card whose header is at the line under the bar, Appearance at the top of the page, and the last card at the bottom. Clicking an anchor, a card, or opening a deep link marks that card immediately and keeps the mark until you scroll yourself. The card opens first. Once that layout settles, its header lines up under the sticky bar (#299).
 - **Docs:** Roadmap for 2.5.0 Crossstaff through 3.0.0 Horizon. 2.5.0 plans layered views and path tracing. 2.5.5 plans a read-only share. Later milestones say features to be determined. Future ideas stay uncommitted, including bring your own output.
 - **Docs:** Release policy. Changes merge to main through issues and pull requests and stay under Unreleased. A clone of main gets them immediately. npm and the GHCR images update only at the next milestone release, which is when the version, the code name, and the git tag move.
-- **Docs:** Support and deprecation. Support covers the life of a major.minor line. Every 2.1.x patch is supported until the next minor or major release, for example 2.2.0 or 3.0.0, and then 2.1.x gets no support or fixes. Within a line, only the newest patch is published. When a milestone release is published, the previous release is deprecated immediately and loses support that same day. `npm deprecate` marks it with an "upgrade to latest" message. Its npm version and GHCR version tag stay published for 30 days, so pinned installs and lockfiles keep working while people upgrade. After 30 days, that version is unpublished from npm where npm allows it, and its GHCR version tag is removed. Only the previous release gets that grace period. Anything older is already removed. Pinning an older version is not supported long term.
+- **Docs:** Support and deprecation. Support covers the life of a major.minor line. Every 2.1.x patch is supported until the next minor or major release, for example 2.2.0 or 3.0.0, and then 2.1.x gets no support or fixes. Within a line, only the newest patch is published. When a milestone release is published, the previous release is deprecated immediately and loses support that same day. `npm deprecate` marks it with an "upgrade to latest" message. Its npm version and GHCR version tag stay published for 30 days, so pinned installs and lockfiles keep working while people upgrade. After 30 days, that version is unpublished from npm where npm allows it, and its GHCR version tag is removed. Only the previous release gets that grace period. Older npm versions are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term.
 
 ## 2.1.13 "Azimuth" - 2026-11-23
 

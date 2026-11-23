@@ -1,7 +1,7 @@
 {
   "name": "nerdgram1337-client",
   "private": true,
-  "version": "2.1.13",
+  "version": "2.1.20",
   "type": "module",
   "scripts": {
     "dev": "vite",
