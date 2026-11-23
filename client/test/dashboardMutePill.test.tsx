@@ -269,12 +269,22 @@ describe("dashboard warning pill follows the editor mute toggle", () => {
     expect(document.body.textContent).toContain("Wan");
     const header = document.querySelector(".page-header-actions");
     expect(header?.textContent).not.toContain("Paste Mermaid");
-    expect(header?.querySelector("a.about-link, button.about-link, .about-link")).toBeTruthy();
+    expect(header?.textContent).not.toContain("New folder");
+    expect(header?.querySelector(".about-link")).toBeTruthy();
+    expect(header?.querySelector(".support-link")).toBeTruthy();
     const createLabels = [...(document.querySelector(".toolbar")?.querySelectorAll("a.btn, button.btn") ?? [])].map(
       (item) => item.textContent?.trim(),
     );
-    const pasteAt = createLabels.indexOf("Paste Mermaid");
-    expect(createLabels[pasteAt + 1]).toBe("From data");
+    expect(createLabels).toEqual([
+      "New diagram",
+      "New folder",
+      "Templates",
+      "From data",
+      "Paste Mermaid",
+      "Import",
+      "Replace across…",
+    ]);
+    expect(document.querySelector(".toolbar-split")).toBeTruthy();
     expect(document.querySelector('.toolbar a[href="/new"]')?.className).toContain("btn-ghost");
     expect(document.querySelector(".diagram-card-health")).toBeNull();
     expect(document.querySelector(".attention-badge")).toBeNull();

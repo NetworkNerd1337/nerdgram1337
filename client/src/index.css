@@ -441,6 +441,14 @@ a {
   margin-bottom: 1.25rem;
 }
 
+.toolbar-split {
+  width: 1px;
+  align-self: stretch;
+  min-height: 1.6rem;
+  margin: 0 0.15rem;
+  background: var(--line);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

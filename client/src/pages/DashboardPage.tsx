@@ -972,18 +972,18 @@ export function DashboardPage() {
               <button type="button" className="btn btn-primary" onClick={openCreateDiagram}>
                 New diagram
               </button>
+              <button type="button" className="btn btn-ghost" onClick={openCreateFolder}>
+                New folder
+              </button>
               <Link className="btn btn-ghost" to={`/templates?folder=${encodeURIComponent(folder)}`}>
                 Templates
-              </Link>
-              <Link className="btn btn-ghost" to="/new">
-                Paste Mermaid
               </Link>
               <Link className="btn btn-ghost" to={`/generate?folder=${encodeURIComponent(folder)}`}>
                 From data
               </Link>
-              <button type="button" className="btn btn-ghost" onClick={openCreateFolder}>
-                New folder
-              </button>
+              <Link className="btn btn-ghost" to="/new">
+                Paste Mermaid
+              </Link>
               <button
                 type="button"
                 className="btn btn-ghost"
@@ -992,6 +992,7 @@ export function DashboardPage() {
               >
                 Import
               </button>
+              <span className="toolbar-split" aria-hidden="true" />
               <button type="button" className="btn btn-ghost" onClick={() => openWorkspaceReplace({ folder })}>
                 Replace across…
               </button>
