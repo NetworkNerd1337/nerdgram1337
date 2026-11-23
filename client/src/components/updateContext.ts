@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { UpdateJob, UpdateStatus } from "../types";
+import type { UpdateJob, UpdateStatus, VersionInfo } from "../types";
 
 export type UpdatePanel = "about" | "notes" | "docker" | "manual" | "progress" | null;
 
@@ -11,6 +11,8 @@ export type CheckFeedback = {
 
 export type UpdateContextValue = {
   status: UpdateStatus | null;
+  versionInfo: VersionInfo | null;
+  updateError: string | null;
   job: UpdateJob | null;
   busy: boolean;
   checking: boolean;

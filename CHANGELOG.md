@@ -6,7 +6,10 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Fixed:** The sidebar does not draw an empty folder bar when there are no folders or the folder list cannot be loaded. When folders exist, a Folders header shows the count, a New folder button, and a collapse caret. This browser remembers whether that section is open (#313).
+- **Fixed:** An empty, invalid, or unreadable `updates.json` no longer hides the version in About. The server moves the bad file aside, logs one warning, and answers with the defaults. A write syncs the temp file before the rename. About still shows Version, Code name, and Engine, and says when update status is unavailable (#314).
+- **Changed:** Settings, the template gallery, From data, Paste Mermaid, and the editor put Back to dashboard on the top header row, after About, Support, and Commands. The syntax reference and Diagram health do not. Diagram health shows those buttons at every width, plus Rule settings, and does not repeat them in the narrow bar. The template gallery header no longer has Paste Mermaid (#316).
+- **Docs:** Docker and install docs say to keep `/data` on a local folder or volume, not a cloud-synced folder shared by more than one machine. Troubleshooting says what to do when About cannot show update status.
 
 ## 2.1.21 "Azimuth" - 2026-11-23
 

@@ -49,7 +49,8 @@ describe("sidebar syntax reference", () => {
     expect(document.querySelector(".nav-label")).toBeNull();
     expect(document.body.textContent).not.toContain("Commands");
     expect(document.querySelector("[aria-label='Navigation']")).toBeTruthy();
-    expect(document.querySelector("[aria-label='Folders']")).toBeTruthy();
+    expect(document.querySelector(".tree")).toBeNull();
+    expect(document.querySelector("#folders-heading")).toBeNull();
     expect(document.querySelector(".sidebar-split")).toBeTruthy();
     expect(document.body.textContent).not.toContain("Needs attention");
     const space = document.querySelector(".nav-section");

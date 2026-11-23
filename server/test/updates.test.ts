@@ -25,6 +25,7 @@ import {
   startUpdateChecker,
   stopUpdateChecker,
 } from "../src/updates/service.js";
+import { updatesPath } from "../src/updates/state.js";
 import { readGitHead } from "../src/updates/versionInfo.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -244,6 +245,41 @@ describe("update check API", () => {
     expect(health.body.version).toBe("2.1.21");
     expect(health.body.codename).toBe("Azimuth");
     expect(health.body.installKind).toBe("zip");
+  });
+
+  it("recovers an empty, invalid, or unreadable updates.json", async () => {
+    const cases: { contents: string; mode: number; reason: string }[] = [
+      { contents: "", mode: 0o644, reason: "empty" },
+      { contents: "{", mode: 0o644, reason: "invalid JSON" },
+      { contents: "{}\n", mode: 0o000, reason: "unreadable" },
+    ];
+    for (const item of cases) {
+      const file = updatesPath();
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(file, item.contents);
+      await fs.chmod(file, item.mode);
+      const warnings: string[] = [];
+      const warn = console.warn;
+      console.warn = (message?: unknown) => {
+        warnings.push(String(message));
+      };
+      try {
+        const res = await request(app()).get("/api/updates").set("Host", HOST);
+        expect(res.status).toBe(200);
+        expect(res.body.currentVersion).toBe("2.1.21");
+        expect(res.body.codename).toBe("Azimuth");
+      } finally {
+        console.warn = warn;
+        await fs.chmod(path.dirname(file), 0o755).catch(() => undefined);
+      }
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("updates.json");
+      expect(warnings[0]).toContain(item.reason);
+      const names = await fs.readdir(path.dirname(file));
+      expect(names.some((name) => /^updates\.json\.corrupt-\d+/.test(name))).toBe(true);
+      expect(names).not.toContain("updates.json");
+      await fs.rm(path.dirname(file), { recursive: true, force: true });
+    }
   });
 
   it("keeps the three package.json versions identical", async () => {

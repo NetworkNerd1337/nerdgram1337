@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import { HeaderActions } from "../components/HeaderActions";
 import { RepairLinksDialog } from "../components/RepairLinksDialog";
 import { Sidebar } from "../components/Sidebar";
 import { WorkspaceShell } from "../components/WorkspaceShell";
@@ -180,9 +181,11 @@ export function HealthPage() {
             <h1>Diagram health</h1>
             <p className="reference-meta">Every diagram in the library, checked when you open this page.</p>
           </div>
-          <Link className="btn btn-ghost" to="/settings#diagram-checks">
-            Rule settings
-          </Link>
+          <HeaderActions className="header-actions">
+            <Link className="btn btn-ghost" to="/settings#diagram-checks">
+              Rule settings
+            </Link>
+          </HeaderActions>
         </header>
         <section className="health-strip" aria-label="Check summary">
           <span>{checked == null ? "—" : checked} checked</span>

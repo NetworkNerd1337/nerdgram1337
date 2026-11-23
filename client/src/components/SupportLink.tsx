@@ -34,7 +34,9 @@ export function AboutButton() {
   if (!updates) return null;
   const version = updates.status
     ? formatVersionLabel(updates.status.currentVersion, updates.status.codename)
-    : "";
+    : updates.versionInfo
+      ? formatVersionLabel(updates.versionInfo.version, updates.versionInfo.codename)
+      : "";
   return (
     <button
       type="button"

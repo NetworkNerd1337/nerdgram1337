@@ -10,6 +10,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UpdateHost } from "../src/components/UpdateHost";
+import { mermaidEngineLabel } from "../src/lib/mermaidVersion";
 import type { UpdateStatus } from "../src/types";
 
 const TLS_DOCS_URL =
@@ -292,6 +293,57 @@ describe("About dialog", () => {
     expect(again?.textContent).toBe("corporate TLS inspection");
     expect(dialog()?.textContent).toContain("proxy or TLS inspection");
     expect(dialog()?.textContent).not.toContain("Checking for updates…");
+  });
+
+  it("shows version, code name, and engine when update status fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/version")) {
+          return new Response(
+            JSON.stringify({
+              name: "NerdGram1337",
+              version: "2.1.21",
+              codename: "Azimuth",
+              commit: null,
+              installKind: "docker",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify({ error: "updates.json could not be read" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    await act(async () => {
+      root?.render(
+        createElement(
+          MemoryRouter,
+          null,
+          createElement(UpdateHost, null, createElement("main", null, "workspace")),
+        ),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      window.dispatchEvent(new Event("nerdgram:about"));
+    });
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog?.textContent).toContain("v2.1.21");
+    expect(dialog?.textContent).toContain("Code name");
+    expect(dialog?.textContent).toContain("Azimuth");
+    const engine = mermaidEngineLabel();
+    expect(engine).toBeTruthy();
+    expect(dialog?.textContent).toContain("Engine");
+    expect(dialog?.textContent).toContain(engine ?? "");
+    expect(dialog?.textContent).toContain("Update status unavailable: updates.json could not be read");
+    expect(dialog?.textContent).not.toContain("Version information is not available yet.");
   });
 
   it("styles the update button and checkbox row so they do not inherit a full-width block input", () => {

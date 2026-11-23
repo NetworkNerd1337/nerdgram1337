@@ -16,8 +16,7 @@ import { Modal } from "../components/Modal";
 import { MoveDialog } from "../components/MoveDialog";
 import { Sidebar } from "../components/Sidebar";
 import { WorkspaceShell } from "../components/WorkspaceShell";
-import { CommandsButton } from "../components/CommandPalette";
-import { AboutButton, SupportLink } from "../components/SupportLink";
+import { HeaderActions } from "../components/HeaderActions";
 import { confirmChoice } from "../lib/confirmChoice";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useSidebarWidth } from "../hooks/useSidebarWidth";
@@ -912,6 +911,7 @@ export function DashboardPage() {
           setShowTrash(false);
           setFolder(path);
         }}
+        onNewFolder={openCreateFolder}
         trashCount={trash.length}
         trashActive={showTrash}
         onOpenTrash={() => {
@@ -943,11 +943,7 @@ export function DashboardPage() {
       <main className={`main${paneClass}`} title={SUPPORTED_IMPORT_LINE} onDragOver={markPane} onDrop={dropOnPane}>
         <header className="page-header">
           <h1>{heading}</h1>
-          <div className="page-header-actions">
-            <AboutButton />
-            <SupportLink />
-            <CommandsButton />
-          </div>
+          <HeaderActions className="page-header-actions" />
         </header>
 
         <div aria-live="polite">

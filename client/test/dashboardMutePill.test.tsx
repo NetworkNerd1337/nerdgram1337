@@ -140,6 +140,8 @@ const updateStatus: UpdateStatus = {
 
 const updates: UpdateContextValue = {
   status: updateStatus,
+  versionInfo: null,
+  updateError: null,
   job: null,
   busy: false,
   checking: false,

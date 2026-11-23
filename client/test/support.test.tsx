@@ -96,17 +96,18 @@ describe("Support button", () => {
   });
 
   it("is in the dashboard, paste, and editor headers, and hidden while presenting", () => {
-    expect(source("pages/DashboardPage.tsx")).toContain("<AboutButton />");
-    expect(source("pages/DashboardPage.tsx")).toContain("<SupportLink />");
-    expect(source("pages/EditorPage.tsx")).toContain("<AboutButton />");
+    expect(source("components/HeaderActions.tsx")).toContain("<AboutButton />");
+    expect(source("components/HeaderActions.tsx")).toContain("<SupportLink />");
+    expect(source("pages/DashboardPage.tsx")).toContain("<HeaderActions");
+    expect(source("pages/EditorPage.tsx")).toContain("<HeaderActions");
     expect(source("components/Sidebar.tsx")).not.toContain("sidebar-about");
-    expect(source("pages/NewDiagramPage.tsx")).toContain("<SupportLink />");
-    expect(source("pages/EditorPage.tsx")).toContain("presenting ? null : (");
-    expect(source("pages/EditorPage.tsx")).toContain("<SupportLink />");
-    expect(source("pages/GeneratePage.tsx")).toContain("<SupportLink />");
-    expect(source("pages/SettingsPage.tsx")).toContain("<SupportLink />");
-    expect(source("pages/TemplatesPage.tsx")).toContain("<SupportLink />");
-    expect(source("pages/ReferencePage.tsx")).toContain("<SupportLink />");
+    expect(source("pages/NewDiagramPage.tsx")).toContain("<HeaderActions");
+    expect(source("pages/EditorPage.tsx")).toContain("presenting ? (");
+    expect(source("pages/EditorPage.tsx")).toContain("<HeaderActions className=\"header-actions\" backToDashboard />");
+    expect(source("pages/GeneratePage.tsx")).toContain("<HeaderActions");
+    expect(source("pages/SettingsPage.tsx")).toContain("<HeaderActions");
+    expect(source("pages/TemplatesPage.tsx")).toContain("<HeaderActions");
+    expect(source("pages/ReferencePage.tsx")).toContain("<HeaderActions");
     expect(source("pages/PresentPage.tsx")).not.toContain("SupportLink");
     expect(source("pages/TemplatePresentPage.tsx")).not.toContain("SupportLink");
     expect(source("components/PresentationView.tsx")).not.toContain("SupportLink");

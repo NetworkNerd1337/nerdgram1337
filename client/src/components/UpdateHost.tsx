@@ -14,7 +14,7 @@ import {
 import { requestUpdateReload } from "../lib/updateReload";
 import { mermaidEngineLabel, mermaidEngineReleaseUrl } from "../lib/mermaidVersion";
 import { formatVersionLabel, knownCodeName } from "../lib/versionLabel";
-import type { UpdateJob, UpdateRelease, UpdateStatus } from "../types";
+import type { UpdateJob, UpdateRelease, UpdateStatus, VersionInfo } from "../types";
 import { Brand } from "./Brand";
 import { ReleaseMarkdown } from "./ReleaseMarkdown";
 import { ExternalLink, SupportLink } from "./SupportLink";
@@ -62,6 +62,8 @@ function UpdateErrorMessage({ message }: { message: string }) {
 export function UpdateHost({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const [job, setJob] = useState<UpdateJob | null>(null);
   const [panel, setPanel] = useState<UpdatePanel>(null);
   const [busy, setBusy] = useState(false);
@@ -84,9 +86,16 @@ export function UpdateHost({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const next = await api.updates();
-    applyStatus(next);
-    return next;
+    try {
+      const next = await api.updates();
+      applyStatus(next);
+      setUpdateError(null);
+      return next;
+    } catch (err) {
+      setStatus(null);
+      setUpdateError(messageOf(err));
+      throw err;
+    }
   }, [applyStatus]);
 
   const checkNow = useCallback(async (options?: { keepPanel?: boolean }) => {
@@ -127,7 +136,21 @@ export function UpdateHost({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    void api
+      .version()
+      .then((info) => {
+        if (!cancelled) setVersionInfo(info);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     const load = () => {
+      // The failure is kept in updateError. This catch only avoids an unhandled rejection.
       void refresh().catch(() => undefined);
     };
     load();
@@ -273,6 +296,8 @@ export function UpdateHost({ children }: { children: ReactNode }) {
 
   const value = {
     status,
+    versionInfo,
+    updateError,
     job,
     busy,
     checking,
@@ -538,20 +563,84 @@ export function UpdateSettingsFields() {
 }
 
 function AboutBody() {
-  const { status, actionError, busy, checking, checkFeedback, openUpgrade } = useUpdate();
-  if (!status) return <p>{busy ? "Loading…" : "Version information is not available yet."}</p>;
+  const { status, versionInfo, updateError, actionError, busy, checking, checkFeedback, openUpgrade } = useUpdate();
+  if (!status && !versionInfo && !updateError) {
+    return <p>{busy ? "Loading…" : "Version information is not available yet."}</p>;
+  }
   return (
     <>
-      <AboutSummary
-        status={status}
-        actionError={actionError}
-        checking={checking}
-        checkFeedback={checkFeedback}
-        onShowUpgrade={openUpgrade}
-        upgradeDisabled={busy}
-      />
-      <UpdateSettingsFields />
+      {status ? (
+        <AboutSummary
+          status={status}
+          actionError={actionError}
+          checking={checking}
+          checkFeedback={checkFeedback}
+          onShowUpgrade={openUpgrade}
+          upgradeDisabled={busy}
+        />
+      ) : (
+        <AboutVersionFallback versionInfo={versionInfo} updateError={updateError} />
+      )}
+      {status ? <UpdateSettingsFields /> : null}
     </>
+  );
+}
+
+function AboutVersionFallback({
+  versionInfo,
+  updateError,
+}: {
+  versionInfo: VersionInfo | null;
+  updateError: string | null;
+}) {
+  const version = versionInfo?.version?.trim() ?? "";
+  const versionText = version ? (version.startsWith("v") ? version : `v${version}`) : "Unknown";
+  const codeName = knownCodeName(versionInfo?.codename);
+  const engine = mermaidEngineLabel();
+  const engineUrl = mermaidEngineReleaseUrl();
+  return (
+    <div className="about-summary">
+      <div className="about-identity">
+        <Brand />
+        <p className="about-lead">
+          A local Mermaid diagramming tool for network engineers. Write diagrams as text, build them from CDP/LLDP,
+          routing and ARP data, import Visio and Lucidchart, and keep them in Git.
+        </p>
+      </div>
+      <dl className="about-facts">
+        <dt>Version</dt>
+        <dd>
+          <span className="about-version">{versionText}</span>
+        </dd>
+        {codeName ? (
+          <>
+            <dt>Code name</dt>
+            <dd>{codeName}</dd>
+          </>
+        ) : null}
+        {engine ? (
+          <>
+            <dt>Engine</dt>
+            <dd>{engineUrl ? <ExternalLink href={engineUrl}>{engine}</ExternalLink> : engine}</dd>
+          </>
+        ) : null}
+        {versionInfo ? (
+          <>
+            <dt>Install</dt>
+            <dd>{installLabel(versionInfo.installKind)}</dd>
+          </>
+        ) : null}
+        {versionInfo?.commit ? (
+          <>
+            <dt>Commit</dt>
+            <dd>
+              <code className="about-commit">{versionInfo.commit}</code>
+            </dd>
+          </>
+        ) : null}
+      </dl>
+      {updateError ? <p className="about-status">Update status unavailable: {updateError}</p> : null}
+    </div>
   );
 }
 

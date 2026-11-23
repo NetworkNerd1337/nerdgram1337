@@ -3,8 +3,7 @@ import { IMPORT_DATA_KEY } from "../lib/importRecognize";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
-import { CommandsButton } from "../components/CommandPalette";
-import { AboutButton, SupportLink } from "../components/SupportLink";
+import { HeaderActions } from "../components/HeaderActions";
 import { FolderPicker } from "../components/FolderPicker";
 import { GenerateWizard } from "../components/GenerateWizard";
 import { StylePresetChoice, type PresetChoice } from "../components/StylePresetChoice";
@@ -137,11 +136,7 @@ export function GeneratePage() {
           <Link to="/">
             <Brand />
           </Link>
-          <div className="paste-top-actions">
-            <AboutButton />
-            <SupportLink />
-            <CommandsButton />
-          </div>
+          <HeaderActions className="paste-top-actions header-actions" backToDashboard />
         </header>
         <h1>Generate a diagram from data</h1>
         <p className="entry-lead">
@@ -172,11 +167,6 @@ export function GeneratePage() {
           onInspect={(step, patch) => void inspect(step, patch)}
           onCreate={() => void create()}
         />
-        <div className="paste-actions">
-          <Link className="btn btn-ghost" to="/">
-            Back to dashboard
-          </Link>
-        </div>
       </div>
     </div>
   );
