@@ -19,11 +19,11 @@ Paths in this document use two placeholders, always in code formatting so GitHub
 
 Stop the app before you replace it. Diagrams stay where they are when you keep the same data directory or the same volume. Do not run `docker volume rm` on a volume you still want. There is no updater inside the container.
 
-The 2.1 line is supported until the next minor or major release. Only the newest patch is published. That patch is 2.1.13. Security fixes land there. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new milestone is published, the previous release's npm package is deprecated and unpublished where npm allows it, and its GHCR version tag is removed. Pinning an older version is not supported. Git tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
+The 2.1 line is supported until the next minor or major release. Only the newest patch is published. That patch is 2.1.13. Security fixes land there. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. When a milestone release is published, the previous release is deprecated immediately and loses support that same day. `npm deprecate` marks it with an "upgrade to latest" message. Its npm version and GHCR version tag stay published for 30 days, so pinned installs and lockfiles keep working while people upgrade. After 30 days, that version is unpublished from npm where npm allows it, and its GHCR version tag is removed. Only the previous release gets that grace period. Anything older is already removed. Pinning an older version is not supported long term. Git tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
 
 ## Update a Docker install
 
-The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.13`, the newest published patch and the tag for this tree. Pull `:latest` or `v2.1.13`. An older version tag is removed, so pinning it is not supported. If your names differ, keep the names you already use.
+The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.13`, the newest published patch and the tag for this tree. Pull `:latest` or `v2.1.13`. The previous release stays for 30 days after it is deprecated, then its tag is removed. Anything older is already removed. Pinning an older version is not supported long term. If your names differ, keep the names you already use.
 
 1. Pull the new image.
 
@@ -58,7 +58,7 @@ docker run -d \
 
 5. Open [http://127.0.0.1:8787](http://127.0.0.1:8787) and choose **Check again** in About. The dialog says whether the running version matches that release.
 
-These `docker run` lines match the in-app steps. They do not set a read-only root or a `tmpfs` on `/tmp`. `compose.yaml` does. If you installed with Compose, set the image to `ghcr.io/networknerd1337/nerdgram1337:v2.1.13` or `:latest` when the file pins an older tag. An older image tag is removed from GHCR. If the image line is already `:latest`, pull and up are enough. Then:
+These `docker run` lines match the in-app steps. They do not set a read-only root or a `tmpfs` on `/tmp`. `compose.yaml` does. If you installed with Compose, set the image to `ghcr.io/networknerd1337/nerdgram1337:v2.1.13` or `:latest` when the file pins an older tag. The previous release's tag stays for 30 days after it is deprecated, then it is removed. Anything older is already removed. Pinning an older version is not supported long term. If the image line is already `:latest`, pull and up are enough. Then:
 
 ```bash
 docker compose pull
