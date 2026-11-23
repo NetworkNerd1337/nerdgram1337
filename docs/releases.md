@@ -48,7 +48,7 @@ Security fixes land in the latest release. A copy on 1.7.5 or later is supported
 ## Where the version is shown
 
 - **About** is in the top-right header, next to **Support**. Its tooltip is the version with its code name, written `v2.1.12 Azimuth`. The sidebar does not have an About row. On a narrow dashboard, About and Support stay in a bar above the sidebar.
-- **About NerdGram1337** in the command palette opens the same panel: that same version line, commit when there is one, and the install kind (git clone, Docker, ZIP, or unknown). It also links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi in a new tab and is hidden during presentation.
+- **About NerdGram1337** in the command palette opens the same panel: that same version line, the Mermaid engine version when the build recorded one, commit when there is one, and the install kind (git clone, Docker, ZIP, or unknown). Engine reads **Mermaid** and that version, and links to the matching mermaid-js release. The row is left out when the build did not record a version. It also links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi in a new tab and is hidden during presentation.
 - `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`.
 - `GET /api/health` returns those fields plus `"ok": true` and `dataDir`.
 - When a newer release is available, the update banner and the release dialog show that release's code name, from the milestone key for that tag. The update check still parses the tag for the version. It does not parse the release title as the version.

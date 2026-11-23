@@ -12,6 +12,7 @@ import {
   REPO_URL,
 } from "../lib/support";
 import { requestUpdateReload } from "../lib/updateReload";
+import { mermaidEngineLabel, mermaidEngineReleaseUrl } from "../lib/mermaidVersion";
 import { formatVersionLabel, knownCodeName } from "../lib/versionLabel";
 import type { UpdateJob, UpdateRelease, UpdateStatus } from "../types";
 import { Brand } from "./Brand";
@@ -618,6 +619,8 @@ export function AboutSummary({
 }) {
   const summary = updateSummary(status);
   const codeName = knownCodeName(status.codename);
+  const engine = mermaidEngineLabel();
+  const engineUrl = mermaidEngineReleaseUrl();
   return (
     <div className="about-summary">
       <div className="about-identity">
@@ -631,6 +634,12 @@ export function AboutSummary({
           <>
             <dt>Code name</dt>
             <dd>{codeName}</dd>
+          </>
+        ) : null}
+        {engine ? (
+          <>
+            <dt>Engine</dt>
+            <dd>{engineUrl ? <ExternalLink href={engineUrl}>{engine}</ExternalLink> : engine}</dd>
           </>
         ) : null}
         <dt>Install</dt>
