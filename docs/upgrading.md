@@ -19,11 +19,11 @@ Paths in this document use two placeholders, always in code formatting so GitHub
 
 Stop the app before you replace it. Diagrams stay where they are when you keep the same data directory or the same volume. Do not run `docker volume rm` on a volume you still want. There is no updater inside the container.
 
-A copy on 1.7.5 or later is supported. Move it to the latest 2.1.x to pick up security fixes. 1.7.4 and older are deprecated on npm, and their container images are removed from GHCR. The GitHub releases and tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
+Only 2.1.13, the latest release, is supported. Security fixes land only there. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. Every npm version before 2.1.13 is deprecated, and every container image older than `v2.1.13` is removed from GHCR. `v2.1.13` and `:latest` stay. GitHub releases and tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
 
 ## Update a Docker install
 
-The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.13`, the tag for this tree. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you are moving to a different release. If your names differ, keep the names you already use.
+The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.13`, the tag for this tree. Pull `:latest` or `v2.1.13`. An image tag older than `v2.1.13` is removed from GHCR. If your names differ, keep the names you already use.
 
 1. Pull the new image.
 
@@ -58,7 +58,7 @@ docker run -d \
 
 5. Open [http://127.0.0.1:8787](http://127.0.0.1:8787) and choose **Check again** in About. The dialog says whether the running version matches that release.
 
-These `docker run` lines match the in-app steps. They do not set a read-only root or a `tmpfs` on `/tmp`. `compose.yaml` does. If you installed with Compose, change the pinned tag in `compose.yaml` when the file pins an older `vX.Y.Z`. If the image line is `:latest`, pull and up are enough. Then:
+These `docker run` lines match the in-app steps. They do not set a read-only root or a `tmpfs` on `/tmp`. `compose.yaml` does. If you installed with Compose, set the image to `ghcr.io/networknerd1337/nerdgram1337:v2.1.13` or `:latest` when the file pins an older tag. An older image tag is removed from GHCR. If the image line is already `:latest`, pull and up are enough. Then:
 
 ```bash
 docker compose pull
