@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 2.1.13 "Azimuth" - 2026-11-23
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
 - **Added:** About lists the Mermaid engine version bundled with this copy. The row is Engine, and the value reads Mermaid plus that version. The version links to the matching mermaid-js release. The row is left out when the build did not record a version (#290).
 
 ## 2.1.12 "Azimuth" - 2026-11-23

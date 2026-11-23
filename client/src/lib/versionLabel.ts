@@ -1,4 +1,4 @@
-/** Same shape as the server label: `v2.1.12 Azimuth`. */
+/** Same shape as the server label: `v2.1.13 Azimuth`. */
 const CODENAME_RE = /^[A-Z][A-Za-z0-9]{1,31}$/;
 
 export function knownCodeName(codename: string | null | undefined): string | null {
