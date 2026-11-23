@@ -33,7 +33,7 @@ Yes. `PORT` changes the port. Leave `HOST` unset to keep the bind on `127.0.0.1`
 
 ## Docker or npm, and how do I upgrade?
 
-Docker is the install to use when you want the app. npm installs the `nerdgram` command. Node.js from a clone is a full install and is also how you develop. Use one of them at a time. Only 2.1.13, the latest release, is supported. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. An image tag older than `v2.1.13` is removed from GHCR. Upgrade steps are in [Install](install.md) and [Upgrading](upgrading.md).
+Docker is the install to use when you want the app. npm installs the `nerdgram` command. Node.js from a clone is a full install and is also how you develop. Use one of them at a time. The 2.1 line is supported until the next minor or major release. Only the newest patch is published. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. The previous release stays published for 30 days after it is deprecated, then it is removed. Anything older is already removed. Pinning an older version is not supported long term. Upgrade steps are in [Install](install.md) and [Upgrading](upgrading.md).
 
 ## Where are my files stored?
 
