@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 
 const STORAGE_KEY = "nerdgram.settingsCards";
 
@@ -6,12 +6,36 @@ type CardsContext = {
   isOpen: (id: string) => boolean;
   toggle: (id: string) => void;
   expand: (id: string) => void;
+  focus: (id: string) => void;
   setAll: (ids: readonly string[], open: boolean) => void;
   activeId: string | null;
   activate: (id: string | null) => void;
   spyId: string | null;
   setSpy: (id: string | null) => void;
 };
+
+export type SpyCard = { id: string; top: number };
+
+/**
+ * The section in view is the card whose header is closest to, and at or above,
+ * a line just under the sticky bar. Tops are visual, so two columns stay in
+ * reading order. The first card wins at the top of the page, and the last card
+ * wins when the page cannot scroll any further.
+ */
+export function chooseSpySection(
+  cards: readonly SpyCard[],
+  probe: number,
+  scroll: { top: number; max: number },
+): string | null {
+  if (cards.length === 0) return null;
+  if (scroll.top <= 1) return cards[0]?.id ?? null;
+  if (scroll.max > 8 && scroll.top >= scroll.max - 1) return cards[cards.length - 1]?.id ?? null;
+  let best: SpyCard | null = null;
+  for (const card of cards) {
+    if (card.top <= probe + 0.5 && (best == null || card.top >= best.top)) best = card;
+  }
+  return (best ?? cards[0])?.id ?? null;
+}
 
 const SettingsCardsContext = createContext<CardsContext | null>(null);
 
@@ -56,19 +80,36 @@ export function SettingsCardsProvider({
 }) {
   const [stored, setStored] = useState<Record<string, boolean>>(readStored);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [spyId, setSpyId] = useState<string | null>(null);
+  const hashId = initialHash.replace(/^#/, "");
+  const [spyId, setSpyId] = useState<string | null>(ids.includes(hashId) ? hashId : (ids[0] ?? null));
+  const lockUntil = useRef(0);
 
   const persist = useCallback((next: Record<string, boolean>) => {
     setStored(next);
     writeStored(next);
   }, []);
 
+  const mark = useCallback((id: string) => {
+    setActiveId(id);
+    setSpyId(id);
+  }, []);
+
   const expand = useCallback(
     (id: string) => {
       persist({ ...stored, [id]: true });
-      setActiveId(id);
+      mark(id);
     },
-    [persist, stored],
+    [mark, persist, stored],
+  );
+
+  const focus = useCallback(
+    (id: string) => {
+      persist({ ...stored, [id]: true });
+      mark(id);
+      lockUntil.current = performance.now() + 800;
+      document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    },
+    [mark, persist, stored],
   );
 
   useEffect(() => {
@@ -90,32 +131,44 @@ export function SettingsCardsProvider({
       writeStored(next);
       return next;
     });
-    setActiveId(id);
+    mark(id);
+    lockUntil.current = performance.now() + 800;
     const frame = window.requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ block: "start" });
+      document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "smooth" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [ids, initialHash]);
+  }, [ids, initialHash, mark]);
 
   useEffect(() => {
-    const nodes = ids
-      .map((id) => document.getElementById(id))
-      .filter((node): node is HTMLElement => node instanceof HTMLElement);
-    if (nodes.length === 0 || typeof IntersectionObserver === "undefined") return;
-    const visible = new Map<string, number>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const id = entry.target.id;
-          visible.set(id, entry.isIntersecting ? entry.intersectionRatio : 0);
-        }
-        const best = [...visible.entries()].sort((a, b) => b[1] - a[1])[0];
-        setSpyId(best && best[1] > 0 ? best[0] : null);
-      },
-      { rootMargin: "-20% 0px -55% 0px", threshold: [0, 0.25, 0.6] },
-    );
-    for (const node of nodes) observer.observe(node);
-    return () => observer.disconnect();
+    const update = () => {
+      if (performance.now() < lockUntil.current) return;
+      const bar = document.querySelector(".settings-nav");
+      const probe = (bar?.getBoundingClientRect().bottom ?? 0) + 12;
+      const cards = ids.flatMap((id) => {
+        const node = document.getElementById(id);
+        const header = node?.querySelector(".settings-card-heading") ?? node;
+        if (!(header instanceof HTMLElement)) return [];
+        return [{ id, top: header.getBoundingClientRect().top }];
+      });
+      const scrolling = document.scrollingElement ?? document.documentElement;
+      const top = window.scrollY || scrolling.scrollTop;
+      const max = Math.max(0, scrolling.scrollHeight - window.innerHeight);
+      const next = chooseSpySection(cards, probe, { top, max });
+      if (next) setSpyId(next);
+    };
+    const release = () => {
+      lockUntil.current = 0;
+      update();
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    window.addEventListener("scrollend", release);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scrollend", release);
+    };
   }, [ids, stored]);
 
   const value = useMemo<CardsContext>(
@@ -128,12 +181,18 @@ export function SettingsCardsProvider({
         persist(next);
       },
       expand,
+      focus,
       activeId,
-      activate: setActiveId,
+      activate: (id) => {
+        setActiveId(id);
+        if (!id) return;
+        setSpyId(id);
+        lockUntil.current = performance.now() + 800;
+      },
       spyId,
       setSpy: setSpyId,
     }),
-    [activeId, expand, persist, spyId, stored],
+    [activeId, expand, focus, persist, spyId, stored],
   );
 
   return <SettingsCardsContext.Provider value={value}>{children}</SettingsCardsContext.Provider>;

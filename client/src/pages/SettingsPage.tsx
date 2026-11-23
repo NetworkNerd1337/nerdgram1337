@@ -56,9 +56,8 @@ function SettingsAnchorBar() {
           aria-current={cards?.spyId === id ? "true" : undefined}
           onClick={(event) => {
             event.preventDefault();
-            cards?.expand(id);
+            cards?.focus(id);
             window.history.replaceState(null, "", `#${id}`);
-            document.getElementById(id)?.scrollIntoView({ block: "start" });
           }}
         >
           {label}
