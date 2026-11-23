@@ -69,6 +69,51 @@ describe("sidebar syntax reference", () => {
     expect(reference?.getAttribute("target")).toBe("_blank");
     expect(reference?.textContent).toBe("Syntax reference");
     expect(document.querySelector(".attention-badge")).toBeNull();
+    expect(document.querySelector('a[href="/health"]')?.getAttribute("aria-label")).toBe("Diagram health");
     expect(builtinCommands.find((command) => command.id === "nav.reference")?.title).toBe("Syntax reference");
+  });
+
+  it("shows a health count only when there is at least one issue", () => {
+    const render = (attentionCount: number | null) => {
+      act(() => {
+        if (!root) {
+          const host = document.createElement("div");
+          document.body.appendChild(host);
+          root = createRoot(host);
+        }
+        root.render(
+          <MemoryRouter>
+            <Sidebar
+              tree={[]}
+              bookmarks={EMPTY_BOOKMARKS}
+              onBookmarks={() => undefined}
+              knownPaths={new Set()}
+              recent={[]}
+              onClearRecent={() => undefined}
+              attentionCount={attentionCount}
+              currentFolder=""
+              search=""
+              onSearch={() => undefined}
+              onSelectFolder={() => undefined}
+            />
+          </MemoryRouter>,
+        );
+      });
+    };
+    render(0);
+    const link = () => document.querySelector('a[href="/health"]');
+    expect(link()?.textContent?.replace(/\s+/g, " ").trim()).toBe("Diagram health");
+    expect(link()?.getAttribute("aria-label")).toBe("Diagram health");
+    expect(document.querySelector(".attention-badge")).toBeNull();
+    const quietHeight = link()?.getBoundingClientRect().height ?? 0;
+    render(3);
+    expect(link()?.textContent?.replace(/\s+/g, " ").trim()).toBe("Diagram health (3)");
+    expect(link()?.getAttribute("aria-label")).toBe("Diagram health, 3 issues");
+    expect(document.querySelector(".attention-badge")?.getAttribute("aria-hidden")).toBe("true");
+    const loudHeight = link()?.getBoundingClientRect().height ?? 0;
+    expect(loudHeight).toBe(quietHeight);
+    render(0);
+    expect(document.querySelector(".attention-badge")).toBeNull();
+    expect(link()?.getAttribute("aria-label")).toBe("Diagram health");
   });
 });

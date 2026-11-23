@@ -268,7 +268,8 @@ describe("dashboard warning pill follows the editor mute toggle", () => {
     await flush();
     expect(document.body.textContent).toContain("Wan");
     expect(document.querySelector(".diagram-card-health")).toBeNull();
-    expect(document.querySelector(".attention-badge")?.textContent).toContain("(0)");
+    expect(document.querySelector(".attention-badge")).toBeNull();
+    expect(document.querySelector('a[href="/health"]')?.getAttribute("aria-label")).toBe("Diagram health");
     expect(document.querySelector(".card.is-health-warning")).toBeNull();
 
     await act(async () => {
@@ -292,8 +293,9 @@ describe("dashboard warning pill follows the editor mute toggle", () => {
     expect(gridPill?.textContent).toBe("4 warnings");
     expect(gridPill?.className).toContain("is-warning");
     expect(document.querySelectorAll(".card.is-health-warning")).toHaveLength(1);
-    expect(document.querySelector(".attention-badge")?.textContent).toContain("1");
+    expect(document.querySelector(".attention-badge")?.textContent).toContain("(1)");
     expect(document.querySelector(".attention-badge")?.textContent).not.toContain("4");
+    expect(document.querySelector('a[href="/health"]')?.getAttribute("aria-label")).toBe("Diagram health, 1 issue");
     const cards = [...document.querySelectorAll(".card")];
     const clean = cards.find((card) => card.textContent?.includes("Clean"));
     expect(clean?.querySelector(".diagram-card-health")).toBeNull();
@@ -323,7 +325,8 @@ describe("dashboard warning pill follows the editor mute toggle", () => {
     await flush();
     expect(document.querySelector(".diagram-card-health")).toBeNull();
     expect(document.querySelector(".is-health-warning")).toBeNull();
-    expect(document.querySelector(".attention-badge")?.textContent).toContain("(0)");
+    expect(document.querySelector(".attention-badge")).toBeNull();
+    expect(document.querySelector('a[href="/health"]')?.getAttribute("aria-label")).toBe("Diagram health");
     expect(document.body.textContent).toContain("Clean");
   });
 });
