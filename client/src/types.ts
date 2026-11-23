@@ -44,6 +44,8 @@ export type RevisionSummary = {
   name?: string | null;
   note?: string | null;
   namedAt?: string | null;
+  /** Instance that saved this revision. Null or absent means unknown. */
+  instanceName?: string | null;
 };
 
 export type HistoryList = {

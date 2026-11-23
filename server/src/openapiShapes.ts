@@ -59,6 +59,11 @@ const revision = {
     name: { type: "string", nullable: true },
     note: { type: "string", nullable: true },
     namedAt: { type: "string", nullable: true },
+    instanceName: {
+      type: "string",
+      nullable: true,
+      description: "Instance name that saved this revision. Null when none was set, including older revisions.",
+    },
   },
   required: ["id", "createdAt", "mtimeMs", "size", "hash"],
 };

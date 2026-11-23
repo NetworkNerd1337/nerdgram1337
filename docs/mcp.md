@@ -132,6 +132,8 @@ Lint with `nerdgram_lint` before `nerdgram_create` or `nerdgram_put`. `content` 
 
 `nerdgram_replace_preview` writes nothing. `nerdgram_replace_apply` saves each selected diagram, so the previous text is a revision. `nerdgram_trash` moves a diagram to the trash.
 
+`nerdgram_history` lists revisions. Each one includes `instanceName`, the configured instance name that saved it, or null when none was set.
+
 | Tool | Token | Annotation |
 | --- | --- | --- |
 | `nerdgram_list` | read | `readOnlyHint` |

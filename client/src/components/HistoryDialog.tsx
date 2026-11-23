@@ -18,6 +18,12 @@ function formatStamp(iso: string): string {
   return date.toLocaleString();
 }
 
+/** The name stored on the revision. Older revisions and a blank setting both say Unknown instance. */
+function instanceLabel(name: string | null | undefined): string {
+  const trimmed = name?.trim() ?? "";
+  return trimmed || "Unknown instance";
+}
+
 export function HistoryDialog({ path, lockToken, canRestore, onClose, onRestored }: HistoryDialogProps) {
   useCloseOnEscape(onClose);
   const [revisions, setRevisions] = useState<RevisionSummary[]>([]);
@@ -250,7 +256,8 @@ export function HistoryDialog({ path, lockToken, canRestore, onClose, onRestored
                       <strong>{revision.name || formatStamp(revision.createdAt)}</strong>
                       <div className="history-meta">
                         {revision.name ? `${formatStamp(revision.createdAt)} · ` : ""}
-                        {revision.size} bytes
+                        <span className="history-instance">{instanceLabel(revision.instanceName)}</span>
+                        {` · ${revision.size} bytes`}
                         {revision.note ? ` · ${revision.note}` : ""}
                       </div>
                     </div>

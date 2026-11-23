@@ -120,6 +120,8 @@ describe("history diff dialog", () => {
       );
     });
 
+    expect(container.textContent).toContain("Unknown instance");
+    expect(container.querySelector(".history-instance")?.textContent).toBe("Unknown instance");
     expect(container.textContent).toContain("Save baseline");
     expect(container.textContent).toContain("Baseline - pre-change");
     expect(container.textContent).toContain("Named baselines are kept");
@@ -188,6 +190,29 @@ describe("history diff dialog", () => {
     });
     expect(document.querySelector("[aria-label='Diff legend']")).toBeTruthy();
     expect(document.body.textContent).toContain("Unchanged");
+  });
+
+  it("shows the saving instance, and Unknown instance when a revision has none", async () => {
+    history.mockResolvedValue({
+      path: "Net.mmd",
+      retention: 20,
+      baselineCap: 20,
+      baselineCount: 0,
+      revisions: [
+        { ...revision, id: "named", name: null, note: null, namedAt: null, instanceName: "Engineer A" },
+        { ...revision, id: "old", name: null, note: null, namedAt: null, instanceName: null },
+      ],
+    });
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(
+        <HistoryDialog path="Net.mmd" lockToken={null} canRestore onClose={() => undefined} onRestored={() => undefined} />,
+      );
+    });
+    const labels = [...container.querySelectorAll(".history-instance")].map((node) => node.textContent);
+    expect(labels).toEqual(["Engineer A", "Unknown instance"]);
   });
 });
 

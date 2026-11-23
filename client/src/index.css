@@ -2694,6 +2694,19 @@ body.is-col-resizing * {
   font-size: 0.78rem;
 }
 
+.history-instance {
+  display: inline-block;
+  margin: 0 0.15rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-muted);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .history-actions {
   display: flex;
   flex-wrap: wrap;
