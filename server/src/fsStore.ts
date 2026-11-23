@@ -685,7 +685,7 @@ export async function duplicateItem(
   if (stat.isDirectory()) {
     await fs.mkdir(destAbs);
     try {
-      await copyFolderContents(abs, destAbs);
+      await copyFolderContents(abs, destAbs, new Set(companions));
       const dataFiles =
         options.copyData === true ? await copyFolderCompanions(fromRel, destRel, companions) : [];
       if (options.copyData === true) {
@@ -724,21 +724,69 @@ async function rewriteCopiedFolderSources(destDir: string, fromDir: string): Pro
   }
 }
 
-async function copyFolderContents(srcAbs: string, destAbs: string): Promise<void> {
-  const entries = await fs.readdir(srcAbs, { withFileTypes: true });
+function staysInDataRoot(absPath: string): boolean {
+  const root = path.resolve(ensureDataRoot());
+  const relative = path.relative(root, path.resolve(absPath));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+/**
+ * Copy a folder's regular files and subfolders. Diagrams go through the
+ * normal write path. Other files are copied as bytes, so images and notes
+ * keep their names. Companion data files are left for the copy-or-share
+ * step. Hidden names (`.meta`, `.git`, and the rest) and symlinks are not
+ * followed. A file or folder that cannot be read is skipped.
+ */
+async function copyFolderContents(
+  srcAbs: string,
+  destAbs: string,
+  companions: ReadonlySet<string>,
+): Promise<void> {
+  if (!staysInDataRoot(srcAbs) || !staysInDataRoot(destAbs)) return;
+  let entries;
+  try {
+    entries = await fs.readdir(srcAbs, { withFileTypes: true });
+  } catch (err) {
+    if (skippedUnreadable(toRelativePath(srcAbs), err)) return;
+    throw err;
+  }
   for (const entry of entries) {
-    if (entry.name.startsWith(".")) continue;
+    if (entry.name.startsWith(".") || entry.name === META_DIR_NAME) continue;
     if (entry.isSymbolicLink()) continue;
     const src = path.join(srcAbs, entry.name);
     const dest = path.join(destAbs, entry.name);
-    if (entry.isDirectory()) {
-      await fs.mkdir(dest);
-      await copyFolderContents(src, dest);
+    if (!staysInDataRoot(src) || !staysInDataRoot(dest)) continue;
+    let srcStat: Awaited<ReturnType<typeof fs.lstat>>;
+    try {
+      srcStat = await fs.lstat(src);
+    } catch (err) {
+      if (skippedUnreadable(toRelativePath(src), err)) continue;
+      throw err;
+    }
+    if (srcStat.isSymbolicLink()) continue;
+    if (companions.has(toRelativePath(src))) continue;
+    if (srcStat.isDirectory()) {
+      try {
+        await fs.mkdir(dest);
+      } catch (err) {
+        if (skippedUnreadable(toRelativePath(dest), err)) continue;
+        throw err;
+      }
+      await copyFolderContents(src, dest, companions);
       continue;
     }
-    if (entry.isFile() && isDiagramFile(entry.name)) {
-      const content = await fs.readFile(src, "utf8");
-      await writeFile(toRelativePath(dest), content);
+    if (!srcStat.isFile()) continue;
+    const destRel = toRelativePath(dest);
+    try {
+      if (isDiagramFile(entry.name)) {
+        const content = await fs.readFile(src, "utf8");
+        await writeFile(destRel, content);
+      } else {
+        await fs.copyFile(src, dest);
+      }
+    } catch (err) {
+      if (skippedUnreadable(destRel, err)) continue;
+      throw err;
     }
   }
 }

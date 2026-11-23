@@ -6,6 +6,9 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- **Fixed:** Overlapping token writes no longer drop a token. Creating a token and recording that it was used share one queue per token file, and a write stays in the directory it read.
+- **Fixed:** Duplicating a folder copies its regular files and nested folders, not only diagrams. Hidden names such as `.meta` and `.git` are left out, symlinks are not followed, and a file that cannot be read is skipped. Companion data files still follow the copy or share choice (#302).
+- **Fixed:** Settings cards on a wide window fill two columns of about the same height, including when cards are expanded. Below about 1100 pixels they stay in one column. The anchor bar and scroll-spy are unchanged (#303).
 - **Changed:** About shows latest or upgrade available next to the version after a successful update check. The tagline describes the current app. The copyright line links to ryanthomashuff.com (#295).
 - **Changed:** From data shows Data, Options or Columns, and Preview as one step row. The current step is accent and bold. A finished step can be clicked to go back (#296).
 - **Changed:** Commands stays in the top-right header, on the same row as About and Support, and is removed from the sidebar. The Your space and Folders headings are gone. A divider separates the navigation links from the folder tree (#297).

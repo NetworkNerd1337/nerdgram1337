@@ -470,4 +470,64 @@ describe("data files follow the diagram", () => {
     expect(refreshed.status).toBe(200);
     expect(refreshed.body.dataPath).toBe("Regions/Campus.csv");
   });
+
+  it("copies regular files and nested folders, and skips hidden names and symlinks", async () => {
+    await fs.mkdir(path.join(dir, "Rack", "nested"), { recursive: true });
+    await fs.mkdir(path.join(dir, "Rack", ".git"), { recursive: true });
+    await fs.mkdir(path.join(dir, "Rack", ".meta"), { recursive: true });
+    const diagram = "flowchart LR\n  A-->B\n";
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]);
+    await fs.writeFile(path.join(dir, "Rack", "Core.mmd"), diagram);
+    await fs.writeFile(path.join(dir, "Rack", "notes.md"), "# notes\n");
+    await fs.writeFile(path.join(dir, "Rack", "extra.json"), "{\"ok\":true}\n");
+    await fs.writeFile(path.join(dir, "Rack", "rack.png"), png);
+    await fs.writeFile(path.join(dir, "Rack", "nested", "readme.txt"), "inside\n");
+    await fs.writeFile(path.join(dir, "Rack", "nested", "Leaf.mmd"), diagram);
+    await fs.writeFile(path.join(dir, "Rack", ".git", "config"), "secret\n");
+    await fs.writeFile(path.join(dir, "Rack", ".meta", "history.json"), "{}\n");
+    await fs.writeFile(path.join(dir, "outside.txt"), "nope\n");
+    await fs.symlink(path.join(dir, "outside.txt"), path.join(dir, "Rack", "escape.txt"));
+    await fs.symlink(path.join(dir, "Rack", "notes.md"), path.join(dir, "Rack", "notes-link.md"));
+    await fs.symlink(path.join(dir, "outside.txt"), path.join(dir, "Rack", "nested", "out.txt"));
+
+    const copied = await request(app).post("/api/duplicate").set(json).send({ path: "Rack" });
+    expect(copied.status).toBe(201);
+    expect(copied.body.path).toBe("Rack (copy)");
+    const copy = path.join(dir, "Rack (copy)");
+    expect(await fs.readFile(path.join(copy, "Core.mmd"), "utf8")).toBe(diagram);
+    expect(await fs.readFile(path.join(copy, "notes.md"), "utf8")).toBe("# notes\n");
+    expect(await fs.readFile(path.join(copy, "extra.json"), "utf8")).toBe("{\"ok\":true}\n");
+    expect(await fs.readFile(path.join(copy, "rack.png"))).toEqual(png);
+    expect(await fs.readFile(path.join(copy, "nested", "readme.txt"), "utf8")).toBe("inside\n");
+    expect(await fs.readFile(path.join(copy, "nested", "Leaf.mmd"), "utf8")).toBe(diagram);
+    await expect(fs.access(path.join(copy, ".git"))).rejects.toThrow();
+    await expect(fs.access(path.join(copy, ".meta"))).rejects.toThrow();
+    await expect(fs.access(path.join(copy, "escape.txt"))).rejects.toThrow();
+    await expect(fs.access(path.join(copy, "notes-link.md"))).rejects.toThrow();
+    await expect(fs.access(path.join(copy, "nested", "out.txt"))).rejects.toThrow();
+    expect(await fs.readFile(path.join(dir, "Rack", "notes.md"), "utf8")).toBe("# notes\n");
+    expect(await fs.readFile(path.join(dir, "Rack", ".meta", "history.json"), "utf8")).toBe("{}\n");
+  });
+
+  it("copies loose files when a folder's data file is shared, and skips a file that cannot be read", async () => {
+    await generate("Lab/Campus.mmd");
+    await fs.writeFile(path.join(dir, "Lab", "notes.txt"), "keep\n");
+    await fs.mkdir(path.join(dir, "Lab", "docs"));
+    await fs.writeFile(path.join(dir, "Lab", "docs", "plan.md"), "plan\n");
+    const locked = path.join(dir, "Lab", "locked.bin");
+    await fs.writeFile(locked, Buffer.from([1, 2, 3, 4]));
+    const asRoot = typeof process.getuid === "function" && process.getuid() === 0;
+    if (!asRoot) await fs.chmod(locked, 0);
+
+    const shared = await request(app).post("/api/duplicate").set(json).send({ path: "Lab", copyData: false });
+    expect(shared.status).toBe(201);
+    expect(shared.body.path).toBe("Lab (copy)");
+    expect(await fs.readFile(path.join(dir, "Lab (copy)", "notes.txt"), "utf8")).toBe("keep\n");
+    expect(await fs.readFile(path.join(dir, "Lab (copy)", "docs", "plan.md"), "utf8")).toBe("plan\n");
+    await expect(fs.access(path.join(dir, "Lab (copy)", "Campus.csv"))).rejects.toThrow();
+    if (!asRoot) await expect(fs.access(path.join(dir, "Lab (copy)", "locked.bin"))).rejects.toThrow();
+    expect(await fs.readFile(path.join(dir, "Lab", "Campus.csv"), "utf8")).toContain("Core");
+
+    if (!asRoot) await fs.chmod(locked, 0o644);
+  });
 });

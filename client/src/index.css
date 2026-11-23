@@ -3831,23 +3831,20 @@ body.is-col-resizing * {
   gap: 1rem;
 }
 
-/* Wide windows flow the short cards down two columns. GitHub sync stays full width under that block, so a spanning card does not leave an empty column above it. */
+/* Wide windows place cards in two columns of about the same height. GitHub sync stays full width under that block. */
 @media (min-width: 1100px) {
   .settings-screen .sync-page {
     max-width: none;
   }
 
   .settings-screen .settings-columns {
+    position: relative;
     display: block;
-    columns: 2;
-    column-gap: 1rem;
   }
 
   .settings-screen .settings-columns > .sync-card {
-    display: inline-block;
-    width: 100%;
-    margin: 0 0 1rem;
-    break-inside: avoid;
+    margin: 0;
+    box-sizing: border-box;
   }
 }
 

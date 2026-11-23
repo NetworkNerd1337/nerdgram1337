@@ -18,6 +18,7 @@ import { LintSettings } from "../components/LintSettings";
 import { TokenSettings } from "../components/TokenSettings";
 import { UpdateSettingsFields } from "../components/UpdateHost";
 import { SettingsCard, SettingsCardsProvider, useSettingsCards } from "../components/SettingsCard";
+import { SettingsColumns } from "../components/SettingsColumns";
 import type { SyncStatus } from "../types";
 import { githubSyncStatusCopy } from "../lib/githubSyncStatus";
 
@@ -171,7 +172,7 @@ export function SettingsPage() {
       <SettingsAnchorBar />
 
       <main className="sync-page">
-        <div className="settings-columns">
+        <SettingsColumns>
         <AppearanceSettings />
         <StylePresetsSettings />
         <HostSettings />
@@ -187,7 +188,7 @@ export function SettingsPage() {
           </p>
           <UpdateSettingsFields />
         </SettingsCard>
-        </div>
+        </SettingsColumns>
         <SettingsCard id="github-sync" title="GitHub sync" summary={syncCopy?.label ?? "Optional backup of diagrams to a private repository."}>
           <p>
             GitHub sync keeps a private repository you own as a backup of the diagrams on this
