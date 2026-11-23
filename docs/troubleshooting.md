@@ -18,6 +18,7 @@ If the API port is taken, the server exits and prints the listen error.
 - [localhost opens the dev UI, and 127.0.0.1 does not](#localhost-opens-the-dev-ui-and-127001-does-not)
 - [Corporate TLS inspection](#corporate-tls-inspection)
 - [A render returns 503](#a-render-returns-503)
+- [About shows no version](#about-shows-no-version)
 
 ## Port already in use
 
@@ -134,6 +135,10 @@ A Node install on the host needs the same variable. Node does not read the Windo
 ## A render returns 503
 
 `POST /api/v1/render` and `nerdgram_render` answer **503** with `The diagram renderer could not start.` when the browser does not launch. The server log includes `Diagram renderer failed to start:` and the launch error. `docker logs nerdgram1337` shows that line. On linux/amd64 the browser is chrome-headless-shell. On linux/arm64 it is Debian chromium at `/usr/lib/chromium/chromium`.
+
+## About shows no version
+
+About should show Version, Code name, and Engine even when update status cannot be loaded. The line under those facts then starts with **Update status unavailable** and gives the reason. Check `GET /api/updates`. A damaged `/data/.meta/updates.json` used to make that request fail and hide the version. The server now moves that file aside to `updates.json.corrupt-<time>`, logs one warning, and answers with the defaults. About still reads Version, Code name, and Engine from `GET /api/version`. If the line remains, move `/data/.meta/updates.json` aside and reload. Keep `/data` on a local folder or a Docker volume, not a folder that iCloud, Dropbox, OneDrive, or Google Drive syncs for more than one machine. [Install](install.md#docker) says the same.
 
 ## See also
 

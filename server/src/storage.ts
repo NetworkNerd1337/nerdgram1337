@@ -295,15 +295,35 @@ async function replaceFile(tmp: string, dest: string): Promise<void> {
   }
 }
 
+/** Flush a directory entry so a crash or a sync tool is less likely to keep an empty file. */
+async function syncDirectory(dir: string): Promise<void> {
+  let handle: fs.FileHandle | null = null;
+  try {
+    handle = await fs.open(dir, "r");
+    await handle.sync();
+  } catch {
+    // Some systems refuse to sync a directory. The file sync above still stands.
+  } finally {
+    await handle?.close().catch(() => undefined);
+  }
+}
+
 /** Write a file by renaming a temp file into place. Callers on the same disk get an atomic replace. */
 export async function atomicWriteText(absolutePath: string, content: string): Promise<void> {
   const dir = path.dirname(absolutePath);
   await fs.mkdir(dir, { recursive: true });
   const tmp = path.join(dir, `.ng-${process.pid}-${randomBytes(6).toString("hex")}.tmp`);
+  let handle: fs.FileHandle | null = null;
   try {
-    await fs.writeFile(tmp, content, "utf8");
+    handle = await fs.open(tmp, "w");
+    await handle.writeFile(content, "utf8");
+    await handle.sync();
+    await handle.close();
+    handle = null;
     await replaceFile(tmp, absolutePath);
+    await syncDirectory(dir);
   } catch (err) {
+    await handle?.close().catch(() => undefined);
     await fs.rm(tmp, { force: true }).catch(() => undefined);
     throw err;
   }

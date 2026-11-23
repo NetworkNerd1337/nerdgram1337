@@ -3,8 +3,7 @@ import Markdown from "react-markdown";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Brand } from "../components/Brand";
-import { AboutButton, SupportLink } from "../components/SupportLink";
-import { CommandsButton } from "../components/CommandPalette";
+import { HeaderActions } from "../components/HeaderActions";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { pageTitle } from "../lib/pageTitle";
@@ -177,13 +176,7 @@ export function ReferencePage() {
             </p>
           </div>
         </div>
-        <div className="reference-top-actions">
-          <AboutButton />
-          <SupportLink />
-          <CommandsButton />
-          <Link className="btn btn-ghost" to="/">
-            Back to dashboard
-          </Link>
+        <HeaderActions className="reference-top-actions header-actions">
           <button
             type="button"
             className="btn btn-accent"
@@ -192,7 +185,7 @@ export function ReferencePage() {
           >
             {syncing ? "Syncing…" : "Sync Syntax Reference"}
           </button>
-        </div>
+        </HeaderActions>
       </header>
 
       {(error || status) && (

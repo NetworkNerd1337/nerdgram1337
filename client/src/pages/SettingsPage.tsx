@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
-import { CommandsButton } from "../components/CommandPalette";
-import { AboutButton, SupportLink } from "../components/SupportLink";
+import { HeaderActions } from "../components/HeaderActions";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { pageTitle } from "../lib/pageTitle";
@@ -160,14 +159,7 @@ export function SettingsPage() {
             </p>
           </div>
         </div>
-        <div className="reference-top-actions">
-          <AboutButton />
-          <SupportLink />
-          <CommandsButton />
-          <Link className="btn btn-ghost" to="/">
-            Back to dashboard
-          </Link>
-        </div>
+        <HeaderActions className="reference-top-actions header-actions" backToDashboard />
       </header>
       <SettingsAnchorBar />
 

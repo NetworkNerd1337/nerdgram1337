@@ -1,6 +1,7 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import { getMetaPath } from "../paths.js";
-import { atomicWriteJson, readJsonFile } from "../storage.js";
+import { atomicWriteJson } from "../storage.js";
 import { parseSemver, stableTag, type SemVer } from "./semver.js";
 
 export type StoredRelease = {
@@ -45,9 +46,50 @@ export function emptyUpdateFile(): UpdateFile {
   };
 }
 
+/** Move a bad updates file aside and log one warning. A missing file is left alone. */
+async function quarantineUpdateFile(file: string, reason: string): Promise<void> {
+  const stamp = Date.now();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const dest = attempt === 0 ? `${file}.corrupt-${stamp}` : `${file}.corrupt-${stamp}-${attempt}`;
+    try {
+      await fs.rename(file, dest);
+      console.warn(`Moved ${path.basename(file)} aside to ${path.basename(dest)} because it was ${reason}.`);
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "ENOENT") return;
+      if (code === "EEXIST") continue;
+      console.warn(`Could not move ${path.basename(file)} aside because it was ${reason} (${code ?? "error"}).`);
+      return;
+    }
+  }
+}
+
+/**
+ * Read update preferences. An empty, invalid, or unreadable file becomes the
+ * defaults, and the bad file is moved aside so the next write can replace it.
+ */
 export async function loadUpdateFile(): Promise<UpdateFile> {
-  const parsed = await readJsonFile<Partial<UpdateFile>>(updatesPath());
-  return sanitizeFile(parsed);
+  const file = updatesPath();
+  let raw: string;
+  try {
+    raw = await fs.readFile(file, "utf8");
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") return emptyUpdateFile();
+    await quarantineUpdateFile(file, `unreadable${code ? ` (${code})` : ""}`);
+    return emptyUpdateFile();
+  }
+  if (raw.trim() === "") {
+    await quarantineUpdateFile(file, "empty");
+    return emptyUpdateFile();
+  }
+  try {
+    return sanitizeFile(JSON.parse(raw) as Partial<UpdateFile>);
+  } catch {
+    await quarantineUpdateFile(file, "invalid JSON");
+    return emptyUpdateFile();
+  }
 }
 
 export async function saveUpdateFile(file: UpdateFile): Promise<void> {

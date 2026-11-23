@@ -1,6 +1,18 @@
 import type { TreeNode } from "../types";
 
 export const COLLAPSED_FOLDERS_KEY = "nerdgram.sidebar.collapsedFolders";
+export const FOLDERS_OPEN_KEY = "nerdgram.sidebar.foldersOpen";
+
+/** Every folder in the tree, including folders nested inside other folders. */
+export function countFolders(nodes: readonly TreeNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    if (node.type !== "folder") continue;
+    count += 1;
+    if (node.children) count += countFolders(node.children);
+  }
+  return count;
+}
 
 export function ancestorFolders(path: string): string[] {
   const parts = path.split("/").filter(Boolean);

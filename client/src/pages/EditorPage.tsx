@@ -5,7 +5,7 @@ import { indexDiagramLinks, insertDiagramLink, linksFor } from "../../../server/
 import { ApiError, api } from "../api";
 import { Brand } from "../components/Brand";
 import { CommandsButton } from "../components/CommandPalette";
-import { AboutButton, SupportLink } from "../components/SupportLink";
+import { HeaderActions } from "../components/HeaderActions";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { DiagramInfoPanel, type DiagramLinkRow } from "../components/DiagramInfoPanel";
@@ -1341,16 +1341,14 @@ export function EditorPage() {
           />
         </div>
         <div className="editor-top-actions">
-          {presenting ? null : (
-            <>
-              <AboutButton />
-              <SupportLink />
-            </>
+          {presenting ? (
+            <CommandsButton />
+          ) : (
+            <HeaderActions className="header-actions" backToDashboard />
           )}
           <span className="status-pill" aria-live="polite">
             {saveLabel}
           </span>
-          <CommandsButton />
           <button
             type="button"
             className={`btn btn-ghost${infoOpen ? " is-active" : ""}`}

@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { Brand } from "../components/Brand";
-import { AboutButton, SupportLink } from "../components/SupportLink";
-import { CommandsButton } from "../components/CommandPalette";
+import { HeaderActions } from "../components/HeaderActions";
 import { FolderPicker } from "../components/FolderPicker";
 import { Modal } from "../components/Modal";
 import { SourceThumbnail } from "../components/MermaidThumbnail";
@@ -151,22 +150,12 @@ export function TemplatesPage() {
     <div className="reference-layout">
       <header className="reference-top">
         <div className="reference-top-left">
-          <Link to="/" aria-label="Dashboard">
+          <Link to="/" aria-label="NerdGram1337 dashboard">
             <Brand />
           </Link>
           <h1>Template gallery</h1>
         </div>
-        <div className="reference-top-actions">
-          <AboutButton />
-          <SupportLink />
-          <Link className="btn btn-ghost" to="/">
-            Dashboard
-          </Link>
-          <Link className="btn btn-ghost" to="/new">
-            Paste Mermaid
-          </Link>
-          <CommandsButton />
-        </div>
+        <HeaderActions className="reference-top-actions header-actions" backToDashboard />
       </header>
 
       <main className="template-main">

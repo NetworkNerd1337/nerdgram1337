@@ -66,10 +66,72 @@ describe("sidebar folder tree", () => {
     return element;
   }
 
+  async function renderNodes(nodes: TreeNode[], extras: { onNewFolder?: () => void } = {}) {
+    await act(async () => {
+      root?.render(
+        createElement(FolderTree, {
+          nodes,
+          currentPath: "",
+          onSelectFolder: (path: string) => {
+            selected.push(path);
+          },
+          onNewFolder: extras.onNewFolder,
+        }),
+      );
+    });
+  }
+
+  it("hides the tree and the header when there are no folders, and brings them back", async () => {
+    await renderNodes([]);
+    expect(document.querySelector(".tree")).toBeNull();
+    expect(document.querySelector("#folders-heading")).toBeNull();
+    expect(document.querySelector(".folders-section")).toBeNull();
+
+    await renderNodes([folder("Sites")]);
+    expect(document.querySelector("#folders-heading")).toBeTruthy();
+    expect(document.querySelector(".folders-count")?.textContent).toBe("1");
+    expect(document.querySelector(".tree")).toBeTruthy();
+
+    await renderNodes([]);
+    expect(document.querySelector(".tree")).toBeNull();
+    expect(document.querySelector("#folders-heading")).toBeNull();
+  });
+
+  it("remembers a collapsed folder section and offers New folder", async () => {
+    const created: string[] = [];
+    await renderNodes([folder("Sites"), folder("Examples")], {
+      onNewFolder: () => created.push("new"),
+    });
+    expect(document.querySelector(".folders-count")?.textContent).toBe("2");
+    const caret = document.querySelector(".folders-head .tree-chevron");
+    expect(caret?.getAttribute("aria-expanded")).toBe("true");
+    await act(async () => {
+      if (caret instanceof HTMLButtonElement) caret.click();
+    });
+    expect(document.querySelector(".tree")).toBeNull();
+    expect(localStorage.getItem("nerdgram.sidebar.foldersOpen")).toBe("0");
+    const add = document.querySelector(".folders-add");
+    expect(add?.getAttribute("aria-label")).toBe("New folder");
+    await act(async () => {
+      if (add instanceof HTMLButtonElement) add.click();
+    });
+    expect(created).toEqual(["new"]);
+
+    await act(async () => {
+      root?.unmount();
+    });
+    root = createRoot(container!);
+    await renderNodes([folder("Sites")]);
+    expect(document.querySelector(".tree")).toBeNull();
+    expect(document.querySelector(".folders-head .tree-chevron")?.getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("toggles a folder with the chevron and leaves the name as the folder opener", async () => {
     await render();
     const heading = document.querySelector(".tree");
-    expect(heading?.getAttribute("aria-label")).toBe("Folders");
+    expect(heading?.getAttribute("aria-labelledby")).toBe("folders-heading");
+    expect(document.querySelector("#folders-heading")?.textContent).toContain("Folders");
+    expect(document.querySelector(".folders-count")?.textContent).toBe("7");
     expect(document.querySelector(".nav-label")).toBeNull();
     const firstFolder = document.querySelector(".tree-level");
     expect(heading?.contains(firstFolder as Node)).toBe(true);

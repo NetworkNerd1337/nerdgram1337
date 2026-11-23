@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import type { DragPayload } from "../lib/drag";
+import { readFlag, writeFlag } from "../lib/bookmarks";
 import {
   collapseAllFolders,
+  countFolders,
   expandAllFolders,
   expandAncestors,
+  FOLDERS_OPEN_KEY,
   hasSubfolders,
   readCollapsedFolders,
   toggleCollapsed,
@@ -15,33 +18,75 @@ type FolderTreeProps = {
   nodes: TreeNode[];
   currentPath: string;
   onSelectFolder: (path: string) => void;
+  onNewFolder?: () => void;
   dropHighlight?: { path: string; valid: boolean } | null;
   onFolderDragOver?: (path: string, event: DragPayload) => void;
   onFolderDrop?: (path: string, event: DragPayload) => void;
 };
 
+function browserStorage(): Storage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function FolderTree({
   nodes,
   currentPath,
   onSelectFolder,
+  onNewFolder,
   dropHighlight = null,
   onFolderDragOver,
   onFolderDrop,
 }: FolderTreeProps) {
   const [stored, setStored] = useState<Set<string>>(() => readCollapsedFolders(window.localStorage));
+  const [foldersOpen, setFoldersOpen] = useState(() => readFlag(browserStorage(), FOLDERS_OPEN_KEY, true));
   const collapsed = useMemo(() => expandAncestors(stored, currentPath), [stored, currentPath]);
 
   useEffect(() => {
     writeCollapsedFolders(window.localStorage, collapsed);
   }, [collapsed]);
 
+  const folderCount = countFolders(nodes);
   const nested = nodes.some((node) => node.type === "folder" && hasSubfolders(node));
   const expandDisabled = collapsed.size === 0;
   const fullyCollapsed = collapseAllFolders(nodes, currentPath);
   const collapseDisabled = fullyCollapsed.size === collapsed.size && [...fullyCollapsed].every((path) => collapsed.has(path));
+  const toggleFolders = () => {
+    const next = !foldersOpen;
+    setFoldersOpen(next);
+    writeFlag(browserStorage(), FOLDERS_OPEN_KEY, next);
+  };
+
+  if (folderCount === 0) return null;
 
   return (
-    <div className="tree" role="region" aria-label="Folders">
+    <section className="folders-section" aria-labelledby="folders-heading">
+      <div className="folders-head">
+        <button
+          type="button"
+          className="tree-chevron"
+          aria-expanded={foldersOpen}
+          aria-controls="folder-tree"
+          onClick={toggleFolders}
+        >
+          <span className="visually-hidden">{foldersOpen ? "Collapse folders" : "Expand folders"}</span>
+        </button>
+        <span className="folder-glyph" aria-hidden="true" />
+        <span id="folders-heading" className="folders-title">
+          <span className="folders-word">Folders</span>
+          <span className="folders-count">{folderCount}</span>
+        </span>
+        {onNewFolder ? (
+          <button type="button" className="folders-add" aria-label="New folder" title="New folder" onClick={onNewFolder}>
+            +
+          </button>
+        ) : null}
+      </div>
+      {foldersOpen ? (
+    <div className="tree" id="folder-tree" role="region" aria-labelledby="folders-heading">
       {nested ? (
         <div className="tree-toolbar">
           <div className="tree-fold-control" role="group" aria-label="Folder tree">
@@ -82,6 +127,8 @@ export function FolderTree({
         onFolderDrop={onFolderDrop}
       />
     </div>
+      ) : null}
+    </section>
   );
 }
 

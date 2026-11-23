@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Brand } from "../components/Brand";
-import { CommandsButton } from "../components/CommandPalette";
-import { AboutButton, SupportLink } from "../components/SupportLink";
+import { HeaderActions } from "../components/HeaderActions";
 import { FolderPicker } from "../components/FolderPicker";
 import { useCommandHost } from "../components/commandPaletteContext";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -96,11 +95,7 @@ export function NewDiagramPage() {
           <Link to="/">
             <Brand />
           </Link>
-          <div className="paste-top-actions">
-            <AboutButton />
-            <SupportLink />
-            <CommandsButton />
-          </div>
+          <HeaderActions className="paste-top-actions header-actions" backToDashboard />
         </header>
         <h1>What do you want to diagram?</h1>
         <p className="entry-lead">Paste Mermaid code and save it as a diagram.</p>
@@ -165,9 +160,6 @@ export function NewDiagramPage() {
         </div>
 
         <div className="paste-actions">
-          <Link className="btn btn-ghost" to="/">
-            Back to dashboard
-          </Link>
           <Link className="btn btn-ghost" to={`/templates?folder=${encodeURIComponent(folder)}`}>
             Browse templates
           </Link>

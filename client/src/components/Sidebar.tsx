@@ -30,6 +30,7 @@ type SidebarProps = {
   namesOnly?: boolean;
   onNamesOnly?: (value: boolean) => void;
   onSelectFolder: (path: string) => void;
+  onNewFolder?: () => void;
   trashCount?: number;
   trashActive?: boolean;
   onOpenTrash?: () => void;
@@ -63,6 +64,7 @@ export function Sidebar({
   namesOnly = false,
   onNamesOnly,
   onSelectFolder,
+  onNewFolder,
   trashCount = 0,
   trashActive = false,
   onOpenTrash,
@@ -194,6 +196,7 @@ export function Sidebar({
         nodes={tree}
         currentPath={currentFolder}
         onSelectFolder={onSelectFolder}
+        onNewFolder={onNewFolder}
         dropHighlight={dropHighlight}
         onFolderDragOver={onFolderDragOver}
         onFolderDrop={onFolderDrop}
