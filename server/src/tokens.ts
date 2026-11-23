@@ -69,9 +69,9 @@ function normalizeName(value: unknown): string {
   return name;
 }
 
-async function readFile(): Promise<TokenFile> {
+async function readFileAt(filePath: string): Promise<TokenFile> {
   try {
-    const raw = await fs.readFile(tokenFilePath(), "utf8");
+    const raw = await fs.readFile(filePath, "utf8");
     const parsed = JSON.parse(raw) as Partial<TokenFile>;
     if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.tokens)) {
       return { version: 1, tokens: [] };
@@ -82,6 +82,32 @@ async function readFile(): Promise<TokenFile> {
     if (code === "ENOENT") return { version: 1, tokens: [] };
     throw err;
   }
+}
+
+async function readFile(): Promise<TokenFile> {
+  return readFileAt(tokenFilePath());
+}
+
+/**
+ * One queue per token file. Creating a token and recording lastUsedAt both
+ * read the file and write it back. Overlapping writes used to drop a token
+ * that was added between the read and the write, and a late write could land
+ * in a data directory the process had already switched. The path is fixed
+ * when the operation starts.
+ */
+const tokenQueues = new Map<string, Promise<unknown>>();
+
+function enqueueTokenFile<T>(filePath: string, task: () => Promise<T>): Promise<T> {
+  const previous = tokenQueues.get(filePath) ?? Promise.resolve();
+  const run = previous.then(task, task);
+  tokenQueues.set(
+    filePath,
+    run.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return run;
 }
 
 function isStoredToken(value: unknown): value is StoredToken {
@@ -99,8 +125,8 @@ function isStoredToken(value: unknown): value is StoredToken {
   );
 }
 
-async function writeFile(file: TokenFile): Promise<void> {
-  await writePrivateFile(tokenFilePath(), `${JSON.stringify(file, null, 2)}\n`);
+async function writeFileAt(filePath: string, file: TokenFile): Promise<void> {
+  await writePrivateFile(filePath, `${JSON.stringify(file, null, 2)}\n`);
 }
 
 export function toPublic(token: StoredToken): PublicToken {
@@ -123,42 +149,48 @@ export async function listTokens(): Promise<PublicToken[]> {
 export async function createToken(input: { name: unknown; scope: unknown }): Promise<{ token: string; tokenMeta: PublicToken }> {
   const name = normalizeName(input.name);
   const scope = normalizeScope(input.scope);
-  const file = await readFile();
-  if (file.tokens.length >= MAX_TOKENS) {
-    throw httpFail(
-      400,
-      `This workspace already has ${MAX_TOKENS} tokens. Revoked tokens still count until you delete them.`,
-      "invalid",
-    );
-  }
-  const secret = randomBytes(TOKEN_BYTES).toString("base64url");
-  const token = `ng_${secret}`;
-  const id = randomBytes(9).toString("hex");
-  const stored: StoredToken = {
-    id,
-    name,
-    prefix: token.slice(0, 11),
-    scope,
-    hash: hashToken(token).toString("hex"),
-    createdAt: new Date().toISOString(),
-    lastUsedAt: null,
-    revokedAt: null,
-  };
-  file.tokens.push(stored);
-  await writeFile(file);
-  return { token, tokenMeta: toPublic(stored) };
+  const filePath = tokenFilePath();
+  return enqueueTokenFile(filePath, async () => {
+    const file = await readFileAt(filePath);
+    if (file.tokens.length >= MAX_TOKENS) {
+      throw httpFail(
+        400,
+        `This workspace already has ${MAX_TOKENS} tokens. Revoked tokens still count until you delete them.`,
+        "invalid",
+      );
+    }
+    const secret = randomBytes(TOKEN_BYTES).toString("base64url");
+    const token = `ng_${secret}`;
+    const id = randomBytes(9).toString("hex");
+    const stored: StoredToken = {
+      id,
+      name,
+      prefix: token.slice(0, 11),
+      scope,
+      hash: hashToken(token).toString("hex"),
+      createdAt: new Date().toISOString(),
+      lastUsedAt: null,
+      revokedAt: null,
+    };
+    file.tokens.push(stored);
+    await writeFileAt(filePath, file);
+    return { token, tokenMeta: toPublic(stored) };
+  });
 }
 
 export async function revokeToken(id: string): Promise<PublicToken> {
   if (!/^[a-f0-9]{18}$/.test(id)) throw httpFail(400, "Invalid id", "invalid");
-  const file = await readFile();
-  const token = file.tokens.find((item) => item.id === id);
-  if (!token) throw httpFail(404, "Token not found", "not_found");
-  if (!token.revokedAt) {
-    token.revokedAt = new Date().toISOString();
-    await writeFile(file);
-  }
-  return toPublic(token);
+  const filePath = tokenFilePath();
+  return enqueueTokenFile(filePath, async () => {
+    const file = await readFileAt(filePath);
+    const token = file.tokens.find((item) => item.id === id);
+    if (!token) throw httpFail(404, "Token not found", "not_found");
+    if (!token.revokedAt) {
+      token.revokedAt = new Date().toISOString();
+      await writeFileAt(filePath, file);
+    }
+    return toPublic(token);
+  });
 }
 
 /**
@@ -167,27 +199,33 @@ export async function revokeToken(id: string): Promise<PublicToken> {
  */
 export async function deleteRevokedToken(id: string): Promise<{ deleted: true; id: string }> {
   if (!/^[a-f0-9]{18}$/.test(id)) throw httpFail(400, "Invalid id", "invalid");
-  const file = await readFile();
-  const token = file.tokens.find((item) => item.id === id);
-  if (!token) throw httpFail(404, "Token not found", "not_found");
-  if (!token.revokedAt) {
-    throw httpFail(409, "Revoke the token before deleting it.", "not_revoked");
-  }
-  file.tokens = file.tokens.filter((item) => item.id !== id);
-  await writeFile(file);
-  return { deleted: true, id };
+  const filePath = tokenFilePath();
+  return enqueueTokenFile(filePath, async () => {
+    const file = await readFileAt(filePath);
+    const token = file.tokens.find((item) => item.id === id);
+    if (!token) throw httpFail(404, "Token not found", "not_found");
+    if (!token.revokedAt) {
+      throw httpFail(409, "Revoke the token before deleting it.", "not_revoked");
+    }
+    file.tokens = file.tokens.filter((item) => item.id !== id);
+    await writeFileAt(filePath, file);
+    return { deleted: true, id };
+  });
 }
 
 /** Remove every revoked token. Active tokens stay, and none are reactivated. */
 export async function clearRevokedTokens(): Promise<{ deleted: number }> {
-  const file = await readFile();
-  const kept = file.tokens.filter((item) => !item.revokedAt);
-  const deleted = file.tokens.length - kept.length;
-  if (deleted > 0) {
-    file.tokens = kept;
-    await writeFile(file);
-  }
-  return { deleted };
+  const filePath = tokenFilePath();
+  return enqueueTokenFile(filePath, async () => {
+    const file = await readFileAt(filePath);
+    const kept = file.tokens.filter((item) => !item.revokedAt);
+    const deleted = file.tokens.length - kept.length;
+    if (deleted > 0) {
+      file.tokens = kept;
+      await writeFileAt(filePath, file);
+    }
+    return { deleted };
+  });
 }
 
 export type AuthenticatedToken = PublicToken;
@@ -199,17 +237,20 @@ export type AuthenticatedToken = PublicToken;
  */
 export async function authenticateToken(presented: string): Promise<AuthenticatedToken | null> {
   const actual = hashToken(presented);
-  const file = await readFile();
-  let matched: StoredToken | null = null;
-  hashesEqual(actual, DUMMY_HASH);
-  for (const token of file.tokens) {
-    const expected = Buffer.from(token.hash, "hex");
-    if (expected.length === actual.length && timingSafeEqual(actual, expected)) matched = token;
-  }
-  if (!matched || matched.revokedAt) return null;
-  matched.lastUsedAt = new Date().toISOString();
-  await writeFile(file);
-  return toPublic(matched);
+  const filePath = tokenFilePath();
+  return enqueueTokenFile(filePath, async () => {
+    const file = await readFileAt(filePath);
+    let matched: StoredToken | null = null;
+    hashesEqual(actual, DUMMY_HASH);
+    for (const token of file.tokens) {
+      const expected = Buffer.from(token.hash, "hex");
+      if (expected.length === actual.length && timingSafeEqual(actual, expected)) matched = token;
+    }
+    if (!matched || matched.revokedAt) return null;
+    matched.lastUsedAt = new Date().toISOString();
+    await writeFileAt(filePath, file);
+    return toPublic(matched);
+  });
 }
 
 export function bearerValue(header: string | undefined): string | null {
