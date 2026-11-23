@@ -32,4 +32,22 @@ describe("sample seed", () => {
     expect(await seedEmptyDataDir()).toBe(false);
     expect(await fs.readFile(welcome, "utf8")).toContain("Edited");
   });
+
+  it("still seeds when the only entry is an empty .meta from the startup probe", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    await fs.mkdir(path.join(temp.dir, ".meta"), { recursive: true });
+    await fs.writeFile(path.join(temp.dir, ".meta", ".ng-1-abcd.tmp"), "probe");
+    expect(await seedEmptyDataDir()).toBe(true);
+    expect(await fs.readFile(path.join(temp.dir, "Welcome.mmd"), "utf8")).toBeTruthy();
+  });
+
+  it("does not seed when .meta already has saved state", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    await fs.mkdir(path.join(temp.dir, ".meta"), { recursive: true });
+    await fs.writeFile(path.join(temp.dir, ".meta", "updates.json"), "{}\n");
+    expect(await seedEmptyDataDir()).toBe(false);
+    await expect(fs.access(path.join(temp.dir, "Welcome.mmd"))).rejects.toThrow();
+  });
 });

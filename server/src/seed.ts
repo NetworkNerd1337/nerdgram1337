@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { ensureDataRoot, REPO_ROOT } from "./paths.js";
+import { ensureDataRoot, META_DIR_NAME, REPO_ROOT } from "./paths.js";
 
 /**
  * Every `.mmd` file under `diagrams/`, including subfolders.
@@ -32,8 +32,10 @@ async function walkMmd(dir: string, prefix: string): Promise<string[]> {
 
 /**
  * Copy the sample diagrams into an empty data directory.
- * A directory that already has anything in it is left alone, so a later start
- * does not put the samples back over diagrams the user deleted.
+ * A directory that already has a diagram, a folder, or saved app state is left
+ * alone, so a later start does not put the samples back over diagrams the user
+ * deleted. `.meta` created by the startup probe, with no saved state in it, does
+ * not count. That probe runs before seeding.
  * Returns true when it copied the samples.
  */
 export async function seedEmptyDataDir(): Promise<boolean> {
@@ -47,7 +49,9 @@ export async function seedEmptyDataDir(): Promise<boolean> {
   } catch (err) {
     throw permissionError(data, err);
   }
-  if (entries.length > 0) return false;
+  const others = entries.filter((name) => name !== META_DIR_NAME);
+  if (others.length > 0) return false;
+  if (entries.includes(META_DIR_NAME) && (await metaHasSavedState(path.join(data, META_DIR_NAME)))) return false;
 
   let copied = 0;
   for (const relative of await bundledSampleFiles(samples)) {
@@ -67,6 +71,19 @@ export async function seedEmptyDataDir(): Promise<boolean> {
     copied += 1;
   }
   return copied > 0;
+}
+
+/** True when `.meta` holds something besides a leftover probe temp file. */
+async function metaHasSavedState(meta: string): Promise<boolean> {
+  let entries: string[];
+  try {
+    entries = await fs.readdir(meta);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") return false;
+    throw err;
+  }
+  return entries.some((name) => !(name.startsWith(".ng-") && name.endsWith(".tmp")));
 }
 
 function permissionError(data: string, err: unknown): unknown {

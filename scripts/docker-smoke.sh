@@ -78,6 +78,29 @@ code_of() {
   curl -s -o /dev/null -w '%{http_code}' "$@"
 }
 
+# Like http, but a failed status prints the URL and the response body.
+http() {
+  local out code
+  out="$(mktemp)"
+  if ! code="$(curl -sS -o "$out" -w '%{http_code}' "$@")"; then
+    echo "request failed: curl $*" >&2
+    echo "response body:" >&2
+    cat "$out" >&2 || true
+    rm -f "$out"
+    exit 22
+  fi
+  if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+    echo "request failed: HTTP ${code}" >&2
+    echo "curl $*" >&2
+    echo "response body:" >&2
+    cat "$out" >&2 || true
+    rm -f "$out"
+    exit 22
+  fi
+  cat "$out"
+  rm -f "$out"
+}
+
 unset NERDGRAM_GITHUB_TOKEN NERDGRAM_GITHUB_CLIENT_ID || true
 docker compose config --quiet
 echo "compose config ok"
@@ -89,7 +112,7 @@ if ! wait_http; then
 fi
 wait_docker_health "$NAME"
 
-HEALTH="$(curl -fsS "http://127.0.0.1:${PORT}/api/health" -H "Host: 127.0.0.1:${PORT}")"
+HEALTH="$(http "http://127.0.0.1:${PORT}/api/health" -H "Host: 127.0.0.1:${PORT}")"
 export HEALTH
 node --input-type=module -e '
 import { readFileSync } from "node:fs";
@@ -112,16 +135,16 @@ test "$LABEL_VERSION" = "$(node -p "require('./package.json').version")"
 test "$LABEL_NAME" = "$(node scripts/codenames.mjs)"
 test "$ENV_NAME" = "$LABEL_NAME"
 
-curl -fsS "http://127.0.0.1:${PORT}/api/health" -H "Host: localhost:${PORT}" >/dev/null
-curl -fsS "http://localhost:${PORT}/api/health" >/dev/null
+http "http://127.0.0.1:${PORT}/api/health" -H "Host: localhost:${PORT}" >/dev/null
+http "http://localhost:${PORT}/api/health" >/dev/null
 test "$(code_of "http://127.0.0.1:${PORT}/api/health" -H "Host: evil.example")" = "403"
 test "$(code_of "http://127.0.0.1:${PORT}/api/health" -H "Host: lan.example:${PORT}")" = "200"
 
-REF="$(curl -fsS "http://127.0.0.1:${PORT}/api/reference" -H "Host: 127.0.0.1:${PORT}")"
+REF="$(http "http://127.0.0.1:${PORT}/api/reference" -H "Host: 127.0.0.1:${PORT}")"
 node -e 'const b=JSON.parse(process.argv[1]); if (!Array.isArray(b.pages) || b.pages.length < 1) process.exit(1)' "$REF"
-TPL="$(curl -fsS "http://127.0.0.1:${PORT}/api/templates" -H "Host: 127.0.0.1:${PORT}")"
+TPL="$(http "http://127.0.0.1:${PORT}/api/templates" -H "Host: 127.0.0.1:${PORT}")"
 node -e 'const b=JSON.parse(process.argv[1]); if (!Array.isArray(b.templates) || b.templates.length < 1) process.exit(1)' "$TPL"
-WELCOME="$(curl -fsS "http://127.0.0.1:${PORT}/api/file?path=Welcome.mmd" -H "Host: 127.0.0.1:${PORT}")"
+WELCOME="$(http "http://127.0.0.1:${PORT}/api/file?path=Welcome.mmd" -H "Host: 127.0.0.1:${PORT}")"
 node -e 'const b=JSON.parse(process.argv[1]); if (typeof b.content !== "string" || b.content.length < 1) process.exit(1)' "$WELCOME"
 
 echo "every bundled sample is in the image and was seeded"
@@ -131,40 +154,40 @@ while IFS= read -r rel; do
   docker exec "$NAME" test -f "/data/$rel"
 done < <(find diagrams -name '*.mmd' -printf '%P\n' | sort)
 
-TOKEN_JSON="$(curl -fsS -X POST "http://127.0.0.1:${PORT}/api/tokens" \
+TOKEN_JSON="$(http -X POST "http://127.0.0.1:${PORT}/api/tokens" \
   -H "Host: 127.0.0.1:${PORT}" \
   -H "Origin: http://127.0.0.1:${PORT}" \
   -H "Content-Type: application/json" \
   -d '{"name":"smoke","scope":"read-write"}')"
 SMOKE_TOKEN="$(node -e 'const b=JSON.parse(process.argv[1]); if (!b.token || !b.token.startsWith("ng_")) process.exit(1); process.stdout.write(b.token)' "$TOKEN_JSON")"
 test "$(code_of "http://127.0.0.1:${PORT}/api/v1/diagrams" -H "Host: 127.0.0.1:${PORT}")" = "401"
-curl -fsS "http://127.0.0.1:${PORT}/api/v1/openapi.json" -H "Host: 127.0.0.1:${PORT}" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const b=JSON.parse(s); if (b.openapi !== "3.0.3" || !b.paths["/api/v1/diagrams"]) process.exit(1)})'
-curl -fsS -X POST "http://127.0.0.1:${PORT}/api/v1/render" \
+http "http://127.0.0.1:${PORT}/api/v1/openapi.json" -H "Host: 127.0.0.1:${PORT}" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const b=JSON.parse(s); if (b.openapi !== "3.0.3" || !b.paths["/api/v1/diagrams"]) process.exit(1)})'
+http -X POST "http://127.0.0.1:${PORT}/api/v1/render" \
   -H "Host: 127.0.0.1:${PORT}" \
   -H "Authorization: Bearer ${SMOKE_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"path":"Welcome.mmd","format":"svg"}' \
-  -o /tmp/nerdgram-smoke.svg
+  >/tmp/nerdgram-smoke.svg
 grep -q "<svg" /tmp/nerdgram-smoke.svg
-curl -fsS -X POST "http://127.0.0.1:${PORT}/api/v1/render" \
+http -X POST "http://127.0.0.1:${PORT}/api/v1/render" \
   -H "Host: 127.0.0.1:${PORT}" \
   -H "Authorization: Bearer ${SMOKE_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"path":"Welcome.mmd","format":"png"}' \
-  -o /tmp/nerdgram-smoke.png
+  >/tmp/nerdgram-smoke.png
 node -e 'const fs=require("fs"); const b=fs.readFileSync("/tmp/nerdgram-smoke.png"); if (b.subarray(0,8).toString("hex")!=="89504e470d0a1a0a") process.exit(1)'
 docker exec -e NERDGRAM_URL=http://127.0.0.1:8787 -e NERDGRAM_TOKEN="$SMOKE_TOKEN" "$NAME" nerdgram list --json \
   | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const b=JSON.parse(s); if (b.ok!==true || !Array.isArray(b.files)) process.exit(1)})'
 docker exec "$NAME" nerdgram --help | grep -q "nerdgram"
 
-CREATE="$(curl -fsS -X PUT "http://127.0.0.1:${PORT}/api/file" \
+CREATE="$(http -X PUT "http://127.0.0.1:${PORT}/api/file" \
   -H "Host: 127.0.0.1:${PORT}" \
   -H "Origin: http://127.0.0.1:${PORT}" \
   -H "Content-Type: application/json" \
   -d '{"path":"Smoke.mmd","content":"flowchart LR\n  Smoke[Persist me]\n"}')"
 node -e 'const b=JSON.parse(process.argv[1]); if (b.path !== "Smoke.mmd") process.exit(1)' "$CREATE"
 
-curl -fsS -X PUT "http://127.0.0.1:${PORT}/api/file" \
+http -X PUT "http://127.0.0.1:${PORT}/api/file" \
   -H "Host: localhost:${PORT}" \
   -H "Origin: http://localhost:${PORT}" \
   -H "Content-Type: application/json" \
@@ -211,7 +234,7 @@ if ! wait_http; then
   docker logs "$NAME" >&2 || true
   exit 1
 fi
-AFTER="$(curl -fsS "http://127.0.0.1:${PORT}/api/file?path=Smoke.mmd" -H "Host: 127.0.0.1:${PORT}")"
+AFTER="$(http "http://127.0.0.1:${PORT}/api/file?path=Smoke.mmd" -H "Host: 127.0.0.1:${PORT}")"
 node -e 'const b=JSON.parse(process.argv[1]); if (!String(b.content).includes("Persist me")) process.exit(1)' "$AFTER"
 test "$(docker exec "$NAME" stat -c %a /data/.meta/github-token)" = "600"
 docker exec "$NAME" cat /data/.nerdgram-git/SMOKE | grep -q mirror
@@ -255,7 +278,7 @@ if ! wait_http; then
   docker logs "$BIND_NAME" >&2 || true
   exit 1
 fi
-curl -fsS -X PUT "http://127.0.0.1:${PORT}/api/file" \
+http -X PUT "http://127.0.0.1:${PORT}/api/file" \
   -H "Host: 127.0.0.1:${PORT}" \
   -H "Origin: http://127.0.0.1:${PORT}" \
   -H "Content-Type: application/json" \
