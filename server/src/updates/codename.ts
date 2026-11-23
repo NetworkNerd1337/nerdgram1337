@@ -10,7 +10,7 @@ import { parseSemver } from "./semver.js";
 export const CODENAME_RE = /^[A-Z][A-Za-z0-9]{1,31}$/;
 
 const TITLE_RE =
-  /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\s+"([A-Z][A-Za-z0-9]{1,31})"$/;
+  /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\s+"([A-Z][A-Za-z0-9]{1,31})"|\s+([A-Z][A-Za-z0-9]{1,31}))$/;
 
 /** `"1.5"`, `"1.6"`, or a later patch such as `"2.1.5"`. */
 const MILESTONE_KEY = /^[1-9]\d*\.(0|[1-9]\d*)(?:\.(?:[1-9]\d*))?$/;
@@ -74,8 +74,8 @@ export function codenameForVersion(version: string, map: CodenameMap = readCoden
 
 /**
  * A release title may supply a code name only when the map has no entry for
- * that version, and only when the title is exactly `vX.Y.Z "Name"` for the
- * same version the tag already parsed.
+ * that version, and only when the title is exactly `vX.Y.Z Name` or the older
+ * `vX.Y.Z "Name"` for the same version the tag already parsed.
  */
 export function codenameFromReleaseTitle(version: string, title: string): string | null {
   const parsed = parseSemver(version);
@@ -85,7 +85,7 @@ export function codenameFromReleaseTitle(version: string, title: string): string
   if (Number(match[1]) !== parsed.major || Number(match[2]) !== parsed.minor || Number(match[3]) !== parsed.patch) {
     return null;
   }
-  return match[4] ?? null;
+  return match[4] ?? match[5] ?? null;
 }
 
 export function releaseCodename(
@@ -99,10 +99,10 @@ export function releaseCodename(
   return codenameFromReleaseTitle(version, title);
 }
 
-/** `v2.1.5 "Azimuth"`, or `v2.1.5` when this version has no code name. */
+/** `v2.1.11 Azimuth`, or `v2.1.11` when this version has no code name. */
 export function formatVersionLabel(version: string, codename: string | null | undefined): string {
   const trimmed = version.trim();
   const base = trimmed.startsWith("v") ? trimmed : `v${trimmed}`;
   if (!codename || !CODENAME_RE.test(codename)) return base;
-  return `${base} "${codename}"`;
+  return `${base} ${codename}`;
 }

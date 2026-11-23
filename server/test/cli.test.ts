@@ -88,7 +88,7 @@ describe("nerdgram CLI", () => {
 
     const version = await runCli(["--version"]);
     expect(version.code).toBe(0);
-    expect(version.stdout.trim()).toMatch(/^nerdgram \d+\.\d+\.\d+$/);
+    expect(version.stdout.trim()).toMatch(/^nerdgram v\d+\.\d+\.\d+ Azimuth$/);
     expect(version.stderr).toBe("");
 
     const refreshView = await runCli(["refresh", "Campus.mmd", "--view", "l2"]);

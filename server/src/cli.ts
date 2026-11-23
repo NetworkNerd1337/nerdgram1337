@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RenderFormat } from "./renderDiagram.js";
+import { codenameForVersion, formatVersionLabel, sanitizeCodenames } from "./updates/codename.js";
 
 /**
  * `nerdgram` talks to a local NerdGram server, except `render` and `lint`
@@ -91,7 +92,7 @@ path on the API, not a file on this computer. Exit status is 1 on errors.
 
 Flags
   --help          Print this help and exit.
-  --version       Print the nerdgram version and exit.
+  --version       Print the nerdgram version and code name, then exit.
   --url <url>     Server URL. Overrides NERDGRAM_URL.
   --token <token> Automation token. Overrides NERDGRAM_TOKEN.
   --json          Print one JSON object and nothing else. Success is
@@ -897,15 +898,21 @@ async function baselineCommand(parsed: Parsed, io: Io): Promise<void> {
 function cliVersion(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [path.resolve(here, "../package.json"), path.resolve(here, "../../package.json")];
+  let version = "0.0.0";
+  let codename: string | null = null;
   for (const file of candidates) {
     try {
-      const parsed = JSON.parse(readFileSync(file, "utf8")) as { version?: unknown };
-      if (typeof parsed.version === "string" && /^\d+\.\d+\.\d+$/.test(parsed.version)) return parsed.version;
+      const parsed = JSON.parse(readFileSync(file, "utf8")) as { version?: unknown; codenames?: unknown };
+      if (version === "0.0.0" && typeof parsed.version === "string" && /^\d+\.\d+\.\d+$/.test(parsed.version)) {
+        version = parsed.version;
+      }
+      const names = sanitizeCodenames(parsed.codenames);
+      if (Object.keys(names).length > 0) codename = codenameForVersion(version, names);
     } catch {
       // The next candidate is the repo root, or this is a packed install.
     }
   }
-  return "0.0.0";
+  return formatVersionLabel(version, codename);
 }
 
 function skipLabel(reason: string): string {

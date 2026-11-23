@@ -1,4 +1,4 @@
-/** Same shape as the server label: `v2.1.5 "Azimuth"`. */
+/** Same shape as the server label: `v2.1.11 Azimuth`. */
 const CODENAME_RE = /^[A-Z][A-Za-z0-9]{1,31}$/;
 
 export function knownCodeName(codename: string | null | undefined): string | null {
@@ -11,5 +11,5 @@ export function formatVersionLabel(version: string, codename: string | null | un
   const base = trimmed.startsWith("v") ? trimmed : `v${trimmed}`;
   const name = knownCodeName(codename);
   if (!name) return base;
-  return `${base} "${name}"`;
+  return `${base} ${name}`;
 }

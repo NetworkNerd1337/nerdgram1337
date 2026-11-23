@@ -285,11 +285,11 @@ Leave the terminal open. A successful start looks like this (the Vite version, t
 [server] NerdGram1337 API listening on http://127.0.0.1:8787
 [server] NerdGram1337 API listening on http://[::1]:8787
 [server] Data directory: /home/you/Projects/NerdGram1337/diagrams
-[server] Install: git X.Y.Z <commit>
+[server] Install: git vX.Y.Z Code name <commit>
 [server] Server module dir: /home/you/Projects/NerdGram1337/server/src
 ```
 
-`X.Y.Z` is the root `package.json` version. On a ZIP copy, `Install:` says `zip`. If the log says it could not listen on `::1`, open [http://127.0.0.1:8787/api/health](http://127.0.0.1:8787/api/health) for the API. Day to day, use the UI URL. Vite forwards `/api` for you.
+`vX.Y.Z Code name` is the root `package.json` version and its code name. On a ZIP copy, `Install:` says `zip`. If the log says it could not listen on `::1`, open [http://127.0.0.1:8787/api/health](http://127.0.0.1:8787/api/health) for the API. Day to day, use the UI URL. Vite forwards `/api` for you.
 
 The health check returns JSON with `"ok": true`, `dataDir`, `version`, `commit`, and `installKind`.
 

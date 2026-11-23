@@ -10,6 +10,7 @@ import { ensureDataRoot } from "./paths.js";
 import { captureDiagramSightings } from "./fsStore.js";
 import { seedEmptyDataDir } from "./seed.js";
 import { closeRenderer } from "./renderDiagram.js";
+import { formatVersionLabel } from "./updates/codename.js";
 import { getVersionInfo } from "./updates/versionInfo.js";
 import {
   formatListenHostLog,
@@ -190,7 +191,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
   console.log(`Data directory: ${ensureDataRoot()}`);
   const version = getVersionInfo();
   console.log(
-    `Install: ${version.installKind} ${version.version}${version.codename ? ` "${version.codename}"` : ""}${version.commit ? ` ${version.commit}` : ""}`,
+    `Install: ${version.installKind} ${formatVersionLabel(version.version, version.codename)}${version.commit ? ` ${version.commit}` : ""}`,
   );
   console.log(`Server module dir: ${__dirname}`);
 

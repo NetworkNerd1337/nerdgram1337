@@ -38,7 +38,7 @@ describe("changelog notes", () => {
   it("prints the Azimuth title and the 2.1.11 section without the heading", () => {
     const title = notes(["--title", "v2.1.11"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe('v2.1.11 "Azimuth"\n');
+    expect(title.stdout).toBe("v2.1.11 Azimuth\n");
     const body = notes(["v2.1.11"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Azimuth line.")).toBe(true);
@@ -72,11 +72,11 @@ describe("changelog notes", () => {
       "Meridian body.",
       "",
     ].join("\n");
-    expect(notes(["--title", "v1.4.8"], changelog).stdout).toBe('v1.4.8 "Atlas"\n');
-    expect(notes(["--title", "v1.5.0"], changelog).stdout).toBe('v1.5.0 "Compass"\n');
-    expect(notes(["--title", "v1.6.1"], changelog).stdout).toBe('v1.6.1 "Galileo"\n');
-    expect(notes(["--title", "v1.7.5"], changelog).stdout).toBe('v1.7.5 "Navigator"\n');
-    expect(notes(["--title", "v1.8.5"], changelog).stdout).toBe('v1.8.5 "Meridian"\n');
+    expect(notes(["--title", "v1.4.8"], changelog).stdout).toBe("v1.4.8 Atlas\n");
+    expect(notes(["--title", "v1.5.0"], changelog).stdout).toBe("v1.5.0 Compass\n");
+    expect(notes(["--title", "v1.6.1"], changelog).stdout).toBe("v1.6.1 Galileo\n");
+    expect(notes(["--title", "v1.7.5"], changelog).stdout).toBe("v1.7.5 Navigator\n");
+    expect(notes(["--title", "v1.8.5"], changelog).stdout).toBe("v1.8.5 Meridian\n");
     expect(notes(["v1.4.8"], changelog).stdout).toBe("Atlas body.\n");
     expect(notes(["v1.8.5"], changelog).stdout).toBe("Meridian body.\n");
     const unnamed = notes(["--title", "v1.9.3"], changelog);
@@ -101,10 +101,10 @@ describe("changelog notes", () => {
   it("titles 1.8 Meridian and refuses an unmapped 2.0", () => {
     const meridian = notes(["--title", "v1.8.0"], '## 1.8.0 "Meridian" - 2026-12-01\n\nNext line.\n');
     expect(meridian.code).toBe(0);
-    expect(meridian.stdout).toBe('v1.8.0 "Meridian"\n');
+    expect(meridian.stdout).toBe("v1.8.0 Meridian\n");
     const still = notes(["--title", "v1.8.5"], '## 1.8.5 "Meridian" - 2026-12-01\n\nStill that minor.\n');
     expect(still.code).toBe(0);
-    expect(still.stdout).toBe('v1.8.5 "Meridian"\n');
+    expect(still.stdout).toBe("v1.8.5 Meridian\n");
     const unmapped = notes(["--title", "v2.2.0"], "## 2.2.0 - 2026-12-01\n\nNext line.\n");
     expect(unmapped.code).toBe(2);
     expect(unmapped.stderr).toMatch(/no entry/);

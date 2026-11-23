@@ -39,7 +39,7 @@ Which number moves:
 - **Minor (`Y`).** A larger change on the same major line. The second number increases and the third goes back to 0. The code name changes when that minor has its own entry in the map.
 - **Major (`X`).** A new line. It starts at minor 0. 2.0 is not named. 2.1.0 through 2.1.4 are Zenith. 2.1.5 is Azimuth.
 
-The running app shows the version and the code name together. A 1.0.y through 1.4.y build is Atlas. A 1.5.y build is Compass. A 1.6.y build is Galileo. A 1.7.y build is Navigator. A 1.8.y build is Meridian. A 2.1.0 through 2.1.4 build is Zenith. A 2.1.5 or later 2.1 patch is Azimuth. 2.0.y is not named. The `codenames` map in the root `package.json` is the source of truth (`"1.0"` is Atlas, `"1.5"` is Compass, `"1.6"` is Galileo, `"1.7"` is Navigator, `"1.8"` is Meridian, `"2.1"` is Zenith, `"2.1.5"` is Azimuth). The key is the major and the minor where the name starts, or a later patch when the name changes inside that minor. A release whose minor has no entry fails `npm run version:check`. 1.9 and 2.0 have no entry. A later 2.y has no entry until it is added. The GitHub Release title for a tag is `vX.Y.Z "Code name"`.
+The running app shows the version and the code name together. A 1.0.y through 1.4.y build is Atlas. A 1.5.y build is Compass. A 1.6.y build is Galileo. A 1.7.y build is Navigator. A 1.8.y build is Meridian. A 2.1.0 through 2.1.4 build is Zenith. A 2.1.5 or later 2.1 patch is Azimuth. 2.0.y is not named. The `codenames` map in the root `package.json` is the source of truth (`"1.0"` is Atlas, `"1.5"` is Compass, `"1.6"` is Galileo, `"1.7"` is Navigator, `"1.8"` is Meridian, `"2.1"` is Zenith, `"2.1.5"` is Azimuth). The key is the major and the minor where the name starts, or a later patch when the name changes inside that minor. A release whose minor has no entry fails `npm run version:check`. 1.9 and 2.0 have no entry. A later 2.y has no entry until it is added. The GitHub Release title for a tag is `vX.Y.Z Code name`.
 
 ## Supported versions
 
@@ -47,7 +47,7 @@ Security fixes land in the latest release. A copy on 1.7.5 or later is supported
 
 ## Where the version is shown
 
-- **About** is in the top-right header, next to **Support**. Its tooltip is the version with its code name, written `v2.1.11 "Azimuth"`. The sidebar does not have an About row. On a narrow dashboard, About and Support stay in a bar above the sidebar.
+- **About** is in the top-right header, next to **Support**. Its tooltip is the version with its code name, written `v2.1.11 Azimuth`. The sidebar does not have an About row. On a narrow dashboard, About and Support stay in a bar above the sidebar.
 - **About NerdGram1337** in the command palette opens the same panel: that same version line, commit when there is one, and the install kind (git clone, Docker, ZIP, or unknown). It also links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi in a new tab and is hidden during presentation.
 - `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`.
 - `GET /api/health` returns those fields plus `"ok": true` and `dataDir`.
@@ -106,13 +106,13 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-6. [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes the GitHub Release when that tag is pushed. The title is `vX.Y.Z "Code name"`. The body is the changelog section. `node scripts/changelog-notes.mjs --title vX.Y.Z` prints the title. `node scripts/changelog-notes.mjs vX.Y.Z` prints the body.
+6. [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes the GitHub Release when that tag is pushed. The title is `vX.Y.Z Code name`. The body is the changelog section. `node scripts/changelog-notes.mjs --title vX.Y.Z` prints the title. `node scripts/changelog-notes.mjs vX.Y.Z` prints the body.
 7. [`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) pushes `ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z`, `:latest`, and a `sha-<commit>` tag for `linux/amd64` and `linux/arm64`. It runs only for that tag. Pull requests do not push. The image is labeled with `org.opencontainers.image.version` and `org.opencontainers.image.codename`. The workflow then tries to mark the GHCR package public. If that call fails, the job warns and stays green. Set **Public** once in the [package settings](https://github.com/users/NetworkNerd1337/packages/container/nerdgram1337/settings) if the package is still private. Anonymous pulls already work once it is public.
 8. [`.github/workflows/release.yml`](../.github/workflows/release.yml) also publishes the npm package `nerdgram1337` from `cli/`. The tag has to match `cli/package.json`. The job refuses to publish when it does not. It uses the `NPM_TOKEN` repository secret and `npm publish --provenance`. Provenance needs the workflow's `id-token: write` permission, which that job sets. If `NPM_TOKEN` is not set, the job prints a warning and does not fail the GitHub Release. Create the secret from an npm token that can publish `nerdgram1337` for the npm user `networknerd1337`. The package is public (`publishConfig.access` is `public`). Pull requests do not publish.
 
 After the tag is pushed, check the release and the image:
 
-- The GitHub Release title is `vX.Y.Z "Code name"`, and the body is that version's section of `CHANGELOG.md`, with no extra "What's Changed" list appended.
+- The GitHub Release title is `vX.Y.Z Code name`, and the body is that version's section of `CHANGELOG.md`, with no extra "What's Changed" list appended.
 - `GET /api/version` on a build of that tag returns the same `version` and `codename`.
 - `docker pull ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` succeeds. If the package is private, set it to **Public** once and pull again.
 - `docker image inspect ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` shows `org.opencontainers.image.version` and `org.opencontainers.image.codename` for that release. A new container's `/api/health` returns the same version and code name, and an empty volume has `/data/Welcome.mmd`.

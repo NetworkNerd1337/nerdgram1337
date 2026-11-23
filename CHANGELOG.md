@@ -1,6 +1,6 @@
 # Changelog
 
-Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code name" - YYYY-MM-DD`. It has to match the root `package.json` version. `npm run version:check` requires the quoted code name to match the `codenames` map. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date. The `vX.Y.Z` tag is the version the update check reads. The GitHub Release title is `vX.Y.Z "Code name"`, from that tag and the map.
+Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code name" - YYYY-MM-DD`. It has to match the root `package.json` version. `npm run version:check` requires the quoted code name to match the `codenames` map. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date. The `vX.Y.Z` tag is the version the update check reads. The GitHub Release title is `vX.Y.Z Code name`, from that tag and the map.
 
 `## Unreleased` is everything that is not in a numbered release yet. When that list is empty, the section is `_No unreleased items._`, so the heading does not look like it belongs to the release below. That line is not a release note. `npm run version:sync` moves real Unreleased notes under the new version heading when that heading is not there yet, then puts `_No unreleased items._` back.
 
@@ -8,6 +8,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 - **Changed:** Diagram health in the sidebar shows a count only when there is at least one issue. A check that has not run, or that found nothing, leaves the link as Diagram health. The accessible name is Diagram health, or Diagram health, N issues (#281).
 - **Fixed:** The published CLI depends on zod ^4.6.6, and its Puppeteer range matches the server so the install does not also pull zod 3. zod before 4.6.6 can accumulate validation issues without a bound (GHSA-mrhx-c7xc-m3w5, #279).
+- **Changed:** Version labels show the code name without quotes, as in v2.1.11 Azimuth. That includes About, the upgrade panel, toasts, `nerdgram --version`, the startup log, and the generated GitHub release title. An up-to-date install says it is running that version, the latest release. A newer release is named on its own. The dialog does not say up to date twice (#283).
 
 ## 2.1.11 "Azimuth" - 2026-11-22
 

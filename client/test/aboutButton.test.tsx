@@ -58,7 +58,7 @@ describe("About button", () => {
     expect(button?.getAttribute("aria-label")).toBe("About NerdGram1337");
     expect(button?.getAttribute("type")).toBe("button");
     expect(button?.getAttribute("title")).toBe(formatVersionLabel("2.1.5", "Azimuth"));
-    expect(button?.getAttribute("title")).toBe('v2.1.5 "Azimuth"');
+    expect(button?.getAttribute("title")).toBe("v2.1.5 Azimuth");
     expect(button?.textContent).toContain("About");
     act(() => button?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     act(() => button?.click());

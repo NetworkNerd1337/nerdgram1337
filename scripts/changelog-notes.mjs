@@ -131,7 +131,7 @@ export function cutChangelogRelease(markdown, release) {
  * @param {string} codename
  */
 export function releaseTitle(version, codename) {
-  return `v${version} "${codename}"`;
+  return `v${version} ${codename}`;
 }
 
 /**
