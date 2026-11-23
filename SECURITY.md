@@ -4,14 +4,12 @@ NerdGram handles API tokens, GitHub sync credentials, and network inventory on y
 
 ## Supported versions
 
-Security fixes land in the latest release. Users on 1.7.5 or later are supported and should upgrade to the latest 2.1.x to get those fixes. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Versions 1.7.4 and older are deprecated on npm, and their container images are removed from GHCR. Their GitHub releases and tags stay for history. The version list is [Versioning and releases](docs/releases.md). How Actions and npm publishing are pinned is in [Repository supply chain](docs/security.md#repository-supply-chain).
+Security fixes land only in the latest release. That release is 2.1.13. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Every npm version before 2.1.13 is deprecated, and every container image older than `v2.1.13` is removed from GHCR. `v2.1.13` and `:latest` stay. GitHub releases and tags stay for history. The version list is [Versioning and releases](docs/releases.md). How Actions and npm publishing are pinned is in [Repository supply chain](docs/security.md#repository-supply-chain).
 
 | Version | Supported |
 | --- | --- |
-| 2.1.x | Yes |
-| 1.8.x | Yes |
-| 1.7.5 | Yes |
-| 1.7.4 and older | No (deprecated) |
+| 2.1.13 (latest) | Yes |
+| Everything before 2.1.13 | No (deprecated) |
 
 ## How to report
 

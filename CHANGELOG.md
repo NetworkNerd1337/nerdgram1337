@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Docs:** Support policy. Only 2.1.13, the latest release, is supported. Every npm version before 2.1.13 is deprecated, and container images older than v2.1.13 are removed from GHCR. `v2.1.13` and `:latest` stay. GitHub releases and tags stay. Security fixes land only in the latest release. Upgrade with `npm i -g nerdgram1337@latest` or pull `ghcr.io/networknerd1337/nerdgram1337:latest`.
 
 ## 2.1.13 "Azimuth" - 2026-11-23
 

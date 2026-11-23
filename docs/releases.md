@@ -15,7 +15,7 @@ Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffi
 
 Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. `X` is the major line, `Y` is the maintenance line, and `Z` is the patch. The root `package.json` `version` is the version of the tree you have. A GitHub Release and its git tag use the same numbers with a leading `v`.
 
-This tree is v2.1.13, code name Azimuth. v1.0.5 was the first release, code name Atlas, and v1.0.6 was the patch after it. Each published tag has a GitHub Release and a container image. Both are listed on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). The image for this tree is `ghcr.io/networknerd1337/nerdgram1337:v2.1.13` once the `v2.1.13` tag is pushed.
+This tree is v2.1.13, code name Azimuth. v1.0.5 was the first release, code name Atlas, and v1.0.6 was the patch after it. Each published tag has a GitHub Release, listed on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). GHCR keeps `v2.1.13` and `:latest`. An image tag older than `v2.1.13` is removed. The image for this tree is `ghcr.io/networknerd1337/nerdgram1337:v2.1.13`.
 
 ## Version numbers and code names
 
@@ -43,7 +43,7 @@ The running app shows the version and the code name together. A 1.0.y through 1.
 
 ## Supported versions
 
-Security fixes land in the latest release. A copy on 1.7.5 or later is supported. Upgrade it to the latest 2.1.x to get those fixes. 1.7.4 and older are deprecated. Those versions are deprecated on npm, and their container images are removed from GHCR. The GitHub releases and tags stay for history. The table is in the [security policy](../SECURITY.md#supported-versions).
+Security fixes land only in the latest release. That release is 2.1.13. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. Every version before 2.1.13 is deprecated on npm, and every container image older than `v2.1.13` is removed from GHCR. `v2.1.13` and `:latest` stay. GitHub releases and tags stay for history. The table is in the [security policy](../SECURITY.md#supported-versions).
 
 ## Where the version is shown
 
@@ -57,11 +57,11 @@ Security fixes land in the latest release. A copy on 1.7.5 or later is supported
 
 ## Pin a version or move to another
 
-The Docker `pull` and `run` commands use `v2.1.13`, the Azimuth tag for this tree, so they can be copied. Use the current tag on the [Releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases) when you want a different release. Git and ZIP examples in this section still write the tag as `vX.Y.Z`. Substitute the release you want. `:latest` is not a version. It is the newest full release the image workflow has pushed.
+The Docker `pull` and `run` commands use `v2.1.13`, the Azimuth tag for this tree, so they can be copied. GHCR keeps that tag and `:latest`. An image tag older than `v2.1.13` is removed, so do not pull one. Git and ZIP examples in this section still write the tag as `vX.Y.Z`. Those GitHub tags stay. Substitute the release you want for a git or ZIP checkout. `:latest` is not a version. It is the newest full release the image workflow has pushed.
 
-**Docker, stay on one release.** Use the immutable tag `ghcr.io/networknerd1337/nerdgram1337:v2.1.13` in `docker run` and as the `image:` line in `compose.yaml`. `docker pull` of that tag gets that release again. Recreate the container on the same `nerdgram-data` volume when you change tags. The steps are [Update a Docker install](upgrading.md#update-a-docker-install). The workflow also pushes `sha-<commit>` for that build. Pin the `sha-` tag when you need that exact image rather than the version tag.
+**Docker, stay on one release.** Use the immutable tag `ghcr.io/networknerd1337/nerdgram1337:v2.1.13` in `docker run` and as the `image:` line in `compose.yaml`. `docker pull` of that tag gets that release again. Recreate the container on the same `nerdgram-data` volume when you change tags. The steps are [Update a Docker install](upgrading.md#update-a-docker-install). The workflow also pushes `sha-<commit>` for that build. GHCR keeps `v2.1.13` and `:latest`. An older image tag, including an older `sha-` tag, is removed.
 
-**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins `v2.1.13`, which matches `package.json`, not `:latest`. Change that pin when you want a different release, then `docker compose pull` and `docker compose up -d`.
+**Docker, take each full release.** Set the image to `ghcr.io/networknerd1337/nerdgram1337:latest`. When a new full release is published, `docker pull` of `:latest` moves, and you recreate the container on the same volume. `:latest` follows full releases. It is not a prerelease. `compose.yaml` as shipped pins `v2.1.13`, which matches `package.json`, not `:latest`. Change that pin to `:latest` when you want each new full release, then `docker compose pull` and `docker compose up -d`. Do not pin an image tag older than `v2.1.13`. That tag is removed.
 
 **Git, track `main`.** Check out `main` and pull. You get the commits on `main`. That history can contain commits the latest release tag does not. The update check's **ahead** state compares the `version` in this tree's `package.json` with the latest stable release tag. It is not a count of extra commits. **Update now** runs only when this is a clean checkout of the official origin, on `main` or a detached release tag, and the release tag is a fast-forward. On `main` it merges that tag with `--ff-only`, then runs `npm ci` and `npm run build`. You are still on `main` afterwards. If the tag is not a fast-forward from this checkout, **Update now** refuses it as not a fast-forward and does not reset you back to the tag.
 

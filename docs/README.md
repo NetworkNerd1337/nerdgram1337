@@ -23,7 +23,7 @@ Guides for installing NerdGram1337, using it, and working on it.
 - [Questions and ideas](https://github.com/NetworkNerd1337/NerdGram1337/discussions). Discussions is where questions and ideas go. Issues stay bugs and features.
 - [Data and backups](data-and-backups.md). By default, diagrams live in `diagrams/` inside the project.
 - [Upgrading](upgrading.md). Stop the app before you replace it.
-- [Versioning and releases](releases.md). Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. 1.7.5 and later are supported. 1.7.4 and older are deprecated.
+- [Versioning and releases](releases.md). Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. Only 2.1.13, the latest release, is supported. Everything before 2.1.13 is deprecated.
 - [Roadmap](roadmap.md). Planned work after v2.1.13. 2.1.0 through 2.1.4 are Zenith. 2.1.5 and later 2.1 patches are Azimuth. Future ideas at the end are not committed.
 - [Troubleshooting](troubleshooting.md). If the API port is taken, the server exits and prints the listen error.
 - [Developing](developing.md). The project folders, the npm scripts, and what CI runs.
