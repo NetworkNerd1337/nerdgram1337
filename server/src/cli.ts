@@ -895,7 +895,12 @@ async function baselineCommand(parsed: Parsed, io: Io): Promise<void> {
   );
 }
 
+declare const __NERDGRAM_VERSION_LABEL__: string | undefined;
+
 function cliVersion(): string {
+  if (typeof __NERDGRAM_VERSION_LABEL__ === "string" && __NERDGRAM_VERSION_LABEL__.startsWith("v")) {
+    return __NERDGRAM_VERSION_LABEL__;
+  }
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [path.resolve(here, "../package.json"), path.resolve(here, "../../package.json")];
   let version = "0.0.0";

@@ -1,4 +1,6 @@
-import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
@@ -6,8 +8,27 @@ import type { TokenScope } from "../tokens.js";
 import type { GenerateArgs, McpBackend, RefreshArgs } from "./backend.js";
 import { toolCall, toolFailure, writeRenderPng } from "./result.js";
 
-const require = createRequire(import.meta.url);
-const serverPackage = require("../../package.json") as { version: string };
+/**
+ * The server checkout resolves `server/package.json`. The packed CLI bundle
+ * lives in `cli/dist`, so the same relative path is outside that package.
+ * Walk up from this file until a package.json with a version is found.
+ */
+function packageVersion(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  for (const file of [
+    path.join(here, "../package.json"),
+    path.join(here, "../../package.json"),
+    path.join(here, "../../../package.json"),
+  ]) {
+    try {
+      const parsed = JSON.parse(readFileSync(file, "utf8")) as { version?: unknown };
+      if (typeof parsed.version === "string" && /^\d+\.\d+\.\d+/.test(parsed.version)) return parsed.version;
+    } catch {
+      // Try the next directory. A missing file is expected for one of these layouts.
+    }
+  }
+  return "0.0.0";
+}
 
 const PATH_RULES =
   "path is a workspace path such as Sites/Campus.mmd. It stays inside the data directory. A hidden path, .meta, a null byte, or a path that escapes the data directory is rejected. A diagram file ends in .mmd.";
@@ -477,7 +498,7 @@ function visibleTools(scope: TokenScope): ToolDef[] {
 
 export function createNerdgramMcpServer(options: { scope: TokenScope; backend: McpBackend }): McpServer {
   const server = new McpServer(
-    { name: "nerdgram", version: serverPackage.version },
+    { name: "nerdgram", version: packageVersion() },
     {
       instructions: `${PATH_RULES} ${MERMAID_RULES} ${SAVE_RULES}`,
     },
