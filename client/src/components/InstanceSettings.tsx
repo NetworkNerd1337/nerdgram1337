@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type InstanceStatus } from "../api";
+import { SettingsCard } from "./SettingsCard";
 
 function messageOf(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -31,8 +32,7 @@ export function InstanceSettings() {
   }, []);
 
   return (
-    <section className="sync-card" id="instance">
-      <h2>Instance name</h2>
+    <SettingsCard id="instance" title="Instance name" summary={status?.configuredName ? `Name: ${status.configuredName}` : "Name: hostname"}>
       <p>
         Other NerdGram instances use this name when a diagram is open here. Leave it blank to use
         the hostname{status ? ` (${status.hostname})` : ""}. The name is stored with this install,
@@ -84,6 +84,6 @@ export function InstanceSettings() {
           Save instance name
         </button>
       </div>
-    </section>
+    </SettingsCard>
   );
 }

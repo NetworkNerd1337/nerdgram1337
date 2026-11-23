@@ -559,6 +559,15 @@ function updateSummary(status: UpdateStatus): string | null {
   return installStatusLine(status);
 }
 
+/** Status word next to the version. Null means the check did not confirm latest or a newer release. */
+export function versionStatusWord(status: UpdateStatus): "latest" | "upgrade available" | null {
+  if (!status.enabled || status.phase === "disabled" || status.error) return null;
+  if (status.phase === "ahead" || status.phase === "unknown" || status.phase === "no_release") return null;
+  if (status.matchesLatest || status.phase === "current") return "latest";
+  if (status.updateAvailable && status.latest && !status.skipped) return "upgrade available";
+  return null;
+}
+
 /** One plain sentence for About, the banner, and the upgrade panel. */
 export function installStatusLine(status: UpdateStatus): string | null {
   const running = runningLabel(status);
@@ -621,15 +630,28 @@ export function AboutSummary({
   const codeName = knownCodeName(status.codename);
   const engine = mermaidEngineLabel();
   const engineUrl = mermaidEngineReleaseUrl();
+  const versionWord = versionStatusWord(status);
+  const versionText = status.currentVersion.trim().startsWith("v") ? status.currentVersion.trim() : `v${status.currentVersion.trim()}`;
   return (
     <div className="about-summary">
       <div className="about-identity">
         <Brand />
-        <p className="about-lead">A local app for writing Mermaid diagrams as Markdown.</p>
+        <p className="about-lead">
+          A local Mermaid diagramming tool for network engineers. Write diagrams as text, build them from CDP/LLDP,
+          routing and ARP data, import Visio and Lucidchart, and keep them in Git.
+        </p>
       </div>
       <dl className="about-facts">
         <dt>Version</dt>
-        <dd>{status.currentVersion.trim().startsWith("v") ? status.currentVersion.trim() : `v${status.currentVersion.trim()}`}</dd>
+        <dd>
+          <span className="about-version">{versionText}</span>
+          {versionWord === "latest" ? <span className="about-version-status is-latest">latest</span> : null}
+          {versionWord === "upgrade available" ? (
+            <button type="button" className="about-version-status is-upgrade" onClick={onShowUpgrade} disabled={!onShowUpgrade || upgradeDisabled}>
+              upgrade available
+            </button>
+          ) : null}
+        </dd>
         {codeName ? (
           <>
             <dt>Code name</dt>
@@ -669,8 +691,10 @@ export function AboutSummary({
         </p>
         <p>
           <ExternalLink href={LICENSE_URL}>MIT License</ExternalLink>
-          {" · © "}
+          {" · © 2026 "}
           {AUTHOR_NAME}
+          {" · "}
+          <ExternalLink href={AUTHOR_SITE_URL}>ryanthomashuff.com</ExternalLink>
         </p>
       </div>
       <div className="about-support">

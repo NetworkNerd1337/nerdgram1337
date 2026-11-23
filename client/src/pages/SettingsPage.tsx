@@ -17,10 +17,55 @@ import { BookmarkManager } from "../components/BookmarkManager";
 import { LintSettings } from "../components/LintSettings";
 import { TokenSettings } from "../components/TokenSettings";
 import { UpdateSettingsFields } from "../components/UpdateHost";
+import { SettingsCard, SettingsCardsProvider, useSettingsCards } from "../components/SettingsCard";
 import type { SyncStatus } from "../types";
 import { githubSyncStatusCopy } from "../lib/githubSyncStatus";
 
 const DOCS = "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/github-sync.md";
+
+const SETTINGS_LINKS = [
+  ["appearance", "Appearance"],
+  ["style-presets", "Style presets"],
+  ["host", "Host"],
+  ["diagram-folder", "Diagram folder"],
+  ["instance", "Instance name"],
+  ["tokens", "Automation tokens"],
+  ["diagram-checks", "Diagram checks"],
+  ["bookmarks", "Bookmarks"],
+  ["app-updates", "App updates"],
+  ["github-sync", "GitHub sync"],
+] as const;
+
+function SettingsAnchorBar() {
+  const cards = useSettingsCards();
+  const ids = SETTINGS_LINKS.map(([id]) => id);
+  return (
+    <nav className="settings-nav" aria-label="Settings sections">
+      <div className="tree-fold-control" role="group" aria-label="Settings cards">
+        <button type="button" className="tree-fold-button" onClick={() => cards?.setAll(ids, true)}>
+          Expand all
+        </button>
+        <button type="button" className="tree-fold-button" onClick={() => cards?.setAll(ids, false)}>
+          Collapse all
+        </button>
+      </div>
+      {SETTINGS_LINKS.map(([id, label]) => (
+        <a
+          key={id}
+          href={`#${id}`}
+          aria-current={cards?.spyId === id ? "true" : undefined}
+          onClick={(event) => {
+            event.preventDefault();
+            cards?.focus(id);
+            window.history.replaceState(null, "", `#${id}`);
+          }}
+        >
+          {label}
+        </a>
+      ))}
+    </nav>
+  );
+}
 
 function formatWhen(iso: string | null): string {
   if (!iso) return "Not yet";
@@ -76,11 +121,7 @@ export function SettingsPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const id = location.hash.replace(/^#/, "");
-    if (!id) return;
-    document.getElementById(id)?.scrollIntoView({ block: "start" });
-  }, [location.hash]);
+  const hash = location.hash;
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -104,6 +145,7 @@ export function SettingsPage() {
   const syncCopy = status ? githubSyncStatusCopy(status) : null;
 
   return (
+    <SettingsCardsProvider ids={SETTINGS_LINKS.map(([id]) => id)} initialHash={hash}>
     <div className="reference-layout settings-screen">
       <header className="reference-top">
         <div className="reference-top-left">
@@ -115,18 +157,6 @@ export function SettingsPage() {
             <p className="reference-meta">
               Appearance, style presets, the listen host, the diagram folder, the instance name, automation tokens, diagram checks, bookmarks, app updates, and GitHub sync.
             </p>
-            <nav className="settings-nav" aria-label="Settings sections">
-              <a href="#appearance">Appearance</a>
-              <a href="#style-presets">Style presets</a>
-              <a href="#host">Host</a>
-              <a href="#diagram-folder">Diagram folder</a>
-              <a href="#instance">Instance name</a>
-              <a href="#tokens">Automation tokens</a>
-              <a href="#diagram-checks">Diagram checks</a>
-              <a href="#bookmarks">Bookmarks</a>
-              <a href="#app-updates">App updates</a>
-              <a href="#github-sync">GitHub sync</a>
-            </nav>
           </div>
         </div>
         <div className="reference-top-actions">
@@ -138,6 +168,7 @@ export function SettingsPage() {
           </Link>
         </div>
       </header>
+      <SettingsAnchorBar />
 
       <main className="sync-page">
         <div className="settings-columns">
@@ -149,17 +180,15 @@ export function SettingsPage() {
         <TokenSettings />
         <LintSettings />
         <BookmarkManager />
-        <section className="sync-card" id="app-updates">
-          <h2>App updates</h2>
+        <SettingsCard id="app-updates" title="App updates" summary="Checks GitHub for a newer stable release.">
           <p>
             Version checks are separate from GitHub sync. The sync token is not used. The server
             asks the public GitHub releases API whether a newer stable version of NerdGram exists.
           </p>
           <UpdateSettingsFields />
-        </section>
+        </SettingsCard>
         </div>
-        <section className="sync-card" id="github-sync">
-          <h2>GitHub sync</h2>
+        <SettingsCard id="github-sync" title="GitHub sync" summary={syncCopy?.label ?? "Optional backup of diagrams to a private repository."}>
           <p>
             GitHub sync keeps a private repository you own as a backup of the diagrams on this
             computer. You keep editing the local copies.
@@ -253,7 +282,7 @@ export function SettingsPage() {
             moves, deletes, and imports commit after about a second. Favorites, trash, history,
             thumbnails, and the token stay on this computer.
           </p>
-        </section>
+        </SettingsCard>
 
         {error ? <div className="error-banner">{error}</div> : null}
         {notice ? <div className="status-banner">{notice}</div> : null}
@@ -495,5 +524,6 @@ export function SettingsPage() {
         </Modal>
       ) : null}
     </div>
+    </SettingsCardsProvider>
   );
 }

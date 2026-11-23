@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { LINT_RULES, readLintRules, writeLintRule, type LintRuleId } from "../lib/lintSettings";
+import { SettingsCard } from "./SettingsCard";
 
 export function LintSettings() {
   const [rules, setRules] = useState(readLintRules);
@@ -9,8 +10,7 @@ export function LintSettings() {
   };
 
   return (
-    <section className="sync-card" id="diagram-checks">
-      <h2>Diagram checks</h2>
+    <SettingsCard id="diagram-checks" title="Diagram checks" summary="Warnings in the editor gutter and the problems list.">
       <p>
         Warnings show in the editor gutter and the problems list. They do not block the preview or
         autosave. A diagram Mermaid cannot parse is always marked. These switches are saved in this
@@ -28,6 +28,6 @@ export function LintSettings() {
           </span>
         </label>
       ))}
-    </section>
+    </SettingsCard>
   );
 }

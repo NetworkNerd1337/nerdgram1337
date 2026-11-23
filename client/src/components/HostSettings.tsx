@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type ListenHostStatus } from "../api";
+import { SettingsCard } from "./SettingsCard";
 
 function messageOf(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -38,9 +39,10 @@ export function HostSettings() {
   const readOnly = status?.readOnly === true;
   const showRestart = Boolean(status?.persisted && status.saved !== status.running);
 
+  const hostValue = status?.saved || "127.0.0.1";
+  const notLoopback = hostValue !== "127.0.0.1" && hostValue !== "::1" && hostValue !== "localhost";
   return (
-    <section className="sync-card" id="host">
-      <h2>Host</h2>
+    <SettingsCard id="host" title="Host" summary={`Host: ${hostValue}`} badge={notLoopback ? "Not loopback" : null}>
       <p>
         This address is where NerdGram listens after the next start, and it is the{" "}
         <code>Host</code> name LAN callers may use. <code>127.0.0.1</code> is the default and
@@ -146,6 +148,6 @@ export function HostSettings() {
           </button>
         </div>
       )}
-    </section>
+    </SettingsCard>
   );
 }

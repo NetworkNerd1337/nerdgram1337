@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { IMPORT_PRESET_KEY } from "../lib/importRecognize";
 import { api } from "../api";
+import { SettingsCard } from "./SettingsCard";
 import { StyleFields } from "./StyleFields";
 import {
   copyPresetName,
@@ -108,8 +109,7 @@ export function StylePresetsSettings() {
   }, []);
 
   return (
-    <section className="sync-card" id="style-presets">
-      <h2>Style presets</h2>
+    <SettingsCard id="style-presets" title="Style presets" summary="Named copies of theme, look, layout, and font.">
       <p>
         A preset is a named copy of theme, look, layout, font, colors, and the other style fields
         from Diagram info. It is stored in <code>.meta/style-presets.json</code> on this computer.
@@ -232,7 +232,7 @@ export function StylePresetsSettings() {
         />
         <span>Replace the presets on this computer. Diagrams are not changed.</span>
       </label>
-    </section>
+    </SettingsCard>
   );
 }
 

@@ -102,6 +102,7 @@ export type WizardAction =
   | { type: "result"; result: WizardInspection; step: "map" | "preview" }
   | { type: "fatal"; message: string }
   | { type: "back" }
+  | { type: "go"; step: WizardStep }
   | { type: "hubLayout"; hubLayout: WizardState["hubLayout"] }
   | { type: "hosts"; hosts: WizardState["hosts"] };
 
@@ -268,6 +269,11 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       if (state.step === "preview") return { ...state, step: "map", fatal: null };
       if (state.step === "map") return { ...state, step: "input", fatal: null };
       return state;
+    case "go": {
+      const order: WizardStep[] = ["input", "map", "preview"];
+      if (order.indexOf(action.step) < order.indexOf(state.step)) return { ...state, step: action.step, fatal: null };
+      return state;
+    }
     default:
       return state;
   }

@@ -46,8 +46,11 @@ describe("sidebar syntax reference", () => {
         </MemoryRouter>,
       );
     });
-    const labels = [...document.querySelectorAll(".nav-label")].map((item) => item.textContent);
-    expect(labels).toEqual(["Your space", "Folders"]);
+    expect(document.querySelector(".nav-label")).toBeNull();
+    expect(document.body.textContent).not.toContain("Commands");
+    expect(document.querySelector("[aria-label='Navigation']")).toBeTruthy();
+    expect(document.querySelector("[aria-label='Folders']")).toBeTruthy();
+    expect(document.querySelector(".sidebar-split")).toBeTruthy();
     expect(document.body.textContent).not.toContain("Needs attention");
     const space = document.querySelector(".nav-section");
     const order = [...(space?.querySelectorAll(".nav-link, .sidebar-block-title") ?? [])].map((item) =>

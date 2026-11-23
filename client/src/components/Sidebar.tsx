@@ -4,7 +4,6 @@ import type { DragPayload } from "../lib/drag";
 import type { TreeNode } from "../types";
 import { Brand } from "./Brand";
 import { BookmarksSection } from "./BookmarksSection";
-import { CommandsButton } from "./CommandPalette";
 import { FolderTree } from "./FolderTree";
 import { displayName } from "../lib/paths";
 import { RECENT_OPEN_KEY } from "../lib/recent";
@@ -110,10 +109,7 @@ export function Sidebar({
         />
         Names only
       </label>
-      <CommandsButton />
-
-      <div className="nav-section">
-        <div className="nav-label">Your space</div>
+      <nav className="nav-section" aria-label="Navigation">
         <button
           type="button"
           className={`nav-link${currentFolder === "" && !trashActive && !healthActive ? " active" : ""}${rootDrop}`}
@@ -192,15 +188,16 @@ export function Sidebar({
         >
           Trash{trashCount > 0 ? ` (${trashCount})` : ""}
         </button>
-        <FolderTree
-          nodes={tree}
-          currentPath={currentFolder}
-          onSelectFolder={onSelectFolder}
-          dropHighlight={dropHighlight}
-          onFolderDragOver={onFolderDragOver}
-          onFolderDrop={onFolderDrop}
-        />
-      </div>
+      </nav>
+      <div className="sidebar-split" role="separator" />
+      <FolderTree
+        nodes={tree}
+        currentPath={currentFolder}
+        onSelectFolder={onSelectFolder}
+        dropHighlight={dropHighlight}
+        onFolderDragOver={onFolderDragOver}
+        onFolderDrop={onFolderDrop}
+      />
 
     </aside>
   );

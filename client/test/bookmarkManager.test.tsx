@@ -94,7 +94,7 @@ function show(current: BookmarkState = saved.store.bookmarks) {
 }
 
 function rootFolderIds() {
-  return [...document.querySelectorAll("#bookmarks > ul.bookmark-manage-list > li[data-folder-id]")].map((node) =>
+  return [...document.querySelectorAll("#bookmarks ul.bookmark-manage-list > li[data-folder-id]")].map((node) =>
     node.getAttribute("data-folder-id"),
   );
 }

@@ -22,6 +22,7 @@ import {
   templatePresentHref,
   uniqueSorted,
 } from "../lib/templateGallery";
+import { foldSections, sectionIsOpen, writeSectionOpen } from "../lib/templateSections";
 import type { TemplateSummary } from "../types";
 import { contentWithStyle } from "../lib/stylePresets";
 
@@ -95,7 +96,7 @@ export function TemplatesPage() {
     () => groupTemplateSections(templates, { query, category, diagramType, tag }),
     [templates, query, category, diagramType, tag],
   );
-  const filtering = Boolean(query.trim() || diagramType || tag);
+  const filtering = Boolean(query.trim() || category || diagramType || tag);
   const requestedUse = searchParams.get("use") ?? "";
   const linked = templates.find((item) => item.id === requestedUse) ?? null;
   const picked = templates.find((item) => item.id === pickedId) ?? null;
@@ -224,8 +225,33 @@ export function TemplatesPage() {
               ))}
             </select>
           </label>
+          <div className="tree-fold-control" role="group" aria-label="Template sections">
+            <button
+              type="button"
+              className="tree-fold-button"
+              disabled={sections.length === 0}
+              onClick={() => {
+                const next = foldSections(sections.map((section) => section.category), true, sectionOpen);
+                setSectionOpen(next);
+                for (const section of sections) writeSectionOpen(section.category, true);
+              }}
+            >
+              Expand all
+            </button>
+            <button
+              type="button"
+              className="tree-fold-button"
+              disabled={sections.length === 0}
+              onClick={() => {
+                const next = foldSections(sections.map((section) => section.category), false, sectionOpen);
+                setSectionOpen(next);
+                for (const section of sections) writeSectionOpen(section.category, false);
+              }}
+            >
+              Collapse all
+            </button>
+          </div>
         </div>
-
         {!loading && !filtering ? (
           <nav className="template-jumps" aria-label="Template categories">
             {TEMPLATE_CATEGORIES.map((item) => (
@@ -250,7 +276,7 @@ export function TemplatesPage() {
                   return true;
                 }
               })();
-              const open = filtering || (section.category in sectionOpen ? sectionOpen[section.category] !== false : storedOpen);
+              const open = sectionIsOpen(section.category, filtering, sectionOpen, storedOpen);
               const sectionId = `template-${section.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
               return (
                 <section key={section.category} className="template-section" id={sectionId} aria-labelledby={`${sectionId}-title`}>
@@ -263,11 +289,7 @@ export function TemplatesPage() {
                       onClick={() => {
                         const next = !open;
                         setSectionOpen((current) => ({ ...current, [section.category]: next }));
-                        try {
-                          localStorage.setItem(`nerdgram.templateSection.${section.category}`, next ? "1" : "0");
-                        } catch {
-                          // The section still toggles for this visit.
-                        }
+                        writeSectionOpen(section.category, next);
                       }}
                     >
                       <span className="visually-hidden">{open ? "Collapse" : "Expand"} {section.category}</span>
