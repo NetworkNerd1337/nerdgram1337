@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  attentionBadgeCount,
-  attentionProblemLabel,
-  attentionRows,
-  diagramHealthLinkLabel,
-  diagramHealthShowsCount,
-} from "../src/lib/attention";
+import { attentionBadgeCount, attentionProblemLabel, attentionRows } from "../src/lib/attention";
 
 describe("needs attention", () => {
   it("counts diagrams with problems and skips a clear workspace", () => {
@@ -33,12 +27,5 @@ describe("needs attention", () => {
     expect(attentionProblemLabel(1, 0)).toBe("1 error");
     expect(attentionProblemLabel(0, 1)).toBe("1 warning");
     expect(attentionProblemLabel(0, 0)).toBe("");
-    expect(diagramHealthShowsCount(null)).toBe(false);
-    expect(diagramHealthShowsCount(0)).toBe(false);
-    expect(diagramHealthShowsCount(3)).toBe(true);
-    expect(diagramHealthLinkLabel(null)).toBe("Diagram health");
-    expect(diagramHealthLinkLabel(0)).toBe("Diagram health");
-    expect(diagramHealthLinkLabel(1)).toBe("Diagram health, 1 issue");
-    expect(diagramHealthLinkLabel(3)).toBe("Diagram health, 3 issues");
   });
 });

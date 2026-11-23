@@ -6,11 +6,15 @@ import { Brand } from "./Brand";
 import { BookmarksSection } from "./BookmarksSection";
 import { CommandsButton } from "./CommandPalette";
 import { FolderTree } from "./FolderTree";
-import { diagramHealthLinkLabel, diagramHealthShowsCount } from "../lib/attention";
 import { displayName } from "../lib/paths";
 import { RECENT_OPEN_KEY } from "../lib/recent";
 import { readFlag, writeFlag, type BookmarkState } from "../lib/bookmarks";
 import type { RecentEntry } from "../lib/recent";
+
+function diagramHealthLinkLabel(count: number | null): string {
+  if (count == null || count <= 0) return "Diagram health";
+  return `Diagram health, ${count} ${count === 1 ? "issue" : "issues"}`;
+}
 
 type SidebarProps = {
   tree: TreeNode[];
@@ -169,7 +173,7 @@ export function Sidebar({
           aria-label={diagramHealthLinkLabel(attentionCount)}
         >
           Diagram health
-          {diagramHealthShowsCount(attentionCount) ? (
+          {attentionCount != null && attentionCount > 0 ? (
             <span className="attention-badge" aria-hidden="true">{` (${attentionCount})`}</span>
           ) : null}
         </Link>
