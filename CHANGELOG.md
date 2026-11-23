@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Changed:** Diagram health in the sidebar shows a count only when there is at least one issue. A check that has not run, or that found nothing, leaves the link as Diagram health. The accessible name is Diagram health, or Diagram health, N issues (#281).
 
 ## 2.1.11 "Azimuth" - 2026-11-22
 

@@ -1,6 +1,17 @@
 import type { DiagramCheckFinding } from "./diagramChecks";
 import type { UnreadableDiagram } from "../../../server/src/readError.ts";
 
+/** Accessible name for the sidebar link. A zero count is not announced. */
+export function diagramHealthLinkLabel(count: number | null): string {
+  if (count == null || count <= 0) return "Diagram health";
+  return `Diagram health, ${count} ${count === 1 ? "issue" : "issues"}`;
+}
+
+/** The sidebar shows (N) only after a check that found at least one issue. */
+export function diagramHealthShowsCount(count: number | null): boolean {
+  return count != null && count > 0;
+}
+
 /** Diagrams the Diagram health badge counts. */
 export function attentionBadgeCount(
   diagrams: readonly { errors: number; warnings: number }[] | null | undefined,

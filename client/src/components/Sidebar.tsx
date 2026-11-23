@@ -6,6 +6,7 @@ import { Brand } from "./Brand";
 import { BookmarksSection } from "./BookmarksSection";
 import { CommandsButton } from "./CommandPalette";
 import { FolderTree } from "./FolderTree";
+import { diagramHealthLinkLabel, diagramHealthShowsCount } from "../lib/attention";
 import { displayName } from "../lib/paths";
 import { RECENT_OPEN_KEY } from "../lib/recent";
 import { readFlag, writeFlag, type BookmarkState } from "../lib/bookmarks";
@@ -18,7 +19,7 @@ type SidebarProps = {
   knownPaths: ReadonlySet<string>;
   recent: RecentEntry[];
   onClearRecent: () => void;
-  /** Null until a check has run. Zero is shown only after a check that found nothing. */
+  /** Null until a check has run. A count is shown only when it is greater than zero. */
   attentionCount: number | null;
   currentFolder: string;
   search: string;
@@ -162,9 +163,15 @@ export function Sidebar({
         <Link className="nav-link" to="/templates">
           Template gallery
         </Link>
-        <Link className={`nav-link${healthActive ? " active" : ""}`} to="/health">
+        <Link
+          className={`nav-link nav-link-health${healthActive ? " active" : ""}`}
+          to="/health"
+          aria-label={diagramHealthLinkLabel(attentionCount)}
+        >
           Diagram health
-          {attentionCount != null ? <span className="attention-badge"> ({attentionCount})</span> : null}
+          {diagramHealthShowsCount(attentionCount) ? (
+            <span className="attention-badge" aria-hidden="true">{` (${attentionCount})`}</span>
+          ) : null}
         </Link>
         <Link className="nav-link" to="/reference" target="_blank" rel="noopener">
           Syntax reference

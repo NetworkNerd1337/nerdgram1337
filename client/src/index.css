@@ -4882,8 +4882,15 @@ button.breadcrumb-current {
   color: var(--ink);
 }
 
+.nav-link-health {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
 .attention-badge {
   color: var(--accent);
+  flex: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .attention-list {
