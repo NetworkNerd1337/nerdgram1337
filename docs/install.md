@@ -233,7 +233,7 @@ That path is `/Users/you/Projects` on macOS, `/home/you/Projects` on Linux, and 
 git clone https://github.com/NetworkNerd1337/NerdGram1337.git
 ```
 
-Git creates `NerdGram1337`.
+Git creates `NerdGram1337`. A clone of `main` includes changes that are merged but not yet in a milestone release. npm and Docker stay on the latest milestone release until that release is cut. See [Release policy](releases.md#release-policy).
 
 **ZIP:** open [the repository](https://github.com/NetworkNerd1337/NerdGram1337), choose **Code**, then **Download ZIP**. The same archive is [main.zip](https://github.com/NetworkNerd1337/NerdGram1337/archive/refs/heads/main.zip). Extract it in `Projects`. GitHub names the folder `NerdGram1337-main`. The files match the clone. The ZIP has no `.git` directory, so the app treats that copy as a ZIP install.
 

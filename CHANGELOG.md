@@ -2,10 +2,11 @@
 
 Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code name" - YYYY-MM-DD`. It has to match the root `package.json` version. `npm run version:check` requires the quoted code name to match the `codenames` map. The notes script also accepts `## X.Y.Z` and `## [X.Y.Z]`, with an optional code name and date. The `vX.Y.Z` tag is the version the update check reads. The GitHub Release title is `vX.Y.Z Code name`, from that tag and the map.
 
-`## Unreleased` is everything that is not in a numbered release yet. When that list is empty, the section is `_No unreleased items._`, so the heading does not look like it belongs to the release below. That line is not a release note. `npm run version:sync` moves real Unreleased notes under the new version heading when that heading is not there yet, then puts `_No unreleased items._` back.
+`## Unreleased` is everything that is not in a numbered release yet. Those items are on `main` and are available from a cloned repository. They ship to npm and Docker at the next milestone release. When that list is empty, the section is `_No unreleased items._`, so the heading does not look like it belongs to the release below. That line is not a release note. `npm run version:sync` moves real Unreleased notes under the new version heading when that heading is not there yet, then puts `_No unreleased items._` back.
 
 ## Unreleased
 
+- **Docs:** Release policy. Changes merge to main through issues and pull requests and stay under Unreleased. A clone of main gets them immediately. npm and the GHCR images update only at the next milestone release, which is when the version, the code name, and the git tag move.
 - **Docs:** Support policy. Only 2.1.13, the latest release, is supported. Every npm version before 2.1.13 is deprecated, and container images older than v2.1.13 are removed from GHCR. `v2.1.13` and `:latest` stay. GitHub releases and tags stay. Security fixes land only in the latest release. Upgrade with `npm i -g nerdgram1337@latest` or pull `ghcr.io/networknerd1337/nerdgram1337:latest`.
 
 ## 2.1.13 "Azimuth" - 2026-11-23
