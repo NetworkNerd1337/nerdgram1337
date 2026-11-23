@@ -25,8 +25,9 @@ export type SpyCard = { id: string; top: number };
 export function chooseSpySection(
   cards: readonly SpyCard[],
   probe: number,
-  scroll: { top: number; max: number },
+  scroll: { top: number; max: number; focus?: string | null },
 ): string | null {
+  if (scroll.focus) return scroll.focus;
   if (cards.length === 0) return null;
   if (scroll.top <= 1) return cards[0]?.id ?? null;
   if (scroll.max > 8 && scroll.top >= scroll.max - 1) return cards[cards.length - 1]?.id ?? null;
@@ -36,6 +37,8 @@ export function chooseSpySection(
   }
   return (best ?? cards[0])?.id ?? null;
 }
+
+const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "]);
 
 const SettingsCardsContext = createContext<CardsContext | null>(null);
 
@@ -82,7 +85,9 @@ export function SettingsCardsProvider({
   const [activeId, setActiveId] = useState<string | null>(null);
   const hashId = initialHash.replace(/^#/, "");
   const [spyId, setSpyId] = useState<string | null>(ids.includes(hashId) ? hashId : (ids[0] ?? null));
-  const lockUntil = useRef(0);
+  const pinned = useRef<string | null>(ids.includes(hashId) ? hashId : null);
+  const fromUs = useRef(false);
+  const userScroll = useRef(false);
 
   const persist = useCallback((next: Record<string, boolean>) => {
     setStored(next);
@@ -90,8 +95,15 @@ export function SettingsCardsProvider({
   }, []);
 
   const mark = useCallback((id: string) => {
+    pinned.current = id;
     setActiveId(id);
     setSpyId(id);
+  }, []);
+
+  const scrollUnderBar = useCallback((id: string) => {
+    fromUs.current = true;
+    userScroll.current = false;
+    document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, []);
 
   const expand = useCallback(
@@ -106,10 +118,9 @@ export function SettingsCardsProvider({
     (id: string) => {
       persist({ ...stored, [id]: true });
       mark(id);
-      lockUntil.current = performance.now() + 800;
-      document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "smooth" });
+      scrollUnderBar(id);
     },
-    [mark, persist, stored],
+    [mark, persist, scrollUnderBar, stored],
   );
 
   useEffect(() => {
@@ -132,16 +143,26 @@ export function SettingsCardsProvider({
       return next;
     });
     mark(id);
-    lockUntil.current = performance.now() + 800;
-    const frame = window.requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "smooth" });
-    });
+    const frame = window.requestAnimationFrame(() => scrollUnderBar(id));
     return () => window.cancelAnimationFrame(frame);
-  }, [ids, initialHash, mark]);
+  }, [ids, initialHash, mark, scrollUnderBar]);
 
   useEffect(() => {
-    const update = () => {
-      if (performance.now() < lockUntil.current) return;
+    const bar = document.querySelector(".settings-nav");
+    if (!(bar instanceof HTMLElement) || typeof ResizeObserver === "undefined") return;
+    const apply = () => {
+      const height = Math.ceil(bar.getBoundingClientRect().height) + 8;
+      document.documentElement.style.setProperty("--settings-nav-height", `${height}px`);
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const measure = () => {
+      if (pinned.current) return;
       const bar = document.querySelector(".settings-nav");
       const probe = (bar?.getBoundingClientRect().bottom ?? 0) + 12;
       const cards = ids.flatMap((id) => {
@@ -156,18 +177,38 @@ export function SettingsCardsProvider({
       const next = chooseSpySection(cards, probe, { top, max });
       if (next) setSpyId(next);
     };
-    const release = () => {
-      lockUntil.current = 0;
-      update();
+    const onScroll = () => {
+      if (fromUs.current && !userScroll.current) return;
+      fromUs.current = false;
+      userScroll.current = false;
+      pinned.current = null;
+      measure();
     };
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    window.addEventListener("scrollend", release);
+    const onScrollEnd = () => {
+      fromUs.current = false;
+    };
+    const armUserScroll = () => {
+      fromUs.current = false;
+      userScroll.current = true;
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (!SCROLL_KEYS.has(event.key)) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable='true']")) return;
+      armUserScroll();
+    };
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scrollend", onScrollEnd);
+    window.addEventListener("wheel", armUserScroll, { passive: true });
+    window.addEventListener("touchmove", armUserScroll, { passive: true });
+    window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scrollend", release);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scrollend", onScrollEnd);
+      window.removeEventListener("wheel", armUserScroll);
+      window.removeEventListener("touchmove", armUserScroll);
+      window.removeEventListener("keydown", onKey);
     };
   }, [ids, stored]);
 
@@ -186,13 +227,12 @@ export function SettingsCardsProvider({
       activate: (id) => {
         setActiveId(id);
         if (!id) return;
-        setSpyId(id);
-        lockUntil.current = performance.now() + 800;
+        mark(id);
       },
       spyId,
       setSpy: setSpyId,
     }),
-    [activeId, expand, focus, persist, spyId, stored],
+    [activeId, expand, focus, mark, persist, spyId, stored],
   );
 
   return <SettingsCardsContext.Provider value={value}>{children}</SettingsCardsContext.Provider>;

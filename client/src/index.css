@@ -4732,7 +4732,7 @@ body[data-presenting="true"] .support-link {
 }
 
 .sync-card[id] {
-  scroll-margin-top: 3.2rem;
+  scroll-margin-top: var(--settings-nav-height, 3.2rem);
 }
 
 .host-restart-notice,
@@ -4766,7 +4766,7 @@ body[data-presenting="true"] .support-link {
 }
 
 .sync-card[id] {
-  scroll-margin-top: 3.2rem;
+  scroll-margin-top: var(--settings-nav-height, 3.2rem);
 }
 
 .replace-dialog {

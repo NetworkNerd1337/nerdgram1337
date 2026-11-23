@@ -136,4 +136,47 @@ describe("settings cards", () => {
     expect(document.getElementById("appearance")?.className).toContain("is-active");
     expect(marked()).toBe("appearance");
   });
+
+  it("keeps an anchor mark at the top of the page until the user scrolls", () => {
+    const stuck = [
+      { id: "appearance", top: 20 },
+      { id: "host", top: 373 },
+    ];
+    expect(chooseSpySection(stuck, 80, { top: 0, max: 0 })).toBe("appearance");
+    expect(chooseSpySection(stuck, 80, { top: 0, max: 0, focus: "host" })).toBe("host");
+    root = render();
+    act(() => {
+      document.querySelector<HTMLAnchorElement>("a[href='#host']")?.click();
+    });
+    expect(marked()).toBe("host");
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("scrollend"));
+    });
+    expect(marked()).toBe("host");
+    expect(document.getElementById("host")?.className).toContain("is-active");
+  });
+
+  it("keeps the mark when the header cannot reach the line under the bar", () => {
+    expect(chooseSpySection([{ id: "appearance", top: 16 }, { id: "bookmarks", top: 400 }], 80, { top: 12, max: 20, focus: "bookmarks" })).toBe("bookmarks");
+    root = render("#bookmarks");
+    act(() => {
+      window.dispatchEvent(new Event("scrollend"));
+    });
+    expect(marked()).toBe("bookmarks");
+  });
+
+  it("resumes the spy after a real user scroll", () => {
+    root = render();
+    act(() => {
+      document.querySelector<HTMLAnchorElement>("a[href='#host']")?.click();
+    });
+    expect(marked()).toBe("host");
+    act(() => {
+      window.dispatchEvent(new Event("scrollend"));
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: 48 }));
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(marked()).toBe("appearance");
+  });
 });
