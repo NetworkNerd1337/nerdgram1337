@@ -33,7 +33,7 @@ The code names below are the names planned for those milestones. They are not in
 | Version | Code name | Planned features |
 | --- | --- | --- |
 | 2.5.0 | Crossstaff | Layered views. Path tracing. |
-| 2.5.5 | Theodolite | Better sharing. |
+| 2.5.5 | Theodolite | Better sharing. Multi-language support. |
 | 2.6.0 | Astrolabe | Features to be determined. |
 | 2.6.5 | Quadrant | Features to be determined. |
 | 2.7.0 | Octant | Features to be determined. |
@@ -58,9 +58,18 @@ Pick a source and a destination. The diagram highlights the path, using routing 
 
 ## 2.5.5 Theodolite
 
+Two features are planned. Neither is a commitment, and either can move or shrink.
+
 ### Better sharing
 
 A read-only static HTML export, or a single-file viewer, that you can send to someone who does not have NerdGram installed.
+
+### Multi-language support
+
+- **App interface.** Menus, Settings, dialogs, and messages come from language files bundled with the app, and a language picker chooses among them. This works fully offline. There is no third-party translation service, and no network call by default.
+- **Diagram text.** Labels and descriptions in a diagram, including front matter, can be stored per language, or the diagram can switch its display language. Mermaid syntax is never changed.
+- **Identifiers stay as written.** Hostnames, IP addresses, interface names, and VLAN IDs are never translated automatically.
+- **Machine translation is opt-in.** It goes through the person's own tools, for example the existing MCP server with their own AI. NerdGram stays local-first and does not store those credentials.
 
 ## Later milestones
 
