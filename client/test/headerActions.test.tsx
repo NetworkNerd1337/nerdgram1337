@@ -35,6 +35,7 @@ vi.mock("../src/api", async () => {
         pages: [],
         manifest: { lastSyncedAt: null, attribution: "" },
       })),
+      doctor: vi.fn(async () => ({ ok: true, status: "ok", issues: [], writable: true, caseInsensitive: false })),
       diagramLint: vi.fn(async () => ({
         checked: 0,
         relinted: 0,

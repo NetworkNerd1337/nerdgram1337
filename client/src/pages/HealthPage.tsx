@@ -17,6 +17,9 @@ import { displayName } from "../lib/paths";
 import { readRecent, writeRecent, pruneRecent, type RecentEntry } from "../lib/recent";
 import { EMPTY_BOOKMARKS } from "../lib/bookmarks";
 import type { UnreadableDiagram } from "../../../server/src/readError.ts";
+import { infoIssues } from "../lib/dataFolderNotice";
+import type { DataHealthIssue } from "../types";
+import { DataFolderNotes } from "../components/DataHealthNotice";
 
 type SeverityFilter = "all" | "errors" | "warnings" | "unreadable" | "muted";
 
@@ -43,6 +46,7 @@ export function HealthPage() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [repairOpen, setRepairOpen] = useState(false);
   const [pass, setPass] = useState(0);
+  const [folderNotes, setFolderNotes] = useState<DataHealthIssue[]>([]);
 
   useCommandHost({
     route: "other",
@@ -54,6 +58,19 @@ export function HealthPage() {
     readOnly: false,
     conflictOpen: false,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .doctor()
+      .then((report) => {
+        if (!cancelled) setFolderNotes(infoIssues(report.issues));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,6 +204,7 @@ export function HealthPage() {
             </Link>
           </HeaderActions>
         </header>
+        <DataFolderNotes notes={folderNotes} />
         <section className="health-strip" aria-label="Check summary">
           <span>{checked == null ? "—" : checked} checked</span>
           <span>{findings == null ? "—" : errorCount} errors</span>

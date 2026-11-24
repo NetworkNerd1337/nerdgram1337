@@ -119,7 +119,7 @@ describe("doctor and the instance lock", () => {
     const stdout: string[] = [];
     const code = await main(["doctor"], { stdout: (chunk) => stdout.push(chunk) });
     expect(code).toBe(1);
-    expect(stdout.join("")).toContain("Two instances share this data folder");
+    expect(stdout.join("")).toContain("two copies of NerdGram");
     expect(await fs.readFile(file, "utf8")).toBe(before);
   });
 });

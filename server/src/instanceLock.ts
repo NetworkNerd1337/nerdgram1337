@@ -23,7 +23,7 @@ type InstanceLockFile = InstanceLockSnapshot;
 export class StrictInstanceConflict extends Error {
   constructor() {
     super(
-      "Two instances share this data folder. NERDGRAM_STRICT_INSTANCE is set, so NerdGram refused to start.",
+      "NerdGram checked the data folder and found two copies of NerdGram using it. NERDGRAM_STRICT_INSTANCE is set, so NerdGram refused to start. Stop the other NerdGram, then start this one again.",
     );
     this.name = "StrictInstanceConflict";
   }

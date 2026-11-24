@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { DataDoctorReport } from "../types";
+import { infoIssues, problemIssues } from "../lib/dataFolderNotice";
 import { ClashList, QuarantineList } from "./DataFolderExtras";
+import { DataFolderNotes } from "./DataHealthNotice";
 import { SettingsCard } from "./SettingsCard";
 
 export function DataFolderSettings() {
@@ -23,27 +25,33 @@ export function DataFolderSettings() {
     };
   }, []);
 
-  const count = report?.issues.length ?? 0;
-  const summary = !report ? "Checking the data folder." : count === 0 ? "No problems found." : `${count} ${count === 1 ? "problem" : "problems"} found.`;
+  const problems = problemIssues(report?.issues ?? []);
+  const notes = infoIssues(report?.issues ?? []);
+  const count = problems.length;
+  const summary = !report
+    ? "NerdGram is checking the data folder."
+    : count === 0
+      ? "NerdGram checked the data folder. No problems found. No action needed."
+      : `NerdGram checked the data folder and found ${count} ${count === 1 ? "problem" : "problems"}. You need to do something.`;
   return (
     <SettingsCard id="data-folder" title="Data folder" summary={summary}>
       {error ? <p>{error}</p> : null}
       {report ? (
         <>
           <p>
-            Status: {report.status}. Writable: {report.writable ? "yes" : "no"}.
-            {report.syncFolder ? " This folder looks synced or shared." : ""} Quarantined sets: {report.quarantined}.
+            NerdGram checked the data folder. {report.writable ? "It can save." : "It cannot save."}
+            {report.syncFolder ? " This folder looks synced or shared." : ""} Copies set aside: {report.quarantined}.
           </p>
-          {count === 0 ? <p>NerdGram did not find a problem with its data folder.</p> : null}
           {count > 0 ? (
             <ul>
-              {report.issues.map((issue) => (
+              {problems.map((issue) => (
                 <li key={`${issue.code}:${issue.file ?? ""}:${issue.message}`}>
                   {issue.file ? <code>{issue.file}</code> : null} {issue.message}
                 </li>
               ))}
             </ul>
           ) : null}
+          <DataFolderNotes notes={notes} />
           <QuarantineList
             sets={report.quarantineSets ?? []}
             onRestore={async (id) => {

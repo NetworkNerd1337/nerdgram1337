@@ -3,11 +3,11 @@ import { api } from "../api";
 import type { DataDoctorReport, NameClash, QuarantineSet } from "../types";
 
 export function UpgradeBlockers({ report }: { report: DataDoctorReport | null }) {
-  if (!report) return <p>Checking the data folder before the upgrade.</p>;
-  if (report.blockers.length === 0) return <p>The data folder check found no upgrade blockers.</p>;
+  if (!report) return <p>NerdGram is checking the data folder before the upgrade.</p>;
+  if (report.blockers.length === 0) return <p>NerdGram checked the data folder before the upgrade and found nothing you need to fix first.</p>;
   return (
     <div className="upgrade-blockers">
-      <p>Fix these before you upgrade:</p>
+      <p>NerdGram checked the data folder before the upgrade. Fix these before you upgrade:</p>
       <ul>
         {report.blockers.map((blocker) => (
           <li key={blocker.code}>{blocker.message}</li>
@@ -29,8 +29,11 @@ export function QuarantineList({
   if (sets.length === 0) return null;
   return (
     <div>
-      <h3>Quarantine</h3>
-      <p>The 10 most recent copies are kept. Restore puts that file back. Diagrams are not changed.</p>
+      <h3>Older copies of NerdGram's files</h3>
+      <p>
+        These are older copies of NerdGram's own settings/history files (not your diagrams). Restore puts that file back. Your diagrams are not
+        changed. No action is needed unless you want an old file back.
+      </p>
       {error ? <p>{error}</p> : null}
       <ul>
         {sets.map((set) => (
@@ -86,8 +89,11 @@ export function ClashList({ clashes }: { clashes: NameClash[] }) {
 
   return (
     <div>
-      <h3>Names that collide</h3>
-      <p>Both copies stay on disk. Nothing is deleted.</p>
+      <h3>Diagram names that look the same</h3>
+      <p>
+        NerdGram checked the data folder and found diagrams whose names look the same. Both copies stay. Nothing is deleted. Compare them, then keep
+        both until you decide.
+      </p>
       <ul>
         {clashes.map((clash) => (
           <li key={`${clash.kind}:${clash.paths.join("|")}`}>

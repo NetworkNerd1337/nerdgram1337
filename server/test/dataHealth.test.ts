@@ -11,6 +11,7 @@ import {
   ensureDataPrepared,
   isConflictCopyName,
   resetDataHealthForTests,
+  setCaseFoldForTests,
   safeReadState,
   syncReasonForPath,
   tempPid,
@@ -246,6 +247,20 @@ describe("data folder health", () => {
       expect(match?.copy, item.rel).toBe(item.body);
       expect(JSON.stringify(match?.report), item.rel).not.toContain(item.body.trim());
     }
+  });
+
+  it("records a case-insensitive disk as info and does not fail doctor", async () => {
+    setCaseFoldForTests(true);
+    await ensureDataPrepared();
+    const report = dataHealthReport();
+    const note = report.issues.find((issue) => issue.code === "case-fold");
+    expect(note?.severity).toBe("info");
+    expect(note?.message).toContain("No action needed");
+    expect(report.status).toBe("ok");
+    const stdout: string[] = [];
+    const code = await main(["doctor"], { stdout: (chunk) => stdout.push(chunk) });
+    expect(code).toBe(0);
+    expect(stdout.join("")).toContain("Info: Your disk treats uppercase and lowercase file names as the same.");
   });
 
   it("refuses a save and exits doctor with 2 when the data folder is not writable", async () => {

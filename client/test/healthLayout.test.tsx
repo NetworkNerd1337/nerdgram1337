@@ -6,7 +6,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { PaletteContext } from "../src/components/commandPaletteContext";
+import { api } from "../src/api";
 import { HealthPage } from "../src/pages/HealthPage";
+import type { DataDoctorReport } from "../src/types";
 
 vi.mock("../src/api", async () => {
   const actual = await vi.importActual<typeof import("../src/api")>("../src/api");
@@ -17,6 +19,7 @@ vi.mock("../src/api", async () => {
       tree: vi.fn(async () => ({ tree: [] })),
       bookmarks: vi.fn(async () => ({ folders: [], items: [] })),
       setBookmarks: vi.fn(async (value: unknown) => value),
+      doctor: vi.fn(async () => ({ ok: true, status: "ok", issues: [], writable: true, caseInsensitive: false })),
       diagramLint: vi.fn(async () => ({
         checked: 0,
         relinted: 0,
@@ -77,8 +80,52 @@ describe("Diagram health layout", () => {
     const main = children[2];
     expect(main?.tagName).toBe("MAIN");
     expect(main?.classList.contains("health-page")).toBe(true);
-
     const width = main?.getBoundingClientRect().width ?? 0;
     if (width > 0) expect(width).toBeGreaterThan(600);
+  });
+
+  it("shows a case-insensitive disk as a note, not a problem count", async () => {
+    const note: DataDoctorReport = {
+      ok: true,
+      dataDir: "/data",
+      status: "ok",
+      issues: [
+        {
+          code: "case-fold",
+          severity: "info",
+          message:
+            "Your disk treats uppercase and lowercase file names as the same. No action needed. NerdGram won't let a rename change only capitalization, so a diagram can't be overwritten.",
+        },
+      ],
+      syncFolder: false,
+      instanceConflict: null,
+      freeBytes: null,
+      quarantined: 0,
+      writable: true,
+      tempsRemoved: 0,
+      quarantineSets: [],
+      clashes: [],
+      caseInsensitive: true,
+      blockers: [],
+    };
+    vi.mocked(api.doctor).mockResolvedValueOnce(note);
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root?.render(
+        <MemoryRouter initialEntries={["/health"]}>
+          <PaletteContext.Provider value={{ setHost: () => undefined, openPalette: () => undefined }}>
+            <HealthPage />
+          </PaletteContext.Provider>
+        </MemoryRouter>,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(host.textContent).toContain("No action needed");
+    expect(host.textContent).toContain("won't let a rename change only capitalization");
+    expect(host.querySelector(".data-health-banner")).toBeNull();
   });
 });

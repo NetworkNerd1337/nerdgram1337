@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- A case-insensitive disk is an info note, not a data-folder problem, so it no longer raises the dashboard banner. The banner and Details say what NerdGram checked, what it found, and whether you need to do something. The banner has a dismiss control that stays hidden for that set of problems, and it goes away on its own once the problems are gone.
 
 ## 2.1.22 "Azimuth" - 2026-11-23
 
