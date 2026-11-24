@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { onInstanceStartupNote, resetInstanceStartupForTests } from "./instanceConfig.js";
+import { syncFolderMessage } from "./syncFolderHint.js";
 import { claimInstanceLock, currentInstanceConflict, resetInstanceLockForTests, StrictInstanceConflict, type InstanceConflict } from "./instanceLock.js";
 import { ensureDataRoot, getDataRoot, getMetaPath, META_DIR_NAME } from "./paths.js";
 import {
@@ -297,7 +298,7 @@ async function detectSyncFolder(dir: string): Promise<void> {
   recordDataIssue({
     code: "sync-folder",
     severity: "warn",
-    message: `NerdGram checked the data folder and found it looks synced or shared (${reasons.join(", ")}). Move it to a local folder or a Docker volume for one machine, and use GitHub sync to share diagrams.`,
+    message: syncFolderMessage(reasons.join(", ")),
   });
 }
 

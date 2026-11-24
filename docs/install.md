@@ -49,7 +49,7 @@ docker run -d \
 
 **4. Open the app.** [http://127.0.0.1:8787](http://127.0.0.1:8787) or [http://localhost:8787](http://localhost:8787). The health check is [http://127.0.0.1:8787/api/health](http://127.0.0.1:8787/api/health). `installKind` is `docker`, and `dataDir` is `/data`.
 
-**Unsupported.** A data folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or any other cloud-synced or on-demand folder is not supported. Cloud-only placeholder files cannot be downloaded through a Docker bind mount, so reads fail. Use a local folder, the named Docker volume `nerdgram-data`, or an SMB or NFS share.
+**Unsupported.** A data folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or any other cloud-synced or on-demand folder is not supported. Cloud-only placeholder files cannot be downloaded through a Docker bind mount, so reads fail. SMB and NFS shares are supported. Use a local folder, the named Docker volume `nerdgram-data`, or an SMB (Samba or Windows file share) or NFS share. The reason is in [Why cloud-synced folders are unsupported](troubleshooting.md#why-cloud-synced-folders-are-unsupported).
 
 The container runs as uid **1001**, gid **1001** (user `nerdgram`). A new named volume is writable by that user. A bind mount needs:
 
@@ -323,7 +323,7 @@ Error: Cannot find module '.../server/dist/index.js'
 
 Run `npm run build` from the project root, then `npm start` again.
 
-**Unsupported.** A diagram folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or any other cloud-synced or on-demand folder is not supported. Cloud-only placeholder files cannot be downloaded through a Docker bind mount, so reads fail. Use a local folder or an SMB or NFS share.
+**Unsupported.** A diagram folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or any other cloud-synced or on-demand folder is not supported. Cloud-only placeholder files cannot be downloaded through a Docker bind mount, so reads fail. SMB and NFS shares are supported. Use a local folder or an SMB (Samba or Windows file share) or NFS share. The reason is in [Why cloud-synced folders are unsupported](troubleshooting.md#why-cloud-synced-folders-are-unsupported).
 
 Leave `HOST` unset unless another machine should call the API. Unset, the server listens on `127.0.0.1` and `::1`. The same default is the Host box on the settings page. `PORT` changes the production port (`PORT=8790 npm start`; Command Prompt: `set PORT=8790` then `npm start`; PowerShell: `$env:PORT = "8790"`). During `npm run dev`, leave the API on 8787 and leave the bind on loopback: the dev page proxies to `127.0.0.1:8787`. See [Configuration](configuration.md#configuration) for `HOST`, the saved Host setting, `NODE_ENV`, and `NERDGRAM_DATA_DIR`.
 

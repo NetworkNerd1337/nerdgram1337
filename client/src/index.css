@@ -106,6 +106,24 @@ select {
   font: inherit;
 }
 
+/* Native menus follow the app theme. Edge paints the option list from these
+   declarations, not from the closed control alone. */
+select {
+  color-scheme: inherit;
+}
+
+select option,
+select optgroup {
+  background-color: var(--bg-muted);
+  color: var(--ink);
+}
+
+select option:disabled {
+  background-color: var(--bg-muted);
+  color: var(--ink-soft);
+  opacity: 1;
+}
+
 button {
   cursor: pointer;
 }
@@ -1521,8 +1539,9 @@ body.is-col-resizing * {
   flex: 0 0 auto;
 }
 
-.preview-toolbar select {
-  background: var(--bg-muted);
+.preview-toolbar select,
+.export-label select {
+  background-color: var(--bg-muted);
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2291,14 +2310,6 @@ body.is-col-resizing * {
   color: var(--ink);
   font-size: 0.88rem;
   white-space: nowrap;
-}
-
-.export-label select {
-  background: var(--accent);
-  color: var(--bg);
-  border: 0;
-  border-radius: 999px;
-  padding: 0.5rem 0.85rem;
 }
 
 .export-menu {

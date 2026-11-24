@@ -3,7 +3,7 @@ import { api } from "../api";
 import type { DataDoctorReport } from "../types";
 import { infoIssues, problemIssues } from "../lib/dataFolderNotice";
 import { ClashList, QuarantineList } from "./DataFolderExtras";
-import { DataFolderNotes } from "./DataHealthNotice";
+import { DataFolderNotes, DataIssueText } from "./DataHealthNotice";
 import { SettingsCard } from "./SettingsCard";
 
 export function DataFolderSettings() {
@@ -46,7 +46,7 @@ export function DataFolderSettings() {
             <ul>
               {problems.map((issue) => (
                 <li key={`${issue.code}:${issue.file ?? ""}:${issue.message}`}>
-                  {issue.file ? <code>{issue.file}</code> : null} {issue.message}
+                  <DataIssueText issue={issue} />
                 </li>
               ))}
             </ul>
