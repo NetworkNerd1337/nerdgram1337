@@ -27,6 +27,8 @@ npm install -g nerdgram1337
 npx nerdgram1337 --help
 ```
 
+npm publishing is temporarily paused. Those commands still install the last version published to npm. A newer release is the Docker image `ghcr.io/networknerd1337/nerdgram1337` or a checkout of the tag. See [Npm publishing is paused](releases.md#npm-publishing-is-paused).
+
 `npm install -g` puts `nerdgram` on your `PATH`. `npx` runs the command without a global install. The package is public. If the shell cannot find it, open a new terminal. npm warns when its global bin directory is not on `PATH`. `npx` downloads the package and runs the command without a global install. Point `NERDGRAM_URL` at the running app. The default is `http://127.0.0.1:8787`, which is right when the app is on the same computer. Node.js 20 or newer and npm 10 or newer are the same versions [the app uses](install.md#nodejs).
 
 **Do not run `npx nerdgram1337` inside a checkout of this repository.** The root `package.json` is also named `nerdgram1337` and has no `bin`. From that directory, npm stops with `could not determine executable to run`. Use `npm install -g` or `npx` from any other directory.

@@ -61,13 +61,15 @@ Actions in `.github/workflows` are pinned to a full commit SHA, with the version
 
 The npm publish tries [trusted publishing](https://docs.npmjs.com/trusted-publishers) first. The job's `id-token: write` permission lets npm mint the OIDC token. `NODE_AUTH_TOKEN` is unset for that attempt, and any project `.npmrc` from setup-node is removed so a stored token cannot hide the OIDC path. The job logs `Published nerdgram1337 with npm trusted publishing (OIDC).` If that publish fails and `NPM_TOKEN` is set, the job logs the fallback and publishes with the token. If both fail, the npm job fails. The GitHub Release job is separate. After a trusted publish succeeds, delete the `NPM_TOKEN` repository secret.
 
+That npm job runs only when the repository variable `NPM_PUBLISH_ENABLED` is the string `true`. With the variable unset, the job is skipped. The GitHub Release job does not need it, and the Docker workflow does not need it. `NPM_TOKEN` stays in the repository secrets. See [Npm publishing is paused](releases.md#npm-publishing-is-paused).
+
 These are the owner settings. The files in the repo do not turn them on.
 
 - **Ruleset on `main`.** Require a pull request before merging. Require the **verify** and **docker** checks. Block force pushes. Require a review from code owners so a change under `.github/` or to a `package.json` needs the maintainer.
 - **Actions.** Require approval before a workflow runs from an outside collaborator. That setting is under Settings, Actions, General.
 - **Secret scanning and push protection.** Turn both on under Settings, Code security. Push protection stops a commit that contains a token.
 - **CodeQL.** Default setup is on under Settings, Code security. Copilot Autofix is off. CodeQL sends alerts and does not change the code. Each finding is fixed in a release or dismissed with a written reason.
-- **npm trusted publisher.** This is already set on npmjs.com for `nerdgram1337`: GitHub Actions, owner `NetworkNerd1337`, repository `nerdgram1337`, workflow `release.yml`, environment empty. The publish job tries that OIDC path first. `NPM_TOKEN` is only the fallback when that publish fails. After a trusted publish succeeds, delete the `NPM_TOKEN` repository secret.
+- **npm trusted publisher.** This is already set on npmjs.com for `nerdgram1337`: GitHub Actions, owner `NetworkNerd1337`, repository `nerdgram1337`, workflow `release.yml`, environment empty. The publish job runs only when `NPM_PUBLISH_ENABLED` is `true`, and then it tries that OIDC path first. `NPM_TOKEN` is only the fallback when that publish fails. After a trusted publish succeeds, delete the `NPM_TOKEN` repository secret. Keep the secret while publishing is paused.
 
 ## See also
 

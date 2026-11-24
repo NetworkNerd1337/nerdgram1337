@@ -77,6 +77,37 @@ describe("docker packaging", () => {
     expect(ci).toContain("push: false");
   });
 
+  it("skips npm publishing unless NPM_PUBLISH_ENABLED is true", async () => {
+    const release = await read(".github/workflows/release.yml");
+    const publish = await read(".github/workflows/docker-publish.yml");
+    const pause =
+      "npm publishing is temporarily paused; this release is available via Docker (ghcr.io/networknerd1337/nerdgram1337) and from source. npm stays at the last published version.";
+    const releaseJob = release.slice(0, release.indexOf("\n  npm:"));
+    const npmJob = release.slice(release.indexOf("\n  npm:"));
+
+    expect(releaseJob).toContain("Require a stable tag that matches package.json");
+    expect(releaseJob).toContain("Publish GitHub Release");
+    expect(releaseJob).toContain("generate_release_notes: false");
+    expect(releaseJob).toContain(pause);
+    expect(releaseJob).toContain("vars.NPM_PUBLISH_ENABLED != 'true'");
+    expect(releaseJob).not.toContain("needs:");
+    expect(npmJob.startsWith("\n  npm:")).toBe(true);
+    expect(npmJob.split("vars.NPM_PUBLISH_ENABLED == 'true'").length - 1).toBe(5);
+    expect(npmJob).toContain("if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}");
+    expect(npmJob).toContain("npm publish --provenance --access public");
+    expect(npmJob).toContain("NPM_TOKEN");
+    expect(npmJob).toContain("id-token: write");
+    expect(npmJob).not.toContain("needs:");
+    expect(npmJob).not.toContain("npm view");
+    expect(npmJob).not.toContain("npm deprecate");
+    expect(npmJob).not.toContain("dist-tag");
+    expect(publish).toContain("push: true");
+    expect(publish).toContain("type=raw,value=latest");
+    expect(publish).toContain('tags:\n      - "v*.*.*"');
+    expect(publish).not.toContain("NPM_PUBLISH_ENABLED");
+    expect(publish).not.toContain("needs:");
+  });
+
   it("ships every bundled sample, including ones added under diagrams/", async () => {
     const ignore = await read(".dockerignore");
     const samples = await bundledSampleFiles();
