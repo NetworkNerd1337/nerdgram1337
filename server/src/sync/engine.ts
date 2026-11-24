@@ -1075,6 +1075,8 @@ function schedule(ms: number): void {
 
 /** Resume watcher, reconcile, and retry timers for a workspace that is already syncing. */
 export async function startSyncLoopsIfEnabled(): Promise<void> {
+  const { backgroundWritersPaused } = await import("../instanceLock.js");
+  if (backgroundWritersPaused()) return;
   try {
     const config = await loadConfig();
     if (!config.enabled) return;

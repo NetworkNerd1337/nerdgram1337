@@ -1,7 +1,17 @@
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { claimInstanceLock, currentInstanceConflict, resetInstanceLockForTests, StrictInstanceConflict, type InstanceConflict } from "./instanceLock.js";
 import { ensureDataRoot, getDataRoot, getMetaPath, META_DIR_NAME } from "./paths.js";
+import {
+  backupStateFile,
+  contractFor,
+  migrateToCurrent,
+  clearNewerSchema,
+  noteNewerSchema,
+  resetSchemaForTests,
+  schemaVersionOf,
+} from "./stateSchema.js";
 import { httpFail, isProcessAlive } from "./storage.js";
 import { getVersionInfo } from "./updates/versionInfo.js";
 
@@ -18,16 +28,39 @@ export type DataIssue = {
   file?: string;
 };
 
+export type { InstanceConflict };
+
+export type QuarantineSet = {
+  id: string;
+  path: string;
+  file: string;
+  reason: string;
+};
+
+export type NameClash = {
+  kind: "case" | "conflict-copy";
+  paths: string[];
+};
+
+export type UpgradeBlocker = {
+  code: "not-writable" | "low-space" | "instance-conflict" | "newer-schema";
+  message: string;
+};
+
 export type DataHealthReport = {
   status: DataStatus;
   issues: DataIssue[];
   syncFolder: boolean;
-  instanceConflict: null;
+  instanceConflict: InstanceConflict | null;
   freeBytes: number | null;
   quarantined: number;
   writable: boolean;
   tempsRemoved: number;
   dataDir: string;
+  quarantineSets: QuarantineSet[];
+  clashes: NameClash[];
+  caseInsensitive: boolean;
+  blockers: UpgradeBlocker[];
 };
 
 const issues: DataIssue[] = [];
@@ -37,7 +70,11 @@ let writable = true;
 let quarantined = 0;
 let tempsRemoved = 0;
 let prepared: Promise<void> | null = null;
+let quarantineSets: QuarantineSet[] = [];
+let clashes: NameClash[] = [];
+let caseInsensitive = false;
 const quarantinedPaths = new Set<string>();
+const QUARANTINE_KEEP = 10;
 
 export function resetDataHealthForTests(): void {
   issues.length = 0;
@@ -47,7 +84,12 @@ export function resetDataHealthForTests(): void {
   quarantined = 0;
   tempsRemoved = 0;
   prepared = null;
+  quarantineSets = [];
+  clashes = [];
+  caseInsensitive = false;
   quarantinedPaths.clear();
+  resetInstanceLockForTests();
+  resetSchemaForTests();
 }
 
 /** Refuse a save when the startup check already found the data folder cannot be written. */
@@ -61,18 +103,53 @@ export function assertDataWritable(): void {
   throw httpFail(503, hint, "not_writable");
 }
 
+export function upgradeBlockers(report: Pick<DataHealthReport, "writable" | "issues" | "instanceConflict">): UpgradeBlocker[] {
+  const blockers: UpgradeBlocker[] = [];
+  if (!report.writable) {
+    blockers.push({
+      code: "not-writable",
+      message: "The data folder is not writable. An upgrade cannot save its state.",
+    });
+  }
+  if (report.issues.some((issue) => issue.code === "low-space")) {
+    blockers.push({
+      code: "low-space",
+      message: "Free space is low. Free space before you upgrade.",
+    });
+  }
+  if (report.instanceConflict) {
+    blockers.push({
+      code: "instance-conflict",
+      message: "Two instances share this data folder. Stop the other one before you upgrade.",
+    });
+  }
+  if (report.issues.some((issue) => issue.code === "newer-schema")) {
+    blockers.push({
+      code: "newer-schema",
+      message: "A state file was written by a newer NerdGram. Upgrade to that version, or restore an older copy. The file will not be overwritten.",
+    });
+  }
+  return blockers;
+}
+
 export function dataHealthReport(): DataHealthReport {
-  return {
+  const report: DataHealthReport = {
     status: statusOf(issues, writable),
     issues: issues.map((issue) => ({ ...issue })),
     syncFolder,
-    instanceConflict: null,
+    instanceConflict: currentInstanceConflict(),
     freeBytes,
     quarantined,
     writable,
     tempsRemoved,
     dataDir: getDataRoot(),
+    quarantineSets: quarantineSets.map((set) => ({ ...set })),
+    clashes: clashes.map((clash) => ({ ...clash, paths: [...clash.paths] })),
+    caseInsensitive,
+    blockers: [],
   };
+  report.blockers = upgradeBlockers(report);
+  return report;
 }
 
 function statusOf(list: readonly DataIssue[], canWrite: boolean): DataStatus {
@@ -323,6 +400,41 @@ export async function safeReadState<T>(options: SafeReadOptions<T>): Promise<T> 
     await restoreFallback(options);
     return copyFallback(options.fallback);
   }
+  const contract = contractFor(options.name);
+  const version = contract ? schemaVersionOf(parsed) : null;
+  if (contract && version != null && version > contract.current) {
+    noteNewerSchema(options.file);
+    recordDataIssue({
+      code: "newer-schema",
+      severity: "warn",
+      file: options.name,
+      message: `${options.name} was written by a newer NerdGram (schemaVersion ${version}). It was left unchanged. Upgrade NerdGram, or restore an older copy. NerdGram is using its defaults until then.`,
+    });
+    return copyFallback(options.fallback);
+  }
+  if (contract && version != null && version < contract.current) {
+    const migrated = migrateToCurrent(contract, parsed, version);
+    const migratedRaw = JSON.stringify(migrated);
+    const migratedValue = options.parse(migrated, migratedRaw);
+    if (migratedValue != null) {
+      if (writable) {
+        try {
+          await backupStateFile(options.file, version);
+          const { atomicWriteJson } = await import("./storage.js");
+          await atomicWriteJson(options.file, migrated);
+        } catch (err) {
+          recordDataIssue({
+            code: "migrate-failed",
+            severity: "degraded",
+            file: options.name,
+            message: `${options.name} could not be migrated (${errnoOf(err) || "error"}). The file was left unchanged.`,
+          });
+          return copyFallback(options.fallback);
+        }
+      }
+      return migratedValue;
+    }
+  }
   const value = options.parse(parsed, raw);
   if (value == null) {
     await quarantineState(options.file, options.name, "wrong shape", "", raw);
@@ -388,6 +500,8 @@ async function quarantineState(file: string, name: string, reason: string, errno
     };
     await fs.writeFile(path.join(dir, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
     quarantined += 1;
+    await pruneQuarantine();
+    await refreshQuarantineSets();
   } catch (err) {
     recordDataIssue({
       code: "quarantine-failed",
@@ -447,10 +561,22 @@ async function auditStateFiles(): Promise<void> {
 }
 
 /** Check the data folder once. Later quarantines update the same report. */
+export async function repairDataFolder(): Promise<DataHealthReport> {
+  prepared = null;
+  issues.length = 0;
+  quarantined = 0;
+  tempsRemoved = 0;
+  clashes = [];
+  syncFolder = false;
+  await ensureDataPrepared();
+  return dataHealthReport();
+}
+
 export function ensureDataPrepared(): Promise<void> {
   if (!prepared) {
     prepared = prepareDataFolder().catch((err) => {
       prepared = null;
+      if (err instanceof StrictInstanceConflict) throw err;
       recordDataIssue({
         code: "prepare",
         severity: "degraded",
@@ -459,6 +585,154 @@ export function ensureDataPrepared(): Promise<void> {
     });
   }
   return prepared;
+}
+
+async function pruneQuarantine(): Promise<void> {
+  const root = path.join(getMetaPath(), "quarantine");
+  let names: string[] = [];
+  try {
+    names = await fs.readdir(root);
+  } catch {
+    return;
+  }
+  const dirs: string[] = [];
+  for (const name of names) {
+    try {
+      if ((await fs.stat(path.join(root, name))).isDirectory()) dirs.push(name);
+    } catch {
+      continue;
+    }
+  }
+  dirs.sort();
+  const extra = dirs.slice(0, Math.max(0, dirs.length - QUARANTINE_KEEP));
+  for (const name of extra) {
+    await fs.rm(path.join(root, name), { recursive: true, force: true });
+  }
+}
+
+async function refreshQuarantineSets(): Promise<void> {
+  const root = path.join(getMetaPath(), "quarantine");
+  let names: string[] = [];
+  try {
+    names = await fs.readdir(root);
+  } catch {
+    quarantineSets = [];
+    return;
+  }
+  const sets: QuarantineSet[] = [];
+  for (const name of names) {
+    const dir = path.join(root, name);
+    try {
+      if (!(await fs.stat(dir)).isDirectory()) continue;
+      const report = JSON.parse(await fs.readFile(path.join(dir, "report.json"), "utf8")) as { file?: unknown; reason?: unknown };
+      sets.push({
+        id: name,
+        path: dir,
+        file: typeof report.file === "string" ? report.file : "",
+        reason: typeof report.reason === "string" ? report.reason : "",
+      });
+    } catch {
+      continue;
+    }
+  }
+  sets.sort((a, b) => (a.id < b.id ? 1 : -1));
+  quarantineSets = sets.slice(0, QUARANTINE_KEEP);
+}
+
+async function detectNameClashes(root: string): Promise<void> {
+  clashes = [];
+  caseInsensitive = false;
+  if (writable) caseInsensitive = await probeCaseFold(root);
+  if (caseInsensitive) {
+    recordDataIssue({
+      code: "case-fold",
+      severity: "warn",
+      message: "This disk treats uppercase and lowercase names as the same file. A rename that only changes case can replace a diagram. NerdGram will not do that rename.",
+    });
+  }
+  const diagrams = await listDiagrams(root);
+  const byFold = new Map<string, string[]>();
+  for (const rel of diagrams) {
+    const key = rel.toLocaleLowerCase();
+    const group = byFold.get(key) ?? [];
+    group.push(rel);
+    byFold.set(key, group);
+  }
+  for (const group of byFold.values()) {
+    const unique = [...new Set(group)];
+    if (unique.length < 2) continue;
+    clashes.push({ kind: "case", paths: unique });
+    recordDataIssue({
+      code: "case-collision",
+      severity: "warn",
+      file: unique[0],
+      message: `These diagrams differ only by case: ${unique.join(" and ")}. Both are kept. Neither is deleted.`,
+    });
+  }
+  const present = new Set(diagrams);
+  for (const rel of diagrams) {
+    if (!isConflictCopyName(path.basename(rel))) continue;
+    const originalName = conflictOriginalName(path.basename(rel));
+    const original = originalName ? path.join(path.dirname(rel), originalName) : "";
+    const paths = original && present.has(original) ? [original, rel] : [rel];
+    if (clashes.some((clash) => clash.kind === "conflict-copy" && clash.paths.join() === paths.join())) continue;
+    clashes.push({ kind: "conflict-copy", paths });
+    recordDataIssue({
+      code: "conflict-copy",
+      severity: "warn",
+      file: rel,
+      message: `A sync conflict copy is next to the diagram (${paths.join(" and ")}). Compare them and keep both until you decide. NerdGram does not delete either file.`,
+    });
+  }
+}
+
+function conflictOriginalName(name: string): string | null {
+  const conflicted = /^(.*)\s+\(conflicted copy[^)]*\)(\.[^.]+)$/.exec(name);
+  if (conflicted?.[1] && conflicted[2]) return `${conflicted[1].trim()}${conflicted[2]}`;
+  const numbered = /^(.*) \d+(\.[^.]+)$/.exec(name);
+  if (numbered?.[1] && numbered[2]) return `${numbered[1]}${numbered[2]}`;
+  return null;
+}
+
+async function listDiagrams(root: string): Promise<string[]> {
+  const found: string[] = [];
+  const pending = [root];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current) break;
+    let entries;
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (entry.name === META_DIR_NAME || entry.name.startsWith(".")) continue;
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory() && !entry.isSymbolicLink()) {
+        pending.push(full);
+        continue;
+      }
+      if (!entry.name.endsWith(".mmd")) continue;
+      found.push(path.relative(root, full));
+    }
+  }
+  return found;
+}
+
+async function probeCaseFold(root: string): Promise<boolean> {
+  const lower = path.join(root, `.ng-case-${process.pid}`);
+  const upper = path.join(root, `.ng-CASE-${process.pid}`);
+  try {
+    await fs.writeFile(lower, "a");
+    await fs.writeFile(upper, "b");
+    return (await fs.readFile(lower, "utf8")) === "b";
+  } catch {
+    return false;
+  } finally {
+    await fs.rm(lower, { force: true });
+    await fs.rm(upper, { force: true });
+  }
 }
 
 async function prepareDataFolder(): Promise<void> {
@@ -498,7 +772,114 @@ async function prepareDataFolder(): Promise<void> {
   await readFreeBytes(root);
   await detectSyncFolder(root);
   if (writable) await cleanupOrphanTemps(root);
+  await detectNameClashes(root);
   await auditStateFiles();
+  await refreshQuarantineSets();
+  if (writable) {
+    await claimInstanceLock();
+    const conflict = currentInstanceConflict();
+    if (conflict) {
+      recordDataIssue({
+        code: "instance-conflict",
+        severity: "warn",
+        message: `Two instances share this data folder. The other one is ${conflict.hostname} pid ${conflict.pid}, heartbeat ${conflict.heartbeatAt}. Background sync, the update checker, and diagram sightings are paused.`,
+      });
+    }
+  }
+}
+
+/** Stamp written by quarantine: millisecond time, then 6 hex characters. */
+const QUARANTINE_ID = /^[0-9]{13}-[a-f0-9]{6}$/;
+/** Backup folder: schema version, then millisecond time. */
+const BACKUP_ID = /^[0-9]+-[0-9]{13}$/;
+
+function rejectRestore(message = "That quarantine set was not found."): never {
+  throw httpFail(400, message, "invalid");
+}
+
+/**
+ * A directory name taken from a listing, never from the request string.
+ * The request value is only compared to names that are already on disk.
+ * The same check covers quarantine sets and backup folders.
+ */
+async function listedChild(root: string, id: string, pattern: RegExp): Promise<string> {
+  if (typeof id !== "string" || !pattern.test(id)) rejectRestore();
+  let rootReal: string;
+  try {
+    rootReal = await fs.realpath(root);
+  } catch {
+    rejectRestore();
+  }
+  const rootStat = await fs.lstat(rootReal);
+  if (!rootStat.isDirectory()) rejectRestore();
+  const entries = await fs.readdir(rootReal, { withFileTypes: true });
+  const entry = entries.find((item) => item.name === id && pattern.test(item.name));
+  if (!entry || entry.isSymbolicLink() || !entry.isDirectory()) rejectRestore();
+  const dir = path.resolve(rootReal, entry.name);
+  const rel = path.relative(rootReal, dir);
+  if (!rel || rel.startsWith("..") || path.isAbsolute(rel) || rel.includes(`..${path.sep}`)) rejectRestore();
+  let dirReal: string;
+  try {
+    dirReal = await fs.realpath(dir);
+  } catch {
+    rejectRestore();
+  }
+  const realRel = path.relative(rootReal, dirReal);
+  if (!realRel || realRel.startsWith("..") || path.isAbsolute(realRel) || realRel.includes(`..${path.sep}`)) {
+    rejectRestore();
+  }
+  const linked = await fs.lstat(dir);
+  if (linked.isSymbolicLink()) rejectRestore();
+  return dirReal;
+}
+
+export async function quarantineDirForId(id: string): Promise<string> {
+  return listedChild(path.join(getMetaPath(), "quarantine"), id, QUARANTINE_ID);
+}
+
+export async function backupDirForId(id: string): Promise<string> {
+  return listedChild(path.join(getMetaPath(), "backups"), id, BACKUP_ID);
+}
+
+function safeStateRelative(rel: string): string | null {
+  if (typeof rel !== "string" || !rel || rel.length > 240) return null;
+  if (rel.includes("\0") || rel.includes("\\") || rel.includes("%") || path.isAbsolute(rel)) return null;
+  if (rel.endsWith(".mmd") || rel.endsWith(".mmd.bak")) return null;
+  const parts = rel.split("/");
+  if (parts.some((part) => !/^[A-Za-z0-9._-]+$/.test(part) || part === "." || part === "..")) return null;
+  return parts.join("/");
+}
+
+export async function restoreQuarantineSet(id: string): Promise<QuarantineSet> {
+  const dir = await quarantineDirForId(id);
+  let report: { file?: unknown; reason?: unknown };
+  try {
+    report = JSON.parse(await fs.readFile(path.join(dir, "report.json"), "utf8")) as { file?: unknown; reason?: unknown };
+  } catch {
+    rejectRestore();
+  }
+  const rel = safeStateRelative(typeof report.file === "string" ? report.file : "");
+  if (!rel) rejectRestore("That quarantine set does not name a state file.");
+  const names = await fs.readdir(dir, { withFileTypes: true });
+  const payload = names.find((item) => item.name !== "report.json" && item.isFile() && !item.isSymbolicLink());
+  if (!payload || payload.name !== path.basename(rel) || !/^[A-Za-z0-9._-]+$/.test(payload.name)) {
+    rejectRestore("That quarantine set has no file to restore.");
+  }
+  const metaReal = await fs.realpath(getMetaPath());
+  const dest = path.resolve(metaReal, rel);
+  const destRel = path.relative(metaReal, dest);
+  if (!destRel || destRel.startsWith("..") || path.isAbsolute(destRel)) {
+    rejectRestore("That quarantine set does not name a state file.");
+  }
+  await fs.mkdir(path.dirname(dest), { recursive: true });
+  const parentReal = await fs.realpath(path.dirname(dest));
+  const parentRel = path.relative(metaReal, parentReal);
+  if (parentRel.startsWith("..") || path.isAbsolute(parentRel)) {
+    rejectRestore("That quarantine set does not name a state file.");
+  }
+  clearNewerSchema(dest);
+  await fs.copyFile(path.join(dir, payload.name), dest);
+  return { id: path.basename(dir), path: dir, file: rel, reason: typeof report.reason === "string" ? report.reason : "" };
 }
 
 export async function logStartupSummary(): Promise<void> {
@@ -511,6 +892,7 @@ export async function logStartupSummary(): Promise<void> {
     status: report.status,
     quarantined: report.quarantined,
     tempsRemoved: report.tempsRemoved,
+    instanceConflict: report.instanceConflict != null,
     issues: report.issues.map((issue) => ({ code: issue.code, file: issue.file ?? null, message: issue.message })),
   };
   if (process.env.NERDGRAM_LOG_FORMAT === "json") {

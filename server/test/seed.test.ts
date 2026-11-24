@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { ensureDataPrepared, resetDataHealthForTests } from "../src/dataHealth.js";
 import { bundledSampleFiles, seedEmptyDataDir } from "../src/seed.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -8,6 +9,7 @@ describe("sample seed", () => {
   let cleanup = async () => {};
 
   afterEach(async () => {
+    resetDataHealthForTests();
     await cleanup();
     cleanup = async () => {};
   });
@@ -38,6 +40,30 @@ describe("sample seed", () => {
     cleanup = temp.cleanup;
     await fs.mkdir(path.join(temp.dir, ".meta"), { recursive: true });
     await fs.writeFile(path.join(temp.dir, ".meta", ".ng-1-abcd.tmp"), "probe");
+    expect(await seedEmptyDataDir()).toBe(true);
+    expect(await fs.readFile(path.join(temp.dir, "Welcome.mmd"), "utf8")).toBeTruthy();
+  });
+
+  it("seeds a brand-new directory after the Phase 2 startup check", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    resetDataHealthForTests();
+    await ensureDataPrepared();
+    expect(await fs.readFile(path.join(temp.dir, ".meta", "instance-lock.json"), "utf8")).toContain("instanceId");
+    expect(await seedEmptyDataDir()).toBe(true);
+    expect((await fs.readFile(path.join(temp.dir, "Welcome.mmd"), "utf8")).length).toBeGreaterThan(0);
+  });
+
+  it("seeds when .meta holds only the instance lock, backups, or quarantine", async () => {
+    const temp = await makeTempDataDir();
+    cleanup = temp.cleanup;
+    const meta = path.join(temp.dir, ".meta");
+    await fs.mkdir(path.join(meta, "backups", "0-1700000000000"), { recursive: true });
+    await fs.mkdir(path.join(meta, "quarantine", "1700000000000-abcdef"), { recursive: true });
+    await fs.writeFile(
+      path.join(meta, "instance-lock.json"),
+      `${JSON.stringify({ instanceId: "x", hostname: "h", pid: 1, startedAt: "t", heartbeatAt: "t" })}\n`,
+    );
     expect(await seedEmptyDataDir()).toBe(true);
     expect(await fs.readFile(path.join(temp.dir, "Welcome.mmd"), "utf8")).toBeTruthy();
   });

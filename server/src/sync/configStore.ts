@@ -68,7 +68,7 @@ export async function loadConfig(): Promise<SyncConfig> {
 }
 
 export async function saveConfig(config: SyncConfig): Promise<void> {
-  const body = `${JSON.stringify(config, null, 2)}\n`;
+  const body = `${JSON.stringify({ ...config, schemaVersion: 1 }, null, 2)}\n`;
   if (configContainsSecret(body)) {
     throw new Error("Refusing to store a token in GitHub sync config");
   }

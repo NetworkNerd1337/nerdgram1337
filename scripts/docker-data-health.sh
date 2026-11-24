@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Phase 1 data-folder cases against a built image.
-# Phase 2 cases (schemaVersion 99, two live instances, nerdgram doctor --repair)
-# are not part of this script.
+# Data-folder cases against a built image, including the Phase 2 heartbeat,
+# newer schemaVersion, and doctor --repair / --restore checks.
 set -euo pipefail
 
 IMAGE="${1:-nerdgram1337:ci}"
 ROOT="$(mktemp -d)"
-trap 'docker rm -f ng-data-health >/dev/null 2>&1 || true; rm -rf "$ROOT"' EXIT
+trap 'docker rm -f ng-data-health ng-data-health-b >/dev/null 2>&1 || true; rm -rf "$ROOT"' EXIT
 
 # The process listens on 8787. A Host port of the published host port is 403.
 LISTEN_HOST="127.0.0.1:8787"
@@ -237,5 +236,75 @@ docker exec ng-data-health sh -c '
 '
 docker rm -f ng-data-health >/dev/null
 docker volume rm "$vol13" >/dev/null
+
+echo "case 7: newer schemaVersion is not overwritten"
+vol7="$(docker volume create)"
+docker run --rm -v "$vol7":/data --entrypoint sh "$IMAGE" -c 'mkdir -p /data/.meta && printf "%s\n" "{\"schemaVersion\":99,\"version\":1,\"folders\":[],\"items\":[]}" > /data/.meta/favorites.json && cp /data/.meta/favorites.json /data/.meta/favorites.orig && echo "flowchart LR" > /data/Welcome.mmd'
+body="$(run_case ng-data-health 18787 -p 127.0.0.1:18787:8787 -v "$vol7":/data)" || exit 1
+python3 - "$body" << 'PY'
+import json, sys
+body = json.loads(sys.argv[1])
+assert any(issue.get("code") == "newer-schema" for issue in body["data"]["issues"]), body
+PY
+doctor="$(http_get "http://127.0.0.1:18787/api/doctor")"
+python3 - "$doctor" << 'PY'
+import json, sys
+body = json.loads(sys.argv[1])
+codes = {item.get("code") for item in body.get("blockers", [])}
+assert "newer-schema" in codes, body
+PY
+docker exec ng-data-health sh -c 'cmp /data/.meta/favorites.json /data/.meta/favorites.orig && test -f /data/Welcome.mmd'
+docker rm -f ng-data-health >/dev/null
+docker volume rm "$vol7" >/dev/null
+
+echo "case 10: two instances on one volume"
+vol10="$(docker volume create)"
+docker rm -f ng-data-health ng-data-health-b >/dev/null 2>&1 || true
+docker run -d --name ng-data-health -p 127.0.0.1:18790:8787 -v "$vol10":/data "$IMAGE" >/dev/null
+wait_url 18790 ng-data-health
+docker run -d --name ng-data-health-b -p 127.0.0.1:18792:8787 -v "$vol10":/data "$IMAGE" >/dev/null
+wait_url 18792 ng-data-health-b
+body="$(http_get "http://127.0.0.1:18792/api/health")"
+python3 - "$body" << 'PY'
+import json, sys
+body = json.loads(sys.argv[1])
+assert body["data"]["instanceConflict"], body
+assert any(issue.get("code") == "instance-conflict" for issue in body["data"]["issues"]), body
+PY
+docker rm -f ng-data-health ng-data-health-b >/dev/null
+docker volume rm "$vol10" >/dev/null
+
+echo "case 12: doctor --json, --repair, and --restore"
+vol12="$(docker volume create)"
+docker run --rm -v "$vol12":/data --entrypoint sh "$IMAGE" -c 'mkdir -p /data/.meta && : > /data/.meta/updates.json && printf "{" > /data/.meta/api-tokens.json && printf "%s\n" "{\"version\":1,\"folders\":[],\"items\":[]}" > /data/.meta/favorites.json && echo stale > /data/.meta/.ng-99-dead.tmp && touch -d "20 minutes ago" /data/.meta/.ng-99-dead.tmp && echo "flowchart LR" > /data/Welcome.mmd && echo "flowchart LR" > "/data/Welcome 2.mmd"'
+docker rm -f ng-data-health >/dev/null 2>&1 || true
+docker run -d --name ng-data-health -p 127.0.0.1:18794:8787 -v "$vol12":/data "$IMAGE" >/dev/null
+wait_url 18794 ng-data-health
+set +e
+docker exec ng-data-health nerdgram doctor --json > "$ROOT/doctor.json"
+json_code=$?
+docker exec ng-data-health nerdgram doctor --repair > "$ROOT/repair.txt"
+repair_code=$?
+set -e
+test "$json_code" -eq 1 -o "$json_code" -eq 2
+test "$repair_code" -eq 0 -o "$repair_code" -eq 1
+python3 - "$ROOT/doctor.json" << 'PY'
+import json, sys
+body = json.loads(open(sys.argv[1], encoding="utf-8").read())
+assert body["ok"] is True
+assert "status" in body
+PY
+docker exec ng-data-health sh -c 'test -f /data/Welcome.mmd && test -f "/data/Welcome 2.mmd" && test ! -e /data/.meta/.ng-99-dead.tmp && test -d /data/.meta/backups && grep -q schemaVersion /data/.meta/favorites.json'
+stamp="$(docker exec ng-data-health sh -c 'ls /data/.meta/quarantine | head -n 1')"
+test -n "$stamp"
+set +e
+docker exec ng-data-health nerdgram doctor --restore "$stamp" > "$ROOT/restore.txt"
+restore_code=$?
+set -e
+test "$restore_code" -eq 0
+grep -q "Diagrams were not changed" "$ROOT/restore.txt"
+docker exec ng-data-health sh -c 'test -f /data/Welcome.mmd && test -f "/data/Welcome 2.mmd"'
+docker rm -f ng-data-health >/dev/null
+docker volume rm "$vol12" >/dev/null
 
 echo "data-folder cases passed"

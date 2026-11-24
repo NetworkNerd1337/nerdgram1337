@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { backgroundWritersPaused } from "../instanceLock.js";
 import { httpFail } from "../storage.js";
 import { dockerGuideForTag, type DockerGuide } from "./dockerGuide.js";
 import { applyGitUpdate, type ApplyOutcome } from "./gitApply.js";
@@ -113,6 +114,7 @@ export function prereleaseForced(): boolean {
 }
 
 export function startUpdateChecker(): void {
+  if (backgroundWritersPaused()) return;
   if (checkerStarted) return;
   checkerStarted = true;
   const tick = () => {

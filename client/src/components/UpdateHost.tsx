@@ -16,6 +16,8 @@ import { mermaidEngineLabel, mermaidEngineReleaseUrl } from "../lib/mermaidVersi
 import { formatVersionLabel, knownCodeName } from "../lib/versionLabel";
 import type { UpdateJob, UpdateRelease, UpdateStatus, VersionInfo } from "../types";
 import { Brand } from "./Brand";
+import { UpgradeBlockers } from "./DataFolderExtras";
+import type { DataDoctorReport } from "../types";
 import { ReleaseMarkdown } from "./ReleaseMarkdown";
 import { ExternalLink, SupportLink } from "./SupportLink";
 import { UpdateContext, useUpdate, type CheckFeedback, type UpdatePanel } from "./updateContext";
@@ -75,6 +77,23 @@ export function UpdateHost({ children }: { children: ReactNode }) {
   const [copied, setCopied] = useState<string | null>(null);
   const [presenting, setPresenting] = useState(() => document.body.dataset.presenting === "true");
   const [dockerGuide, setDockerGuide] = useState<UpdateStatus["docker"]>(null);
+  const [doctorReport, setDoctorReport] = useState<DataDoctorReport | null>(null);
+
+  useEffect(() => {
+    if (panel !== "docker" && panel !== "progress") return;
+    let cancelled = false;
+    void api
+      .doctor()
+      .then((next) => {
+        if (!cancelled) setDoctorReport(next);
+      })
+      .catch(() => {
+        if (!cancelled) setDoctorReport(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [panel]);
 
   const applyStatus = useCallback((next: UpdateStatus) => {
     setStatus(next);
@@ -387,6 +406,7 @@ export function UpdateHost({ children }: { children: ReactNode }) {
       ) : null}
       {panel === "docker" && dockerGuide && status ? (
         <Dialog title={`Upgrade to ${dockerGuide.tag}`} onClose={() => setPanel(null)}>
+          <UpgradeBlockers report={doctorReport} />
           <p className="update-version-line">NerdGram will not change the container from the inside.</p>
           {status.latest ? <ReleaseMarkdown markdown={status.latest.body || "This release has no notes."} /> : null}
           {status.latest ? (
@@ -429,13 +449,19 @@ export function UpdateHost({ children }: { children: ReactNode }) {
         <Dialog title={job?.result ? "Restart to finish" : "Update now"} onClose={() => setPanel(null)}>
           {!job ? (
             <>
+              <UpgradeBlockers report={doctorReport} />
               <p>
                 Update to {status.latest ? releaseLabel(status.latest) : "the release"}? NerdGram will fetch that release, reinstall from the lockfiles,
                 and rebuild. Your diagrams are not modified. The git tree has to be clean, on main or a detached
                 release tag, and the release has to be a fast-forward. You will restart the app when it finishes.
               </p>
               <div className="update-banner-actions">
-                <button type="button" className="btn btn-primary" disabled={busy || !status.canApply} onClick={() => void startApply()}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={busy || !status.canApply || (doctorReport?.blockers.length ?? 0) > 0}
+                  onClick={() => void startApply()}
+                >
                   Update now
                 </button>
               </div>

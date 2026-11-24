@@ -128,7 +128,7 @@ function isStoredToken(value: unknown): value is StoredToken {
 }
 
 async function writeFileAt(filePath: string, file: TokenFile): Promise<void> {
-  await writePrivateFile(filePath, `${JSON.stringify(file, null, 2)}\n`);
+  await writePrivateFile(filePath, `${JSON.stringify({ ...file, schemaVersion: 1 }, null, 2)}\n`);
 }
 
 export function toPublic(token: StoredToken): PublicToken {

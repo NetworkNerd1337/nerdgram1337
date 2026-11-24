@@ -132,7 +132,6 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
       [...fromBind, ...loopbackOriginHosts([], saved.invalid ? null : saved.host)],
   });
 
-  await ensureDataPrepared();
   try {
     if (await seedEmptyDataDir()) {
       console.log("Seeded empty data directory with the sample diagrams.");
@@ -144,6 +143,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
       message: err instanceof Error ? err.message : "The sample diagrams could not be copied.",
     });
   }
+  await ensureDataPrepared();
   try {
     await captureDiagramSightings();
   } catch (err) {

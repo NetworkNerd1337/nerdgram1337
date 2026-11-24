@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { dataFileExtension } from "./dataFiles.js";
 import { getMetaPath } from "./paths.js";
+import { isManagedStatePath, isNewerSchemaPath, stampSchemaValue } from "./stateSchema.js";
 import { trimSlashes } from "./trim.js";
 
 export { trimChar, trimSlashes } from "./trim.js";
@@ -354,6 +355,9 @@ export async function atomicWriteText(absolutePath: string, content: string): Pr
     handle = null;
     await keepStateBak(absolutePath);
     await replaceFile(tmp, absolutePath);
+    if (path.basename(absolutePath) === "api-tokens.json" || path.basename(absolutePath) === "github-sync.json") {
+      await fs.chmod(absolutePath, 0o600);
+    }
     await syncDirectory(dir);
   } catch (err) {
     await handle?.close().catch(() => undefined);
@@ -363,7 +367,11 @@ export async function atomicWriteText(absolutePath: string, content: string): Pr
 }
 
 export async function atomicWriteJson(absolutePath: string, value: unknown): Promise<void> {
-  await atomicWriteText(absolutePath, `${JSON.stringify(value, null, 2)}\n`);
+  if (isNewerSchemaPath(absolutePath)) {
+    throw Object.assign(new Error("This file was written by a newer NerdGram and was not changed."), { code: "newer-schema" });
+  }
+  const stamped = isManagedStatePath(absolutePath) ? stampSchemaValue(value) : value;
+  await atomicWriteText(absolutePath, `${JSON.stringify(stamped, null, 2)}\n`);
 }
 
 export async function readJsonFile<T>(absolutePath: string): Promise<T | null> {

@@ -911,6 +911,8 @@ async function readDiagramSourcesWithHash(unreadable?: UnreadableDiagram[]): Pro
 
 /** Remember the diagrams on disk. A sync pull calls this before and after it applies the remote tree. */
 export async function captureDiagramSightings(): Promise<void> {
+  const { backgroundWritersPaused } = await import("./instanceLock.js");
+  if (backgroundWritersPaused()) return;
   const unreadable: UnreadableDiagram[] = [];
   const files = await readDiagramSourcesWithHash(unreadable);
   warnUnreadable(unreadable);

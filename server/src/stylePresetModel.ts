@@ -36,7 +36,7 @@ const PRESET_ID = /^sp[a-f0-9]{16}$/;
 const VARIABLE_KEY = /^[A-Za-z_][A-Za-z0-9_]{0,80}$/;
 const TOKEN = /^[A-Za-z][A-Za-z0-9_-]{0,40}$/;
 
-const DOCUMENT_KEYS = new Set(["version", "defaultId", "presets"]);
+const DOCUMENT_KEYS = new Set(["version", "defaultId", "presets", "schemaVersion"]);
 const PRESET_KEYS = new Set(["id", "name", "style"]);
 const STYLE_KEYS = new Set([
   "theme",

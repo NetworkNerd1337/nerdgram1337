@@ -206,17 +206,46 @@ export type DataHealthIssue = {
   file?: string;
 };
 
+export type InstanceConflict = {
+  instanceId: string;
+  hostname: string;
+  pid: number;
+  startedAt: string;
+  heartbeatAt: string;
+};
+
+export type QuarantineSet = {
+  id: string;
+  path: string;
+  file: string;
+  reason: string;
+};
+
+export type NameClash = {
+  kind: "case" | "conflict-copy";
+  paths: string[];
+};
+
+export type UpgradeBlocker = {
+  code: "not-writable" | "low-space" | "instance-conflict" | "newer-schema";
+  message: string;
+};
+
 export type DataDoctorReport = {
   ok: boolean;
   dataDir: string;
   status: "ok" | "warn" | "degraded";
   issues: DataHealthIssue[];
   syncFolder: boolean;
-  instanceConflict: null;
+  instanceConflict: InstanceConflict | null;
   freeBytes: number | null;
   quarantined: number;
   writable: boolean;
   tempsRemoved: number;
+  quarantineSets: QuarantineSet[];
+  clashes: NameClash[];
+  caseInsensitive: boolean;
+  blockers: UpgradeBlocker[];
 };
 
 export type VersionInfo = {

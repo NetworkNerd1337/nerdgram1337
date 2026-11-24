@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { DataDoctorReport } from "../types";
+import { ClashList, QuarantineList } from "./DataFolderExtras";
 
 export function DataHealthNotice({ report: given }: { report?: DataDoctorReport | null }) {
   const [report, setReport] = useState<DataDoctorReport | null>(given ?? null);
@@ -49,6 +50,15 @@ export function DataHealthNotice({ report: given }: { report?: DataDoctorReport 
                 </li>
               ))}
             </ul>
+            <QuarantineList
+              sets={report?.quarantineSets ?? []}
+              onRestore={async (id) => {
+                await api.restoreQuarantine(id);
+                const next = await api.doctor();
+                setReport(next);
+              }}
+            />
+            <ClashList clashes={report?.clashes ?? []} />
             <button type="button" className="btn" onClick={() => setOpen(false)}>
               Close
             </button>
