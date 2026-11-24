@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Docs:** npm publishing resumed. The next release publishes to npm again.
 
 ## 2.1.24 "Azimuth" - 2026-11-24
 
