@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RenderFormat } from "./renderDiagram.js";
 import { dataHealthReport, ensureDataPrepared } from "./dataHealth.js";
+import { StrictInstanceConflict } from "./instanceLock.js";
 import { codenameForVersion, formatVersionLabel, sanitizeCodenames } from "./updates/codename.js";
 
 /**
@@ -53,6 +54,7 @@ const BOOL_FLAGS = new Set([
   "include-down",
   "create-only",
   "version",
+  "repair",
 ]);
 
 const HELP = `nerdgram — automation client for NerdGram1337
@@ -82,7 +84,7 @@ Usage
   nerdgram replace <find> <replace> [--folder path] [--regex] [--whole-word] [--match-case] [--front-matter] [--no-recursive] [--dry-run] [--yes]
   nerdgram replace --undo <id>
   nerdgram mcp
-  nerdgram doctor
+  nerdgram doctor [--json] [--repair] [--restore <ts>] [--url <url>]
 
 A local .mmd file is rendered and linted in this process. convert reads a
 saved export and writes canonical network JSON in this process. export of a
@@ -148,6 +150,12 @@ not changed. --undo restores that replace and skips a file edited since.
 mcp speaks MCP on stdin and stdout and proxies tool calls to /api/v1.
 NERDGRAM_URL defaults to http://127.0.0.1:8787. NERDGRAM_TOKEN is required.
 --url and --token override those. Do not pass --json. stdout is the protocol.
+doctor reads the data folder on this computer. It exits 0 when the folder is
+fine, 1 for a warning, and 2 when the folder is not writable. --json prints
+the report and nothing else. --repair quarantines bad app state, restores
+defaults, removes old temp files, and runs migrations. It does not change
+diagrams. --restore <ts> copies that quarantine set back. --url reads
+GET /api/doctor from a running server instead of the local folder.
 `;
 
 type RenderModule = typeof import("./renderDiagram.js");
@@ -1096,15 +1104,109 @@ async function convertCommand(parsed: Parsed, io: Io): Promise<void> {
   io.stdout(pretty);
 }
 
-/** Local data-folder report. Exit 0 is ok, 1 is a warning, 2 is degraded. */
-async function doctorCommand(io: Io): Promise<number> {
-  await ensureDataPrepared();
-  const report = dataHealthReport();
-  io.stdout(`Data folder: ${report.status}. Writable: ${report.writable ? "yes" : "no"}.\n`);
-  for (const issue of report.issues) io.stdout(`${issue.message}\n`);
-  if (report.status === "degraded") return 2;
-  if (report.status === "warn") return 1;
+function doctorExit(status: string | undefined): number {
+  if (status === "degraded") return 2;
+  if (status === "warn") return 1;
   return 0;
+}
+
+function printDoctor(io: Io, report: ReturnType<typeof dataHealthReport>, asJson: boolean): number {
+  if (asJson) {
+    io.stdout(`${JSON.stringify({ ok: true, ...report })}\n`);
+  } else {
+    io.stdout(`Data folder: ${report.status}. Writable: ${report.writable ? "yes" : "no"}.\n`);
+    for (const issue of report.issues) io.stdout(`${issue.message}\n`);
+    if (report.instanceConflict) {
+      io.stdout(
+        `Two instances share this data folder. The other one is ${report.instanceConflict.hostname} pid ${report.instanceConflict.pid}.\n`,
+      );
+    }
+  }
+  return doctorExit(report.status);
+}
+
+/** Local data-folder report. Exit 0 is ok, 1 is a warning, 2 is degraded. */
+async function doctorCommand(io: Io, flags: Parsed["flags"]): Promise<number> {
+  const asJson = flags.get("json") === true;
+  const repair = flags.get("repair") === true;
+  const restore = flagString(flags, "restore");
+  const remote = flags.get("url");
+  if ((repair || restore) && remote != null) {
+    io.stderr("doctor --repair and --restore read the data folder on this computer. Leave --url off.\n");
+    return 2;
+  }
+  if (remote != null && !repair && !restore) {
+    const base = typeof remote === "string" && remote ? remote : (io.env.NERDGRAM_URL?.trim() || "http://127.0.0.1:8787");
+    let response: Response;
+    try {
+      response = await fetch(new URL("/api/doctor", base.endsWith("/") ? base : `${base}/`));
+    } catch (err) {
+      io.stderr(`${err instanceof Error ? err.message : "The doctor request failed."}\n`);
+      return 2;
+    }
+    const body = await response.text();
+    if (!response.ok) {
+      io.stderr(body.trim() ? `${body.trim()}\n` : `doctor failed (${response.status})\n`);
+      return 2;
+    }
+    if (asJson) {
+      io.stdout(body.endsWith("\n") ? body : `${body}\n`);
+    } else {
+      try {
+        const report = JSON.parse(body) as { status?: string; writable?: boolean; issues?: { message?: string }[] };
+        io.stdout(`Data folder: ${report.status ?? "ok"}. Writable: ${report.writable ? "yes" : "no"}.\n`);
+        for (const issue of report.issues ?? []) {
+          if (issue.message) io.stdout(`${issue.message}\n`);
+        }
+      } catch {
+        io.stdout(body.endsWith("\n") ? body : `${body}\n`);
+      }
+    }
+    try {
+      const report = JSON.parse(body) as { status?: string };
+      return doctorExit(report.status);
+    } catch {
+      return 2;
+    }
+  }
+  if (restore) {
+    try {
+      const { restoreQuarantineSet } = await import("./dataHealth.js");
+      const set = await restoreQuarantineSet(restore);
+      if (asJson) io.stdout(`${JSON.stringify({ ok: true, restored: set })}\n`);
+      else io.stdout(`Restored ${set.file} from ${set.path}. Diagrams were not changed.\n`);
+      return 0;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "That quarantine set could not be restored.";
+      io.stderr(`${message}\n`);
+      return 2;
+    }
+  }
+  if (repair) {
+    try {
+      const { repairDataFolder } = await import("./dataHealth.js");
+      const report = await repairDataFolder();
+      const code = printDoctor(io, report, asJson);
+      if (!asJson) io.stdout("Repair finished. Diagrams were not changed.\n");
+      return code;
+    } catch (err) {
+      if (err instanceof StrictInstanceConflict) {
+        io.stderr(`${err.message}\n`);
+        return 2;
+      }
+      throw err;
+    }
+  }
+  try {
+    await ensureDataPrepared();
+  } catch (err) {
+    if (err instanceof StrictInstanceConflict) {
+      io.stderr(`${err.message}\n`);
+      return 2;
+    }
+    throw err;
+  }
+  return printDoctor(io, dataHealthReport(), asJson);
 }
 
 export async function main(argv: string[], io: Partial<Io> = {}): Promise<number> {
@@ -1189,7 +1291,7 @@ export async function main(argv: string[], io: Partial<Io> = {}): Promise<number
         await templateCommand(parsed, streams);
         return 0;
       case "doctor":
-        return await doctorCommand(streams);
+        return await doctorCommand(streams, parsed.flags);
       case "mcp":
         try {
           await mcpCommand(parsed, streams);

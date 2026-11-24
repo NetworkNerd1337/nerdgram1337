@@ -21,6 +21,10 @@ const report: DataDoctorReport = {
   quarantined: 1,
   writable: true,
   tempsRemoved: 0,
+  quarantineSets: [],
+  clashes: [],
+  caseInsensitive: false,
+  blockers: [],
 };
 
 describe("data folder banner", () => {

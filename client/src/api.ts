@@ -716,6 +716,11 @@ export const api = {
     ),
   version: () => request<VersionInfo>("/api/version"),
   doctor: () => request<DataDoctorReport>("/api/doctor"),
+  restoreQuarantine: (id: string) =>
+    request<{ ok: boolean; restored: { id: string; path: string; file: string; reason: string } }>(
+      "/api/data/quarantine/restore",
+      { method: "POST", body: JSON.stringify({ id }) },
+    ),
   updates: () => request<UpdateStatus>("/api/updates"),
   updateJob: () => request<{ job: UpdateJob | null }>("/api/updates/job"),
   checkUpdates: () =>

@@ -6,6 +6,7 @@ Stop the app before you replace it.
 
 ## Contents
 
+- [Check the data folder](#check-the-data-folder)
 - [Update a Docker install](#update-a-docker-install)
 - [Update a git clone](#update-a-git-clone)
 - [Update a ZIP copy](#update-a-zip-copy)
@@ -18,6 +19,26 @@ Stop the app before you replace it.
 Paths in this document use two placeholders, always in code formatting so GitHub does not treat the angle brackets as HTML tags. `<data>` is the data directory: `NERDGRAM_DATA_DIR` when that variable is set, and `diagrams/` inside the project when it is not. `<repo>` is the project folder, the git clone or the extracted ZIP.
 
 Stop the app before you replace it. Diagrams stay where they are when you keep the same data directory or the same volume. Do not run `docker volume rm` on a volume you still want. There is no updater inside the container.
+
+## Check the data folder
+
+Run the doctor before you upgrade. It reads the data folder on this computer and does not change diagrams.
+
+```bash
+nerdgram doctor
+```
+
+Inside a running container:
+
+```bash
+docker exec nerdgram1337 nerdgram doctor
+```
+
+Exit 0 means the folder is fine. Exit 1 is a warning. Exit 2 means the folder is not writable or the check is degraded. `--json` prints the report. The in-app update dialog and the Docker upgrade steps list the same blockers before the commands: the folder is not writable, free space is low, two instances share the folder, or a state file was written by a newer NerdGram.
+
+Fix a blocker before you upgrade. `nerdgram doctor --repair` quarantines bad app-state files, restores their defaults, removes old temp files, and runs migrations. It copies app state to `.meta/backups` first. It does not modify, move, or delete `*.mmd` files. `nerdgram doctor --restore <ts>` puts one quarantine set back. A file whose `schemaVersion` is newer than this build is left unchanged.
+
+`NERDGRAM_STRICT_INSTANCE=1` refuses to start when another live instance already holds `.meta/instance-lock.json`. Leave it unset unless you want that. Two running copies of the same data folder are a warning, and background sync, the update checker, and diagram sightings pause until the other copy stops.
 
 The 2.1 line is supported until the next minor or major release. Only the newest patch is published. That patch is 2.1.21. Security fixes land there. 2.1.20 was deprecated on 2026-11-23. Its npm version stays published through 2026-12-23, and its GHCR tag is removed after that date. Upgrade with `npm i -g nerdgram1337@latest`, or pull `ghcr.io/networknerd1337/nerdgram1337:latest`. When a milestone release is published, the previous release is deprecated immediately and loses support that same day. `npm deprecate` marks it with an "upgrade to latest" message. Its npm version and GHCR version tag stay published for 30 days, so pinned installs and lockfiles keep working while people upgrade. After 30 days, that version is unpublished from npm where npm allows it, and its GHCR version tag is removed. Only the previous release gets that grace period. Older npm versions are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. Git tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
 

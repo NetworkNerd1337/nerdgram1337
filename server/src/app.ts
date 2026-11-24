@@ -317,7 +317,29 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       quarantined: data.quarantined,
       writable: data.writable,
       tempsRemoved: data.tempsRemoved,
+      quarantineSets: data.quarantineSets,
+      clashes: data.clashes,
+      caseInsensitive: data.caseInsensitive,
+      blockers: data.blockers,
     });
+  });
+
+  app.post("/api/data/quarantine/restore", async (req, res) => {
+    try {
+      const address = req.socket?.remoteAddress ?? "";
+      const loopback = address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+      if (!loopback) {
+        res.status(403).json({ error: "Quarantine restore is only available from this computer.", code: "forbidden" });
+        return;
+      }
+      if (!jsonObject(req, res)) return;
+      const id = typeof req.body?.id === "string" ? req.body.id : "";
+      const { restoreQuarantineSet } = await import("./dataHealth.js");
+      const restored = await restoreQuarantineSet(id);
+      res.json({ ok: true, restored });
+    } catch (err) {
+      sendError(res, err);
+    }
   });
 
   app.get("/api/version", (_req, res) => {

@@ -410,7 +410,7 @@ describe("GitHub sync", () => {
     await fs.writeFile(path.join(dir, ".secret", "Nope.mmd"), "flowchart LR\n  secret-->x\n");
     await fs.writeFile(
       path.join(dir, ".meta", "favorites.json"),
-      `${JSON.stringify({ version: 1, folders: [], items: [{ path: "FAVORITE_MARKER", folderId: null }] })}\n`,
+      `${JSON.stringify({ schemaVersion: 1, version: 1, folders: [], items: [{ path: "FAVORITE_MARKER", folderId: null }] })}\n`,
     );
     await fs.writeFile(path.join(outside, "Secret.mmd"), "flowchart LR\n  template-->x\n");
     await fs.symlink(path.join(outside, "Secret.mmd"), path.join(dir, "Link.mmd"));
@@ -482,7 +482,8 @@ describe("GitHub sync", () => {
     await expect(fs.access(path.join(dir, ".meta", "github-sync.json"))).rejects.toThrow();
     expect(await fs.readFile(path.join(dir, "Network", "Core.mmd"), "utf8")).toContain("A-->B");
     const after = await fingerprint(dir);
-    expect([...after.keys()].sort()).toEqual([...before.keys()].sort());
+    const visible = (file: string) => file !== ".meta/instance-lock.json";
+    expect([...after.keys()].filter(visible).sort()).toEqual([...before.keys()].filter(visible).sort());
     for (const [file, hash] of before) expect(after.get(file)).toBe(hash);
   });
 

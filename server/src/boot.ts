@@ -1,4 +1,5 @@
 import { startDiagramLintScan } from "./diagramLintCache.js";
+import { backgroundWritersPaused, releaseInstanceLock } from "./instanceLock.js";
 import { startSyncLoopsIfEnabled, stopSyncForShutdown } from "./sync/engine.js";
 import { drainUpdateWork, startUpdateChecker } from "./updates/service.js";
 
@@ -9,6 +10,10 @@ import { drainUpdateWork, startUpdateChecker } from "./updates/service.js";
  * suite does not call GitHub.
  */
 export async function bootBackgroundTasks(): Promise<void> {
+  if (backgroundWritersPaused()) {
+    console.warn("Background writers are paused because another instance is using this data folder.");
+    return;
+  }
   await startSyncLoopsIfEnabled();
   // Tests start and stop servers against a data dir that the next test replaces.
   // A scan still running would read that next directory. Production runs it.
@@ -30,4 +35,5 @@ export async function bootBackgroundTasks(): Promise<void> {
 export async function shutdownBackgroundTasks(): Promise<void> {
   await stopSyncForShutdown();
   await drainUpdateWork();
+  await releaseInstanceLock();
 }

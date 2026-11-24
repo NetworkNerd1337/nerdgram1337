@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { DataDoctorReport } from "../types";
+import { ClashList, QuarantineList } from "./DataFolderExtras";
 import { SettingsCard } from "./SettingsCard";
 
 export function DataFolderSettings() {
@@ -43,6 +44,14 @@ export function DataFolderSettings() {
               ))}
             </ul>
           ) : null}
+          <QuarantineList
+            sets={report.quarantineSets ?? []}
+            onRestore={async (id) => {
+              await api.restoreQuarantine(id);
+              setReport(await api.doctor());
+            }}
+          />
+          <ClashList clashes={report.clashes ?? []} />
         </>
       ) : null}
     </SettingsCard>
