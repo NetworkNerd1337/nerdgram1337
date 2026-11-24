@@ -283,27 +283,35 @@ wait_url 18794 ng-data-health
 set +e
 docker exec ng-data-health nerdgram doctor --json > "$ROOT/doctor.json"
 json_code=$?
-docker exec ng-data-health nerdgram doctor --repair > "$ROOT/repair.txt"
-repair_code=$?
+docker exec ng-data-health nerdgram doctor --repair > "$ROOT/repair-live.txt" 2>&1
+live_repair=$?
 set -e
-test "$json_code" -eq 1 -o "$json_code" -eq 2
-test "$repair_code" -eq 0 -o "$repair_code" -eq 1
+test "$json_code" -eq 0 -o "$json_code" -eq 1
+test "$live_repair" -eq 2
+grep -q "Stop NerdGram" "$ROOT/repair-live.txt"
 python3 - "$ROOT/doctor.json" << 'PY'
 import json, sys
 body = json.loads(open(sys.argv[1], encoding="utf-8").read())
 assert body["ok"] is True
 assert "status" in body
+assert not body.get("instanceConflict"), body
 PY
-docker exec ng-data-health sh -c 'test -f /data/Welcome.mmd && test -f "/data/Welcome 2.mmd" && test ! -e /data/.meta/.ng-99-dead.tmp && test -d /data/.meta/backups && grep -q schemaVersion /data/.meta/favorites.json'
-stamp="$(docker exec ng-data-health sh -c 'ls /data/.meta/quarantine | head -n 1')"
+docker stop ng-data-health >/dev/null
+set +e
+docker run --rm -v "$vol12":/data --entrypoint nerdgram "$IMAGE" doctor --repair > "$ROOT/repair.txt"
+repair_code=$?
+set -e
+test "$repair_code" -eq 0 -o "$repair_code" -eq 1
+docker run --rm -v "$vol12":/data --entrypoint sh "$IMAGE" -c 'test -f /data/Welcome.mmd && test -f "/data/Welcome 2.mmd" && test ! -e /data/.meta/.ng-99-dead.tmp && test -d /data/.meta/backups && grep -q schemaVersion /data/.meta/favorites.json'
+stamp="$(docker run --rm -v "$vol12":/data --entrypoint sh "$IMAGE" -c 'ls /data/.meta/quarantine | head -n 1')"
 test -n "$stamp"
 set +e
-docker exec ng-data-health nerdgram doctor --restore "$stamp" > "$ROOT/restore.txt"
+docker run --rm -v "$vol12":/data --entrypoint nerdgram "$IMAGE" doctor --restore "$stamp" > "$ROOT/restore.txt"
 restore_code=$?
 set -e
 test "$restore_code" -eq 0
 grep -q "Diagrams were not changed" "$ROOT/restore.txt"
-docker exec ng-data-health sh -c 'test -f /data/Welcome.mmd && test -f "/data/Welcome 2.mmd"'
+docker run --rm -v "$vol12":/data --entrypoint sh "$IMAGE" -c 'test -f /data/Welcome.mmd && test -f "/data/Welcome 2.mmd"'
 docker rm -f ng-data-health >/dev/null
 docker volume rm "$vol12" >/dev/null
 
