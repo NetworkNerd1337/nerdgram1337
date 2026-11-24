@@ -16,8 +16,6 @@ npm install -g nerdgram1337
 npx nerdgram1337 --help
 ```
 
-npm publishing is temporarily paused. Those commands still install the last version published to npm. A newer release is the Docker image `ghcr.io/networknerd1337/nerdgram1337` or a checkout of the tag.
-
 `npm install -g` puts `nerdgram` on your `PATH`. `npx` runs that command without a global install. The package is public.
 
 The install also downloads Mermaid and Puppeteer's chrome-headless-shell. Offline `lint` uses Mermaid's parser. Offline `render` uses that shell, which is the large part of the download. Commands that only call the API do not launch it.

@@ -59,8 +59,6 @@ Compose, a local image build, and the rest of the Docker install are in [Install
 
 The package name on npm is `nerdgram1337`. The command it installs is `nerdgram`. Node.js 20 or newer and npm 10 or newer are the same versions [the app uses](docs/install.md#nodejs).
 
-npm publishing is temporarily paused. The newest release may be only on Docker (`ghcr.io/networknerd1337/nerdgram1337`) or in a checkout of the tag until publishing is turned back on. The commands below still install the last version on npm. The pause and how to turn publishing back on are in [Npm publishing is paused](docs/releases.md#npm-publishing-is-paused).
-
 ```bash
 npm install -g nerdgram1337
 ```
@@ -138,7 +136,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - **[Security model](docs/security.md).** NerdGram1337 is a local, single-user personal tool.
 - **[Data and backups](docs/data-and-backups.md).** By default, diagrams live in `diagrams/` inside the project.
 - **[Upgrading](docs/upgrading.md).** Stop the app before you replace it.
-- **[Versioning and releases](docs/releases.md).** Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. The 2.1 line is supported until the next minor or major release. Only the newest patch is published. The previous release stays published for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. npm publishing is paused until the repository variable `NPM_PUBLISH_ENABLED` is `true`.
+- **[Versioning and releases](docs/releases.md).** Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. The 2.1 line is supported until the next minor or major release. Only the newest patch is published. The previous release stays published for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term.
 - **[Roadmap](docs/roadmap.md).** Planned work from 2.5.0 Crossstaff through 3.0.0 Horizon. 2.5.0 and 2.5.5 name the work. Later milestones are not planned yet. Future ideas at the end are not committed.
 - **[Troubleshooting](docs/troubleshooting.md).** If the API port is taken, the server exits and prints the listen error.
 - **[Developing](docs/developing.md).** The project folders, the npm scripts, and what CI runs.
