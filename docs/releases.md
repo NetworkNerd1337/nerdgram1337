@@ -12,6 +12,7 @@ Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffi
 - [Pin a version or move to another](#pin-a-version-or-move-to-another)
 - [What the update check offers](#what-the-update-check-offers)
 - [Release policy](#release-policy)
+- [Npm publishing is paused](#npm-publishing-is-paused)
 - [Cutting a release](#cutting-a-release)
 
 Releases are semantic versions: `vX.Y.Z`, three numbers with no prerelease suffix. `X` is the major line, `Y` is the maintenance line, and `Z` is the patch. The root `package.json` `version` is the version of the tree you have. A GitHub Release and its git tag use the same numbers with a leading `v`.
@@ -96,11 +97,23 @@ Changes merge to `main` through issues and pull requests. A pull request does no
 
 Those notes are on `main` as soon as the pull request merges. Anyone who runs NerdGram from a cloned repository on `main` gets them. They are not in the npm package or the GHCR images until the next milestone release.
 
-The version bump, the code name, the git tag, the npm publish, and the GHCR image happen only at a milestone release. That path is [Cutting a release](#cutting-a-release).
+The version bump, the code name, the git tag, the npm publish, and the GHCR image happen only at a milestone release. That path is [Cutting a release](#cutting-a-release). npm publish at that milestone runs only when the repository variable `NPM_PUBLISH_ENABLED` is `true`. While it is not, the tag still creates the GitHub Release and the GHCR image. See [Npm publishing is paused](#npm-publishing-is-paused).
 
 When that milestone is published, the previous release is deprecated immediately and loses support that same day. `npm deprecate` marks it with an "upgrade to latest" message. Its npm version and GHCR version tag stay published for 30 days, so pinned installs and lockfiles keep working while people upgrade. After 30 days, that version is unpublished from npm where npm allows it, and its GHCR version tag is removed. Only the previous release gets that grace period. Older npm versions are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. Install or upgrade to the latest release. Git tags stay, so a checkout of an old tag still works.
 
 Support lasts for one major.minor line. Every 2.1.x patch is supported until the next minor or major release, for example 2.2.0 or 3.0.0. From then on, 2.1.x gets no support and no fixes. Inside the line, only the newest patch is published. The details are under [Supported versions](#supported-versions).
+
+## Npm publishing is paused
+
+npm publishing is temporarily paused because the maintainer cannot sign in to npmjs.com to manage publish tokens. A `vX.Y.Z` tag still publishes the GitHub Release and still pushes `ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` and `:latest`. It does not publish, dist-tag, deprecate, or check the npm package.
+
+The switch is the Actions repository variable `NPM_PUBLISH_ENABLED`. The npm job in [`.github/workflows/release.yml`](../.github/workflows/release.yml) runs only when that variable is the string `true`. Each npm step in that job uses the same condition: registry setup, the CLI version refusal, trusted publishing, `npm publish --provenance`, and the `NPM_TOKEN` fallback. With no variable set, or with any other value, the job is skipped. The GitHub Release job does not `needs` the npm job, so a skip does not skip the Release. [`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) is a separate workflow and does not `needs` it either. `NPM_TOKEN` stays in the repository secrets. Do not delete it, and do not edit the workflow to pause or resume.
+
+While the job is skipped, the GitHub Release body and the job summary include this sentence: npm publishing is temporarily paused; this release is available via Docker (ghcr.io/networknerd1337/nerdgram1337) and from source. npm stays at the last published version.
+
+`npm view nerdgram1337 version` keeps printing the last version that was published. The tag workflow does not run `npm deprecate` or `npm dist-tag`.
+
+To publish to npm again, set the variable and push a tag. On GitHub: Settings, Secrets and variables, Actions, Variables. Set `NPM_PUBLISH_ENABLED` to `true`. The next `vX.Y.Z` tag runs the npm job. That job still checks `cli/package.json` against the tag, tries trusted publishing with provenance, and falls back to `NPM_TOKEN` when trusted publishing fails. To pause again, delete the variable or set it to any value other than `true`.
 
 ## Cutting a release
 
@@ -119,17 +132,17 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-6. [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes the GitHub Release when that tag is pushed. The title is `vX.Y.Z Code name`. The body is the changelog section. `node scripts/changelog-notes.mjs --title vX.Y.Z` prints the title. `node scripts/changelog-notes.mjs vX.Y.Z` prints the body.
+6. [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes the GitHub Release when that tag is pushed. The title is `vX.Y.Z Code name`. The body is the changelog section. When `NPM_PUBLISH_ENABLED` is not `true`, the workflow appends the pause sentence from [Npm publishing is paused](#npm-publishing-is-paused). `node scripts/changelog-notes.mjs --title vX.Y.Z` prints the title. `node scripts/changelog-notes.mjs vX.Y.Z` prints the changelog body.
 7. [`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) pushes `ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z`, `:latest`, and a `sha-<commit>` tag for `linux/amd64` and `linux/arm64`. It runs only for that tag. Pull requests do not push. The image is labeled with `org.opencontainers.image.version` and `org.opencontainers.image.codename`. The workflow then tries to mark the GHCR package public. If that call fails, the job warns and stays green. Set **Public** once in the [package settings](https://github.com/users/NetworkNerd1337/packages/container/nerdgram1337/settings) if the package is still private. Anonymous pulls already work once it is public.
-8. [`.github/workflows/release.yml`](../.github/workflows/release.yml) also publishes the npm package `nerdgram1337` from `cli/`. The tag has to match `cli/package.json`. The job refuses to publish when it does not. It uses the `NPM_TOKEN` repository secret and `npm publish --provenance`. Provenance needs the workflow's `id-token: write` permission, which that job sets. If `NPM_TOKEN` is not set, the job prints a warning and does not fail the GitHub Release. Create the secret from an npm token that can publish `nerdgram1337` for the npm user `networknerd1337`. The package is public (`publishConfig.access` is `public`). Pull requests do not publish.
+8. [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes the npm package `nerdgram1337` from `cli/` only when the repository variable `NPM_PUBLISH_ENABLED` is `true`. Until then the npm job is skipped, and the GitHub Release notes say npm publishing is paused. See [Npm publishing is paused](#npm-publishing-is-paused). When the variable is `true`, the tag has to match `cli/package.json`. The job refuses to publish when it does not. It tries trusted publishing first, then the `NPM_TOKEN` repository secret, and both paths use `npm publish --provenance`. Provenance needs the workflow's `id-token: write` permission, which that job sets. If trusted publishing fails and `NPM_TOKEN` is not set, the npm job fails. The GitHub Release is a separate job and still goes out. Keep `NPM_TOKEN`. Create it from an npm token that can publish `nerdgram1337` for the npm user `networknerd1337` when you are ready to publish again. The package is public (`publishConfig.access` is `public`). Pull requests do not publish.
 
 After the tag is pushed, check the release and the image:
 
-- The GitHub Release title is `vX.Y.Z Code name`, and the body is that version's section of `CHANGELOG.md`, with no extra "What's Changed" list appended.
+- The GitHub Release title is `vX.Y.Z Code name`, and the body is that version's section of `CHANGELOG.md`, with no extra "What's Changed" list appended. When npm publishing is paused, the pause sentence follows that section, and the job summary repeats it.
 - `GET /api/version` on a build of that tag returns the same `version` and `codename`.
 - `docker pull ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` succeeds. If the package is private, set it to **Public** once and pull again.
 - `docker image inspect ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z` shows `org.opencontainers.image.version` and `org.opencontainers.image.codename` for that release. A new container's `/api/health` returns the same version and code name, and an empty volume has `/data/Welcome.mmd`.
-- `npm view nerdgram1337 version` prints that release once `NPM_TOKEN` is set. `npx nerdgram1337 --help` then prints the command list. If the secret was missing, the release log has a warning and this view does not show the new version yet.
+- When `NPM_PUBLISH_ENABLED` is `true` and the npm job succeeds, `npm view nerdgram1337 version` prints that release. `npx nerdgram1337 --help` then prints the command list. While the variable is not `true`, `npm view` stays on the last published version, and the release notes say npm publishing is paused.
 
 ## See also
 

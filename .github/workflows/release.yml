@@ -4,7 +4,12 @@
 # docker-publish.yml pushes ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z
 # from this same tag. Keep that image workflow on this version.
 # The npm job publishes cli/ as the public package nerdgram1337. The command
-# name stays nerdgram. Preferred auth is npm trusted publishing (GitHub OIDC).
+# name stays nerdgram. It runs only when the repository variable
+# NPM_PUBLISH_ENABLED is the string true. With no variable set, the job is
+# skipped. The release job does not need the npm job. docker-publish.yml does
+# not need it either. Set the variable to true to publish to npm again. No
+# workflow edit is required. Keep the NPM_TOKEN secret.
+# Preferred auth, when the job runs, is npm trusted publishing (GitHub OIDC).
 # id-token: write is only on that job. Trusted publishing is attempted first.
 # If that publish fails and NPM_TOKEN is set, the token is the fallback.
 # Delete NPM_TOKEN after a trusted publish succeeds. Provenance is requested
@@ -21,6 +26,7 @@ permissions:
   contents: read
 
 jobs:
+  # No `needs`. A skipped npm job must not skip this job.
   release:
     runs-on: ubuntu-latest
     permissions:
@@ -54,6 +60,15 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+      # Unset, empty, or any value other than true pauses npm. The release
+      # still publishes. The same condition skips the npm job below.
+      - name: Record that npm publishing is paused
+        if: ${{ vars.NPM_PUBLISH_ENABLED != 'true' }}
+        run: |
+          notice='npm publishing is temporarily paused; this release is available via Docker (ghcr.io/networknerd1337/nerdgram1337) and from source. npm stays at the last published version.'
+          printf '\n%s\n' "$notice" >> release-notes.md
+          printf '%s\n' "$notice" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
@@ -61,30 +76,39 @@ jobs:
           body_path: release-notes.md
           draft: false
           prerelease: false
-          # The body is the CHANGELOG section only. GitHub's generated
-          # "What's Changed" list would be appended after it.
+          # The body is the CHANGELOG section. When npm is paused, the
+          # previous step appends the pause sentence. GitHub's generated
+          # "What's Changed" list stays off.
           generate_release_notes: false
 
   # The CLI version has to match the tag or this job fails. Trusted publishing
   # is preferred and is attempted first, even when NPM_TOKEN is set. The token
   # is only the fallback after OIDC publish fails. id-token: write is only on
-  # that job. This job is separate from the GitHub Release.
+  # this job. This job is separate from the GitHub Release and from
+  # docker-publish.yml. Nothing needs this job. It is skipped unless
+  # NPM_PUBLISH_ENABLED is true, which also skips publish, provenance,
+  # trusted publishing, and the token fallback inside the steps below.
+  # This workflow has no npm dist-tag, npm deprecate, or npm view step.
   npm:
+    if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}
         with:
           persist-credentials: false
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
 
       - name: Refuse a tag that does not match the CLI version
+        if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}
         run: |
           node scripts/check-version.mjs
           TAG="${GITHUB_REF_NAME}"
@@ -96,6 +120,7 @@ jobs:
           fi
 
       - name: Publish nerdgram1337 to npm
+        if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
