@@ -34,7 +34,7 @@ Inside a running container:
 docker exec nerdgram1337 nerdgram doctor
 ```
 
-Exit 0 means the folder is fine. Exit 1 is a warning. Exit 2 means the folder is not writable or the check is degraded. `--json` prints the report. The in-app update dialog and the Docker upgrade steps list the same blockers before the commands: the folder is not writable, free space is low, two instances share the folder, or a state file was written by a newer NerdGram.
+Exit 0 means the folder is fine. Exit 1 is a warning. Exit 2 means the folder is not writable or the check is degraded. Running doctor while the app is up does not by itself report a second instance. `--repair` and `--restore` refuse until that server stops. `--json` prints the report. The in-app update dialog and the Docker upgrade steps list the same blockers before the commands: the folder is not writable, free space is low, two instances share the folder, or a state file was written by a newer NerdGram.
 
 Fix a blocker before you upgrade. `nerdgram doctor --repair` quarantines bad app-state files, restores their defaults, removes old temp files, and runs migrations. It copies app state to `.meta/backups` first. It does not modify, move, or delete `*.mmd` files. `nerdgram doctor --restore <ts>` puts one quarantine set back. A file whose `schemaVersion` is newer than this build is left unchanged.
 

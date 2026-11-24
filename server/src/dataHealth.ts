@@ -561,29 +561,32 @@ async function auditStateFiles(): Promise<void> {
 }
 
 /** Check the data folder once. Later quarantines update the same report. */
-export async function repairDataFolder(): Promise<DataHealthReport> {
+export async function repairDataFolder(options?: { claimLock?: boolean }): Promise<DataHealthReport> {
   prepared = null;
   issues.length = 0;
   quarantined = 0;
   tempsRemoved = 0;
   clashes = [];
   syncFolder = false;
-  await ensureDataPrepared();
+  await ensureDataPrepared(options?.claimLock === false ? { claimLock: false } : undefined);
   return dataHealthReport();
 }
 
-export function ensureDataPrepared(): Promise<void> {
-  if (!prepared) {
-    prepared = prepareDataFolder().catch((err) => {
-      prepared = null;
-      if (err instanceof StrictInstanceConflict) throw err;
-      recordDataIssue({
-        code: "prepare",
-        severity: "degraded",
-        message: err instanceof Error ? err.message : "The data folder could not be checked.",
-      });
+function watchPrepare(claimLock: boolean): Promise<void> {
+  return prepareDataFolder(claimLock).catch((err) => {
+    if (claimLock) prepared = null;
+    if (err instanceof StrictInstanceConflict) throw err;
+    recordDataIssue({
+      code: "prepare",
+      severity: "degraded",
+      message: err instanceof Error ? err.message : "The data folder could not be checked.",
     });
-  }
+  });
+}
+
+export function ensureDataPrepared(options?: { claimLock?: boolean }): Promise<void> {
+  if (options?.claimLock === false) return watchPrepare(false);
+  if (!prepared) prepared = watchPrepare(true);
   return prepared;
 }
 
@@ -735,7 +738,7 @@ async function probeCaseFold(root: string): Promise<boolean> {
   }
 }
 
-async function prepareDataFolder(): Promise<void> {
+async function prepareDataFolder(claimLock = true): Promise<void> {
   const root = ensureDataRoot();
   let dirStat;
   try {
@@ -775,7 +778,7 @@ async function prepareDataFolder(): Promise<void> {
   await detectNameClashes(root);
   await auditStateFiles();
   await refreshQuarantineSets();
-  if (writable) {
+  if (writable && claimLock) {
     await claimInstanceLock();
     const conflict = currentInstanceConflict();
     if (conflict) {

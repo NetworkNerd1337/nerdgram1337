@@ -153,7 +153,7 @@ In Docker, the instance name and id are stored at `/data/.meta/instance.json`. R
 
 The startup log has one summary line. `NERDGRAM_LOG_FORMAT=json` prints that summary as one JSON object. The report does not include file contents or tokens.
 
-Two processes on one data folder write `.meta/instance-lock.json` every 30 seconds. The second one warns, and it pauses GitHub sync, the update checker, and diagram sightings. Stop the extra process. `NERDGRAM_STRICT_INSTANCE=1` makes the second process refuse to start.
+Two processes on one data folder write `.meta/instance-lock.json` every 30 seconds. The second one warns, and it pauses GitHub sync, the update checker, and diagram sightings. Stop the extra process. `NERDGRAM_STRICT_INSTANCE=1` makes the second process refuse to start. `nerdgram doctor` does not count as that second process. While the server is running, doctor reads the server's own report when the lock names a port on this machine. `--repair` and `--restore` wait until the server has stopped, or you restore a quarantine set from Settings.
 
 A state file with a newer `schemaVersion` is left as it is. Upgrade to the NerdGram that wrote it, or restore an older copy from `.meta/quarantine` or `.meta/backups`. The file is not replaced with defaults on disk.
 

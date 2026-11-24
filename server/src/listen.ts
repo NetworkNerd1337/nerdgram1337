@@ -8,6 +8,7 @@ import { createApp, type CreateAppOptions, type ListenPort } from "./app.js";
 import { bootBackgroundTasks, shutdownBackgroundTasks } from "./boot.js";
 import { ensureDataRoot } from "./paths.js";
 import { ensureDataPrepared, logStartupSummary, recordDataIssue } from "./dataHealth.js";
+import { rememberInstanceLockPort } from "./instanceLock.js";
 import { captureDiagramSightings } from "./fsStore.js";
 import { seedEmptyDataDir } from "./seed.js";
 import { closeRenderer } from "./renderDiagram.js";
@@ -192,6 +193,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
   if (servers.length === 0) {
     throw new Error("NerdGram1337 failed to bind a listen address");
   }
+  await rememberInstanceLockPort(listenPort);
 
   const urls = servers.map(boundUrl).filter((url): url is string => url != null);
   for (const url of urls) {

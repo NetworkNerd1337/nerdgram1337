@@ -6,6 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- **Fixed:** `nerdgram doctor` no longer reports an instance conflict just because the server is already running. It reads that server's doctor report when the lock has a port, and it does not take or refresh the lock. `--repair` and `--restore` refuse while that server is live (#321).
 - **Changed:** The tag workflow publishes to npm only when the repository variable `NPM_PUBLISH_ENABLED` is `true`. Otherwise it skips npm, still publishes the GitHub Release and the GHCR image, and says so in the release notes. Set the variable to `true` to publish to npm again. `NPM_TOKEN` stays.
 - **Fixed:** The sidebar does not draw an empty folder bar when there are no folders or the folder list cannot be loaded. When folders exist, a Folders header shows the count, a New folder button, and a collapse caret. This browser remembers whether that section is open (#313).
 - **Fixed:** An empty, invalid, or unreadable `updates.json` no longer hides the version in About. The server moves the bad file aside, logs one warning, and answers with the defaults. A write syncs the temp file before the rename. About still shows Version, Code name, and Engine, and says when update status is unavailable (#314).
