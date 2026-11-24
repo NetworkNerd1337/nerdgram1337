@@ -788,39 +788,98 @@ async function prepareDataFolder(): Promise<void> {
   }
 }
 
-export async function restoreQuarantineSet(id: string): Promise<QuarantineSet> {
-  if (!/^[0-9]+-[a-f0-9]+$/.test(id)) {
-    throw httpFail(400, "That quarantine set was not found.", "not_found");
+/** Stamp written by quarantine: millisecond time, then 6 hex characters. */
+const QUARANTINE_ID = /^[0-9]{13}-[a-f0-9]{6}$/;
+/** Backup folder: schema version, then millisecond time. */
+const BACKUP_ID = /^[0-9]+-[0-9]{13}$/;
+
+function rejectRestore(message = "That quarantine set was not found."): never {
+  throw httpFail(400, message, "invalid");
+}
+
+/**
+ * A directory name taken from a listing, never from the request string.
+ * The request value is only compared to names that are already on disk.
+ * The same check covers quarantine sets and backup folders.
+ */
+async function listedChild(root: string, id: string, pattern: RegExp): Promise<string> {
+  if (typeof id !== "string" || !pattern.test(id)) rejectRestore();
+  let rootReal: string;
+  try {
+    rootReal = await fs.realpath(root);
+  } catch {
+    rejectRestore();
   }
-  const dir = path.join(getMetaPath(), "quarantine", id);
+  const rootStat = await fs.lstat(rootReal);
+  if (!rootStat.isDirectory()) rejectRestore();
+  const entries = await fs.readdir(rootReal, { withFileTypes: true });
+  const entry = entries.find((item) => item.name === id && pattern.test(item.name));
+  if (!entry || entry.isSymbolicLink() || !entry.isDirectory()) rejectRestore();
+  const dir = path.resolve(rootReal, entry.name);
+  const rel = path.relative(rootReal, dir);
+  if (!rel || rel.startsWith("..") || path.isAbsolute(rel) || rel.includes(`..${path.sep}`)) rejectRestore();
+  let dirReal: string;
+  try {
+    dirReal = await fs.realpath(dir);
+  } catch {
+    rejectRestore();
+  }
+  const realRel = path.relative(rootReal, dirReal);
+  if (!realRel || realRel.startsWith("..") || path.isAbsolute(realRel) || realRel.includes(`..${path.sep}`)) {
+    rejectRestore();
+  }
+  const linked = await fs.lstat(dir);
+  if (linked.isSymbolicLink()) rejectRestore();
+  return dirReal;
+}
+
+export async function quarantineDirForId(id: string): Promise<string> {
+  return listedChild(path.join(getMetaPath(), "quarantine"), id, QUARANTINE_ID);
+}
+
+export async function backupDirForId(id: string): Promise<string> {
+  return listedChild(path.join(getMetaPath(), "backups"), id, BACKUP_ID);
+}
+
+function safeStateRelative(rel: string): string | null {
+  if (typeof rel !== "string" || !rel || rel.length > 240) return null;
+  if (rel.includes("\0") || rel.includes("\\") || rel.includes("%") || path.isAbsolute(rel)) return null;
+  if (rel.endsWith(".mmd") || rel.endsWith(".mmd.bak")) return null;
+  const parts = rel.split("/");
+  if (parts.some((part) => !/^[A-Za-z0-9._-]+$/.test(part) || part === "." || part === "..")) return null;
+  return parts.join("/");
+}
+
+export async function restoreQuarantineSet(id: string): Promise<QuarantineSet> {
+  const dir = await quarantineDirForId(id);
   let report: { file?: unknown; reason?: unknown };
   try {
     report = JSON.parse(await fs.readFile(path.join(dir, "report.json"), "utf8")) as { file?: unknown; reason?: unknown };
   } catch {
-    throw httpFail(404, "That quarantine set was not found.", "not_found");
+    rejectRestore();
   }
-  const rel = typeof report.file === "string" ? safeMetaRelative(report.file) : null;
-  if (!rel) throw httpFail(400, "That quarantine set does not name a state file.", "invalid");
-  const names = await fs.readdir(dir);
-  const payload = names.find((name) => name !== "report.json");
-  if (!payload) throw httpFail(404, "That quarantine set has no file to restore.", "not_found");
-  const dest = path.join(getMetaPath(), rel);
-  const resolved = path.resolve(dest);
-  const meta = path.resolve(getMetaPath());
-  if (!resolved.startsWith(`${meta}${path.sep}`)) {
-    throw httpFail(400, "That quarantine set does not name a state file.", "invalid");
+  const rel = safeStateRelative(typeof report.file === "string" ? report.file : "");
+  if (!rel) rejectRestore("That quarantine set does not name a state file.");
+  const names = await fs.readdir(dir, { withFileTypes: true });
+  const payload = names.find((item) => item.name !== "report.json" && item.isFile() && !item.isSymbolicLink());
+  if (!payload || payload.name !== path.basename(rel) || !/^[A-Za-z0-9._-]+$/.test(payload.name)) {
+    rejectRestore("That quarantine set has no file to restore.");
   }
-  clearNewerSchema(resolved);
+  const metaReal = await fs.realpath(getMetaPath());
+  const dest = path.resolve(metaReal, rel);
+  const destRel = path.relative(metaReal, dest);
+  if (!destRel || destRel.startsWith("..") || path.isAbsolute(destRel)) {
+    rejectRestore("That quarantine set does not name a state file.");
+  }
   await fs.mkdir(path.dirname(dest), { recursive: true });
-  await fs.copyFile(path.join(dir, payload), dest);
-  return { id, path: dir, file: rel, reason: typeof report.reason === "string" ? report.reason : "" };
-}
-
-function safeMetaRelative(rel: string): string | null {
-  if (!rel || rel.includes("\0") || path.isAbsolute(rel) || rel.endsWith(".mmd")) return null;
-  const normalized = path.normalize(rel);
-  if (normalized.startsWith("..") || normalized.includes(`..${path.sep}`)) return null;
-  return normalized;
+  const parentReal = await fs.realpath(path.dirname(dest));
+  const parentRel = path.relative(metaReal, parentReal);
+  if (parentRel.startsWith("..") || path.isAbsolute(parentRel)) {
+    rejectRestore("That quarantine set does not name a state file.");
+  }
+  clearNewerSchema(dest);
+  await fs.copyFile(path.join(dir, payload.name), dest);
+  return { id: path.basename(dir), path: dir, file: rel, reason: typeof report.reason === "string" ? report.reason : "" };
 }
 
 export async function logStartupSummary(): Promise<void> {

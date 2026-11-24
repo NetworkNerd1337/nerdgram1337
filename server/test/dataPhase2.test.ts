@@ -7,9 +7,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { main } from "../src/cli.js";
 import {
+  backupDirForId,
   dataHealthReport,
   ensureDataPrepared,
   resetDataHealthForTests,
+  restoreQuarantineSet,
   safeReadState,
 } from "../src/dataHealth.js";
 import { backgroundWritersPaused, refreshInstanceLockForTests } from "../src/instanceLock.js";
@@ -210,6 +212,42 @@ describe("data folder phase 2", () => {
     expect(await fs.readFile(path.join(dir, "a.mmd"), "utf8")).toContain("lower");
     expect(await fs.readFile(path.join(dir, "A.mmd"), "utf8")).toContain("upper");
     expect(await fs.readFile(path.join(dir, "Welcome 2.mmd"), "utf8")).toContain("two");
+  });
+
+  it("rejects a restore path that leaves the quarantine directory", async () => {
+    await tempDir();
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "ng-outside-"));
+    const marker = path.join(outside, "marker.txt");
+    await fs.writeFile(marker, "keep");
+    const attacks = ["../etc", "/tmp/passwd", "..%2f..%2fetc", "1700000000000-abcdef/../../etc", "%2e%2e%2f", "1700000000000-abcdef\n"];
+    try {
+      for (const id of attacks) {
+        const response = await request(app())
+          .post("/api/data/quarantine/restore")
+          .set("Host", HOST)
+          .set("Origin", "http://127.0.0.1:8787")
+          .send({ id });
+        expect(response.status, id).toBe(400);
+        await expect(restoreQuarantineSet(id), id).rejects.toThrow();
+        await expect(backupDirForId(id), id).rejects.toThrow();
+      }
+      await fs.mkdir(path.join(dir, ".meta", "quarantine"), { recursive: true });
+      await fs.symlink(outside, path.join(dir, ".meta", "quarantine", "1700000000000-abcdef"));
+      const linked = await request(app())
+        .post("/api/data/quarantine/restore")
+        .set("Host", HOST)
+        .set("Origin", "http://127.0.0.1:8787")
+        .send({ id: "1700000000000-abcdef" });
+      expect(linked.status).toBe(400);
+      const stderr: string[] = [];
+      const code = await main(["doctor", "--restore", "../etc"], { stderr: (chunk) => stderr.push(chunk) });
+      expect(code).toBe(2);
+      expect(await fs.readFile(marker, "utf8")).toBe("keep");
+      const outsideNames = await fs.readdir(outside);
+      expect(outsideNames).toEqual(["marker.txt"]);
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
+    }
   });
 
   it("keeps the 10 most recent quarantine sets", async () => {

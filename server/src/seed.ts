@@ -34,8 +34,9 @@ async function walkMmd(dir: string, prefix: string): Promise<string[]> {
  * Copy the sample diagrams into an empty data directory.
  * A directory that already has a diagram, a folder, or saved app state is left
  * alone, so a later start does not put the samples back over diagrams the user
- * deleted. `.meta` created by the startup probe, with no saved state in it, does
- * not count. That probe runs before seeding.
+ * deleted. `.meta` from the startup probe does not count: probe temp files,
+ * `instance-lock.json`, `backups`, and `quarantine`. A later start still
+ * skips a folder that holds real app state such as `updates.json`.
  * Returns true when it copied the samples.
  */
 export async function seedEmptyDataDir(): Promise<boolean> {
@@ -73,7 +74,18 @@ export async function seedEmptyDataDir(): Promise<boolean> {
   return copied > 0;
 }
 
-/** True when `.meta` holds something besides a leftover probe temp file. */
+const BOOT_META_FILES = new Set(["instance-lock.json", "instance-lock.json.bak"]);
+const BOOT_META_DIRS = new Set(["backups", "quarantine"]);
+
+/** Probe temps and files this process writes before the samples are copied. */
+function isBootMetaName(name: string): boolean {
+  if (BOOT_META_FILES.has(name) || BOOT_META_DIRS.has(name)) return true;
+  if (name.startsWith(".ng-") && name.endsWith(".tmp")) return true;
+  if (/^\..+\.\d+\.[a-f0-9]+\.tmp$/i.test(name)) return true;
+  return false;
+}
+
+/** True when `.meta` holds something besides boot files. */
 async function metaHasSavedState(meta: string): Promise<boolean> {
   let entries: string[];
   try {
@@ -83,7 +95,7 @@ async function metaHasSavedState(meta: string): Promise<boolean> {
     if (code === "ENOENT") return false;
     throw err;
   }
-  return entries.some((name) => !(name.startsWith(".ng-") && name.endsWith(".tmp")));
+  return entries.some((name) => !isBootMetaName(name));
 }
 
 function permissionError(data: string, err: unknown): unknown {
