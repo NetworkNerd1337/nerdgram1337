@@ -8,7 +8,7 @@ By default, diagrams live in `diagrams/` inside the project. The server creates 
 
 In Docker, the named volume `nerdgram-data` mounted at `/data` is the whole workspace: `.mmd` files, `.meta` (trash, version history, locks, thumbnails, the search index, style presets, `updates.json`, syntax overrides, a synced reference, and the GitHub token), and `.nerdgram-git`. An older volume may still contain `.meta/listen-host.json`. That file is not the Host setting. The Host setting lives in the instance file, which in Docker is `/tmp/.nerdgram/instance.json` unless `NERDGRAM_INSTANCE_FILE` is set, and it stays off the volume. Copy the whole volume, including those hidden directories. One volume is one workspace. Use that volume, or a local folder, and do not share the same cloud-synced folder across machines. [Install](install.md#docker) has the note. Startup checks the folder and records problems in `GET /api/doctor`. A bad settings or history file is copied to `.meta/quarantine` and replaced with a fresh copy. Diagrams are not part of that copy. In Docker the instance file is `.meta/instance.json` on this volume. The image's `HOST=0.0.0.0` still overrides the saved Host setting.
 
-Stop the container, then copy the volume out. `tar` is in the image. The entrypoint is the server, so replace it, and use the image you actually run. A checkout build is `nerdgram1337:local`. The published image is `ghcr.io/networknerd1337/nerdgram1337:v2.1.24` (the tag [`compose.yaml`](../compose.yaml) pins; use `:latest` or `v2.1.24`. The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term). The process runs as uid 1001, so the folder that receives the archive has to be writable by that user.
+Stop the container, then copy the volume out. `tar` is in the image. The entrypoint is the server, so replace it, and use the image you actually run. A checkout build is `nerdgram1337:local`. The published image is `ghcr.io/networknerd1337/nerdgram1337:v2.1.25` (the tag [`compose.yaml`](../compose.yaml) pins; use `:latest` or `v2.1.25`. The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term). The process runs as uid 1001, so the folder that receives the archive has to be writable by that user.
 
 Local build:
 
@@ -24,7 +24,7 @@ docker run --rm --entrypoint tar \
 sudo chown "$(id -u):$(id -g)" nerdgram-backup/nerdgram-data.tgz
 ```
 
-Published image. Same command, with `ghcr.io/networknerd1337/nerdgram1337:v2.1.24` in place of `nerdgram1337:local`:
+Published image. Same command, with `ghcr.io/networknerd1337/nerdgram1337:v2.1.25` in place of `nerdgram1337:local`:
 
 ```bash
 docker stop nerdgram1337
@@ -33,7 +33,7 @@ sudo chown 1001:1001 nerdgram-backup
 docker run --rm --entrypoint tar \
   -v nerdgram-data:/data:ro \
   -v "$PWD/nerdgram-backup":/backup \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.24 \
+  ghcr.io/networknerd1337/nerdgram1337:v2.1.25 \
   -C /data -czf /backup/nerdgram-data.tgz .
 sudo chown "$(id -u):$(id -g)" nerdgram-backup/nerdgram-data.tgz
 ```
