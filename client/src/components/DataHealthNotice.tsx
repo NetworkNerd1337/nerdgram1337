@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { dismissDataFolder, isDataFolderDismissed, problemIssues, problemSignature } from "../lib/dataFolderNotice";
 import type { DataDoctorReport, DataHealthIssue } from "../types";
+import { CLOUD_SYNC_DOCS_LINK_TEXT, CLOUD_SYNC_DOCS_URL } from "../../../server/src/syncFolderHint.ts";
 import { ClashList, QuarantineList } from "./DataFolderExtras";
 
 function browserStore(): Storage | null {
@@ -10,6 +11,28 @@ function browserStore(): Storage | null {
   } catch {
     return null;
   }
+}
+
+export function DataIssueText({ issue }: { issue: DataHealthIssue }) {
+  const urlAt = issue.message.indexOf(CLOUD_SYNC_DOCS_URL);
+  if (urlAt < 0) {
+    return (
+      <>
+        {issue.file ? <code>{issue.file}</code> : null} {issue.message}
+      </>
+    );
+  }
+  const before = issue.message.slice(0, urlAt).replace(new RegExp(`${CLOUD_SYNC_DOCS_LINK_TEXT}:\\s*$`), "");
+  const after = issue.message.slice(urlAt + CLOUD_SYNC_DOCS_URL.length);
+  return (
+    <>
+      {issue.file ? <code>{issue.file}</code> : null} {before}
+      <a href={CLOUD_SYNC_DOCS_URL} target="_blank" rel="noopener noreferrer">
+        {CLOUD_SYNC_DOCS_LINK_TEXT}
+      </a>
+      {after}
+    </>
+  );
 }
 
 export function DataFolderNotes({ notes }: { notes: readonly DataHealthIssue[] }) {
@@ -106,7 +129,7 @@ export function DataHealthNotice({ report: given }: { report?: DataDoctorReport 
             <ul>
               {problems.map((issue) => (
                 <li key={`${issue.code}:${issue.file ?? ""}:${issue.message}`}>
-                  {issue.file ? <code>{issue.file}</code> : null} {issue.message}
+                  <DataIssueText issue={issue} />
                 </li>
               ))}
             </ul>

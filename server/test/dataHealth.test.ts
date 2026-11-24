@@ -169,7 +169,16 @@ describe("data folder health", () => {
     expect(health.body.data.syncFolder).toBe(true);
     const doctor = await request(app()).get("/api/doctor").set("Host", HOST);
     expect(doctor.status).toBe(200);
-    expect(doctor.body.issues.some((issue: { code: string }) => issue.code === "sync-folder")).toBe(true);
+    const syncIssue = doctor.body.issues.find((issue: { code: string }) => issue.code === "sync-folder") as { message: string };
+    expect(syncIssue.message).toContain("looks synced or shared (Dropbox)");
+    expect(syncIssue.message).toContain(
+      "NerdGram does not support cloud-synced folders such as OneDrive, iCloud Drive, Dropbox, or Google Drive for diagram libraries.",
+    );
+    expect(syncIssue.message).toContain("SMB (Samba or Windows file share) or NFS share");
+    expect(syncIssue.message).toContain("Move it to a local folder or a Docker volume for one machine, and use GitHub sync to share diagrams.");
+    expect(syncIssue.message).toContain(
+      "https://github.com/NetworkNerd1337/NerdGram1337/blob/main/docs/troubleshooting.md#why-cloud-synced-folders-are-unsupported",
+    );
     expect(JSON.stringify(doctor.body)).not.toContain("ghp_");
   });
 

@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { DataFolderNotes, DataHealthNotice } from "../src/components/DataHealthNotice";
 import type { DataDoctorReport, DataHealthIssue } from "../src/types";
+import { CLOUD_SYNC_DOCS_URL, syncFolderMessage } from "../../server/src/syncFolderHint.ts";
 
 const report: DataDoctorReport = {
   ok: true,
@@ -101,6 +102,38 @@ describe("data folder banner", () => {
     expect(dialog).toContain("You need to do something for each item below");
     expect(dialog).not.toContain("settings/history files");
     expect(dialog).not.toContain("app state");
+  });
+
+  it("links the synced-folder item to the unsupported-folder docs", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root?.render(
+        <DataHealthNotice
+          report={{
+            ...report,
+            issues: [{ code: "sync-folder", severity: "warn", message: syncFolderMessage("OneDrive") }],
+          }}
+        />,
+      );
+    });
+    const details = [...document.querySelectorAll("button")].find((item) => item.textContent === "Details");
+    act(() => {
+      details?.click();
+    });
+    const dialog = document.querySelector("[role=dialog]");
+    expect(dialog?.textContent).toContain("looks synced or shared (OneDrive)");
+    expect(dialog?.textContent).toContain(
+      "NerdGram does not support cloud-synced folders such as OneDrive, iCloud Drive, Dropbox, or Google Drive for diagram libraries.",
+    );
+    expect(dialog?.textContent).toContain("SMB (Samba or Windows file share) or NFS share");
+    expect(dialog?.textContent).toContain("use GitHub sync to share diagrams");
+    const link = dialog?.querySelector("a");
+    expect(link?.textContent).toBe("Why cloud-synced folders are unsupported");
+    expect(link?.getAttribute("href")).toBe(CLOUD_SYNC_DOCS_URL);
+    expect(link?.getAttribute("target")).toBe("_blank");
+    expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
   it("remembers a dismiss until the problem set changes, then clears when the problems are gone", () => {
