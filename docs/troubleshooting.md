@@ -143,6 +143,8 @@ About should show Version, Code name, and Engine even when update status cannot 
 
 ## The data folder is synced, read-only, or not writable
 
+**Unsupported.** A data folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or any other cloud-synced or on-demand folder is not supported. Cloud-only placeholder files cannot be downloaded through a Docker bind mount, so reads fail. Use a local folder, the named Docker volume, or an SMB or NFS share. NerdGram keeps running when a settings file cannot be read, leaves diagrams where they are, and the data-folder banner and `nerdgram doctor` name that file.
+
 Startup checks the data folder and keeps going. `GET /api/health` still returns `"ok": true` so the Docker health check stays green. The `data` object says `ok`, `warn`, or `degraded`, and lists the issues. `GET /api/doctor` is the same report. A real problem shows **NerdGram checked the data folder and found N problems. You need to do something.** The count is the number of items in Details. **Settings → Data folder** shows the same problems. An info note does not raise the banner and does not change that count. A case-insensitive disk is an info note: no action is needed, and NerdGram will not let a rename change only capitalization. That note is on **Diagram health** and in `nerdgram doctor` as an `Info:` line. Each item says what NerdGram checked, what it found, and whether you need to do something. When a problem names one of NerdGram's own settings or history files, Details lists those files and says they are not your diagrams. The × on the banner hides that set of problems until a different problem appears. The choice is stored in this browser. The banner is gone on its own once the problems are gone. Close only closes Details.
 
 A read-only mount says the folder is read-only. A permissions error names the uid and says to `chown` a bind mount to `1001:1001`. A full disk says so. Less than 200 MB free is a warning. Less than 20 MB free is treated as read-only. A path or file that looks like iCloud, Dropbox, OneDrive, Google Drive, or Syncthing, or a name such as `Welcome 2.mmd` or `(conflicted copy)`, is a warning. It does not block startup, and it does not delete either copy.
@@ -150,8 +152,6 @@ A read-only mount says the folder is read-only. A permissions error names the ui
 A broken symlink or a file that disappears during the scan is skipped. An empty, truncated, or unreadable settings or history file under `.meta` is copied to `.meta/quarantine` and replaced with a fresh copy. Diagrams (`.mmd`) are not moved, rewritten, or deleted. A one-step `.bak` sits next to a replaced file. Orphaned NerdGram temp files older than 10 minutes are removed.
 
 In Docker, the instance name and id are stored at `/data/.meta/instance.json`. Recreating the container keeps that file. An older `~/.nerdgram/instance.json` is copied once.
-
-Do not put the data folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or a similar cloud-synced folder. Use a local folder, the named Docker volume, or an SMB or NFS share. iCloud can leave `.meta/instance.json` only in the cloud. A Docker Desktop bind mount cannot download that file, and the read fails. NerdGram keeps running, leaves diagrams where they are, and the data-folder banner and `nerdgram doctor` name the file and say to move the folder.
 
 The startup log has one summary line. `NERDGRAM_LOG_FORMAT=json` prints that summary as one JSON object. The report does not include file contents or tokens.
 
