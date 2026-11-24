@@ -16,7 +16,7 @@ Planned work from 2.5.0 through 3.0.0. This is a plan, not a commitment. Scope a
 
 ## Where we are
 
-The current release is 2.1.21, code name Azimuth. Shipped work stays in the changelog and on the [releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). The next planned line starts at 2.5.0.
+The current release is 2.1.22, code name Azimuth. It is published as a Docker image and a GitHub Release. npm stays at 2.1.21 while npm publishing is paused. Shipped work stays in the changelog and on the [releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). The next planned line starts at 2.5.0.
 
 NerdGram stays a local, on-demand, code-first diagram tool. It does not discover the network, poll devices, or store device credentials. How data gets into a diagram today is [Generate from data](generate-from-data.md) and [Translators](translators.md).
 
