@@ -34,10 +34,10 @@ The full install is in [Install](docs/install.md).
 
 ### Docker
 
-The command uses `v2.1.23`, the newest published patch and the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)). The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term.
+The command uses `v2.1.24`, the newest published patch and the tag for this tree (the same pin as [`compose.yaml`](compose.yaml)). The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.23
+docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.24
 ```
 
 ```bash
@@ -48,7 +48,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.23
+  ghcr.io/networknerd1337/nerdgram1337:v2.1.24
 ```
 
 Open [http://127.0.0.1:8787](http://127.0.0.1:8787) or [http://localhost:8787](http://localhost:8787).
