@@ -6,6 +6,14 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 2.1.24 "Azimuth" - 2026-11-24
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
+This release is Docker, GHCR, and the GitHub Release only. npm stays at 2.1.21 while npm publishing is paused.
+
 - A settings file that cannot be read, including an iCloud file that is still only in the cloud, no longer stops startup. NerdGram warns, keeps the diagrams where they are, and says to move the data folder to a local folder or an SMB or NFS share.
 - **Docs:** A data folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or another cloud-synced or on-demand folder is not supported. Cloud-only placeholder files cannot be downloaded through a Docker bind mount, so reads fail. Use a local folder or an SMB or NFS share.
 - The dashboard says Import supports Mermaid, Lucid CSV or JSON, and Visio .vsdx, and that From data opens CSV, JSON, CDP/LLDP, routing tables, ARP and MAC tables, and .network.json.
