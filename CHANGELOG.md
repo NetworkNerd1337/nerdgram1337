@@ -6,7 +6,8 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- A settings file that cannot be read, including an iCloud file that is still only in the cloud, no longer stops startup. NerdGram warns, keeps the diagrams where they are, and says to move the data folder to a local folder or an SMB or NFS share.
+- The dashboard says Import supports Mermaid, Lucid CSV or JSON, and Visio .vsdx, and that From data opens CSV, JSON, CDP/LLDP, routing tables, ARP and MAC tables, and .network.json.
 
 ## 2.1.23 "Azimuth" - 2026-11-23
 

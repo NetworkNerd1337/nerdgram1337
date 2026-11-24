@@ -151,6 +151,8 @@ A broken symlink or a file that disappears during the scan is skipped. An empty,
 
 In Docker, the instance name and id are stored at `/data/.meta/instance.json`. Recreating the container keeps that file. An older `~/.nerdgram/instance.json` is copied once.
 
+Do not put the data folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or a similar cloud-synced folder. Use a local folder, the named Docker volume, or an SMB or NFS share. iCloud can leave `.meta/instance.json` only in the cloud. A Docker Desktop bind mount cannot download that file, and the read fails. NerdGram keeps running, leaves diagrams where they are, and the data-folder banner and `nerdgram doctor` name the file and say to move the folder.
+
 The startup log has one summary line. `NERDGRAM_LOG_FORMAT=json` prints that summary as one JSON object. The report does not include file contents or tokens.
 
 Two processes on one data folder write `.meta/instance-lock.json` every 30 seconds. The second one warns, and it pauses GitHub sync, the update checker, and diagram sightings. Stop the extra process. `NERDGRAM_STRICT_INSTANCE=1` makes the second process refuse to start. `nerdgram doctor` does not count as that second process. While the server is running, doctor reads the server's own report when the lock names a port on this machine. `--repair` and `--restore` wait until the server has stopped, or you restore a quarantine set from Settings.

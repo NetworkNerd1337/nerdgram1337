@@ -6,7 +6,7 @@ export const MERMAID_IMPORT_HINT =
   "Mermaid: .mmd, .mermaid, .md, .markdown, .txt. Lucid CSV or JSON. Visio .vsdx.";
 
 export const SUPPORTED_IMPORT_LINE =
-  "Supported files: Mermaid (.mmd, .mermaid, .md, .markdown, .txt). Lucid CSV or JSON and Visio .vsdx become diagrams. CSV, JSON, CDP/LLDP, routing tables, ARP and MAC tables, and .network.json open in From data.";
+  "Import supports Mermaid (.mmd, .mermaid, .md, .markdown, .txt), Lucid CSV or JSON, and Visio .vsdx. From data opens CSV, JSON, CDP/LLDP, routing tables, ARP and MAC tables, and .network.json.";
 
 export const VISIO_BINARY_MESSAGE =
   "Save this file as .vsdx in Visio. Older .vsd and .vss files are not imported.";
@@ -78,7 +78,7 @@ const LABELS: Record<ImportKind, string> = {
 };
 
 function supportedTail(): string {
-  return " NerdGram imports Mermaid (.mmd, .mermaid, .md, .markdown, .txt), Lucid CSV or JSON, and Visio .vsdx. CSV, JSON, CDP/LLDP, routing tables, ARP and MAC tables, and .network.json open in From data.";
+  return " Import supports Mermaid (.mmd, .mermaid, .md, .markdown, .txt), Lucid CSV or JSON, and Visio .vsdx. From data opens CSV, JSON, CDP/LLDP, routing tables, ARP and MAC tables, and .network.json.";
 }
 
 function named(kind: ImportKind, action: ImportAction, extra: Partial<ImportRecognition> = {}): ImportRecognition {

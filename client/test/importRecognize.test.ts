@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { unitsFromDraft, type ImportDraft } from "../src/lib/importDrafts";
-import { MERMAID_IMPORT_HINT, recognizeImport } from "../src/lib/importRecognize";
+import { MERMAID_IMPORT_HINT, SUPPORTED_IMPORT_LINE, recognizeImport } from "../src/lib/importRecognize";
 
 function textFile(name: string, text: string) {
   return recognizeImport(name, new TextEncoder().encode(text));
@@ -13,6 +13,8 @@ describe("import recognition", () => {
     expect(MERMAID_IMPORT_HINT).toContain(".md");
     expect(MERMAID_IMPORT_HINT).toContain(".markdown");
     expect(MERMAID_IMPORT_HINT).toContain(".txt");
+    expect(SUPPORTED_IMPORT_LINE).toContain("Import supports Mermaid");
+    expect(SUPPORTED_IMPORT_LINE).toContain("From data opens CSV");
   });
 
   it("imports Mermaid from a .txt paste and an ordinary .mmd", () => {

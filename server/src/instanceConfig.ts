@@ -52,12 +52,16 @@ export function instanceFilePath(): string {
 }
 
 function copyHomeInstanceOnce(target: string): void {
-  if (path.resolve(target) === path.resolve(homeInstanceFilePath())) return;
-  if (fs.existsSync(target)) return;
-  const home = homeInstanceFilePath();
-  if (!fs.existsSync(home)) return;
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.copyFileSync(home, target);
+  try {
+    if (path.resolve(target) === path.resolve(homeInstanceFilePath())) return;
+    if (fs.existsSync(target)) return;
+    const home = homeInstanceFilePath();
+    if (!fs.existsSync(home)) return;
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(home, target);
+  } catch {
+    // A cloud-only home file must not stop startup. The data-folder read reports its own file.
+  }
 }
 
 /** Set in the shell, a service file, or Docker. Null when this process was started without it. */
@@ -71,19 +75,121 @@ export function setExternalDataDirForTests(value: string | null | undefined): vo
   externalForTests = value;
 }
 
-export function readInstanceFileSync(): InstanceFile | null {
-  try {
-    const target = instanceFilePath();
-    copyHomeInstanceOnce(target);
-    const raw = fs.readFileSync(target, "utf8");
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    return parsed as InstanceFile;
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === "ENOENT" || err instanceof SyntaxError) return null;
-    throw err;
+type InstanceStartupNote = { file: string; message: string };
+
+const warnedInstancePaths = new Set<string>();
+let instanceNoteSink: ((note: InstanceStartupNote) => void) | null = null;
+
+/** dataHealth records the note. instanceConfig does not import it. */
+export function onInstanceStartupNote(sink: (note: InstanceStartupNote) => void): void {
+  instanceNoteSink = sink;
+}
+
+export function resetInstanceStartupForTests(): void {
+  warnedInstancePaths.clear();
+  startupApplied = false;
+  identityCache = null;
+  identityCachePath = "";
+}
+
+function errnoOf(err: unknown): string {
+  const code = (err as NodeJS.ErrnoException).code;
+  return typeof code === "string" && code ? code : "error";
+}
+
+function instanceReadWarning(fileName: string, reason: string): string {
+  return `NerdGram checked ${fileName}, one of its own settings/history files (not your diagrams), and could not read it (${reason}). Your diagrams were not changed. NerdGram is using a fresh copy of that file. This folder may be in iCloud Drive, Dropbox, OneDrive, or another cloud-synced folder, and the file may not be downloaded yet. Move the data folder to a local folder or an SMB or NFS share, then start NerdGram again.`;
+}
+
+function noteUnreadableInstance(target: string, reason: string): void {
+  const fileName = path.basename(target);
+  const message = instanceReadWarning(fileName, reason);
+  if (!warnedInstancePaths.has(target)) {
+    warnedInstancePaths.add(target);
+    console.warn(message);
   }
+  instanceNoteSink?.({ file: fileName, message });
+}
+
+/** Keep the bad bytes when the rename works. A failed rewrite still leaves memory defaults. */
+function recoverUnreadableInstance(target: string): void {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  try {
+    fs.renameSync(target, `${target}.unreadable-${stamp}`);
+    return;
+  } catch {
+    // The cloud file may refuse the rename. Try a fresh copy only when this path is not a directory.
+  }
+  let directory = false;
+  try {
+    directory = fs.statSync(target).isDirectory();
+  } catch {
+    directory = false;
+  }
+  if (directory) return;
+  try {
+    fs.writeFileSync(target, "{}\n", { mode: 0o600 });
+  } catch {
+    // In-memory defaults. Diagrams are not touched.
+  }
+}
+
+function stringField(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Current files use instanceId, instanceName, and listenHost. Older files used
+ * id, name, and host. Both are accepted. A non-object is not a usable file.
+ */
+function normalizeInstance(parsed: unknown): InstanceFile | null {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const record = parsed as Record<string, unknown>;
+  const file: InstanceFile = { instanceId: stringField(record.instanceId) || stringField(record.id) };
+  const instanceName = stringField(record.instanceName) || stringField(record.name);
+  const hostname = stringField(record.hostname);
+  const dataDir = stringField(record.NERDGRAM_DATA_DIR);
+  const listenHost = stringField(record.listenHost) || stringField(record.host);
+  if (instanceName) file.instanceName = instanceName;
+  if (hostname) file.hostname = hostname;
+  if (dataDir) file.NERDGRAM_DATA_DIR = dataDir;
+  if (listenHost) file.listenHost = listenHost;
+  return file;
+}
+
+export function readInstanceFileSync(): InstanceFile | null {
+  const target = instanceFilePath();
+  copyHomeInstanceOnce(target);
+  let raw: string;
+  try {
+    const stat = fs.statSync(target);
+    if (stat.isDirectory()) {
+      noteUnreadableInstance(target, "EISDIR");
+      recoverUnreadableInstance(target);
+      return null;
+    }
+    raw = fs.readFileSync(target, "utf8");
+  } catch (err) {
+    if (errnoOf(err) === "ENOENT") return null;
+    noteUnreadableInstance(target, errnoOf(err));
+    recoverUnreadableInstance(target);
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    noteUnreadableInstance(target, "invalid JSON");
+    recoverUnreadableInstance(target);
+    return null;
+  }
+  const normalized = normalizeInstance(parsed);
+  if (!normalized) {
+    noteUnreadableInstance(target, "wrong shape");
+    recoverUnreadableInstance(target);
+    return null;
+  }
+  return normalized;
 }
 
 export function readStartupDataDir(): string | null {
@@ -163,7 +269,11 @@ export async function getInstanceIdentity(): Promise<InstanceIdentity> {
   };
   if (configured) next.instanceName = configured;
   else delete next.instanceName;
-  await writeInstanceFile(next);
+  try {
+    await writeInstanceFile(next);
+  } catch (err) {
+    noteUnreadableInstance(filePath, errnoOf(err));
+  }
   identityCache = {
     instanceId,
     instanceName: displayName(configured, hostname),
