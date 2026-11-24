@@ -6,6 +6,14 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 2.1.23 "Azimuth" - 2026-11-23
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
+This release is Docker, GHCR, and the GitHub Release only. npm stays at 2.1.21 while npm publishing is paused.
+
 - A case-insensitive disk is an info note, not a data-folder problem, so it no longer raises the dashboard banner. The banner and Details say what NerdGram checked, what it found, and whether you need to do something. The banner has a dismiss control that stays hidden for that set of problems, and it goes away on its own once the problems are gone.
 
 ## 2.1.22 "Azimuth" - 2026-11-23

@@ -35,17 +35,17 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Azimuth title and the 2.1.22 section without the heading", () => {
-    const title = notes(["--title", "v2.1.22"]);
+  it("prints the Azimuth title and the 2.1.23 section without the heading", () => {
+    const title = notes(["--title", "v2.1.23"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe("v2.1.22 Azimuth\n");
-    const body = notes(["v2.1.22"]);
+    expect(title.stdout).toBe("v2.1.23 Azimuth\n");
+    const body = notes(["v2.1.23"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Azimuth line.")).toBe(true);
     expect(body.stdout).toContain("npm stays at 2.1.21");
-    expect(body.stdout).toContain("nerdgram doctor");
-    expect(body.stdout).not.toContain('## 2.1.22 "Azimuth"');
-    expect(body.stdout).not.toContain("Overlapping token writes");
+    expect(body.stdout).toContain("case-insensitive disk");
+    expect(body.stdout).not.toContain('## 2.1.23 "Azimuth"');
+    expect(body.stdout).not.toContain("nerdgram doctor");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });
 
