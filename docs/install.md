@@ -51,13 +51,15 @@ docker run -d \
 
 **4. Open the app.** [http://127.0.0.1:8787](http://127.0.0.1:8787) or [http://localhost:8787](http://localhost:8787). The health check is [http://127.0.0.1:8787/api/health](http://127.0.0.1:8787/api/health). `installKind` is `docker`, and `dataDir` is `/data`.
 
+**Unsupported.** A data folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or any other cloud-synced or on-demand folder is not supported. Cloud-only placeholder files cannot be downloaded through a Docker bind mount, so reads fail. Use a local folder, the named Docker volume `nerdgram-data`, or an SMB or NFS share.
+
 The container runs as uid **1001**, gid **1001** (user `nerdgram`). A new named volume is writable by that user. A bind mount needs:
 
 ```bash
 sudo chown -R 1001:1001 /path/to/nerdgram-data
 ```
 
-If the directory is owned by root, the container stays up. The log says the data folder is not writable and names `chown` to `1001:1001`. `GET /api/health` is still ok, and its data report is degraded. Saves are refused. `nerdgram doctor` inside the container exits 2. Nothing is written into that mount. Keep `/data` on a local folder or on the named Docker volume. Do not point more than one machine at a folder that iCloud, Dropbox, OneDrive, or Google Drive syncs. A shared sync folder can leave an empty or unreadable file. Startup still opens the app, copies that settings or history file under `/data/.meta/quarantine`, and shows the problem in the banner and in **Settings → Data folder**. `GET /api/doctor` is the same report. Share diagrams across machines with [GitHub sync](github-sync.md) instead. The instance name is stored at `/data/.meta/instance.json`, so recreating the container keeps it. An empty data directory is seeded once from the image's `diagrams/` folder. With `NERDGRAM_DATA_DIR=/data` the samples land at `/data/Welcome.mmd`, `/data/NetworkMap.mmd`, `/data/Examples/Sequence.mmd`, `/data/WAN.mmd`, and `/data/Sites/Atlanta.mmd`. The log says `Seeded empty data directory with the sample diagrams.` A directory that already has any entry is left alone.
+If the directory is owned by root, the container stays up. The log says the data folder is not writable and names `chown` to `1001:1001`. `GET /api/health` is still ok, and its data report is degraded. Saves are refused. `nerdgram doctor` inside the container exits 2. Nothing is written into that mount. A shared sync folder can leave an empty or unreadable file. Startup still opens the app, copies that settings or history file under `/data/.meta/quarantine`, and shows the problem in the banner and in **Settings → Data folder**. `GET /api/doctor` is the same report. Share diagrams across machines with [GitHub sync](github-sync.md) instead. The instance name is stored at `/data/.meta/instance.json`, so recreating the container keeps it. An empty data directory is seeded once from the image's `diagrams/` folder. With `NERDGRAM_DATA_DIR=/data` the samples land at `/data/Welcome.mmd`, `/data/NetworkMap.mmd`, `/data/Examples/Sequence.mmd`, `/data/WAN.mmd`, and `/data/Sites/Atlanta.mmd`. The log says `Seeded empty data directory with the sample diagrams.` A directory that already has any entry is left alone.
 
 `templates/` and `reference/` are in the image, not on the volume. With `NERDGRAM_DATA_DIR` set, a syntax-reference sync writes under `/data/.meta/reference` and survives a new container. Templates stay the ones in the image.
 
@@ -322,6 +324,8 @@ Error: Cannot find module '.../server/dist/index.js'
 ```
 
 Run `npm run build` from the project root, then `npm start` again.
+
+**Unsupported.** A diagram folder in iCloud Drive, Dropbox, OneDrive, Google Drive, or any other cloud-synced or on-demand folder is not supported. Cloud-only placeholder files cannot be downloaded through a Docker bind mount, so reads fail. Use a local folder or an SMB or NFS share.
 
 Leave `HOST` unset unless another machine should call the API. Unset, the server listens on `127.0.0.1` and `::1`. The same default is the Host box on the settings page. `PORT` changes the production port (`PORT=8790 npm start`; Command Prompt: `set PORT=8790` then `npm start`; PowerShell: `$env:PORT = "8790"`). During `npm run dev`, leave the API on 8787 and leave the bind on loopback: the dev page proxies to `127.0.0.1:8787`. See [Configuration](configuration.md#configuration) for `HOST`, the saved Host setting, `NODE_ENV`, and `NERDGRAM_DATA_DIR`.
 

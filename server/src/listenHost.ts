@@ -284,7 +284,11 @@ async function migrateLegacyListenHost(): Promise<SavedListenHost> {
   }
   const parsed = parseListenHostInput((file as { host?: unknown }).host);
   if (!parsed.ok) return { persisted: true, host: null, invalid: true };
-  await saveInstanceListenHost(parsed.host);
+  try {
+    await saveInstanceListenHost(parsed.host);
+  } catch {
+    // The old Host is still used for this start. The instance-file warning names the file.
+  }
   return { persisted: true, host: parsed.host, invalid: false };
 }
 

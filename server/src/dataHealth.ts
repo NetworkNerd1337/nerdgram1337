@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { onInstanceStartupNote, resetInstanceStartupForTests } from "./instanceConfig.js";
 import { claimInstanceLock, currentInstanceConflict, resetInstanceLockForTests, StrictInstanceConflict, type InstanceConflict } from "./instanceLock.js";
 import { ensureDataRoot, getDataRoot, getMetaPath, META_DIR_NAME } from "./paths.js";
 import {
@@ -96,6 +97,7 @@ export function resetDataHealthForTests(): void {
   caseFoldOverride = null;
   quarantinedPaths.clear();
   resetInstanceLockForTests();
+  resetInstanceStartupForTests();
   resetSchemaForTests();
 }
 
@@ -172,6 +174,15 @@ export function recordDataIssue(issue: DataIssue): void {
   if (issues.some((item) => `${item.code}:${item.file ?? ""}:${item.message}` === key)) return;
   issues.push(issue);
 }
+
+onInstanceStartupNote((note) => {
+  recordDataIssue({
+    code: "instance-unreadable",
+    severity: "warn",
+    file: note.file,
+    message: note.message,
+  });
+});
 
 function errnoOf(err: unknown): string {
   const code = (err as NodeJS.ErrnoException).code;
