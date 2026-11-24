@@ -94,6 +94,9 @@ jobs:
           NERDGRAM_EXPECT_COMMIT: ${{ github.sha }}
         run: bash scripts/docker-smoke.sh nerdgram1337:ci
 
+      - name: Data folder cases
+        run: bash scripts/docker-data-health.sh nerdgram1337:ci
+
       - name: Render smoke (linux/amd64)
         run: bash scripts/docker-render-smoke.sh nerdgram1337:ci linux/amd64
 

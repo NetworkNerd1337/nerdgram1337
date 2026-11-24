@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { safeReadState } from "./dataHealth.js";
 import { getInstanceIdentity } from "./instanceConfig.js";
 import {
   BASELINE_CAP,
@@ -61,7 +62,12 @@ async function pathForVersionKey(root: string, key: string): Promise<string | nu
   const decoded = decodeStorageKey(key);
   if (decoded) return decoded;
   if (!key.startsWith("h_")) return null;
-  const index = await readJsonFile<{ path?: string }>(path.join(root, key, "index.json"));
+  const index = await safeReadState<{ path?: string } | null>({
+    file: path.join(root, key, "index.json"),
+    name: `versions/${key}/index.json`,
+    fallback: null,
+    parse: (value) => (value && typeof value === "object" && !Array.isArray(value) ? (value as { path?: string }) : null),
+  });
   return typeof index?.path === "string" ? index.path : null;
 }
 
@@ -74,9 +80,21 @@ function indexPath(dir: string): string {
 }
 
 async function loadIndex(dir: string, fallbackPath: string): Promise<RevisionIndex> {
-  const parsed = await readJsonFile<RevisionIndex>(indexPath(dir));
+  const empty = { path: fallbackPath, revisions: [] };
+  const parsed = await safeReadState<RevisionIndex>({
+    file: indexPath(dir),
+    name: "versions/index.json",
+    fallback: empty,
+    restore: empty,
+    parse: (value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+      const record = value as RevisionIndex;
+      if (!Array.isArray(record.revisions)) return null;
+      return record;
+    },
+  });
   if (!parsed || !Array.isArray(parsed.revisions)) {
-    return { path: fallbackPath, revisions: [] };
+    return empty;
   }
   return {
     path: typeof parsed.path === "string" ? parsed.path : fallbackPath,
@@ -529,4 +547,32 @@ export async function clearBaseline(
   await saveIndex(dir, index);
   const kept = index.revisions.find((revision) => revision.id === id);
   return { revision: kept ? publicRevision(kept) : null, pruned: !kept };
+}
+
+/** Startup audit. Uses the same index parser as a history read. */
+export async function auditHistoryState(): Promise<void> {
+  const root = getVersionsRoot();
+  let names: string[] = [];
+  try {
+    names = await fs.readdir(root);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw err;
+  }
+  for (const name of names) {
+    const dir = path.join(root, name);
+    let stat;
+    try {
+      stat = await fs.stat(dir);
+    } catch {
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    try {
+      await fs.access(path.join(dir, "index.json"));
+    } catch {
+      continue;
+    }
+    await loadIndex(dir, name);
+  }
 }

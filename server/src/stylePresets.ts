@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { getStylePresetsPath } from "./paths.js";
-import { atomicWriteJson, httpFail, readJsonFile } from "./storage.js";
+import { safeReadState } from "./dataHealth.js";
+import { atomicWriteJson, httpFail } from "./storage.js";
 import {
   MAX_PRESETS,
   STYLE_PRESET_VERSION,
@@ -37,24 +38,21 @@ export function newPresetId(): string {
   return `sp${randomBytes(8).toString("hex")}`;
 }
 
-function failFrom(err: unknown): never {
-  if (err && typeof err === "object" && "status" in err) throw err;
-  throw httpFail(500, "Style presets could not be read.", "invalid");
-}
-
 async function readDocument(): Promise<StylePresetDocument> {
-  let parsed: unknown;
-  try {
-    parsed = await readJsonFile<unknown>(getStylePresetsPath());
-  } catch {
-    throw httpFail(500, "Style presets could not be read.", "invalid");
-  }
-  if (parsed == null) return emptyStyleDocument();
-  try {
-    return parseStyleDocument(parsed);
-  } catch (err) {
-    failFrom(err);
-  }
+  return safeReadState({
+    file: getStylePresetsPath(),
+    name: "style-presets.json",
+    fallback: emptyStyleDocument(),
+    restore: emptyStyleDocument(),
+    parse: (parsed) => {
+      if (parsed == null) return null;
+      try {
+        return parseStyleDocument(parsed);
+      } catch {
+        return null;
+      }
+    },
+  });
 }
 
 async function writeDocument(doc: StylePresetDocument): Promise<StylePresetDocument> {

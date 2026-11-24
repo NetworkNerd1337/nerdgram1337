@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { assertDataWritable, noteTreeSkip, skippedStatCode } from "./dataHealth.js";
 import { invalidateDiagramLint } from "./diagramLintCache.js";
 import { reportUnreadable, warnUnreadable, type UnreadableDiagram } from "./readError.js";
 import { isSafeDataPath } from "./diagramData.js";
@@ -105,7 +106,18 @@ export async function buildTree(relativePath = ""): Promise<TreeNode[]> {
   for (const name of entries) {
     if (name === META_DIR_NAME || name.startsWith(".")) continue;
     const childAbs = path.join(abs, name);
-    const stat = await fs.stat(childAbs);
+    let stat: Awaited<ReturnType<typeof fs.stat>>;
+    try {
+      const link = await fs.lstat(childAbs);
+      stat = link.isSymbolicLink() ? await fs.stat(childAbs) : link;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (skippedStatCode(code)) {
+        noteTreeSkip(path.posix.join(relativePath, name), code ?? "");
+        continue;
+      }
+      throw err;
+    }
     const rel = toRelativePath(childAbs);
 
     if (stat.isDirectory()) {
@@ -328,6 +340,7 @@ export async function writeFile(
   unchanged?: boolean;
   revisionId?: string;
 }> {
+  assertDataWritable();
   const normalized = requireDiagram(relativePath);
   const abs = resolveSafePath(normalized);
   const relative = toRelativePath(abs);
@@ -413,6 +426,7 @@ export async function restoreRevision(
 }
 
 export async function createFolder(relativePath: string): Promise<{ path: string }> {
+  assertDataWritable();
   const cleaned = normalizeRelative(relativePath);
   if (!cleaned) throw httpFail(400, "Folder path required", "invalid");
   const abs = resolveSafePath(cleaned);

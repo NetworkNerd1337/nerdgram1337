@@ -55,7 +55,13 @@ async function handleMcp(
     res.status(401).json({ error: "Unauthorized", code: "unauthorized" });
     return;
   }
-  const token = await authenticateToken(presented);
+  let token: AuthenticatedToken | null;
+  try {
+    token = await authenticateToken(presented);
+  } catch {
+    res.status(503).json({ error: "API tokens could not be read.", code: "tokens_unavailable" });
+    return;
+  }
   if (!token) {
     res.status(401).json({ error: "Unauthorized", code: "unauthorized" });
     return;

@@ -19,6 +19,7 @@ If the API port is taken, the server exits and prints the listen error.
 - [Corporate TLS inspection](#corporate-tls-inspection)
 - [A render returns 503](#a-render-returns-503)
 - [About shows no version](#about-shows-no-version)
+- [The data folder is synced, read-only, or not writable](#the-data-folder-is-synced-read-only-or-not-writable)
 
 ## Port already in use
 
@@ -79,7 +80,7 @@ The full Docker steps, including when `NERDGRAM_CORS_ORIGINS` is required for th
 
 ## The container exits immediately, or the volume looks empty
 
-A bind mount owned by root is not writable by uid 1001. `chown` it as in [Docker](install.md#docker). A named volume created by the image is already writable. A fresh volume receives the sample diagrams once, at `/data/Welcome.mmd`, `/data/NetworkMap.mmd`, `/data/Examples/Sequence.mmd`, `/data/WAN.mmd`, and `/data/Sites/Atlanta.mmd`, copied from the image's `diagrams/` folder. A volume that already has files is left as it is, including a volume where you deleted the samples.
+A bind mount owned by root is not writable by uid 1001. The container stays up. The startup log says the data folder is not writable and to `chown` it to `1001:1001`, as in [Docker](install.md#docker). `GET /api/health` still returns ok, with a degraded data report. A save is refused. `docker exec nerdgram1337 nerdgram doctor` prints that report and exits 2. The mount stays empty until it is writable. A named volume created by the image is already writable. A fresh writable volume receives the sample diagrams once, at `/data/Welcome.mmd`, `/data/NetworkMap.mmd`, `/data/Examples/Sequence.mmd`, `/data/WAN.mmd`, and `/data/Sites/Atlanta.mmd`, copied from the image's `diagrams/` folder. A volume that already has files is left as it is, including a volume where you deleted the samples.
 
 ## `localhost` opens the dev UI, and `127.0.0.1` does not
 
@@ -138,7 +139,19 @@ A Node install on the host needs the same variable. Node does not read the Windo
 
 ## About shows no version
 
-About should show Version, Code name, and Engine even when update status cannot be loaded. The line under those facts then starts with **Update status unavailable** and gives the reason. Check `GET /api/updates`. A damaged `/data/.meta/updates.json` used to make that request fail and hide the version. The server now moves that file aside to `updates.json.corrupt-<time>`, logs one warning, and answers with the defaults. About still reads Version, Code name, and Engine from `GET /api/version`. If the line remains, move `/data/.meta/updates.json` aside and reload. Keep `/data` on a local folder or a Docker volume, not a folder that iCloud, Dropbox, OneDrive, or Google Drive syncs for more than one machine. [Install](install.md#docker) says the same.
+About should show Version, Code name, and Engine even when update status cannot be loaded. The line under those facts then starts with **Update status unavailable** and gives the reason. Check `GET /api/updates`. A damaged `/data/.meta/updates.json` used to make that request fail and hide the version. The server now copies that file under `/data/.meta/quarantine/<time>/`, writes a `report.json` that does not include the file contents, and answers with the defaults. About still reads Version, Code name, and Engine from `GET /api/version`. If the line remains, look at `GET /api/doctor` and reload. Keep `/data` on a local folder or a Docker volume, not a folder that iCloud, Dropbox, OneDrive, or Google Drive syncs for more than one machine. [Install](install.md#docker) says the same.
+
+## The data folder is synced, read-only, or not writable
+
+Startup checks the data folder and keeps going. `GET /api/health` still returns `"ok": true` so the Docker health check stays green. The `data` object says `ok`, `warn`, or `degraded`, and lists the issues. `GET /api/doctor` is the same report. The app shows **NerdGram found N problems with its data folder**, and **Settings → Data folder** shows the same list.
+
+A read-only mount says the folder is read-only. A permissions error names the uid and says to `chown` a bind mount to `1001:1001`. A full disk says so. Less than 200 MB free is a warning. Less than 20 MB free is treated as read-only. A path or file that looks like iCloud, Dropbox, OneDrive, Google Drive, or Syncthing, or a name such as `Welcome 2.mmd` or `(conflicted copy)`, is a warning. It does not block startup, and it does not delete either copy.
+
+A broken symlink or a file that disappears during the scan is skipped. An empty, truncated, or unreadable app-state file under `.meta` is copied to `.meta/quarantine` and replaced with defaults. Diagrams (`.mmd`) are not moved, rewritten, or deleted. A one-step `.bak` sits next to a replaced state file. Orphaned NerdGram temp files older than 10 minutes are removed.
+
+In Docker, the instance name and id are stored at `/data/.meta/instance.json`. Recreating the container keeps that file. An older `~/.nerdgram/instance.json` is copied once.
+
+The startup log has one summary line. `NERDGRAM_LOG_FORMAT=json` prints that summary as one JSON object. The report does not include file contents or tokens.
 
 ## See also
 

@@ -21,6 +21,7 @@ import type {
   TreeNode,
   UpdateJob,
   UpdateStatus,
+  DataDoctorReport,
   VersionInfo,
 } from "./types";
 
@@ -714,6 +715,7 @@ export const api = {
       },
     ),
   version: () => request<VersionInfo>("/api/version"),
+  doctor: () => request<DataDoctorReport>("/api/doctor"),
   updates: () => request<UpdateStatus>("/api/updates"),
   updateJob: () => request<{ job: UpdateJob | null }>("/api/updates/job"),
   checkUpdates: () =>

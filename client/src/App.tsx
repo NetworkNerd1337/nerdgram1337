@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { CommandPaletteRoot } from "./components/CommandPalette";
+import { DataHealthNotice } from "./components/DataHealthNotice";
 import { UpdateHost } from "./components/UpdateHost";
 import { WorkspaceReplaceHost } from "./components/WorkspaceReplaceDialog";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -19,6 +20,7 @@ export default function App() {
       <CommandPaletteRoot>
         <WorkspaceReplaceHost />
         <UpdateHost>
+        <DataHealthNotice />
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/new" element={<NewDiagramPage />} />

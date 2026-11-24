@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
+import { safeReadState } from "./dataHealth.js";
 import { getFavoritesPath } from "./paths.js";
 import {
   atomicWriteJson,
   httpFail,
   normalizeRelative,
-  readJsonFile,
   rewriteMovedPath,
 } from "./storage.js";
 
@@ -148,24 +148,27 @@ function parseBookmarkState(input: unknown): BookmarkState {
 }
 
 async function readState(): Promise<BookmarkState> {
-  try {
-    const parsed = await readJsonFile<unknown>(getFavoritesPath());
-    if (Array.isArray(parsed)) {
+  return safeReadState({
+    file: getFavoritesPath(),
+    name: "favorites.json",
+    fallback: emptyState(),
+    restore: { version: 1, folders: [], items: [] },
+    parse: (parsed) => {
+      if (Array.isArray(parsed)) {
+        return normalizeState({
+          folders: [],
+          items: parsed.filter((entry): entry is string => typeof entry === "string").map((entryPath) => ({ path: entryPath, folderId: null })),
+        });
+      }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+      const record = parsed as { folders?: unknown; items?: unknown };
+      if (!Array.isArray(record.items)) return null;
       return normalizeState({
-        folders: [],
-        items: parsed.filter((entry): entry is string => typeof entry === "string").map((path) => ({ path, folderId: null })),
+        folders: Array.isArray(record.folders) ? record.folders : [],
+        items: record.items,
       });
-    }
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return emptyState();
-    const record = parsed as { folders?: unknown; items?: unknown; version?: unknown };
-    if (!Array.isArray(record.items)) return emptyState();
-    return normalizeState({
-      folders: Array.isArray(record.folders) ? record.folders : [],
-      items: record.items,
-    });
-  } catch {
-    return emptyState();
-  }
+    },
+  });
 }
 
 async function writeState(state: BookmarkState): Promise<BookmarkState> {

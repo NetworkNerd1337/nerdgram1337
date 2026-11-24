@@ -32,10 +32,32 @@ const processStartDataDir = process.env.NERDGRAM_DATA_DIR?.trim() || null;
 
 let externalForTests: string | null | undefined;
 
+export function homeInstanceFilePath(): string {
+  return path.join(os.homedir(), ".nerdgram", "instance.json");
+}
+
+/** Docker and a tmpfs home lose ~/.nerdgram when the container is recreated. */
+export function instanceLivesInDataDir(): boolean {
+  if (process.env.NERDGRAM_INSTALL === "docker") return true;
+  const home = os.homedir();
+  return home === "/tmp" || home.startsWith("/tmp/");
+}
+
 export function instanceFilePath(): string {
   const override = process.env.NERDGRAM_INSTANCE_FILE?.trim();
   if (override) return path.resolve(override);
-  return path.join(os.homedir(), ".nerdgram", "instance.json");
+  const root = process.env.NERDGRAM_DATA_DIR?.trim();
+  if (instanceLivesInDataDir() && root) return path.join(path.resolve(root), ".meta", "instance.json");
+  return homeInstanceFilePath();
+}
+
+function copyHomeInstanceOnce(target: string): void {
+  if (path.resolve(target) === path.resolve(homeInstanceFilePath())) return;
+  if (fs.existsSync(target)) return;
+  const home = homeInstanceFilePath();
+  if (!fs.existsSync(home)) return;
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.copyFileSync(home, target);
 }
 
 /** Set in the shell, a service file, or Docker. Null when this process was started without it. */
@@ -51,7 +73,9 @@ export function setExternalDataDirForTests(value: string | null | undefined): vo
 
 export function readInstanceFileSync(): InstanceFile | null {
   try {
-    const raw = fs.readFileSync(instanceFilePath(), "utf8");
+    const target = instanceFilePath();
+    copyHomeInstanceOnce(target);
+    const raw = fs.readFileSync(target, "utf8");
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     return parsed as InstanceFile;
@@ -125,6 +149,7 @@ async function writeInstanceFile(file: InstanceFile): Promise<void> {
 
 export async function getInstanceIdentity(): Promise<InstanceIdentity> {
   const filePath = instanceFilePath();
+  copyHomeInstanceOnce(filePath);
   if (identityCache && identityCachePath === filePath) return identityCache;
   const hostname = machineHostname();
   const existing = readInstanceFileSync();

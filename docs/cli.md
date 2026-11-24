@@ -51,7 +51,7 @@ The `cli/` directory is what gets published. Its `prepack` script bundles that p
 
 ## Use
 
-`NERDGRAM_URL` defaults to `http://127.0.0.1:8787`. `NERDGRAM_TOKEN` is an automation token from Settings. `--url` and `--token` override those. `nerdgram --version` prints `nerdgram` and the version with its code name, such as `nerdgram v2.1.21 Azimuth`, then exits. `--json` prints one JSON object and nothing else. Success is `{"ok":true, ...}` with that command's fields, such as `path`, `hits`, `diagnostics`, `folders`, and `files`. Failure is `{"ok":false,"error","status"}` on stdout, and the process exits `1`. `status` is the HTTP status when the failure has one, such as `500` when a render's SVG would not parse. A failure with no HTTP status uses `"error"`.
+`NERDGRAM_URL` defaults to `http://127.0.0.1:8787`. `NERDGRAM_TOKEN` is an automation token from Settings. `--url` and `--token` override those. `nerdgram --version` prints `nerdgram` and the version with its code name, such as `nerdgram v2.1.21 Azimuth`, then exits. `nerdgram doctor` prints the data-folder report for this computer. It exits 0 when that folder is fine, 1 for a warning, and 2 when the folder is not writable. `--json` prints one JSON object and nothing else. Success is `{"ok":true, ...}` with that command's fields, such as `path`, `hits`, `diagnostics`, `folders`, and `files`. Failure is `{"ok":false,"error","status"}` on stdout, and the process exits `1`. `status` is the HTTP status when the failure has one, such as `500` when a render's SVG would not parse. A failure with no HTTP status uses `"error"`.
 
 `generate --format network` needs `--view l3` (subnets) or `--view l2` (VLANs, trunks, and LAGs). `--include-down` draws shutdown and down interfaces. `--vlan` is an integer from 1 to 4094 and keeps Layer 2 links that carry that VLAN. `--group-by` is `platform` or `capability` for CDP and LLDP, `vrf` for a Layer 3 network view, and `site`, `role`, or `platform` for a Layer 2 network view. `refresh` rejects `--view`. The view is already in the diagram. `render <file> --server` renders a workspace path such as `Sites/Campus.mmd`. A file on this computer is rendered without `--server`. Passing that file with `--server` says so, instead of `Not found`.
 
@@ -186,6 +186,7 @@ Every `nerdgram` command is listed with the `/api/v1` route it calls. `none` mea
 | `nerdgram replace --undo` | `POST /api/v1/replace/undo` |
 | `nerdgram template` | local `<data>/.templates` |
 | `nerdgram mcp` | stdio proxy. Each tool calls `/api/v1`. See [MCP](mcp.md). |
+| `nerdgram doctor` | none |
 <!-- /cli-route-map -->
 
 `nerdgram put` sends `force: true`, so it is the overwrite route, not `POST /api/v1/diagrams`. That POST creates a file and fails when the path exists. There is no `nerdgram` command for it, for folders, for linting unsaved source, for `GET /api/v1/render`, for generate preview, for listing history, or for renaming or deleting a baseline. Those are in the endpoint table in [Automation API](api.md).
