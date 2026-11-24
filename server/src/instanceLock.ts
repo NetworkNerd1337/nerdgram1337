@@ -16,7 +16,9 @@ export type InstanceConflict = {
   heartbeatAt: string;
 };
 
-type InstanceLockFile = InstanceConflict;
+export type InstanceLockSnapshot = InstanceConflict & { port: number | null };
+
+type InstanceLockFile = InstanceLockSnapshot;
 
 export class StrictInstanceConflict extends Error {
   constructor() {
@@ -31,6 +33,7 @@ let holding = false;
 let paused = false;
 let conflict: InstanceConflict | null = null;
 let startedAt = "";
+let listenPort: number | null = null;
 let timer: NodeJS.Timeout | null = null;
 
 export function resetInstanceLockForTests(): void {
@@ -40,6 +43,7 @@ export function resetInstanceLockForTests(): void {
   paused = false;
   conflict = null;
   startedAt = "";
+  listenPort = null;
 }
 
 export function backgroundWritersPaused(): boolean {
@@ -68,16 +72,53 @@ async function readLock(): Promise<InstanceLockFile | null> {
     if (typeof record.pid !== "number" || typeof record.startedAt !== "string" || typeof record.heartbeatAt !== "string") {
       return null;
     }
+    const port = typeof record.port === "number" && Number.isInteger(record.port) && record.port >= 1 && record.port <= 65535 ? record.port : null;
     return {
       instanceId: record.instanceId,
       hostname: record.hostname,
       pid: record.pid,
       startedAt: record.startedAt,
       heartbeatAt: record.heartbeatAt,
+      port,
     };
   } catch {
     return null;
   }
+}
+
+/** Read the lock without creating it, refreshing it, or taking it. */
+export async function readInstanceLockFile(): Promise<InstanceLockSnapshot | null> {
+  return readLock();
+}
+
+export type LockHolderKind = "local-server" | "other-host" | "stale";
+
+/** A fresh lock on this machine is the running server. A fresh lock on another host is a second server. */
+export function lockHolderKind(lock: InstanceLockSnapshot, now = Date.now()): LockHolderKind {
+  const age = now - Date.parse(lock.heartbeatAt);
+  const fresh = Number.isFinite(age) && age >= 0 && age < FRESH_MS;
+  if (!fresh) return "stale";
+  if (lock.hostname === os.hostname()) {
+    if (lock.pid === process.pid || isProcessAlive(lock.pid)) return "local-server";
+    return "stale";
+  }
+  return "other-host";
+}
+
+export function heartbeatAgeSeconds(lock: InstanceLockSnapshot, now = Date.now()): number {
+  const age = now - Date.parse(lock.heartbeatAt);
+  if (!Number.isFinite(age) || age < 0) return 0;
+  return Math.round(age / 1000);
+}
+
+function conflictOf(lock: InstanceLockSnapshot): InstanceConflict {
+  return {
+    instanceId: lock.instanceId,
+    hostname: lock.hostname,
+    pid: lock.pid,
+    startedAt: lock.startedAt,
+    heartbeatAt: lock.heartbeatAt,
+  };
 }
 
 function foreignFresh(lock: InstanceLockFile, now: number): boolean {
@@ -97,6 +138,7 @@ async function writeLock(identityId: string): Promise<void> {
     pid: process.pid,
     startedAt,
     heartbeatAt: now,
+    port: listenPort,
   };
   await atomicWriteText(lockPath(), `${JSON.stringify(body, null, 2)}\n`);
   holding = true;
@@ -117,7 +159,7 @@ export async function claimInstanceLock(): Promise<void> {
   if (existing && foreignFresh(existing, now)) {
     holding = false;
     paused = true;
-    conflict = existing;
+    conflict = conflictOf(existing);
     if (strictMode()) throw new StrictInstanceConflict();
     armTimer();
     return;
@@ -133,7 +175,7 @@ async function tick(): Promise<void> {
     const wasHolding = holding;
     holding = false;
     paused = true;
-    conflict = existing;
+    conflict = conflictOf(existing);
     if (wasHolding) return;
     return;
   }
@@ -172,4 +214,13 @@ export async function releaseInstanceLock(): Promise<void> {
 /** Tests call this instead of waiting for the interval. */
 export async function refreshInstanceLockForTests(): Promise<void> {
   await tick();
+}
+
+/** Record the port the server is listening on. Doctor uses it, and does not call this. */
+export async function rememberInstanceLockPort(port: number): Promise<void> {
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return;
+  listenPort = port;
+  if (!holding) return;
+  const identity = await getInstanceIdentity();
+  await writeLock(identity.instanceId);
 }

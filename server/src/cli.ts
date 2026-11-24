@@ -4,8 +4,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RenderFormat } from "./renderDiagram.js";
-import { dataHealthReport, ensureDataPrepared } from "./dataHealth.js";
-import { StrictInstanceConflict } from "./instanceLock.js";
+import { dataHealthReport, ensureDataPrepared, recordDataIssue } from "./dataHealth.js";
+import { StrictInstanceConflict, heartbeatAgeSeconds, lockHolderKind, readInstanceLockFile, type InstanceLockSnapshot } from "./instanceLock.js";
 import { codenameForVersion, formatVersionLabel, sanitizeCodenames } from "./updates/codename.js";
 
 /**
@@ -151,11 +151,13 @@ mcp speaks MCP on stdin and stdout and proxies tool calls to /api/v1.
 NERDGRAM_URL defaults to http://127.0.0.1:8787. NERDGRAM_TOKEN is required.
 --url and --token override those. Do not pass --json. stdout is the protocol.
 doctor reads the data folder on this computer. It exits 0 when the folder is
-fine, 1 for a warning, and 2 when the folder is not writable. --json prints
-the report and nothing else. --repair quarantines bad app state, restores
-defaults, removes old temp files, and runs migrations. It does not change
-diagrams. --restore <ts> copies that quarantine set back. --url reads
-GET /api/doctor from a running server instead of the local folder.
+fine, 1 for a warning, and 2 when the folder is not writable. It does not
+take the instance lock. A server that is already running is not a second
+instance. --json prints the report and nothing else. --repair quarantines
+bad app state, restores defaults, removes old temp files, and runs
+migrations. It does not change diagrams. --restore <ts> copies that
+quarantine set back. Both refuse while a live server holds the lock.
+--url reads GET /api/doctor from a running server instead of the local folder.
 `;
 
 type RenderModule = typeof import("./renderDiagram.js");
@@ -1110,9 +1112,16 @@ function doctorExit(status: string | undefined): number {
   return 0;
 }
 
-function printDoctor(io: Io, report: ReturnType<typeof dataHealthReport>, asJson: boolean): number {
+function runningLine(lock: InstanceLockSnapshot): string {
+  return `NerdGram is running (pid ${lock.pid}, heartbeat ${heartbeatAgeSeconds(lock)}s ago).`;
+}
+
+function printDoctor(io: Io, report: ReturnType<typeof dataHealthReport>, asJson: boolean, running?: InstanceLockSnapshot): number {
   if (asJson) {
-    io.stdout(`${JSON.stringify({ ok: true, ...report })}\n`);
+    const body = running
+      ? { ok: true, ...report, runningServer: { pid: running.pid, heartbeatSeconds: heartbeatAgeSeconds(running) } }
+      : { ok: true, ...report };
+    io.stdout(`${JSON.stringify(body)}\n`);
   } else {
     io.stdout(`Data folder: ${report.status}. Writable: ${report.writable ? "yes" : "no"}.\n`);
     for (const issue of report.issues) io.stdout(`${issue.message}\n`);
@@ -1121,8 +1130,54 @@ function printDoctor(io: Io, report: ReturnType<typeof dataHealthReport>, asJson
         `Two instances share this data folder. The other one is ${report.instanceConflict.hostname} pid ${report.instanceConflict.pid}.\n`,
       );
     }
+    if (running) io.stdout(`${runningLine(running)}\n`);
   }
   return doctorExit(report.status);
+}
+
+type RemoteDoctor = {
+  status?: string;
+  writable?: boolean;
+  issues?: { code?: string; message?: string }[];
+  instanceConflict?: unknown;
+};
+
+async function doctorFromLockPort(port: number | null): Promise<{ body: string; report: RemoteDoctor } | null> {
+  if (port == null) return null;
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/doctor`, { signal: AbortSignal.timeout(2000) });
+    if (!response.ok) return null;
+    const body = await response.text();
+    const report = JSON.parse(body) as RemoteDoctor;
+    if (!report || typeof report !== "object") return null;
+    return { body, report };
+  } catch {
+    return null;
+  }
+}
+
+function remoteHasConflict(report: RemoteDoctor): boolean {
+  if (report.instanceConflict) return true;
+  return (report.issues ?? []).some((issue) => issue.code === "instance-conflict");
+}
+
+function printRemoteDoctor(io: Io, fetched: { body: string; report: RemoteDoctor }, asJson: boolean): number {
+  if (asJson) {
+    io.stdout(fetched.body.endsWith("\n") ? fetched.body : `${fetched.body}\n`);
+  } else {
+    io.stdout(`Data folder: ${fetched.report.status ?? "ok"}. Writable: ${fetched.report.writable ? "yes" : "no"}.\n`);
+    for (const issue of fetched.report.issues ?? []) {
+      if (issue.message) io.stdout(`${issue.message}\n`);
+    }
+  }
+  return doctorExit(fetched.report.status);
+}
+
+function refuseLiveWrite(io: Io, lock: InstanceLockSnapshot): number {
+  io.stderr(
+    `${runningLine(lock)} Stop NerdGram before nerdgram doctor --repair or --restore, or restore a quarantine set from Settings. Doctor will not write while that server holds the lock.\n`,
+  );
+  return 2;
 }
 
 /** Local data-folder report. Exit 0 is ok, 1 is a warning, 2 is degraded. */
@@ -1169,6 +1224,28 @@ async function doctorCommand(io: Io, flags: Parsed["flags"]): Promise<number> {
       return 2;
     }
   }
+  const lock = await readInstanceLockFile();
+  const holder = lock ? lockHolderKind(lock) : "stale";
+  if ((repair || restore) && lock && (holder === "local-server" || holder === "other-host")) {
+    return refuseLiveWrite(io, lock);
+  }
+  if (lock && holder === "local-server" && !repair && !restore) {
+    const fetched = await doctorFromLockPort(lock.port);
+    if (fetched) return printRemoteDoctor(io, fetched, asJson);
+    await ensureDataPrepared({ claimLock: false });
+    return printDoctor(io, dataHealthReport(), asJson, lock);
+  }
+  if (lock && holder === "other-host" && !repair && !restore) {
+    const fetched = await doctorFromLockPort(lock.port);
+    if (fetched && remoteHasConflict(fetched.report)) return printRemoteDoctor(io, fetched, asJson);
+    await ensureDataPrepared({ claimLock: false });
+    recordDataIssue({
+      code: "instance-conflict",
+      severity: "warn",
+      message: `Two instances share this data folder. The other one is ${lock.hostname} pid ${lock.pid}, heartbeat ${lock.heartbeatAt}.`,
+    });
+    return printDoctor(io, dataHealthReport(), asJson);
+  }
   if (restore) {
     try {
       const { restoreQuarantineSet } = await import("./dataHealth.js");
@@ -1185,7 +1262,7 @@ async function doctorCommand(io: Io, flags: Parsed["flags"]): Promise<number> {
   if (repair) {
     try {
       const { repairDataFolder } = await import("./dataHealth.js");
-      const report = await repairDataFolder();
+      const report = await repairDataFolder({ claimLock: false });
       const code = printDoctor(io, report, asJson);
       if (!asJson) io.stdout("Repair finished. Diagrams were not changed.\n");
       return code;
@@ -1198,7 +1275,7 @@ async function doctorCommand(io: Io, flags: Parsed["flags"]): Promise<number> {
     }
   }
   try {
-    await ensureDataPrepared();
+    await ensureDataPrepared({ claimLock: false });
   } catch (err) {
     if (err instanceof StrictInstanceConflict) {
       io.stderr(`${err.message}\n`);

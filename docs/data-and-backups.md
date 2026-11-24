@@ -46,7 +46,7 @@ On a Node install, copy the `diagrams/` folder, or the directory `NERDGRAM_DATA_
 
 Do not run `docker volume rm` on a volume you still want.
 
-App-state files under `.meta` carry `schemaVersion`. A file from an older build is migrated in place after a copy is written to `.meta/backups/<fromVersion>-<time>/`. The last 3 of those backups are kept. A file from a newer build is not overwritten. NerdGram serves its defaults and asks you to upgrade or restore. `.meta/instance-lock.json` is the heartbeat for this process. A second live process on the same folder is a warning. Quarantine copies stay under `.meta/quarantine/<time>/`. Settings and the data-folder dialog can restore one of the 10 most recent sets. `nerdgram doctor --restore <time>` does the same. None of these paths modify, move, or delete a diagram.
+App-state files under `.meta` carry `schemaVersion`. A file from an older build is migrated in place after a copy is written to `.meta/backups/<fromVersion>-<time>/`. The last 3 of those backups are kept. A file from a newer build is not overwritten. NerdGram serves its defaults and asks you to upgrade or restore. `.meta/instance-lock.json` is the heartbeat for this process. A second live server on the same folder is a warning. `nerdgram doctor` does not take that lock. Quarantine copies stay under `.meta/quarantine/<time>/`. Settings and the data-folder dialog can restore one of the 10 most recent sets. `nerdgram doctor --restore <time>` does the same. None of these paths modify, move, or delete a diagram.
 
 ## See also
 
