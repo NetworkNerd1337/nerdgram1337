@@ -154,7 +154,7 @@ doctor reads the data folder on this computer. It exits 0 when the folder is
 fine, 1 for a warning, and 2 when the folder is not writable. It does not
 take the instance lock. A server that is already running is not a second
 instance. --json prints the report and nothing else. --repair quarantines
-bad app state, restores defaults, removes old temp files, and runs
+bad settings and history files, restores fresh copies, removes old temp files, and runs
 migrations. It does not change diagrams. --restore <ts> copies that
 quarantine set back. Both refuse while a live server holds the lock.
 --url reads GET /api/doctor from a running server instead of the local folder.
@@ -1124,10 +1124,12 @@ function printDoctor(io: Io, report: ReturnType<typeof dataHealthReport>, asJson
     io.stdout(`${JSON.stringify(body)}\n`);
   } else {
     io.stdout(`Data folder: ${report.status}. Writable: ${report.writable ? "yes" : "no"}.\n`);
-    for (const issue of report.issues) io.stdout(`${issue.message}\n`);
+    for (const issue of report.issues) {
+      io.stdout(issue.severity === "info" ? `Info: ${issue.message}\n` : `${issue.message}\n`);
+    }
     if (report.instanceConflict) {
       io.stdout(
-        `Two instances share this data folder. The other one is ${report.instanceConflict.hostname} pid ${report.instanceConflict.pid}.\n`,
+        `NerdGram checked the data folder and found two copies of NerdGram using it. The other one is ${report.instanceConflict.hostname} pid ${report.instanceConflict.pid}. Stop the other NerdGram, then start this one again.\n`,
       );
     }
     if (running) io.stdout(`${runningLine(running)}\n`);
@@ -1242,7 +1244,7 @@ async function doctorCommand(io: Io, flags: Parsed["flags"]): Promise<number> {
     recordDataIssue({
       code: "instance-conflict",
       severity: "warn",
-      message: `Two instances share this data folder. The other one is ${lock.hostname} pid ${lock.pid}, heartbeat ${lock.heartbeatAt}.`,
+      message: `NerdGram checked the data folder and found two copies of NerdGram using it. The other one is ${lock.hostname} pid ${lock.pid}, heartbeat ${lock.heartbeatAt}. Stop the other NerdGram, then start this one again.`,
     });
     return printDoctor(io, dataHealthReport(), asJson);
   }

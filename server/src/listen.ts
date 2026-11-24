@@ -141,7 +141,10 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
     recordDataIssue({
       code: "seed",
       severity: "warn",
-      message: err instanceof Error ? err.message : "The sample diagrams could not be copied.",
+      message:
+        err instanceof Error
+          ? `NerdGram checked the data folder and could not copy the sample diagrams. ${err.message} Make the data folder writable, then start NerdGram again.`
+          : "NerdGram checked the data folder and could not copy the sample diagrams. Make the data folder writable, then start NerdGram again.",
     });
   }
   await ensureDataPrepared();
@@ -151,7 +154,10 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
     recordDataIssue({
       code: "sightings",
       severity: "warn",
-      message: err instanceof Error ? err.message : "Diagram sightings could not be saved.",
+      message:
+        err instanceof Error
+          ? `NerdGram checked the data folder and could not save which diagrams you opened. ${err.message} No action is needed. NerdGram tries again the next time it starts.`
+          : "NerdGram checked the data folder and could not save which diagrams you opened. No action is needed. NerdGram tries again the next time it starts.",
     });
   }
   await logStartupSummary();
@@ -225,7 +231,10 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ser
     recordDataIssue({
       code: "background",
       severity: "warn",
-      message: err instanceof Error ? err.message : "A background task could not start.",
+      message:
+        err instanceof Error
+          ? `NerdGram checked the data folder and a background task could not start. ${err.message} No action is needed unless GitHub sync or update checks stay off. Restart NerdGram if they do.`
+          : "NerdGram checked the data folder and a background task could not start. No action is needed unless GitHub sync or update checks stay off. Restart NerdGram if they do.",
     });
   }
 

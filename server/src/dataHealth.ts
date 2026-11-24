@@ -23,7 +23,7 @@ export type DataStatus = "ok" | "warn" | "degraded";
 
 export type DataIssue = {
   code: string;
-  severity: "warn" | "degraded";
+  severity: "info" | "warn" | "degraded";
   message: string;
   file?: string;
 };
@@ -73,6 +73,12 @@ let prepared: Promise<void> | null = null;
 let quarantineSets: QuarantineSet[] = [];
 let clashes: NameClash[] = [];
 let caseInsensitive = false;
+let caseFoldOverride: boolean | null = null;
+
+/** Tests simulate a case-insensitive disk without touching the real filesystem. */
+export function setCaseFoldForTests(value: boolean | null): void {
+  caseFoldOverride = value;
+}
 const quarantinedPaths = new Set<string>();
 const QUARANTINE_KEEP = 10;
 
@@ -87,6 +93,7 @@ export function resetDataHealthForTests(): void {
   quarantineSets = [];
   clashes = [];
   caseInsensitive = false;
+  caseFoldOverride = null;
   quarantinedPaths.clear();
   resetInstanceLockForTests();
   resetSchemaForTests();
@@ -108,25 +115,26 @@ export function upgradeBlockers(report: Pick<DataHealthReport, "writable" | "iss
   if (!report.writable) {
     blockers.push({
       code: "not-writable",
-      message: "The data folder is not writable. An upgrade cannot save its state.",
+      message: "The data folder is not writable. An upgrade cannot save. Make the folder writable, then upgrade.",
     });
   }
   if (report.issues.some((issue) => issue.code === "low-space")) {
     blockers.push({
       code: "low-space",
-      message: "Free space is low. Free space before you upgrade.",
+      message: "Free space is low. Free disk space before you upgrade.",
     });
   }
   if (report.instanceConflict) {
     blockers.push({
       code: "instance-conflict",
-      message: "Two instances share this data folder. Stop the other one before you upgrade.",
+      message: "Two copies of NerdGram share this data folder. Stop the other one before you upgrade.",
     });
   }
   if (report.issues.some((issue) => issue.code === "newer-schema")) {
     blockers.push({
       code: "newer-schema",
-      message: "A state file was written by a newer NerdGram. Upgrade to that version, or restore an older copy. The file will not be overwritten.",
+      message:
+        "One of NerdGram's own settings/history files (not your diagrams) was written by a newer NerdGram. Upgrade to that version, or restore an older copy. NerdGram will not overwrite that file.",
     });
   }
   return blockers;
@@ -153,8 +161,9 @@ export function dataHealthReport(): DataHealthReport {
 }
 
 function statusOf(list: readonly DataIssue[], canWrite: boolean): DataStatus {
-  if (!canWrite || list.some((issue) => issue.severity === "degraded")) return "degraded";
-  if (list.length > 0) return "warn";
+  const problems = list.filter((issue) => issue.severity !== "info");
+  if (!canWrite || problems.some((issue) => issue.severity === "degraded")) return "degraded";
+  if (problems.length > 0) return "warn";
   return "ok";
 }
 
@@ -172,13 +181,13 @@ function errnoOf(err: unknown): string {
 function preflightMessage(code: string): string | null {
   const uid = typeof process.getuid === "function" ? String(process.getuid()) : "the process user";
   if (code === "EROFS") {
-    return "The data folder is mounted read-only. NerdGram can open, but it cannot save. Remount the folder so this computer can write it.";
+    return "NerdGram checked the data folder and found it is mounted read-only. NerdGram can open, but it cannot save. Remount the folder so this computer can write it.";
   }
   if (code === "EACCES" || code === "EPERM") {
-    return `This process cannot write the data folder as uid ${uid}. On a Docker bind mount, chown that directory to 1001:1001 (user nerdgram in the image).`;
+    return `NerdGram checked the data folder and found this process cannot write it as uid ${uid}. On a Docker bind mount, chown that directory to 1001:1001 (user nerdgram in the image).`;
   }
   if (code === "ENOSPC") {
-    return "The data folder is out of disk space. Free space, then start NerdGram again.";
+    return "NerdGram checked the data folder and found it is out of disk space. Free disk space, then start NerdGram again.";
   }
   return null;
 }
@@ -204,7 +213,9 @@ async function probeWrite(meta: string): Promise<void> {
     recordDataIssue({
       code: code || "not-writable",
       severity: "degraded",
-      message: preflightMessage(code) ?? `The data folder could not be written${code ? ` (${code})` : ""}.`,
+      message:
+        preflightMessage(code) ??
+        `NerdGram checked the data folder and could not write it${code ? ` (${code})` : ""}. Check the folder permissions, then run nerdgram doctor.`,
     });
   }
 }
@@ -228,14 +239,15 @@ export function classifyFreeBytes(bytes: number): DataIssue | null {
     return {
       code: "low-space",
       severity: "degraded",
-      message: "Less than 20 MB is free in the data folder. NerdGram is staying read-only until there is room to save.",
+      message:
+        "NerdGram checked the data folder and found less than 20 MB free. NerdGram is staying read-only until there is room to save. Free disk space, then start NerdGram again.",
     };
   }
   if (bytes < WARN_FREE_BYTES) {
     return {
       code: "low-space",
       severity: "warn",
-      message: "Less than 200 MB is free in the data folder. Free space before the folder fills up.",
+      message: "NerdGram checked the data folder and found less than 200 MB free. Free disk space before the folder fills up.",
     };
   }
   return null;
@@ -274,7 +286,7 @@ async function detectSyncFolder(dir: string): Promise<void> {
   recordDataIssue({
     code: "sync-folder",
     severity: "warn",
-    message: `This data folder looks synced or shared (${reasons.join(", ")}). Use a local folder or a Docker volume for one machine, and GitHub sync to share diagrams. See the install docs.`,
+    message: `NerdGram checked the data folder and found it looks synced or shared (${reasons.join(", ")}). Move it to a local folder or a Docker volume for one machine, and use GitHub sync to share diagrams.`,
   });
 }
 
@@ -408,7 +420,7 @@ export async function safeReadState<T>(options: SafeReadOptions<T>): Promise<T> 
       code: "newer-schema",
       severity: "warn",
       file: options.name,
-      message: `${options.name} was written by a newer NerdGram (schemaVersion ${version}). It was left unchanged. Upgrade NerdGram, or restore an older copy. NerdGram is using its defaults until then.`,
+      message: `${options.name} is one of NerdGram's own settings/history files (not your diagrams). A newer NerdGram wrote it (schemaVersion ${version}). NerdGram left that file unchanged and is using a fresh copy until you upgrade, or restore an older copy from Settings → Data folder.`,
     });
     return copyFallback(options.fallback);
   }
@@ -427,7 +439,7 @@ export async function safeReadState<T>(options: SafeReadOptions<T>): Promise<T> 
             code: "migrate-failed",
             severity: "degraded",
             file: options.name,
-            message: `${options.name} could not be migrated (${errnoOf(err) || "error"}). The file was left unchanged.`,
+            message: `NerdGram checked ${options.name}, one of its own settings/history files (not your diagrams), and could not update it (${errnoOf(err) || "error"}). The file was left unchanged. Make the data folder writable, then run nerdgram doctor --repair.`,
           });
           return copyFallback(options.fallback);
         }
@@ -460,7 +472,7 @@ async function restoreFallback(options: SafeReadOptions<unknown>): Promise<void>
       code: "restore-failed",
       severity: "degraded",
       file: options.name,
-      message: `NerdGram could not replace ${options.name} with its defaults. The data folder may be read-only.`,
+      message: `NerdGram checked ${options.name}, one of its own settings/history files (not your diagrams), and could not replace it with a fresh copy. Make the data folder writable, then run nerdgram doctor --repair.`,
     });
   }
 }
@@ -507,16 +519,16 @@ async function quarantineState(file: string, name: string, reason: string, errno
       code: "quarantine-failed",
       severity: "degraded",
       file: name,
-      message: `NerdGram could not copy ${name} aside (${errnoOf(err) || "error"}).`,
+      message: `NerdGram checked ${name}, one of its own settings/history files (not your diagrams), and could not copy it aside (${errnoOf(err) || "error"}). Check that the data folder is writable, then run nerdgram doctor.`,
     });
   }
   recordDataIssue({
     code: "quarantine",
     severity: writable ? "warn" : "degraded",
     file: name,
-    message: `${name} could not be read (${reason}). NerdGram is using its defaults. The previous file is under .meta/quarantine when it could be copied.`,
+    message: `NerdGram checked ${name}, one of its own settings/history files (not your diagrams), and could not read it (${reason}). NerdGram is using a fresh copy of that file. The previous file is under .meta/quarantine when it could be copied. No action is needed unless you want that file back. Restore it from Settings → Data folder, or run nerdgram doctor --restore.`,
   });
-  console.warn(`${name} could not be read (${reason}). Using defaults.`);
+  console.warn(`${name} could not be read (${reason}). Using a fresh copy.`);
 }
 
 const SKIP_STAT = new Set(["ENOENT", "EIO", "ETIMEDOUT", "EACCES", "EPERM", "ELOOP", "ENOTDIR", "EBUSY"]);
@@ -530,7 +542,7 @@ export function noteTreeSkip(relativePath: string, code: string): void {
     code: "tree-skip",
     severity: "warn",
     file: relativePath || "(data folder)",
-    message: `Skipped ${relativePath || "an entry"} while reading the data folder${code ? ` (${code})` : ""}.`,
+    message: `NerdGram checked the data folder and skipped ${relativePath || "an entry"}${code ? ` (${code})` : ""}. That entry was left in place. If a diagram is missing from the list, check that path, then run nerdgram doctor.`,
   });
 }
 
@@ -579,7 +591,10 @@ function watchPrepare(claimLock: boolean): Promise<void> {
     recordDataIssue({
       code: "prepare",
       severity: "degraded",
-      message: err instanceof Error ? err.message : "The data folder could not be checked.",
+      message:
+        err instanceof Error
+          ? `${err.message} NerdGram checked the data folder and could not finish the check. Run nerdgram doctor and follow what it prints.`
+          : "NerdGram checked the data folder and could not finish the check. Run nerdgram doctor and follow what it prints.",
     });
   });
 }
@@ -645,12 +660,14 @@ async function refreshQuarantineSets(): Promise<void> {
 async function detectNameClashes(root: string): Promise<void> {
   clashes = [];
   caseInsensitive = false;
-  if (writable) caseInsensitive = await probeCaseFold(root);
+  if (caseFoldOverride != null) caseInsensitive = caseFoldOverride;
+  else if (writable) caseInsensitive = await probeCaseFold(root);
   if (caseInsensitive) {
     recordDataIssue({
       code: "case-fold",
-      severity: "warn",
-      message: "This disk treats uppercase and lowercase names as the same file. A rename that only changes case can replace a diagram. NerdGram will not do that rename.",
+      severity: "info",
+      message:
+        "Your disk treats uppercase and lowercase file names as the same. No action needed. NerdGram won't let a rename change only capitalization, so a diagram can't be overwritten.",
     });
   }
   const diagrams = await listDiagrams(root);
@@ -669,7 +686,7 @@ async function detectNameClashes(root: string): Promise<void> {
       code: "case-collision",
       severity: "warn",
       file: unique[0],
-      message: `These diagrams differ only by case: ${unique.join(" and ")}. Both are kept. Neither is deleted.`,
+      message: `NerdGram checked the data folder and found diagrams that differ only by case: ${unique.join(" and ")}. Open Details and choose Compare. Keep both until you decide which one you want. NerdGram will not delete either file.`,
     });
   }
   const present = new Set(diagrams);
@@ -684,7 +701,7 @@ async function detectNameClashes(root: string): Promise<void> {
       code: "conflict-copy",
       severity: "warn",
       file: rel,
-      message: `A sync conflict copy is next to the diagram (${paths.join(" and ")}). Compare them and keep both until you decide. NerdGram does not delete either file.`,
+      message: `NerdGram checked the data folder and found a sync conflict copy next to the diagram (${paths.join(" and ")}). Open Details and choose Compare. Keep both until you decide which one you want. NerdGram will not delete either file.`,
     });
   }
 }
@@ -748,7 +765,8 @@ async function prepareDataFolder(claimLock = true): Promise<void> {
     recordDataIssue({
       code: errnoOf(err) || "missing",
       severity: "degraded",
-      message: "The data folder is missing or cannot be opened.",
+      message:
+        "NerdGram checked the data folder and could not open it. Create that folder, or set NERDGRAM_DATA_DIR to a folder this process can read, then start NerdGram again.",
     });
     return;
   }
@@ -757,7 +775,7 @@ async function prepareDataFolder(claimLock = true): Promise<void> {
     recordDataIssue({
       code: "not-directory",
       severity: "degraded",
-      message: "The data folder is not a directory.",
+      message: "NerdGram checked the data folder and found it is not a folder. Point NERDGRAM_DATA_DIR at a folder, then start NerdGram again.",
     });
     return;
   }
@@ -768,7 +786,9 @@ async function prepareDataFolder(claimLock = true): Promise<void> {
     recordDataIssue({
       code: code || "meta",
       severity: "degraded",
-      message: preflightMessage(code) ?? "NerdGram could not create the .meta folder.",
+      message:
+        preflightMessage(code) ??
+        "NerdGram checked the data folder and could not create its .meta folder, where it keeps its own settings and history (not your diagrams). Check that the data folder is writable, then run nerdgram doctor.",
     });
   });
   if (writable) await probeWrite(meta);
@@ -785,7 +805,7 @@ async function prepareDataFolder(claimLock = true): Promise<void> {
       recordDataIssue({
         code: "instance-conflict",
         severity: "warn",
-        message: `Two instances share this data folder. The other one is ${conflict.hostname} pid ${conflict.pid}, heartbeat ${conflict.heartbeatAt}. Background sync, the update checker, and diagram sightings are paused.`,
+        message: `NerdGram checked the data folder and found two copies of NerdGram using it. The other one is ${conflict.hostname} pid ${conflict.pid}, heartbeat ${conflict.heartbeatAt}. Stop the other NerdGram, then start this one again. Background sync, the update checker, and diagram sightings stay paused until then.`,
       });
     }
   }
@@ -862,7 +882,7 @@ export async function restoreQuarantineSet(id: string): Promise<QuarantineSet> {
     rejectRestore();
   }
   const rel = safeStateRelative(typeof report.file === "string" ? report.file : "");
-  if (!rel) rejectRestore("That quarantine set does not name a state file.");
+  if (!rel) rejectRestore("That copy does not name one of NerdGram's own settings/history files (not your diagrams).");
   const names = await fs.readdir(dir, { withFileTypes: true });
   const payload = names.find((item) => item.name !== "report.json" && item.isFile() && !item.isSymbolicLink());
   if (!payload || payload.name !== path.basename(rel) || !/^[A-Za-z0-9._-]+$/.test(payload.name)) {
@@ -872,13 +892,13 @@ export async function restoreQuarantineSet(id: string): Promise<QuarantineSet> {
   const dest = path.resolve(metaReal, rel);
   const destRel = path.relative(metaReal, dest);
   if (!destRel || destRel.startsWith("..") || path.isAbsolute(destRel)) {
-    rejectRestore("That quarantine set does not name a state file.");
+    rejectRestore("That copy does not name one of NerdGram's own settings/history files (not your diagrams).");
   }
   await fs.mkdir(path.dirname(dest), { recursive: true });
   const parentReal = await fs.realpath(path.dirname(dest));
   const parentRel = path.relative(metaReal, parentReal);
   if (parentRel.startsWith("..") || path.isAbsolute(parentRel)) {
-    rejectRestore("That quarantine set does not name a state file.");
+    rejectRestore("That copy does not name one of NerdGram's own settings/history files (not your diagrams).");
   }
   clearNewerSchema(dest);
   await fs.copyFile(path.join(dir, payload.name), dest);

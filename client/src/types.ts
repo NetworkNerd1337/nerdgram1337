@@ -201,7 +201,7 @@ export type InstallKind = "git" | "docker" | "zip" | "unknown";
 
 export type DataHealthIssue = {
   code: string;
-  severity: "warn" | "degraded";
+  severity: "info" | "warn" | "degraded";
   message: string;
   file?: string;
 };
