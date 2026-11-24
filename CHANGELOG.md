@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 2.1.25 "Azimuth" - 2026-11-24
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
 - **Fixed:** Export as uses the same select colors as Theme and Look. The closed control and the option list follow the light and dark theme, including disabled options.
 - **Docs:** npm publishing resumed. The next release publishes to npm again.
 - A synced or shared data folder says cloud-synced folders such as OneDrive, iCloud Drive, Dropbox, and Google Drive are not supported, and that an SMB or NFS share is a real shared folder. The details dialog links to why, and `nerdgram doctor` prints that same text with the URL.
