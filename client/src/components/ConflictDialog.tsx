@@ -23,6 +23,7 @@ export function ConflictDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <h3 id="conflict-title">This diagram changed on disk</h3>
+        <div className="modal-scroll">
         <p>
           Autosave is paused. The copy in the editor and the copy on disk are
           both shown below. Nothing is overwritten until you choose.
@@ -36,6 +37,7 @@ export function ConflictDialog({
             <strong>On disk</strong>
             <pre>{disk || " "}</pre>
           </div>
+        </div>
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onKeep}>

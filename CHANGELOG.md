@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Fixed:** A long data-folder details dialog stays inside the window. The findings scroll, and the title and Close stay visible. Other tall dialogs use the same limit.
 
 ## 2.1.25 "Azimuth" - 2026-11-24
 

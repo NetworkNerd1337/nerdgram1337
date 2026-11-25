@@ -175,6 +175,7 @@ export function WorkspaceReplaceDialog({ seed, onClose }: { seed: ReplaceSeed; o
         }}
       >
         <h3 id="replace-title">Replace across diagrams</h3>
+        <div className="modal-scroll">
         <p className="replace-note">
           This changes every selected diagram. Find and replace in the editor still applies to the
           open diagram only.
@@ -346,6 +347,7 @@ export function WorkspaceReplaceDialog({ seed, onClose }: { seed: ReplaceSeed; o
             ) : null}
           </div>
         ) : null}
+        </div>
 
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>

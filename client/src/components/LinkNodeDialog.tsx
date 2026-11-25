@@ -45,6 +45,7 @@ export function LinkNodeDialog({
         }}
       >
         <h3 id="link-node-title">Link node to diagram</h3>
+        <div className="modal-scroll">
         <p>Inserts a Mermaid <code>click</code> line. The node opens that diagram in NerdGram.</p>
         <label>
           Node id
@@ -84,6 +85,7 @@ export function LinkNodeDialog({
             </li>
           ))}
         </ul>
+        </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
             Cancel

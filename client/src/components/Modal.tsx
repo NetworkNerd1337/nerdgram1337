@@ -36,7 +36,7 @@ export function Modal({
         onSubmit={handleSubmit}
       >
         <h3 id={titleId}>{title}</h3>
-        {children}
+        <div className="modal-scroll">{children}</div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel

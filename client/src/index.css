@@ -308,6 +308,18 @@ a {
   max-width: 36rem;
 }
 
+.data-health-dialog > h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+}
+
+.modal-scroll .modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--bg-elevated);
+}
+
 .data-health-dialog ul {
   margin: 0.75rem 0;
   padding-left: 1.1rem;
@@ -2351,6 +2363,43 @@ body.is-col-resizing * {
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
   padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: hidden;
+}
+
+.modal-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  overscroll-behavior: contain;
+}
+
+.modal > h2,
+.modal > h3,
+.modal-actions {
+  flex: none;
+}
+
+.modal:not(:has(> .modal-scroll)) {
+  overflow-y: auto;
+}
+
+.modal:not(:has(> .modal-scroll)) > h2,
+.modal:not(:has(> .modal-scroll)) > h3:first-child {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-elevated);
+}
+
+.modal:not(:has(> .modal-scroll)) > .modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--bg-elevated);
 }
 
 .modal p,
@@ -4471,8 +4520,6 @@ body[data-presenting="true"] .support-link {
 
 .update-modal {
   width: min(720px, 100%);
-  max-height: min(86vh, 920px);
-  overflow: auto;
 }
 
 .update-notes h1,
@@ -4794,8 +4841,6 @@ body[data-presenting="true"] .support-link {
 
 .refresh-diff {
   width: min(640px, 100%);
-  max-height: min(80vh, 720px);
-  overflow: auto;
 }
 
 .refresh-diff h4 {
@@ -4947,8 +4992,6 @@ body[data-presenting="true"] .support-link {
 
 .replace-dialog {
   width: min(760px, 100%);
-  max-height: min(86vh, 920px);
-  overflow: auto;
 }
 
 .replace-note,
