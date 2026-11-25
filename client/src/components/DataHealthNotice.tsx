@@ -109,6 +109,7 @@ export function DataHealthNotice({ report: given }: { report?: DataDoctorReport 
             onMouseDown={(event) => event.stopPropagation()}
           >
             <h2 id="data-health-title">NerdGram checked the data folder</h2>
+            <div className="modal-scroll">
             {files.length > 0 ? (
               <p>
                 It found {count} {count === 1 ? "problem" : "problems"} in NerdGram's own settings/history files (not your diagrams):{" "}
@@ -142,9 +143,12 @@ export function DataHealthNotice({ report: given }: { report?: DataDoctorReport 
               }}
             />
             <ClashList clashes={report?.clashes ?? []} />
-            <button type="button" className="btn" onClick={() => setOpen(false)}>
-              Close
-            </button>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn" onClick={() => setOpen(false)}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

@@ -72,6 +72,7 @@ export function RepairLinksDialog({ lockToken = null, onClose, onApplied }: Repa
         }}
       >
         <h3 id="repair-links-title">Repair links</h3>
+        <div className="modal-scroll">
         <p>
           These look like diagrams renamed or moved outside NerdGram. Nothing is written until you confirm.
         </p>
@@ -133,6 +134,7 @@ export function RepairLinksDialog({ lockToken = null, onClose, onApplied }: Repa
             </ul>
           </>
         ) : null}
+        </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
             Cancel

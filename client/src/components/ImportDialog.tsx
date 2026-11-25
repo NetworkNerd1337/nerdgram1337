@@ -180,6 +180,7 @@ export function ImportDialog({
         }}
       >
         <h3 id="import-dialog-title">Import diagrams</h3>
+        <div className="modal-scroll">
         <p>
           {SUPPORTED_IMPORT_LINE} Lucid and Visio files are up to {FOREIGN_IMPORT_MAX_BYTES / (1024 * 1024)} MiB.
           Mermaid files are up to {MAX_IMPORT_FILE_CHARS / 1024} KB. Mermaid is copied into the folder you
@@ -315,6 +316,7 @@ export function ImportDialog({
         ) : null}
         {tooMany ? <p className="import-error">Import up to {MAX_IMPORT_FILES} files at a time.</p> : null}
         {error ? <div className="error-banner">{error}</div> : null}
+        </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
             Cancel

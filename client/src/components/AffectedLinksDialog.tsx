@@ -32,12 +32,14 @@ export function AffectedLinksDialog({
         }}
       >
         <h3 id="affected-links-title">{title}</h3>
+        <div className="modal-scroll">
         <p>{intro}</p>
         <ul className="affected-links">
           {files.map((file) => (
             <li key={file}>{file}</li>
           ))}
         </ul>
+        </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
             Cancel

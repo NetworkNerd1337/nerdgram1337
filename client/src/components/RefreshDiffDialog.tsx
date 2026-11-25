@@ -53,6 +53,7 @@ export function RefreshDiffDialog({
         }}
       >
         <h3 id="refresh-diff-title">Refresh from data</h3>
+        <div className="modal-scroll">
         <p>
           Data file <code>{dataPath}</code>. Lines outside <code>%% nerdgram:generated</code> stay as they are.
         </p>
@@ -90,6 +91,7 @@ export function RefreshDiffDialog({
             </ul>
           </div>
         ) : null}
+        </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel

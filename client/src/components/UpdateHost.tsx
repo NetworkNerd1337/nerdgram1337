@@ -525,7 +525,7 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
         }}
       >
         <h3 id="update-dialog-title">{title}</h3>
-        {children}
+        <div className="modal-scroll">{children}</div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Close

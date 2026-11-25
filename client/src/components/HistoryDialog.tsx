@@ -168,6 +168,7 @@ export function HistoryDialog({ path, lockToken, canRestore, onClose, onRestored
         onClick={(event) => event.stopPropagation()}
       >
         <h3 id="history-title">Version history</h3>
+        <div className="modal-scroll">
         <p>
           Each save keeps the previous contents. The last {retention ?? 20} unnamed revisions are kept.
           Named baselines are kept as well, up to {baselineCap ?? 20} per diagram, and are not dropped by that
@@ -303,12 +304,15 @@ export function HistoryDialog({ path, lockToken, canRestore, onClose, onRestored
             {!canRestore && revisions.length > 0 && (
               <p>This diagram is read-only in this window, so restore is unavailable.</p>
             )}
-            <div className="modal-actions">
-              <button type="button" className="btn btn-ghost" onClick={onClose}>
-                Close
-              </button>
-            </div>
           </>
+        )}
+        </div>
+        {compare ? null : (
+          <div className="modal-actions">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              Close
+            </button>
+          </div>
         )}
       </div>
     </div>

@@ -162,6 +162,7 @@ export function MoveDialog({
         }}
       >
         <h3 id="move-dialog-title">Move “{label}”</h3>
+        <div className="modal-scroll">
         <p id="move-dialog-help">
           Choose a folder. Arrow keys move through the list. You can also drag this item onto a
           folder. Trash is not a destination.
@@ -185,6 +186,7 @@ export function MoveDialog({
           </p>
         ) : null}
         {error ? <div className="error-banner">{error}</div> : null}
+        </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
