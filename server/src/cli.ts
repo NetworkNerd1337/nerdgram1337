@@ -4,7 +4,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RenderFormat } from "./renderDiagram.js";
-import { dataHealthReport, ensureDataPrepared, recordDataIssue } from "./dataHealth.js";
+import { dataHealthReport, describeInstanceConflict, ensureDataPrepared, recordDataIssue } from "./dataHealth.js";
+import { getInstanceIdentity } from "./instanceConfig.js";
 import { StrictInstanceConflict, heartbeatAgeSeconds, lockHolderKind, readInstanceLockFile, type InstanceLockSnapshot } from "./instanceLock.js";
 import { codenameForVersion, formatVersionLabel, sanitizeCodenames } from "./updates/codename.js";
 
@@ -1127,10 +1128,8 @@ function printDoctor(io: Io, report: ReturnType<typeof dataHealthReport>, asJson
     for (const issue of report.issues) {
       io.stdout(issue.severity === "info" ? `Info: ${issue.message}\n` : `${issue.message}\n`);
     }
-    if (report.instanceConflict) {
-      io.stdout(
-        `NerdGram checked the data folder and found two copies of NerdGram using it. The other one is ${report.instanceConflict.hostname} pid ${report.instanceConflict.pid}. Stop the other NerdGram, then start this one again.\n`,
-      );
+    if (report.instanceConflict && !report.issues.some((issue) => issue.code === "instance-conflict")) {
+      io.stdout(`${describeInstanceConflict(report.instanceConflict).message}\n`);
     }
     if (running) io.stdout(`${runningLine(running)}\n`);
   }
@@ -1227,6 +1226,26 @@ async function doctorCommand(io: Io, flags: Parsed["flags"]): Promise<number> {
     }
   }
   const lock = await readInstanceLockFile();
+  if (lock === "unreadable") {
+    if (repair || restore) {
+      io.stderr("The instance lock could not be read. Stop every NerdGram before doctor --repair or --restore.\n");
+      return 2;
+    }
+    await ensureDataPrepared({ claimLock: false });
+    recordDataIssue({
+      code: "instance-conflict",
+      severity: "warn",
+      message: describeInstanceConflict({
+        instanceId: "",
+        hostname: "unreadable lock",
+        pid: 0,
+        startedAt: new Date().toISOString(),
+        heartbeatAt: new Date().toISOString(),
+        sameInstall: false,
+      }).message,
+    });
+    return printDoctor(io, dataHealthReport(), asJson);
+  }
   const holder = lock ? lockHolderKind(lock) : "stale";
   if ((repair || restore) && lock && (holder === "local-server" || holder === "other-host")) {
     return refuseLiveWrite(io, lock);
@@ -1241,11 +1260,16 @@ async function doctorCommand(io: Io, flags: Parsed["flags"]): Promise<number> {
     const fetched = await doctorFromLockPort(lock.port);
     if (fetched && remoteHasConflict(fetched.report)) return printRemoteDoctor(io, fetched, asJson);
     await ensureDataPrepared({ claimLock: false });
-    recordDataIssue({
-      code: "instance-conflict",
-      severity: "warn",
-      message: `NerdGram checked the data folder and found two copies of NerdGram using it. The other one is ${lock.hostname} pid ${lock.pid}, heartbeat ${lock.heartbeatAt}. Stop the other NerdGram, then start this one again.`,
+    const identity = await getInstanceIdentity();
+    const described = describeInstanceConflict({
+      instanceId: lock.instanceId,
+      hostname: lock.hostname,
+      pid: lock.pid,
+      startedAt: lock.startedAt,
+      heartbeatAt: lock.heartbeatAt,
+      sameInstall: lock.instanceId === identity.instanceId,
     });
+    recordDataIssue({ code: "instance-conflict", severity: described.severity, message: described.message });
     return printDoctor(io, dataHealthReport(), asJson);
   }
   if (restore) {

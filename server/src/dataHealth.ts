@@ -113,6 +113,27 @@ export function assertDataWritable(): void {
   throw httpFail(503, hint, "not_writable");
 }
 
+/** Same-install is a warning. A different install on a shared folder is a note. */
+export function describeInstanceConflict(conflict: InstanceConflict): { severity: "info" | "warn"; message: string } {
+  if (!conflict.instanceId) {
+    return {
+      severity: "warn",
+      message:
+        "NerdGram could not read the instance lock. It is treating that lock as held, so background sync, the update checker, and diagram sightings stay paused. Stop every NerdGram, then start one copy.",
+    };
+  }
+  if (conflict.sameInstall) {
+    return {
+      severity: "warn",
+      message: `NerdGram checked the data folder and found two copies of the same install using it. The other one is ${conflict.hostname} pid ${conflict.pid}, heartbeat ${conflict.heartbeatAt}. Stop the other NerdGram, then start this one again. Background sync, the update checker, and diagram sightings stay paused until then.`,
+    };
+  }
+  return {
+    severity: "info",
+    message: `Another NerdGram is using this shared folder (${conflict.hostname}). That is expected when two installs share one library. This copy keeps running. Background sync, the update checker, and diagram sightings stay paused so those files are written by one copy. Editor locks still say who has a diagram open.`,
+  };
+}
+
 export function upgradeBlockers(report: Pick<DataHealthReport, "writable" | "issues" | "instanceConflict">): UpgradeBlocker[] {
   const blockers: UpgradeBlocker[] = [];
   if (!report.writable) {
@@ -130,7 +151,9 @@ export function upgradeBlockers(report: Pick<DataHealthReport, "writable" | "iss
   if (report.instanceConflict) {
     blockers.push({
       code: "instance-conflict",
-      message: "Two copies of NerdGram share this data folder. Stop the other one before you upgrade.",
+      message: report.instanceConflict.sameInstall
+        ? "Two copies of the same NerdGram install share this data folder. Stop the other one before you upgrade."
+        : "Another NerdGram is using this shared folder. Stop that copy before you upgrade this one.",
     });
   }
   if (report.issues.some((issue) => issue.code === "newer-schema")) {
@@ -814,10 +837,11 @@ async function prepareDataFolder(claimLock = true): Promise<void> {
     await claimInstanceLock();
     const conflict = currentInstanceConflict();
     if (conflict) {
+      const described = describeInstanceConflict(conflict);
       recordDataIssue({
         code: "instance-conflict",
-        severity: "warn",
-        message: `NerdGram checked the data folder and found two copies of NerdGram using it. The other one is ${conflict.hostname} pid ${conflict.pid}, heartbeat ${conflict.heartbeatAt}. Stop the other NerdGram, then start this one again. Background sync, the update checker, and diagram sightings stay paused until then.`,
+        severity: described.severity,
+        message: described.message,
       });
     }
   }

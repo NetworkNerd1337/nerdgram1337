@@ -287,4 +287,32 @@ describe("editor read errors", () => {
     expect(alert?.textContent).toContain("macbook");
     expect(document.body.textContent).not.toContain("Can't read file");
   });
+
+  it("a heartbeat 423 goes read-only and does not acquire the lock again", async () => {
+    readFile.mockResolvedValue(readable);
+    acquireLock.mockResolvedValue({
+      path: "Network topology.mmd",
+      token: "tok",
+      sessionId: "session",
+      heartbeatAt: "2026-11-17T00:00:00.000Z",
+      acquiredAt: "2026-11-17T00:00:00.000Z",
+      heartbeatEveryMs: 30,
+      staleAfterMs: 90000,
+    });
+    heartbeatLock.mockRejectedValue(new ApiError(423, { error: "The editor lock is no longer held by this window.", code: "locked" }));
+    pollLock.mockResolvedValue({ held: true, error: "held", code: "locked" });
+
+    renderEditor();
+    await settle();
+    await settle();
+    expect(acquireLock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+
+    expect(heartbeatLock).toHaveBeenCalled();
+    expect(acquireLock).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain("Another window took over this diagram. Autosave has stopped.");
+  });
 });

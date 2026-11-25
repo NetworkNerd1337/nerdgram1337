@@ -182,7 +182,7 @@ describe("data folder health", () => {
     expect(JSON.stringify(doctor.body)).not.toContain("ghp_");
   });
 
-  it("stores the Docker instance file in the data folder and copies a home file once", async () => {
+  it("stores the Docker instance file off the data volume and copies a home file once", async () => {
     const previousInstall = process.env.NERDGRAM_INSTALL;
     const previousInstance = process.env.NERDGRAM_INSTANCE_FILE;
     const previousHome = process.env.HOME;
@@ -205,14 +205,25 @@ describe("data folder health", () => {
       `${JSON.stringify({ instanceId: "11111111-1111-4111-8111-111111111111", instanceName: "Lab" })}\n`,
     );
     clearInstanceIdentityCache();
-    const identity = await getInstanceIdentity();
-    expect(identity.instanceName, `${instanceFilePath()} ${process.env.HOME}`).toBe("Lab");
-    expect(instanceFilePath()).toBe(path.join(dir, ".meta", "instance.json"));
-    const saved = JSON.parse(await fs.readFile(instanceFilePath(), "utf8")) as { instanceName: string };
-    expect(saved.instanceName).toBe("Lab");
-    restoreEnv();
+    const target = instanceFilePath();
+    expect(target).toBe(path.join("/tmp", ".nerdgram", "instance.json"));
+    const previousTarget = await fs.readFile(target, "utf8").catch(() => null);
+    await fs.rm(target, { force: true });
     clearInstanceIdentityCache();
-    await fs.rm(home, { recursive: true, force: true });
+    try {
+      const identity = await getInstanceIdentity();
+      expect(identity.instanceName, `${instanceFilePath()} ${process.env.HOME}`).toBe("Lab");
+      expect(instanceFilePath()).toBe(target);
+      const saved = JSON.parse(await fs.readFile(target, "utf8")) as { instanceName: string };
+      expect(saved.instanceName).toBe("Lab");
+      await expect(fs.access(path.join(dir, ".meta", "instance.json"))).rejects.toThrow();
+    } finally {
+      if (previousTarget == null) await fs.rm(target, { force: true });
+      else await fs.writeFile(target, previousTarget);
+      restoreEnv();
+      clearInstanceIdentityCache();
+      await fs.rm(home, { recursive: true, force: true });
+    }
   });
 
   it("quarantines a wrong-shape state file at startup for every audited file", async () => {
@@ -225,7 +236,6 @@ describe("data folder health", () => {
       { rel: "replace/operations.json", body: '{"not":"operations"}\n', file: "replace/operations.json" },
       { rel: "versions/sample/index.json", body: '{"not":"index"}\n', file: "versions/index.json" },
       { rel: "trash/items/sample/manifest.json", body: '{"not":"trash"}\n', file: "trash/sample/manifest.json" },
-      { rel: "locks/sample.json", body: '{"not":"lock"}\n', file: "locks/sample.json" },
     ];
     for (const item of cases) {
       resetDataHealthForTests();

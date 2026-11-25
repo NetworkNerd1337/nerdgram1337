@@ -7,6 +7,10 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 ## Unreleased
 
 - **Fixed:** A long data-folder details dialog stays inside the window. The findings scroll, and the title and Close stay visible. Other tall dialogs use the same limit.
+- **Fixed:** The data-folder Details dialog closes on Escape, the same as the other dialogs.
+- **Fixed:** Docker, and a home directory on `/tmp`, keep the instance id off the library. The file is `/tmp/.nerdgram/instance.json` unless `NERDGRAM_INSTANCE_FILE` is set. An older `<data>/.meta/instance.json` is copied once and then left unchanged. A fresh lock heartbeat is held. A pid is used only for this install on this computer (#336).
+- **Fixed:** A 423 on the editor heartbeat goes read-only and stops writes. The lock is taken again only by Take over, or by the read-only poll after the lock is released or stale (#337).
+- **Fixed:** Lock heartbeats update the lock file in place and do not keep a `.bak`. A bad or partial lock read is retried and then treated as held, so it is not quarantined or taken over. A second install on a shared folder is a note. Two processes with the same instance id stay a warning (#338).
 
 ## 2.1.25 "Azimuth" - 2026-11-24
 

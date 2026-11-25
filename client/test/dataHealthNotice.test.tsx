@@ -197,6 +197,29 @@ describe("data folder banner", () => {
     expect(scroll?.contains(close ?? null)).toBe(false);
     expect(dialog?.querySelector(".modal-actions")?.contains(close ?? null)).toBe(true);
   });
+
+  it("closes the details dialog on Escape", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root?.render(<DataHealthNotice report={report} />);
+    });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(document.querySelector(".data-health-banner")).toBeTruthy();
+    const details = [...document.querySelectorAll("button")].find((item) => item.textContent === "Details");
+    act(() => {
+      details?.click();
+    });
+    expect(document.querySelector("[role=dialog]")).toBeTruthy();
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(document.querySelector("[role=dialog]")).toBeNull();
+    expect(document.querySelector(".data-health-banner")).toBeTruthy();
+  });
 });
 
 describe("dialog viewport cap", () => {
