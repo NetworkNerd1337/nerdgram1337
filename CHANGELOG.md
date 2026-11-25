@@ -6,7 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
-_No unreleased items._
+- **Added:** The side pane shows "New release available!" when this install is behind the latest GitHub release. It uses the same update check as About. An equal or newer version, including a pre-release that is ahead of the latest release, shows nothing. A failed check shows nothing.
 
 ## 2.1.26 "Azimuth" - 2026-11-24
 

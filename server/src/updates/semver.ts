@@ -70,6 +70,16 @@ function comparePrerelease(left: string[], right: string[]): number {
  * A current version that is not a semver is incomparable, so a dev string
  * is never treated as something to downgrade.
  */
+/**
+ * The side-pane notice is only for a running version that is strictly older
+ * than the latest release. Equal, newer, a pre-release ahead of latest, and
+ * a latest tag that is not a comparable release all stay quiet.
+ */
+export function showReleaseNotice(current: string, latest: string | null | undefined, includePrerelease = false): boolean {
+  if (!latest) return false;
+  return relationToRelease(current, latest, includePrerelease) === "newer";
+}
+
 export function relationToRelease(
   current: string,
   latest: string,
