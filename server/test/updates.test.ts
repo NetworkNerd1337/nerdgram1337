@@ -11,7 +11,7 @@ import { assertCommand, setCommandRunner, type CommandRequest, type CommandResul
 import { dockerGuideForTag } from "../src/updates/dockerGuide.js";
 import { applyGitUpdate } from "../src/updates/gitApply.js";
 import { detectInstallKind } from "../src/updates/installKind.js";
-import { compareSemver, parseSemver, relationToRelease } from "../src/updates/semver.js";
+import { compareSemver, parseSemver, relationToRelease, showReleaseNotice } from "../src/updates/semver.js";
 import {
   getUpdateJob,
   getUpdateStatus,
@@ -128,6 +128,20 @@ describe("semver", () => {
     const beta = parseSemver("1.0.0-beta.2");
     const beta1 = parseSemver("1.0.0-beta.10");
     expect(beta && beta1 && compareSemver(beta, beta1)).toBe(-1);
+  });
+});
+
+describe("side pane release notice", () => {
+  it("shows only when the running version is strictly older than the latest release", () => {
+    expect(showReleaseNotice("2.1.25", "v2.1.26")).toBe(true);
+    expect(showReleaseNotice("2.1.26", "v2.1.26")).toBe(false);
+    expect(showReleaseNotice("2.1.27", "v2.1.26")).toBe(false);
+    expect(showReleaseNotice("2.1.27-rc.1", "v2.1.26")).toBe(false);
+    expect(showReleaseNotice("2.1.26-beta.1", "v2.1.26")).toBe(true);
+    expect(showReleaseNotice("2.1.25", "v2.1.27-beta.1")).toBe(false);
+    expect(showReleaseNotice("2.1.25", "v2.1.27-beta.1", true)).toBe(true);
+    expect(showReleaseNotice("2.1.25", null)).toBe(false);
+    expect(showReleaseNotice("not-a-version", "v2.1.26")).toBe(false);
   });
 });
 

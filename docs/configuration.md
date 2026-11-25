@@ -49,7 +49,7 @@ Set a variable in the same terminal before `npm run dev` or `npm start`, so the 
 
 `NERDGRAM_VERSION` is a Docker build argument, not a runtime variable. It has to match the root `package.json`, and the image label `org.opencontainers.image.version` records it. `NERDGRAM_CODENAME` is the code name for that version's milestone. The image sets it in the environment and as `org.opencontainers.image.codename`. The running app still reads the code name from the `codenames` map in `package.json`.
 
-The update tests also read `NERDGRAM_UPDATE_FIXTURE`, `NERDGRAM_UPDATE_SIMULATE`, `NERDGRAM_UPDATE_ALLOW_EXEC`, and `NERDGRAM_UPDATE_CHECK_IN_TEST`. Leave those unset.
+The update tests also read `NERDGRAM_UPDATE_SIMULATE`, `NERDGRAM_UPDATE_ALLOW_EXEC`, and `NERDGRAM_UPDATE_CHECK_IN_TEST`. Leave those unset. `NERDGRAM_UPDATE_FIXTURE` is an absolute path to a JSON file shaped like a GitHub release (`tag_name`, and optional `name`, `body`, `html_url`, `published_at`). When it is set, the update check reads that file instead of GitHub. Delete `<data>/.meta/updates.json` after you change the file, or the cached answer is what the side pane still shows. Leave the variable unset for a normal check.
 
 A custom data directory on macOS or Linux:
 

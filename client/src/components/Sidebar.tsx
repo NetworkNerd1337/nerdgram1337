@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { DragPayload } from "../lib/drag";
 import type { TreeNode } from "../types";
 import { Brand } from "./Brand";
+import { ReleaseNotice } from "./ReleaseNotice";
 import { BookmarksSection } from "./BookmarksSection";
 import { FolderTree } from "./FolderTree";
 import { displayName } from "../lib/paths";
@@ -92,6 +93,7 @@ export function Sidebar({
       <Link to="/" onClick={() => onSelectFolder("")}>
         <Brand />
       </Link>
+      <ReleaseNotice />
 
       <div className="search-box">
         <span aria-hidden="true">⌕</span>

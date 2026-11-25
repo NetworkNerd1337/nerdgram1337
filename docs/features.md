@@ -21,6 +21,7 @@ The dashboard lists folders and diagrams in a tree, with search and grid or list
 - [Template gallery](#template-gallery)
 - [Syntax reference](#syntax-reference)
 - [Generate from data](#generate-from-data)
+- [New release notice](#new-release-notice)
 
 The dashboard lists folders and diagrams in a tree, with search and grid or list view. You can create, rename, and delete folders and diagrams. Delete moves them to trash. Bookmarks are stored in `<data>/.meta/favorites.json` and return when you restore a diagram from trash. An older favorites list in that same file is kept. The paste flow is `/new`, and it uses the same folder picker as move and import.
 
@@ -356,6 +357,10 @@ Mirrored content is from the Mermaid documentation (MIT License). Each page keep
 ## Generate from data
 
 **From data** on the dashboard, and **Generate diagram from data** in the command palette, open `/generate`. The source list starts with **Auto-detect**, then CSV, JSON, network JSON, CDP, LLDP, **Routing table (L3)**, and **ARP and MAC tables (L2)**, and adds each installed translator beside those. Every source shows the same note, **Your diagram reflects your data**, with a tip that opens that source's section. **Don't show again** remembers the choice for that source. A routing-table paste uses the same 4 MiB limit as the other sources. Prefixes that share a next hop collapse to one edge. The layer 2 source places hosts from a MAC table, and a busy port is an uplink stub. The list is loaded from the server. A note above the input says the diagram reflects that export, and **Don't show again** hides it for that translator. The steps are in [Generate from data](generate-from-data.md). The field tables are in [Translators](translators.md).
+
+## New release notice
+
+When this install is behind the latest GitHub release, the side pane shows **New release available!** under the name, with the new version under that line. The chip uses the same accent as the rest of the theme, in light and dark. Click it, or press Enter or Space while it is focused, to open About. The check is the one About already runs. An equal or newer version shows nothing, including a pre-release that is ahead of the latest release. A failed or offline check shows nothing. It does not call GitHub on its own.
 
 ## See also
 
