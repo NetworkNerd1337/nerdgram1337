@@ -16,7 +16,7 @@ Planned work from 2.5.0 through 3.0.0. This is a plan, not a commitment. Scope a
 
 ## Where we are
 
-The current release is 2.1.25, code name Azimuth. It is published to npm, Docker and GHCR, and the GitHub Release. 2.1.24 is the previous release. It was deprecated on 2026-11-24, and its GHCR tag stays through 2026-12-24. 2.1.22, 2.1.23, and 2.1.24 were Docker and GHCR only and were never published to npm. Shipped work stays in the changelog and on the [releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). The next planned line starts at 2.5.0.
+The current release is 2.1.26, code name Azimuth. It is published to npm, Docker and GHCR, and the GitHub Release. 2.1.25 is the previous release. It was deprecated on 2026-11-24, and its npm version and GHCR tag stay through 2026-12-24. 2.1.22, 2.1.23, and 2.1.24 were Docker and GHCR only and were never published to npm. Shipped work stays in the changelog and on the [releases page](https://github.com/NetworkNerd1337/NerdGram1337/releases). The next planned line starts at 2.5.0.
 
 NerdGram stays a local, on-demand, code-first diagram tool. It does not discover the network, poll devices, or store device credentials. How data gets into a diagram today is [Generate from data](generate-from-data.md) and [Translators](translators.md).
 
