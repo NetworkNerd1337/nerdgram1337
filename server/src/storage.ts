@@ -309,9 +309,23 @@ async function syncDirectory(dir: string): Promise<void> {
   }
 }
 
+/**
+ * Lock files are refreshed often and may live on SMB. A `.bak` next to them
+ * is another rename, which is what leaves `.smbdelete*` files. They are not
+ * backed up.
+ */
+function isLockStateFile(absolutePath: string): boolean {
+  const base = path.basename(absolutePath);
+  if (base === "instance-lock.json") return true;
+  const meta = getMetaPath();
+  const prefix = meta.endsWith(path.sep) ? meta : `${meta}${path.sep}`;
+  return path.resolve(absolutePath).startsWith(`${prefix}locks${path.sep}`);
+}
+
 /** One previous copy of a `.meta` state file. Diagrams, including revision `.mmd` files, are left alone. */
 function isMetaStateFile(absolutePath: string): boolean {
   if (!absolutePath.endsWith(".json")) return false;
+  if (isLockStateFile(absolutePath)) return false;
   const meta = getMetaPath();
   const prefix = meta.endsWith(path.sep) ? meta : `${meta}${path.sep}`;
   if (!absolutePath.startsWith(prefix)) return false;
@@ -372,6 +386,38 @@ export async function atomicWriteJson(absolutePath: string, value: unknown): Pro
   }
   const stamped = isManagedStatePath(absolutePath) ? stampSchemaValue(value) : value;
   await atomicWriteText(absolutePath, `${JSON.stringify(stamped, null, 2)}\n`);
+}
+
+/**
+ * Refresh a file without renaming it. Heartbeats use this so an SMB share
+ * does not turn every 15 second update into a delete. A crash can leave a
+ * short or torn file. Callers retry the read and then treat the lock as held.
+ */
+export async function writeTextInPlace(absolutePath: string, content: string): Promise<void> {
+  const dir = path.dirname(absolutePath);
+  await fs.mkdir(dir, { recursive: true });
+  let handle: fs.FileHandle | null = null;
+  try {
+    try {
+      handle = await fs.open(absolutePath, "r+");
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+      handle = await fs.open(absolutePath, "w");
+    }
+    await handle.writeFile(content, "utf8");
+    await handle.truncate(Buffer.byteLength(content));
+    await handle.sync();
+  } finally {
+    await handle?.close().catch(() => undefined);
+  }
+}
+
+export async function writeJsonInPlace(absolutePath: string, value: unknown): Promise<void> {
+  if (isNewerSchemaPath(absolutePath)) {
+    throw Object.assign(new Error("This file was written by a newer NerdGram and was not changed."), { code: "newer-schema" });
+  }
+  const stamped = isManagedStatePath(absolutePath) ? stampSchemaValue(value) : value;
+  await writeTextInPlace(absolutePath, `${JSON.stringify(stamped, null, 2)}\n`);
 }
 
 export async function readJsonFile<T>(absolutePath: string): Promise<T | null> {

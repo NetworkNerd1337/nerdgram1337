@@ -36,31 +36,84 @@ export function homeInstanceFilePath(): string {
   return path.join(os.homedir(), ".nerdgram", "instance.json");
 }
 
-/** Docker and a tmpfs home lose ~/.nerdgram when the container is recreated. */
-export function instanceLivesInDataDir(): boolean {
+/** Docker, and a home directory on /tmp, must not put the instance id on the library. */
+export function identityStaysOffVolume(): boolean {
   if (process.env.NERDGRAM_INSTALL === "docker") return true;
   const home = os.homedir();
   return home === "/tmp" || home.startsWith("/tmp/");
 }
 
+/** Container-local identity. A tmpfs on /tmp keeps this off the data volume. */
+export function containerInstanceFilePath(): string {
+  return path.join("/tmp", ".nerdgram", "instance.json");
+}
+
 export function instanceFilePath(): string {
   const override = process.env.NERDGRAM_INSTANCE_FILE?.trim();
   if (override) return path.resolve(override);
-  const root = process.env.NERDGRAM_DATA_DIR?.trim();
-  if (instanceLivesInDataDir() && root) return path.join(path.resolve(root), ".meta", "instance.json");
+  if (identityStaysOffVolume()) return containerInstanceFilePath();
   return homeInstanceFilePath();
 }
 
-function copyHomeInstanceOnce(target: string): void {
+function legacyDataInstancePath(): string | null {
+  const root = process.env.NERDGRAM_DATA_DIR?.trim();
+  if (!root) return null;
+  return path.join(path.resolve(root), ".meta", "instance.json");
+}
+
+/**
+ * A fresh instance lock with this id belongs to a live copy. Adopting that
+ * id would make two machines look like one install. Same window as the
+ * instance heartbeat (45 seconds).
+ */
+function sharedLockHoldsId(instanceId: string): boolean {
+  const root = process.env.NERDGRAM_DATA_DIR?.trim();
+  if (!root || !instanceId) return false;
   try {
-    if (path.resolve(target) === path.resolve(homeInstanceFilePath())) return;
-    if (fs.existsSync(target)) return;
-    const home = homeInstanceFilePath();
-    if (!fs.existsSync(home)) return;
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.copyFileSync(home, target);
+    const parsed = JSON.parse(fs.readFileSync(path.join(path.resolve(root), ".meta", "instance-lock.json"), "utf8")) as {
+      instanceId?: unknown;
+      hostname?: unknown;
+      pid?: unknown;
+      heartbeatAt?: unknown;
+    };
+    if (parsed.instanceId !== instanceId) return false;
+    const age = Date.now() - Date.parse(String(parsed.heartbeatAt ?? ""));
+    if (!Number.isFinite(age) || age < 0 || age >= 45_000) return false;
+    if (parsed.hostname === os.hostname() && parsed.pid === process.pid) return false;
+    return true;
   } catch {
-    // A cloud-only home file must not stop startup. The data-folder read reports its own file.
+    return false;
+  }
+}
+
+/**
+ * Copy an older identity into the local file once. The library copy is left
+ * as it was, including its hostname. A live lock that already uses that id
+ * keeps it; this process takes a new id and the saved name, Host, and folder.
+ */
+function adoptLegacyInstance(target: string): void {
+  try {
+    if (fs.existsSync(target)) return;
+    const sources = [legacyDataInstancePath(), homeInstanceFilePath()].filter((item): item is string => Boolean(item));
+    for (const source of sources) {
+      if (path.resolve(source) === path.resolve(target)) continue;
+      if (!fs.existsSync(source)) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(fs.readFileSync(source, "utf8")) as unknown;
+      } catch {
+        continue;
+      }
+      const file = normalizeInstance(parsed);
+      if (!file?.instanceId) continue;
+      const fromLibrary = legacyDataInstancePath() != null && path.resolve(source) === path.resolve(legacyDataInstancePath()!);
+      if (fromLibrary && sharedLockHoldsId(file.instanceId)) file.instanceId = randomUUID();
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, `${JSON.stringify(file, null, 2)}\n`, { mode: 0o600 });
+      return;
+    }
+  } catch {
+    // A missing legacy file must not stop startup. A new id is created in memory.
   }
 }
 
@@ -159,7 +212,7 @@ function normalizeInstance(parsed: unknown): InstanceFile | null {
 
 export function readInstanceFileSync(): InstanceFile | null {
   const target = instanceFilePath();
-  copyHomeInstanceOnce(target);
+  adoptLegacyInstance(target);
   let raw: string;
   try {
     const stat = fs.statSync(target);
@@ -245,17 +298,64 @@ function displayName(configured: string | null | undefined, hostname: string): s
   return trimmed || hostname;
 }
 
-async function writeInstanceFile(file: InstanceFile): Promise<void> {
+/**
+ * Another live install already holds the library. Do not rewrite its snapshot.
+ * This process's own lock, a stale lock, and a missing lock do not count.
+ */
+function snapshotOwnedByOther(ourId: string): boolean {
+  const root = process.env.NERDGRAM_DATA_DIR?.trim();
+  if (!root || !ourId) return false;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(path.resolve(root), ".meta", "instance-lock.json"), "utf8")) as {
+      instanceId?: unknown;
+      hostname?: unknown;
+      pid?: unknown;
+      heartbeatAt?: unknown;
+    };
+    const age = Date.now() - Date.parse(String(parsed.heartbeatAt ?? ""));
+    if (!Number.isFinite(age) || age < 0 || age >= 45_000) return false;
+    if (parsed.hostname === os.hostname() && parsed.pid === process.pid) return false;
+    if (parsed.instanceId === ourId && parsed.hostname === os.hostname()) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Docker keeps a copy under the data folder so recreating the only container
+ * keeps the name, Host, and id. The process itself reads the container-local
+ * file. A second live install does not overwrite that copy.
+ */
+function writeInstanceSnapshot(file: InstanceFile, force: boolean): void {
+  if (!identityStaysOffVolume()) return;
+  if (process.env.NERDGRAM_INSTANCE_FILE?.trim()) return;
+  const legacy = legacyDataInstancePath();
+  if (!legacy || path.resolve(legacy) === path.resolve(instanceFilePath())) return;
+  const exists = fs.existsSync(legacy);
+  if (!force && exists) return;
+  if (exists && snapshotOwnedByOther(file.instanceId)) return;
+  try {
+    fs.mkdirSync(path.dirname(legacy), { recursive: true });
+    fs.writeFileSync(legacy, `${JSON.stringify(file, null, 2)}\n`, { mode: 0o600 });
+  } catch {
+    // A read-only library still leaves this process with its local file.
+  }
+}
+
+async function writeInstanceFile(file: InstanceFile, options?: { snapshot?: boolean }): Promise<void> {
   const target = instanceFilePath();
   await fs.promises.mkdir(path.dirname(target), { recursive: true });
   const tmp = `${target}.${process.pid}.tmp`;
-  await fs.promises.writeFile(tmp, `${JSON.stringify(file, null, 2)}\n`, { mode: 0o600 });
+  const body = `${JSON.stringify(file, null, 2)}\n`;
+  await fs.promises.writeFile(tmp, body, { mode: 0o600 });
   await fs.promises.rename(tmp, target);
+  writeInstanceSnapshot(file, options?.snapshot === true);
 }
 
 export async function getInstanceIdentity(): Promise<InstanceIdentity> {
   const filePath = instanceFilePath();
-  copyHomeInstanceOnce(filePath);
+  adoptLegacyInstance(filePath);
   if (identityCache && identityCachePath === filePath) return identityCache;
   const hostname = machineHostname();
   const existing = readInstanceFileSync();
@@ -300,6 +400,18 @@ export function parseInstanceName(value: unknown): { ok: true; name: string } | 
   return { ok: true, name: trimmed };
 }
 
+/** A second process adopted the same id from a shared file. The local file gets a new id. */
+export async function regenerateInstanceId(): Promise<InstanceIdentity> {
+  const identity = await getInstanceIdentity();
+  const file = readInstanceFileSync() ?? { instanceId: identity.instanceId };
+  file.instanceId = randomUUID();
+  file.hostname = identity.hostname;
+  if (identity.configuredName) file.instanceName = identity.configuredName;
+  await writeInstanceFile(file);
+  clearInstanceIdentityCache();
+  return getInstanceIdentity();
+}
+
 export async function saveInstanceName(name: string): Promise<InstanceIdentity> {
   const identity = await getInstanceIdentity();
   const file = readInstanceFileSync() ?? { instanceId: identity.instanceId };
@@ -307,7 +419,7 @@ export async function saveInstanceName(name: string): Promise<InstanceIdentity> 
   file.hostname = identity.hostname;
   if (name) file.instanceName = name;
   else delete file.instanceName;
-  await writeInstanceFile(file);
+  await writeInstanceFile(file, { snapshot: true });
   clearInstanceIdentityCache();
   return getInstanceIdentity();
 }
@@ -320,7 +432,7 @@ export async function saveStartupDataDir(value: string | null): Promise<void> {
   if (identity.configuredName) file.instanceName = identity.configuredName;
   if (value && value.trim()) file.NERDGRAM_DATA_DIR = value.trim();
   else delete file.NERDGRAM_DATA_DIR;
-  await writeInstanceFile(file);
+  await writeInstanceFile(file, { snapshot: true });
 }
 
 /**
@@ -343,5 +455,5 @@ export async function saveInstanceListenHost(host: string): Promise<void> {
   if (identity.configuredName) file.instanceName = identity.configuredName;
   else delete file.instanceName;
   file.listenHost = host;
-  await writeInstanceFile(file);
+  await writeInstanceFile(file, { snapshot: true });
 }

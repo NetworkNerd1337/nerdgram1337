@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import request from "supertest";
@@ -34,6 +35,20 @@ describe("lock rules", () => {
     const mine = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
     expect(lockIsStale(record({ instanceId: mine, pid: 2_147_483_646, heartbeatAt: fresh }), now, mine)).toBe(true);
+    expect(
+      lockIsStale(
+        record({ instanceId: mine, hostname: os.hostname(), pid: 2_147_483_646, heartbeatAt: fresh }),
+        now,
+        mine,
+      ),
+    ).toBe(true);
+    expect(
+      lockIsStale(
+        record({ instanceId: mine, hostname: "other-host", pid: 2_147_483_646, heartbeatAt: fresh }),
+        now,
+        mine,
+      ),
+    ).toBe(false);
     expect(
       lockIsStale(record({ instanceId: OTHER_ID, pid: 2_147_483_646, heartbeatAt: fresh }), now, mine),
     ).toBe(false);

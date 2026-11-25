@@ -4,6 +4,13 @@ import { dismissDataFolder, isDataFolderDismissed, problemIssues, problemSignatu
 import type { DataDoctorReport, DataHealthIssue } from "../types";
 import { CLOUD_SYNC_DOCS_LINK_TEXT, CLOUD_SYNC_DOCS_URL } from "../../../server/src/syncFolderHint.ts";
 import { ClashList, QuarantineList } from "./DataFolderExtras";
+import { useCloseOnEscape } from "./useCloseOnEscape";
+
+/** Mounted only while Details is open, so Escape is not captured the rest of the time. */
+function CloseDetailsOnEscape({ onClose }: { onClose: () => void }) {
+  useCloseOnEscape(onClose);
+  return null;
+}
 
 function browserStore(): Storage | null {
   try {
@@ -108,6 +115,7 @@ export function DataHealthNotice({ report: given }: { report?: DataDoctorReport 
             aria-labelledby="data-health-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
+            <CloseDetailsOnEscape onClose={() => setOpen(false)} />
             <h2 id="data-health-title">NerdGram checked the data folder</h2>
             <div className="modal-scroll">
             {files.length > 0 ? (

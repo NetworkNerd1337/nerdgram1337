@@ -118,8 +118,9 @@ describe("doctor and the instance lock", () => {
     const before = await fs.readFile(file, "utf8");
     const stdout: string[] = [];
     const code = await main(["doctor"], { stdout: (chunk) => stdout.push(chunk) });
-    expect(code).toBe(1);
-    expect(stdout.join("")).toContain("two copies of NerdGram");
+    expect(code).toBe(0);
+    expect(stdout.join("")).toContain("Another NerdGram is using this shared folder");
+    expect(stdout.join("")).not.toContain("Stop the other NerdGram");
     expect(await fs.readFile(file, "utf8")).toBe(before);
   });
 });

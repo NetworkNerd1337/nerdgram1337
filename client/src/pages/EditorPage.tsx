@@ -628,47 +628,19 @@ export function EditorPage() {
       const token = lockTokenRef.current;
       const currentPath = pathRef.current;
       if (!token || currentPath !== filePath) return;
-      void api.heartbeatLock(currentPath, token).catch(async (err) => {
+      void api.heartbeatLock(currentPath, token).catch((err) => {
         if (!(err instanceof ApiError) || err.code !== "locked") return;
         if (pathRef.current !== currentPath) return;
-        try {
-          const lock = await api.acquireLock(currentPath, editorSessionId());
-          if (pathRef.current !== currentPath) {
-            void api.releaseLock(currentPath, lock.token).catch(() => undefined);
-            return;
-          }
-          const disk = await api.readFile(currentPath);
-          lockTokenRef.current = lock.token;
-          setLockToken(lock.token);
-          writeStoredLock(currentPath, { token: lock.token, sessionId: lock.sessionId });
-          if (
-            baselineRef.current &&
-            disk.hash !== baselineRef.current.hash &&
-            latestCodeRef.current !== disk.content
-          ) {
-            conflictRef.current = true;
-            setConflict({
-              mine: latestCodeRef.current,
-              disk: disk.content,
-              diskMtimeMs: disk.mtimeMs,
-              diskHash: disk.hash,
-              open: true,
-            });
-            setSaveState("paused");
-            return;
-          }
-          baselineRef.current = { mtimeMs: disk.mtimeMs, hash: disk.hash };
-        } catch {
-          if (pathRef.current !== currentPath) return;
-          lockTokenRef.current = null;
-          setLockToken(null);
-          clearStoredLock(currentPath);
-          accessRef.current = "readonly";
-          setAccess("readonly");
-          setLockRemote(null);
-          setLockNote("Another window took over this diagram. Autosave has stopped.");
-          setSaveState("error");
-        }
+        // A 423 means this window lost the lock. Do not acquire it again.
+        // Take over, or the read-only poll after a real release, is the only way back.
+        lockTokenRef.current = null;
+        setLockToken(null);
+        clearStoredLock(currentPath);
+        accessRef.current = "readonly";
+        setAccess("readonly");
+        setLockRemote(null);
+        setLockNote("Another window took over this diagram. Autosave has stopped.");
+        setSaveState("error");
       });
     }, heartbeatEveryRef.current);
     return () => window.clearInterval(timer);

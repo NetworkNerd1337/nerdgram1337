@@ -1,9 +1,9 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { getInstanceIdentity } from "./instanceConfig.js";
+import { getInstanceIdentity, regenerateInstanceId } from "./instanceConfig.js";
 import { getMetaPath } from "./paths.js";
-import { atomicWriteText, isProcessAlive } from "./storage.js";
+import { atomicWriteText, isProcessAlive, writeTextInPlace } from "./storage.js";
 
 const HEARTBEAT_MS = 30_000;
 const FRESH_MS = 45_000;
@@ -14,9 +14,11 @@ export type InstanceConflict = {
   pid: number;
   startedAt: string;
   heartbeatAt: string;
+  /** True when the other process is using this install's instance id. */
+  sameInstall: boolean;
 };
 
-export type InstanceLockSnapshot = InstanceConflict & { port: number | null };
+export type InstanceLockSnapshot = Omit<InstanceConflict, "sameInstall"> & { port: number | null };
 
 type InstanceLockFile = InstanceLockSnapshot;
 
@@ -63,31 +65,50 @@ function strictMode(): boolean {
   return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
 }
 
-async function readLock(): Promise<InstanceLockFile | null> {
-  try {
-    const parsed = JSON.parse(await fs.readFile(lockPath(), "utf8")) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    const record = parsed as Partial<InstanceLockFile>;
-    if (typeof record.instanceId !== "string" || typeof record.hostname !== "string") return null;
-    if (typeof record.pid !== "number" || typeof record.startedAt !== "string" || typeof record.heartbeatAt !== "string") {
-      return null;
-    }
-    const port = typeof record.port === "number" && Number.isInteger(record.port) && record.port >= 1 && record.port <= 65535 ? record.port : null;
-    return {
-      instanceId: record.instanceId,
-      hostname: record.hostname,
-      pid: record.pid,
-      startedAt: record.startedAt,
-      heartbeatAt: record.heartbeatAt,
-      port,
-    };
-  } catch {
+const LOCK_READ_ATTEMPTS = 4;
+const LOCK_READ_DELAY_MS = 20;
+
+function parseLock(parsed: unknown): InstanceLockFile | null {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const record = parsed as Partial<InstanceLockFile>;
+  if (typeof record.instanceId !== "string" || typeof record.hostname !== "string") return null;
+  if (typeof record.pid !== "number" || typeof record.startedAt !== "string" || typeof record.heartbeatAt !== "string") {
     return null;
   }
+  const port = typeof record.port === "number" && Number.isInteger(record.port) && record.port >= 1 && record.port <= 65535 ? record.port : null;
+  return {
+    instanceId: record.instanceId,
+    hostname: record.hostname,
+    pid: record.pid,
+    startedAt: record.startedAt,
+    heartbeatAt: record.heartbeatAt,
+    port,
+  };
+}
+
+/** Missing is null. A torn read is retried, then "unreadable" so the lock stays held. */
+async function readLock(): Promise<InstanceLockFile | null | "unreadable"> {
+  const file = lockPath();
+  for (let attempt = 0; attempt < LOCK_READ_ATTEMPTS; attempt += 1) {
+    try {
+      const raw = await fs.readFile(file, "utf8");
+      const record = raw.trim() ? parseLock(JSON.parse(raw) as unknown) : null;
+      if (!record) throw new Error("empty lock");
+      return record;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+      if (attempt < LOCK_READ_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, LOCK_READ_DELAY_MS));
+        continue;
+      }
+      return "unreadable";
+    }
+  }
+  return "unreadable";
 }
 
 /** Read the lock without creating it, refreshing it, or taking it. */
-export async function readInstanceLockFile(): Promise<InstanceLockSnapshot | null> {
+export async function readInstanceLockFile(): Promise<InstanceLockSnapshot | null | "unreadable"> {
   return readLock();
 }
 
@@ -111,28 +132,43 @@ export function heartbeatAgeSeconds(lock: InstanceLockSnapshot, now = Date.now()
   return Math.round(age / 1000);
 }
 
-function conflictOf(lock: InstanceLockSnapshot): InstanceConflict {
+function conflictOf(lock: InstanceLockSnapshot, sameInstall: boolean): InstanceConflict {
   return {
     instanceId: lock.instanceId,
     hostname: lock.hostname,
     pid: lock.pid,
     startedAt: lock.startedAt,
     heartbeatAt: lock.heartbeatAt,
+    sameInstall,
   };
 }
 
-function foreignFresh(lock: InstanceLockFile, now: number): boolean {
+function unreadableConflict(): InstanceConflict {
+  const now = new Date().toISOString();
+  return {
+    instanceId: "",
+    hostname: "unreadable lock",
+    pid: 0,
+    startedAt: now,
+    heartbeatAt: now,
+    sameInstall: false,
+  };
+}
+
+function foreignFresh(lock: InstanceLockFile, now: number, instanceId: string): boolean {
   const age = now - Date.parse(lock.heartbeatAt);
   if (!Number.isFinite(age) || age < 0 || age >= FRESH_MS) return false;
   if (lock.hostname === os.hostname() && lock.pid === process.pid) return false;
-  if (lock.hostname === os.hostname() && !isProcessAlive(lock.pid)) return false;
+  // A dead pid is this install's crashed process only. Another install on this
+  // computer keeps a fresh heartbeat until it ages out.
+  if (lock.hostname === os.hostname() && lock.instanceId === instanceId && !isProcessAlive(lock.pid)) return false;
   return true;
 }
 
-async function writeLock(identityId: string): Promise<void> {
+function lockBody(identityId: string): InstanceLockFile {
   const now = new Date().toISOString();
   if (!startedAt) startedAt = now;
-  const body: InstanceLockFile = {
+  return {
     instanceId: identityId,
     hostname: os.hostname(),
     pid: process.pid,
@@ -140,10 +176,41 @@ async function writeLock(identityId: string): Promise<void> {
     heartbeatAt: now,
     port: listenPort,
   };
-  await atomicWriteText(lockPath(), `${JSON.stringify(body, null, 2)}\n`);
+}
+
+function ownedByUs(lock: InstanceLockFile | null | "unreadable", identityId: string): lock is InstanceLockFile {
+  return (
+    lock !== null &&
+    lock !== "unreadable" &&
+    lock.instanceId === identityId &&
+    lock.pid === process.pid &&
+    lock.hostname === os.hostname()
+  );
+}
+
+/**
+ * Acquire replaces the file. A heartbeat refreshes it in place. The write
+ * counts only when a following read still names this process.
+ */
+async function writeLock(identityId: string, mode: "replace" | "refresh"): Promise<boolean> {
+  const text = `${JSON.stringify(lockBody(identityId), null, 2)}\n`;
+  if (mode === "refresh") await writeTextInPlace(lockPath(), text);
+  else await atomicWriteText(lockPath(), text);
+  const confirmed = await readLock();
+  if (!ownedByUs(confirmed, identityId)) {
+    holding = false;
+    return false;
+  }
   holding = true;
   paused = false;
   conflict = null;
+  return true;
+}
+
+function holdFailed(existing: InstanceLockFile | "unreadable", sameInstall: boolean): void {
+  holding = false;
+  paused = true;
+  conflict = existing === "unreadable" ? unreadableConflict() : conflictOf(existing, sameInstall);
 }
 
 async function resumeWriters(): Promise<void> {
@@ -153,35 +220,50 @@ async function resumeWriters(): Promise<void> {
 
 /** Take the lock, or warn when another live instance already holds it. */
 export async function claimInstanceLock(): Promise<void> {
-  const identity = await getInstanceIdentity();
+  let identity = await getInstanceIdentity();
   const existing = await readLock();
   const now = Date.now();
-  if (existing && foreignFresh(existing, now)) {
-    holding = false;
-    paused = true;
-    conflict = conflictOf(existing);
+  if (existing === "unreadable" || (existing && foreignFresh(existing, now, identity.instanceId))) {
+    const sharedId = existing !== "unreadable" && existing.instanceId === identity.instanceId;
+    if (sharedId) identity = await regenerateInstanceId();
+    holdFailed(existing, sharedId);
     if (strictMode()) throw new StrictInstanceConflict();
     armTimer();
     return;
   }
-  await writeLock(identity.instanceId);
+  const wrote = await writeLock(identity.instanceId, "replace");
+  if (!wrote) {
+    const after = await readLock();
+    const sharedId = after !== null && after !== "unreadable" && after.instanceId === identity.instanceId;
+    if (sharedId) identity = await regenerateInstanceId();
+    holdFailed(after ?? "unreadable", sharedId);
+    if (strictMode()) throw new StrictInstanceConflict();
+  }
   armTimer();
 }
 
 async function tick(): Promise<void> {
   const existing = await readLock();
   const now = Date.now();
-  if (existing && foreignFresh(existing, now)) {
-    const wasHolding = holding;
-    holding = false;
-    paused = true;
-    conflict = conflictOf(existing);
-    if (wasHolding) return;
+  const identityForFresh = await getInstanceIdentity();
+  if (existing === "unreadable" || (existing && foreignFresh(existing, now, identityForFresh.instanceId))) {
+    const identity = identityForFresh;
+    const sharedId = existing !== "unreadable" && existing.instanceId === identity.instanceId;
+    if (sharedId) await regenerateInstanceId();
+    holdFailed(existing, sharedId);
     return;
   }
   const wasPaused = paused;
   const identity = await getInstanceIdentity();
-  await writeLock(identity.instanceId);
+  const mode = ownedByUs(existing, identity.instanceId) ? "refresh" : "replace";
+  const wrote = await writeLock(identity.instanceId, mode);
+  if (!wrote) {
+    const after = await readLock();
+    const sharedId = after !== null && after !== "unreadable" && after.instanceId === identity.instanceId;
+    if (sharedId) await regenerateInstanceId();
+    holdFailed(after ?? "unreadable", sharedId);
+    return;
+  }
   if (wasPaused) await resumeWriters();
 }
 
@@ -206,7 +288,7 @@ export async function releaseInstanceLock(): Promise<void> {
   paused = false;
   conflict = null;
   const existing = await readLock();
-  if (existing && existing.pid === process.pid && existing.hostname === os.hostname()) {
+  if (existing && existing !== "unreadable" && existing.pid === process.pid && existing.hostname === os.hostname()) {
     await fs.rm(lockPath(), { force: true });
   }
 }
@@ -222,5 +304,5 @@ export async function rememberInstanceLockPort(port: number): Promise<void> {
   listenPort = port;
   if (!holding) return;
   const identity = await getInstanceIdentity();
-  await writeLock(identity.instanceId);
+  await writeLock(identity.instanceId, "refresh");
 }

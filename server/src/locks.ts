@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import { safeReadState } from "./dataHealth.js";
+import { recordDataIssue } from "./dataHealth.js";
 import { getInstanceIdentity, type InstanceIdentity } from "./instanceConfig.js";
 import {
   LOCK_HEARTBEAT_MS,
@@ -16,6 +17,7 @@ import {
   normalizeRelative,
   pathExists,
   readJsonFile,
+  writeJsonInPlace,
 } from "./storage.js";
 
 export type LockRecord = {
@@ -85,14 +87,16 @@ function normalizeLock(record: LockRecord): LockRecord {
 }
 
 /**
- * A dead pid is stale only for this instance, and for a legacy lock that has
- * no instance id (it was written on one computer, before instance ids).
- * Another instance is judged by heartbeat age alone. Its pid is not in this
- * process table.
+ * A fresh heartbeat is held. A pid is a liveness signal only for this
+ * install on this computer: another host's pid is not in this process table,
+ * even when a shared instance file made the instance ids match. A legacy lock
+ * with no instance id and no hostname is still this computer.
  */
 export function lockIsStale(record: LockRecord, now = Date.now(), instanceId?: string): boolean {
   const heartbeat = Date.parse(record.heartbeatAt);
   if (!Number.isFinite(heartbeat) || now - heartbeat > LOCK_STALE_MS) return true;
+  const host = optionalText(record.hostname);
+  if (host && host !== os.hostname()) return false;
   const legacy = !optionalText(record.instanceId);
   const sameInstance = Boolean(instanceId) && record.instanceId === instanceId;
   if ((sameInstance || legacy) && record.pid !== process.pid && !isProcessAlive(record.pid)) return true;
@@ -124,17 +128,64 @@ export function lockedMessage(record: LockRecord, identity: InstanceIdentity): s
   return `${diagramLabel(record.path)} is open on ${name}${host} since ${formatLockSince(record.acquiredAt)}. Try again when it's closed.`;
 }
 
-async function readLock(relativePath: string): Promise<LockFile | null> {
-  const parsed = await safeReadState<unknown>({
-    file: lockFile(relativePath),
-    name: "locks",
-    fallback: null,
-    parse: (value) => (isLockRecord(value) ? value : null),
+const LOCK_READ_ATTEMPTS = 4;
+const LOCK_READ_DELAY_MS = 20;
+
+function unreadableLock(relativePath: string): LockRecord {
+  const now = new Date().toISOString();
+  return {
+    path: relativePath,
+    token: "unreadable",
+    sessionId: "unreadable",
+    pid: 0,
+    acquiredAt: now,
+    heartbeatAt: now,
+    instanceId: "unreadable-lock",
+    instanceName: "an unreadable lock",
+  };
+}
+
+/** Missing is null. A torn or empty file is retried, then treated as held. */
+async function readLockRecord(file: string): Promise<LockRecord | null | "unreadable"> {
+  for (let attempt = 0; attempt < LOCK_READ_ATTEMPTS; attempt += 1) {
+    try {
+      const raw = await fs.readFile(file, "utf8");
+      if (!raw.trim()) throw new Error("empty lock");
+      const parsed = JSON.parse(raw) as unknown;
+      if (!isLockRecord(parsed)) throw new Error("lock shape");
+      return normalizeLock(parsed);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+      if (attempt < LOCK_READ_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, LOCK_READ_DELAY_MS));
+        continue;
+      }
+      return "unreadable";
+    }
+  }
+  return "unreadable";
+}
+
+function noteUnreadableLock(name: string): void {
+  recordDataIssue({
+    code: "lock-unreadable",
+    severity: "warn",
+    file: name,
+    message: `NerdGram checked ${name}, one of its own lock files (not your diagrams), and could not read it after retrying. NerdGram is treating that lock as held so it is not taken over. Stop every NerdGram, then delete that lock file if no editor has the diagram open.`,
   });
-  if (!isLockRecord(parsed)) return null;
-  const record = normalizeLock(parsed);
+}
+
+async function readLock(relativePath: string): Promise<LockFile | null> {
+  const file = lockFile(relativePath);
+  const parsed = await readLockRecord(file);
+  if (parsed === "unreadable") {
+    noteUnreadableLock(`locks/${path.basename(file)}`);
+    const record = unreadableLock(relativePath);
+    return { ...record, stale: false };
+  }
+  if (!parsed) return null;
   const identity = await getInstanceIdentity();
-  return { ...record, stale: lockIsStale(record, Date.now(), identity.instanceId) };
+  return { ...parsed, stale: lockIsStale(parsed, Date.now(), identity.instanceId) };
 }
 
 function holderDetails(record: LockRecord, identity: InstanceIdentity) {
@@ -151,6 +202,11 @@ function holderDetails(record: LockRecord, identity: InstanceIdentity) {
 
 async function lockedError(record: LockRecord): Promise<Error> {
   const identity = await getInstanceIdentity();
+  if (record.token === "unreadable") {
+    return httpFail(423, "The lock file could not be read. NerdGram is treating it as held.", "locked", {
+      lock: holderDetails(record, identity),
+    });
+  }
   return httpFail(423, lockedMessage(record, identity), "locked", {
     lock: holderDetails(record, identity),
   });
@@ -259,7 +315,7 @@ export async function heartbeatLock(
     },
     identity,
   );
-  await atomicWriteJson(lockFile(normalizeRelative(relativePath)), next);
+  await writeJsonInPlace(lockFile(normalizeRelative(relativePath)), next);
   const confirmed = await readLock(relativePath);
   if (!confirmed || confirmed.token !== token) {
     throw httpFail(423, "The editor lock is no longer held by this window.", "locked");
@@ -324,13 +380,18 @@ async function eachLock(): Promise<LockFile[]> {
   for (const name of names) {
     if (!name.endsWith(".json")) continue;
     const decoded = decodeStorageKey(name.slice(0, -".json".length));
-    const parsed = await safeReadState<unknown>({
-      file: path.join(getLocksRoot(), name),
-      name: `locks/${name}`,
-      fallback: null,
-      parse: (value) => (isLockRecord(value) ? value : null),
-    });
-    if (!isLockRecord(parsed)) continue;
+    const parsed = await readLockRecord(path.join(getLocksRoot(), name));
+    if (parsed === "unreadable") {
+      noteUnreadableLock(`locks/${name}`);
+      const itemPath = decoded;
+      if (!itemPath) {
+        locks.push({ ...unreadableLock(name), stale: false });
+        continue;
+      }
+      locks.push({ ...unreadableLock(itemPath), stale: false });
+      continue;
+    }
+    if (!parsed) continue;
     const itemPath = decoded ?? parsed.path;
     if (!itemPath) continue;
     const record = normalizeLock({ ...parsed, path: itemPath });
