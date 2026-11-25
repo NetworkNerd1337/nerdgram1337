@@ -214,9 +214,14 @@ describe("data folder health", () => {
       const identity = await getInstanceIdentity();
       expect(identity.instanceName, `${instanceFilePath()} ${process.env.HOME}`).toBe("Lab");
       expect(instanceFilePath()).toBe(target);
-      const saved = JSON.parse(await fs.readFile(target, "utf8")) as { instanceName: string };
+      const saved = JSON.parse(await fs.readFile(target, "utf8")) as { instanceName: string; instanceId: string };
       expect(saved.instanceName).toBe("Lab");
-      await expect(fs.access(path.join(dir, ".meta", "instance.json"))).rejects.toThrow();
+      const volume = JSON.parse(await fs.readFile(path.join(dir, ".meta", "instance.json"), "utf8")) as {
+        instanceName: string;
+        instanceId: string;
+      };
+      expect(volume.instanceName).toBe("Lab");
+      expect(volume.instanceId).toBe(saved.instanceId);
     } finally {
       if (previousTarget == null) await fs.rm(target, { force: true });
       else await fs.writeFile(target, previousTarget);

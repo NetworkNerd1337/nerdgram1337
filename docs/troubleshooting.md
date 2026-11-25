@@ -153,7 +153,7 @@ A read-only mount says the folder is read-only. A permissions error names the ui
 
 A broken symlink or a file that disappears during the scan is skipped. An empty, truncated, or unreadable settings or history file under `.meta` is copied to `.meta/quarantine` and replaced with a fresh copy. Diagrams (`.mmd`) are not moved, rewritten, or deleted. A one-step `.bak` sits next to a replaced file. Orphaned NerdGram temp files older than 10 minutes are removed.
 
-In Docker, and when the home directory is on `/tmp`, the instance id and name are stored at `/tmp/.nerdgram/instance.json` unless `NERDGRAM_INSTANCE_FILE` is set. That file is not on the library volume. An older `/data/.meta/instance.json` or `~/.nerdgram/instance.json` is copied once and then left unchanged, so a later start does not rewrite its hostname. A second container that finds that id already held by a live copy takes a new id and keeps the saved name.
+In Docker, and when the home directory is on `/tmp`, the instance id this process uses is stored at `/tmp/.nerdgram/instance.json` unless `NERDGRAM_INSTANCE_FILE` is set. Docker also keeps a copy at `/data/.meta/instance.json` so recreating the only container keeps the name, Host, and id. Saving the name updates that copy. A second live container does not rewrite it, so it does not replace the other copy's hostname. If that copy's id is already held, the new container takes its own id and keeps the saved name. An older `~/.nerdgram/instance.json` is copied once when the container-local file is missing.
 
 The startup log has one summary line. `NERDGRAM_LOG_FORMAT=json` prints that summary as one JSON object. The report does not include file contents or tokens.
 

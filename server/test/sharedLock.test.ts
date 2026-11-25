@@ -7,6 +7,7 @@ import {
   clearInstanceIdentityCache,
   containerInstanceFilePath,
   getInstanceIdentity,
+  saveInstanceName,
 } from "../src/instanceConfig.js";
 import {
   backgroundWritersPaused,
@@ -238,6 +239,42 @@ describe("shared library locks", () => {
       expect(identity.instanceName).toBe("Lab");
       expect(identity.instanceId).not.toBe(legacyId);
       expect(await fs.readFile(legacy, "utf8")).toContain(legacyId);
+      expect(await fs.readFile(legacy, "utf8")).toContain("old-host");
+    } finally {
+      if (previousTarget == null) await fs.rm(target, { force: true });
+      else await fs.writeFile(target, previousTarget);
+    }
+  });
+
+  it("writes a saved Docker name onto the volume and does not overwrite a held copy", async () => {
+    const dir = await dirWithDiagram();
+    const legacy = path.join(dir, ".meta", "instance.json");
+    const target = containerInstanceFilePath();
+    const previousTarget = await fs.readFile(target, "utf8").catch(() => null);
+    await fs.rm(target, { force: true });
+    delete process.env.NERDGRAM_INSTANCE_FILE;
+    process.env.NERDGRAM_INSTALL = "docker";
+    clearInstanceIdentityCache();
+    try {
+      await saveInstanceName("Lab");
+      const saved = JSON.parse(await fs.readFile(legacy, "utf8")) as { instanceName?: string; instanceId?: string };
+      expect(saved.instanceName).toBe("Lab");
+      const held = await fs.readFile(legacy, "utf8");
+      await fs.writeFile(
+        path.join(dir, ".meta", "instance-lock.json"),
+        `${JSON.stringify({
+          instanceId: OTHER_ID,
+          hostname: "other-host",
+          pid: 4242,
+          startedAt: new Date().toISOString(),
+          heartbeatAt: new Date().toISOString(),
+        })}\n`,
+      );
+      clearInstanceIdentityCache();
+      await saveInstanceName("Other");
+      expect(await fs.readFile(legacy, "utf8")).toBe(held);
+      const local = JSON.parse(await fs.readFile(target, "utf8")) as { instanceName?: string };
+      expect(local.instanceName).toBe("Other");
     } finally {
       if (previousTarget == null) await fs.rm(target, { force: true });
       else await fs.writeFile(target, previousTarget);
