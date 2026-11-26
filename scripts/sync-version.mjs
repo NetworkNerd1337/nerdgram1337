@@ -40,15 +40,13 @@ if (!dockerfile.includes(`ARG NERDGRAM_CODENAME=${codename}`)) {
 writeFileSync(dockerfilePath, dockerfile);
 
 const composePath = join(root, "compose.yaml");
-const compose = readFileSync(composePath, "utf8").replace(
-  /ghcr\.io\/networknerd1337\/nerdgram1337:v\d+\.\d+\.\d+/g,
-  `ghcr.io/networknerd1337/nerdgram1337:v${rootVersion}`,
-);
-if (!compose.includes(`ghcr.io/networknerd1337/nerdgram1337:v${rootVersion}`)) {
-  console.error("compose.yaml has no published image tag to update.");
+const composeImage = readFileSync(composePath, "utf8").match(/^\s*image:\s*(\S+)\s*$/m)?.[1];
+if (composeImage !== "ghcr.io/networknerd1337/nerdgram1337:latest") {
+  console.error(
+    `compose.yaml image must stay ghcr.io/networknerd1337/nerdgram1337:latest. Found ${composeImage ?? "none"}. version:sync does not pin that line.`,
+  );
   process.exit(1);
 }
-writeFileSync(composePath, compose);
 
 const buildComposePath = join(root, "compose.build.yaml");
 const buildCompose = readFileSync(buildComposePath, "utf8")
@@ -89,4 +87,4 @@ if (nextChangelog !== changelog.replace(/\r\n/g, "\n") && nextChangelog !== chan
   console.log(`CHANGELOG.md Unreleased set for ${rootVersion}`);
 }
 
-console.log(`Dockerfile, compose.yaml, compose.build.yaml, and lockfiles -> ${rootVersion} ${codename}`);
+console.log(`Dockerfile, compose.build.yaml, and lockfiles -> ${rootVersion} ${codename}. compose.yaml stays on :latest.`);

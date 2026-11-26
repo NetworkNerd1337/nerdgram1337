@@ -9,6 +9,7 @@ Stop the app before you replace it.
 - [Upgrading to 2.1.27](#upgrading-to-2127)
 - [Upgrading to 2.1.26](#upgrading-to-2126)
 - [Check the data folder](#check-the-data-folder)
+- [Pin a version](#pin-a-version)
 - [Update a Docker install](#update-a-docker-install)
 - [Update a git clone](#update-a-git-clone)
 - [Update a ZIP copy](#update-a-zip-copy)
@@ -64,14 +65,32 @@ Fix a blocker before you upgrade. `nerdgram doctor --repair` quarantines bad set
 
 The 2.1 line is supported until the next minor or major release. Only the newest patch is published. That patch is 2.1.27. Security fixes land there. 2.1.27 is published to npm, Docker and GHCR, and the GitHub Release. 2.1.26 is the previous release. It was deprecated on 2026-11-26. Its npm version and GHCR tag stay through 2026-12-26. 2.1.22, 2.1.23, and 2.1.24 were Docker and GHCR only and were never published to npm. Pull `ghcr.io/networknerd1337/nerdgram1337:latest` for this release. When a milestone release is published, the previous release is deprecated immediately and loses support that same day. `npm deprecate` marks that npm release with an "upgrade to latest" message. Its npm version and GHCR version tag stay published for 30 days, so pinned installs and lockfiles keep working while people upgrade. After 30 days, that version is unpublished from npm where npm allows it, and its GHCR version tag is removed. Only the previous release gets that grace period. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. Git tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
 
+## Pin a version
+
+The install examples and `compose.yaml` use `ghcr.io/networknerd1337/nerdgram1337:latest`. That tag follows the newest full release.
+
+Pin `:vX.Y.Z` when the tag should stay put. Use it when every instance on a shared folder should run the same version, and when you want to choose when an upgrade happens. The example is `v2.1.27`. Put the release you want in place of that tag.
+
+```bash
+docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.27
+```
+
+In `compose.yaml`:
+
+```yaml
+image: ghcr.io/networknerd1337/nerdgram1337:v2.1.27
+```
+
+`:latest` is cached. `docker pull ghcr.io/networknerd1337/nerdgram1337:latest`, or `docker compose pull` when the file uses that tag, is what moves it. Then recreate the container on the same volume.
+
 ## Update a Docker install
 
-The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.27`, the newest published patch and the tag for this tree. Pull `:latest` or `v2.1.27`. The previous release stays for 30 days after it is deprecated, then its tag is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. If your names differ, keep the names you already use.
+The in-app **Show upgrade steps** dialog uses the release tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `:latest`. A cached `:latest` moves when you pull. To stay on one release, see [Pin a version](#pin-a-version). The previous release stays for 30 days after it is deprecated, then its tag is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. If your names differ, keep the names you already use.
 
 1. Pull the new image.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.27
+docker pull ghcr.io/networknerd1337/nerdgram1337:latest
 ```
 
 2. Stop the old container. `docker stop` asks the process to finish the write it is in and any GitHub sync already running.
@@ -96,12 +115,12 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.27
+  ghcr.io/networknerd1337/nerdgram1337:latest
 ```
 
 5. Open [http://127.0.0.1:8787](http://127.0.0.1:8787) and choose **Check again** in About. The dialog says whether the running version matches that release.
 
-These `docker run` lines match the in-app steps. They do not set a read-only root or a `tmpfs` on `/tmp`. `compose.yaml` does. If you installed with Compose, set the image to `ghcr.io/networknerd1337/nerdgram1337:v2.1.27` or `:latest` when the file pins an older tag. The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. If the image line is already `:latest`, pull and up are enough. Then:
+These `docker run` lines use the same container name, volume, and port as the in-app steps. They do not set a read-only root or a `tmpfs` on `/tmp`. `compose.yaml` does, and it ships `:latest`. The in-app dialog prints the release tag. To pin that tag yourself, see [Pin a version](#pin-a-version). If `compose.yaml` already says `:latest`, pull and up are enough. Then:
 
 ```bash
 docker compose pull

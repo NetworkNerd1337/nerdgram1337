@@ -4,9 +4,6 @@ import { fileURLToPath } from "node:url";
 import { findChangelogSection, unreleasedProblem } from "./changelog-notes.mjs";
 import { currentCodename } from "./codenames.mjs";
 
-/** Releases named in README prose that are not the package.json pin. */
-const POLICY_VERSIONS = new Set(["1.0.5", "1.0.6", "2.0.0"]);
-
 export const CLI_PACKAGE_NAME = "nerdgram1337";
 
 export const VERSIONED_PACKAGES = ["package.json", "client/package.json", "server/package.json", "cli/package.json"];
@@ -113,9 +110,11 @@ if (!dockerfile.includes("NERDGRAM_CODENAME=${NERDGRAM_CODENAME}")) {
 }
 
 const compose = readFileSync(join(root, "compose.yaml"), "utf8");
-const image = `ghcr.io/networknerd1337/nerdgram1337:v${expected}`;
-if (!compose.includes(image)) {
-  console.error(`compose.yaml must pin ${image} for docker compose pull.`);
+const imageLine = compose.match(/^\s*image:\s*(\S+)\s*$/m)?.[1];
+if (imageLine !== "ghcr.io/networknerd1337/nerdgram1337:latest") {
+  console.error(
+    `compose.yaml image must be ghcr.io/networknerd1337/nerdgram1337:latest. Found ${imageLine ?? "none"}. A pinned tag is a local edit, not this file.`,
+  );
   process.exit(1);
 }
 if (/^\s*build\s*:/m.test(compose)) {
@@ -170,61 +169,15 @@ if (!section.body) {
   process.exit(1);
 }
 
-const readmePath = join(root, "README.md");
-if (!existsSync(readmePath)) {
-  console.error("README.md is missing. Version examples in the README are checked against package.json.");
+if (!existsSync(join(root, "README.md"))) {
+  console.error("README.md is missing.");
   process.exit(1);
-}
-for (const file of versionedMarkdown(root)) {
-  assertReadmeVersions(readFileSync(file, "utf8"), expected, relative(root, file));
 }
 assertMarkdownLinks(root);
 
 console.log(
-  `Version ${expected} ${codename} matches in root, client, server, cli (${CLI_PACKAGE_NAME}), Dockerfile, compose.yaml, compose.build.yaml, CHANGELOG.md, README.md, and the docs. Markdown links resolve.`,
+  `Version ${expected} ${codename} matches in root, client, server, cli (${CLI_PACKAGE_NAME}), Dockerfile, compose.build.yaml, and CHANGELOG.md. compose.yaml uses :latest. Markdown links resolve.`,
 );
-}
-
-/**
- * Install commands use a vX.Y.Z placeholder so a release does not have to edit
- * every example. An image tag, `nerdgram1337@`, or NERDGRAM_VERSION pin has to
- * match the root package.json. `npm run version:sync` does not rewrite the README.
- *
- * The versioning section also names planned releases. Those are not the
- * package that is checked out today, so they are allowed in prose only.
- */
-function versionedMarkdown(repoRoot) {
-  const files = [join(repoRoot, "README.md")];
-  const docs = join(repoRoot, "docs");
-  if (existsSync(docs)) {
-    for (const name of readdirSync(docs)) {
-      if (name.endsWith(".md")) files.push(join(docs, name));
-    }
-  }
-  return files;
-}
-
-function assertReadmeVersions(markdown, version, label = "README.md") {
-  const pinPatterns = [
-    /ghcr\.io\/networknerd1337\/nerdgram1337:v(\d+\.\d+\.\d+)/g,
-    /nerdgram1337@(\d+\.\d+\.\d+)/g,
-    /NERDGRAM_VERSION(?:=|:)\s*"?(\d+\.\d+\.\d+)/g,
-  ];
-  const bad = new Set();
-  for (const pattern of pinPatterns) {
-    for (const match of markdown.matchAll(pattern)) {
-      if (match[1] !== version) bad.add(match[0]);
-    }
-  }
-  for (const match of markdown.matchAll(/(?<![A-Za-z0-9.])v(\d+\.\d+\.\d+)\b/g)) {
-    if (match[1] !== version && !POLICY_VERSIONS.has(match[1])) bad.add(match[0]);
-  }
-  if (bad.size > 0) {
-    console.error(`${label} version examples must match package.json ${version}, or use the vX.Y.Z placeholder.`);
-    console.error("Prose may also name v1.0.5, v1.0.6, and v2.0.0.");
-    for (const item of bad) console.error(`  ${item}`);
-    process.exit(1);
-  }
 }
 
 /**
