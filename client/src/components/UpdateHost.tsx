@@ -20,6 +20,7 @@ import { UpgradeBlockers } from "./DataFolderExtras";
 import type { DataDoctorReport } from "../types";
 import { ReleaseMarkdown } from "./ReleaseMarkdown";
 import { ExternalLink, SupportLink } from "./SupportLink";
+import { updateToastVisible } from "./ReleaseNotice";
 import { UpdateContext, useUpdate, type CheckFeedback, type UpdatePanel } from "./updateContext";
 
 const TARGET_KEY = "nerdgram-update-target";
@@ -309,9 +310,7 @@ export function UpdateHost({ children }: { children: ReactNode }) {
 
   const routePresenting =
     location.pathname.startsWith("/present") || location.pathname.startsWith("/templates/present");
-  const showBanner = Boolean(
-    status?.updateAvailable && !status.dismissed && !status.skipped && !presenting && !routePresenting,
-  );
+  const showBanner = updateToastVisible(status, presenting || routePresenting);
 
   const value = {
     status,

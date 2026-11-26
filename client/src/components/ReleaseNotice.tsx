@@ -10,6 +10,15 @@ export function releaseNoticeVersion(status: UpdateStatus | null | undefined): s
   return tag.startsWith("v") ? tag : `v${status.latest.version}`;
 }
 
+/** The bottom toast repeats the chip. Hide it while the side pane is showing the notice. */
+export function updateToastVisible(
+  status: UpdateStatus | null | undefined,
+  hidden: boolean,
+): boolean {
+  if (hidden || releaseNoticeVersion(status)) return false;
+  return Boolean(status?.updateAvailable && !status.dismissed && !status.skipped);
+}
+
 /** Small cue at the top of the side pane. Uses the update status About already loaded. */
 export function ReleaseNotice() {
   const update = useContext(UpdateContext);

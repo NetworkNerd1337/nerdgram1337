@@ -1,7 +1,9 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { currentBootId } from "./bootId.js";
 import { recordDataIssue } from "./dataHealth.js";
+import { readInstanceBootSync, INSTANCE_LOCK_FRESH_MS } from "./instanceLock.js";
 import { getInstanceIdentity, type InstanceIdentity } from "./instanceConfig.js";
 import {
   LOCK_HEARTBEAT_MS,
@@ -31,7 +33,11 @@ export type LockRecord = {
   instanceId?: string;
   instanceName?: string;
   hostname?: string;
+  /** This process boot. A later boot of the same install does not keep the lock. */
+  bootId?: string;
 };
+
+export { currentBootId };
 
 type LockFile = LockRecord & { stale: boolean };
 
@@ -73,6 +79,7 @@ function normalizeLock(record: LockRecord): LockRecord {
   const instanceId = optionalText(record.instanceId);
   const instanceName = optionalText(record.instanceName);
   const hostname = optionalText(record.hostname);
+  const bootId = optionalText(record.bootId);
   return {
     path: record.path,
     token: record.token,
@@ -83,22 +90,80 @@ function normalizeLock(record: LockRecord): LockRecord {
     ...(instanceId ? { instanceId } : {}),
     ...(instanceName ? { instanceName } : {}),
     ...(hostname ? { hostname } : {}),
+    ...(bootId ? { bootId } : {}),
   };
+}
+
+export type BootHeartbeat =
+  | { bootId?: string; instanceId?: string; heartbeatAt?: string }
+  | null
+  | "unreadable";
+
+function instanceHeartbeatFresh(heartbeatAt: string | undefined, now: number): boolean {
+  const age = now - Date.parse(heartbeatAt ?? "");
+  return Number.isFinite(age) && age >= 0 && age < INSTANCE_LOCK_FRESH_MS;
+}
+
+/**
+ * An earlier boot of this install is stale immediately only when that boot is
+ * proven dead. Proof is this hostname and a dead pid, no fresh instance
+ * heartbeat for that boot, or a fresh instance heartbeat that this process
+ * holds for this instance id. claimInstanceLock gives a second live boot its
+ * own id when it finds a fresh same-id lock it does not own, so a heartbeat
+ * we hold means no other live boot still has this id. Anything else, including
+ * an unreadable instance heartbeat, keeps the 90 second rule.
+ */
+export function previousBootProvenDead(
+  record: LockRecord,
+  heartbeat: BootHeartbeat,
+  now = Date.now(),
+  instanceId?: string,
+): boolean {
+  const host = optionalText(record.hostname);
+  if (host === os.hostname() && record.pid !== process.pid && !isProcessAlive(record.pid)) return true;
+  if (heartbeat === "unreadable") return false;
+  if (heartbeat == null) return true;
+  const beatBoot = optionalText(heartbeat.bootId);
+  const lockBoot = optionalText(record.bootId);
+  const ours = optionalText(instanceId);
+  if (
+    ours &&
+    lockBoot &&
+    lockBoot !== currentBootId() &&
+    beatBoot === currentBootId() &&
+    optionalText(heartbeat.instanceId) === ours &&
+    optionalText(record.instanceId) === ours &&
+    instanceHeartbeatFresh(heartbeat.heartbeatAt, now)
+  ) {
+    return true;
+  }
+  if (!beatBoot || beatBoot !== lockBoot) return false;
+  return !instanceHeartbeatFresh(heartbeat.heartbeatAt, now);
 }
 
 /**
  * A fresh heartbeat is held. A pid is a liveness signal only for this
- * install on this computer: another host's pid is not in this process table,
- * even when a shared instance file made the instance ids match. A legacy lock
- * with no instance id and no hostname is still this computer.
+ * install on this computer. Another install is judged by heartbeat age alone,
+ * even when both sides briefly share an instance id and that other boot is
+ * still heartbeating.
  */
-export function lockIsStale(record: LockRecord, now = Date.now(), instanceId?: string): boolean {
+export function lockIsStale(
+  record: LockRecord,
+  now = Date.now(),
+  instanceId?: string,
+  bootHeartbeat?: BootHeartbeat,
+): boolean {
   const heartbeat = Date.parse(record.heartbeatAt);
   if (!Number.isFinite(heartbeat) || now - heartbeat > LOCK_STALE_MS) return true;
+  const sameInstance = Boolean(instanceId) && record.instanceId === instanceId;
+  const boot = optionalText(record.bootId);
+  if (sameInstance && boot && boot !== currentBootId()) {
+    const beat = bootHeartbeat === undefined ? readInstanceBootSync() : bootHeartbeat;
+    if (previousBootProvenDead(record, beat, now, instanceId)) return true;
+  }
   const host = optionalText(record.hostname);
   if (host && host !== os.hostname()) return false;
   const legacy = !optionalText(record.instanceId);
-  const sameInstance = Boolean(instanceId) && record.instanceId === instanceId;
   if ((sameInstance || legacy) && record.pid !== process.pid && !isProcessAlive(record.pid)) return true;
   return false;
 }
@@ -218,6 +283,7 @@ function stampIdentity(record: LockRecord, identity: InstanceIdentity): LockReco
     instanceId: identity.instanceId,
     instanceName: identity.instanceName,
     hostname: identity.hostname,
+    bootId: currentBootId(),
   };
 }
 
@@ -464,6 +530,7 @@ export async function relocateLocks(
       ...(lock.instanceId ? { instanceId: lock.instanceId } : {}),
       ...(lock.instanceName ? { instanceName: lock.instanceName } : {}),
       ...(lock.hostname ? { hostname: lock.hostname } : {}),
+      ...(lock.bootId ? { bootId: lock.bootId } : {}),
     };
     await fs.rm(lockFile(lock.path), { force: true });
     if (!(await pathExists(lockFile(nextPath)))) {

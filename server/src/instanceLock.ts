@@ -1,12 +1,15 @@
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { currentBootId } from "./bootId.js";
 import { getInstanceIdentity, regenerateInstanceId } from "./instanceConfig.js";
 import { getMetaPath } from "./paths.js";
 import { atomicWriteText, isProcessAlive, writeTextInPlace } from "./storage.js";
 
 const HEARTBEAT_MS = 30_000;
-const FRESH_MS = 45_000;
+export const INSTANCE_LOCK_FRESH_MS = 45_000;
+const FRESH_MS = INSTANCE_LOCK_FRESH_MS;
 
 export type InstanceConflict = {
   instanceId: string;
@@ -18,7 +21,11 @@ export type InstanceConflict = {
   sameInstall: boolean;
 };
 
-export type InstanceLockSnapshot = Omit<InstanceConflict, "sameInstall"> & { port: number | null };
+export type InstanceLockSnapshot = Omit<InstanceConflict, "sameInstall"> & {
+  port: number | null;
+  /** Absent on heartbeats written before boot ids. */
+  bootId?: string;
+};
 
 type InstanceLockFile = InstanceLockSnapshot;
 
@@ -76,6 +83,7 @@ function parseLock(parsed: unknown): InstanceLockFile | null {
     return null;
   }
   const port = typeof record.port === "number" && Number.isInteger(record.port) && record.port >= 1 && record.port <= 65535 ? record.port : null;
+  const bootId = typeof record.bootId === "string" && record.bootId.trim() ? record.bootId.trim() : undefined;
   return {
     instanceId: record.instanceId,
     hostname: record.hostname,
@@ -83,6 +91,7 @@ function parseLock(parsed: unknown): InstanceLockFile | null {
     startedAt: record.startedAt,
     heartbeatAt: record.heartbeatAt,
     port,
+    ...(bootId ? { bootId } : {}),
   };
 }
 
@@ -175,7 +184,25 @@ function lockBody(identityId: string): InstanceLockFile {
     startedAt,
     heartbeatAt: now,
     port: listenPort,
+    bootId: currentBootId(),
   };
+}
+
+/** One read of the instance heartbeat. Missing is null. A torn file is unreadable, not "no lock". */
+export function readInstanceBootSync():
+  | { bootId?: string; instanceId?: string; heartbeatAt: string }
+  | null
+  | "unreadable" {
+  try {
+    const raw = readFileSync(lockPath(), "utf8");
+    if (!raw.trim()) return "unreadable";
+    const parsed = parseLock(JSON.parse(raw) as unknown);
+    if (!parsed) return "unreadable";
+    return { bootId: parsed.bootId, instanceId: parsed.instanceId, heartbeatAt: parsed.heartbeatAt };
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    return "unreadable";
+  }
 }
 
 function ownedByUs(lock: InstanceLockFile | null | "unreadable", identityId: string): lock is InstanceLockFile {

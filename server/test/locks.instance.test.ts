@@ -7,7 +7,7 @@ import request from "supertest";
 import { createApp } from "../src/app.js";
 import { main } from "../src/cli.js";
 import { clearInstanceIdentityCache, getInstanceIdentity } from "../src/instanceConfig.js";
-import { acquireLock, lockIsStale, lockStorageKey, type LockRecord } from "../src/locks.js";
+import { acquireLock, currentBootId, lockIsStale, lockStorageKey, type LockRecord } from "../src/locks.js";
 import { encodeStorageKey } from "../src/storage.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -45,6 +45,96 @@ describe("lock rules", () => {
     expect(
       lockIsStale(
         record({ instanceId: mine, hostname: "other-host", pid: 2_147_483_646, heartbeatAt: fresh }),
+        now,
+        mine,
+      ),
+    ).toBe(false);
+    const previousBoot = record({
+      instanceId: mine,
+      hostname: "old-container",
+      bootId: "previous-boot",
+      pid: process.pid,
+      heartbeatAt: fresh,
+    });
+    expect(lockIsStale(previousBoot, now, mine, null)).toBe(true);
+    expect(
+      lockIsStale(previousBoot, now, mine, { bootId: "previous-boot", heartbeatAt: new Date(now - 120_000).toISOString() }),
+    ).toBe(true);
+    expect(lockIsStale(previousBoot, now, mine, { bootId: "previous-boot", heartbeatAt: fresh })).toBe(false);
+    expect(lockIsStale(previousBoot, now, mine, { bootId: currentBootId(), heartbeatAt: fresh })).toBe(false);
+    expect(
+      lockIsStale(previousBoot, now, mine, {
+        bootId: currentBootId(),
+        instanceId: OTHER_ID,
+        heartbeatAt: fresh,
+      }),
+    ).toBe(false);
+    const restarted = record({
+      instanceId: mine,
+      hostname: os.hostname(),
+      bootId: "previous-boot",
+      pid: process.pid,
+      heartbeatAt: fresh,
+    });
+    expect(
+      lockIsStale(restarted, now, mine, {
+        bootId: currentBootId(),
+        instanceId: mine,
+        heartbeatAt: fresh,
+      }),
+    ).toBe(true);
+    expect(
+      lockIsStale(restarted, now, mine, {
+        bootId: "other-live-boot",
+        instanceId: mine,
+        heartbeatAt: fresh,
+      }),
+    ).toBe(false);
+    expect(
+      lockIsStale(restarted, now, mine, {
+        bootId: currentBootId(),
+        instanceId: mine,
+        heartbeatAt: new Date(now - 120_000).toISOString(),
+      }),
+    ).toBe(false);
+    expect(lockIsStale(restarted, now, mine, "unreadable")).toBe(false);
+    expect(lockIsStale(previousBoot, now, mine, "unreadable")).toBe(false);
+    expect(
+      lockIsStale(
+        record({
+          instanceId: mine,
+          hostname: os.hostname(),
+          bootId: "previous-boot",
+          pid: 2_147_483_646,
+          heartbeatAt: fresh,
+        }),
+        now,
+        mine,
+        { bootId: "previous-boot", heartbeatAt: fresh },
+      ),
+    ).toBe(true);
+    expect(
+      lockIsStale(
+        record({
+          instanceId: mine,
+          hostname: os.hostname(),
+          bootId: currentBootId(),
+          pid: process.pid,
+          heartbeatAt: fresh,
+        }),
+        now,
+        mine,
+      ),
+    ).toBe(false);
+    expect(
+      lockIsStale(
+        record({
+          instanceId: OTHER_ID,
+          hostname: "laptop-a",
+          bootId: "other-boot",
+          pid: process.pid,
+          heartbeatAt: fresh,
+        }),
         now,
         mine,
       ),
@@ -105,6 +195,191 @@ describe("lock acquire across instances", () => {
     await fs.mkdir(path.dirname(lockPath), { recursive: true });
     return { dir: temp.dir, identity, lockPath };
   }
+
+  it("keeps a fresh lock held while another live boot shares the instance id", async () => {
+    const { dir, identity, lockPath } = await setup();
+    const now = new Date().toISOString();
+    await fs.writeFile(
+      path.join(dir, ".meta", "instance-lock.json"),
+      JSON.stringify({
+        instanceId: identity.instanceId,
+        hostname: "old-container",
+        pid: 4242,
+        startedAt: now,
+        heartbeatAt: now,
+        port: null,
+        bootId: "other-live-boot",
+      }),
+    );
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify(
+        record({
+          instanceId: identity.instanceId,
+          hostname: "old-container",
+          bootId: "other-live-boot",
+          pid: process.pid,
+          heartbeatAt: now,
+          token: "live-other-boot",
+          sessionId: "their-tab",
+        }),
+      ),
+    );
+    await expect(acquireLock("Network Core.mmd", "tab-here")).rejects.toMatchObject({
+      status: 423,
+      message: "This diagram is open in another window.",
+    });
+    expect(JSON.parse(await fs.readFile(lockPath, "utf8")).token).toBe("live-other-boot");
+  });
+
+  it("reopens a diagram immediately when this boot rewrote the instance lock", async () => {
+    const { dir, identity, lockPath } = await setup();
+    const now = new Date().toISOString();
+    await fs.writeFile(
+      path.join(dir, ".meta", "instance-lock.json"),
+      JSON.stringify({
+        instanceId: identity.instanceId,
+        hostname: os.hostname(),
+        pid: process.pid,
+        startedAt: now,
+        heartbeatAt: now,
+        port: null,
+        bootId: currentBootId(),
+      }),
+    );
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify(
+        record({
+          instanceId: identity.instanceId,
+          instanceName: identity.instanceName,
+          hostname: os.hostname(),
+          bootId: "previous-boot",
+          pid: process.pid,
+          heartbeatAt: now,
+          token: "old-boot",
+          sessionId: "tab-before-restart",
+        }),
+      ),
+    );
+    const taken = await acquireLock("Network Core.mmd", "tab-after-restart");
+    expect(taken.token).not.toBe("old-boot");
+    const stored = JSON.parse(await fs.readFile(lockPath, "utf8")) as LockRecord;
+    expect(stored.bootId).toBe(currentBootId());
+  });
+
+  it("keeps a fresh previous-boot lock held when the instance lock names another boot or cannot be read", async () => {
+    const { dir, identity, lockPath } = await setup();
+    const now = new Date().toISOString();
+    const diagram = record({
+      instanceId: identity.instanceId,
+      hostname: os.hostname(),
+      bootId: "previous-boot",
+      pid: process.pid,
+      heartbeatAt: now,
+      token: "still-held",
+      sessionId: "their-tab",
+    });
+    await fs.writeFile(
+      path.join(dir, ".meta", "instance-lock.json"),
+      JSON.stringify({
+        instanceId: identity.instanceId,
+        hostname: os.hostname(),
+        pid: process.pid,
+        startedAt: now,
+        heartbeatAt: now,
+        port: null,
+        bootId: "other-live-boot",
+      }),
+    );
+    await fs.writeFile(lockPath, JSON.stringify(diagram));
+    await expect(acquireLock("Network Core.mmd", "tab-here")).rejects.toMatchObject({
+      status: 423,
+      message: "This diagram is open in another window.",
+    });
+
+    await fs.writeFile(path.join(dir, ".meta", "instance-lock.json"), "{not-json");
+    await expect(acquireLock("Network Core.mmd", "tab-here")).rejects.toMatchObject({
+      status: 423,
+      message: "This diagram is open in another window.",
+    });
+    expect(JSON.parse(await fs.readFile(lockPath, "utf8")).token).toBe("still-held");
+  });
+
+  it("reopens a diagram after this install restarts, and still blocks a live tab or another instance", async () => {
+    const { dir, identity, lockPath } = await setup();
+    const now = new Date().toISOString();
+    const staleBeat = new Date(Date.now() - 120_000).toISOString();
+    await fs.writeFile(
+      path.join(dir, ".meta", "instance-lock.json"),
+      JSON.stringify({
+        instanceId: identity.instanceId,
+        hostname: "old-container",
+        pid: 4242,
+        startedAt: staleBeat,
+        heartbeatAt: staleBeat,
+        port: null,
+        bootId: "previous-boot",
+      }),
+    );
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify(
+        record({
+          instanceId: identity.instanceId,
+          instanceName: identity.instanceName,
+          hostname: "old-container",
+          bootId: "previous-boot",
+          pid: process.pid,
+          heartbeatAt: now,
+          token: "old-boot",
+          sessionId: "tab-before-restart",
+        }),
+      ),
+    );
+    const taken = await acquireLock("Network Core.mmd", "tab-after-restart");
+    expect(taken.token).not.toBe("old-boot");
+    const stored = JSON.parse(await fs.readFile(lockPath, "utf8")) as LockRecord;
+    expect(stored.bootId).toBe(currentBootId());
+
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify(
+        record({
+          instanceId: identity.instanceId,
+          hostname: os.hostname(),
+          bootId: currentBootId(),
+          pid: process.pid,
+          sessionId: "other-tab",
+          token: "live-tab",
+          heartbeatAt: new Date().toISOString(),
+        }),
+      ),
+    );
+    await expect(acquireLock("Network Core.mmd", "tab-two")).rejects.toMatchObject({
+      status: 423,
+      message: "This diagram is open in another window.",
+    });
+
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify(
+        record({
+          instanceId: OTHER_ID,
+          instanceName: "Engineer B",
+          hostname: "laptop-b",
+          bootId: "their-boot",
+          pid: 2_147_483_646,
+          token: "held",
+          heartbeatAt: new Date().toISOString(),
+        }),
+      ),
+    );
+    await expect(acquireLock("Network Core.mmd", "tab-three")).rejects.toMatchObject({
+      status: 423,
+      message: expect.stringMatching(/Engineer B/),
+    });
+  });
 
   it("lets this instance replace its own dead pid and blocks a fresh lock from someone else", async () => {
     const { identity, lockPath } = await setup();
