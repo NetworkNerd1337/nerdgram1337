@@ -4,10 +4,12 @@
 # On the host the port is published on 127.0.0.1 only. Do not publish every
 # interface.
 #
-# The published image tag matches the root package.json version.
-# scripts/check-version.mjs fails when they drift.
-# ghcr.io/networknerd1337/nerdgram1337:vX.Y.Z and :latest are published for each
-# release. Pull that image:
+# This file is the copy-and-paste install. It uses :latest so
+# `docker compose pull` follows the newest full release. A cached :latest
+# does not move until that pull. To stay on one tag, see
+# docs/upgrading.md#pin-a-version. GHCR also publishes vX.Y.Z for each release.
+# scripts/check-version.mjs requires this image line to stay on :latest.
+# Pull that image:
 #
 #   docker compose pull
 #   docker compose up -d
@@ -30,7 +32,7 @@ name: nerdgram1337
 
 services:
   nerdgram:
-    image: ghcr.io/networknerd1337/nerdgram1337:v2.1.27
+    image: ghcr.io/networknerd1337/nerdgram1337:latest
     container_name: nerdgram1337
     restart: unless-stopped
     read_only: true

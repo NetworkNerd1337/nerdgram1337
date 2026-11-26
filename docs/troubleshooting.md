@@ -100,7 +100,7 @@ Export the root that signed the proxy, not the certificate that carries GitHub's
 
 The path inside the container in these examples is `/certs/corp-root.pem`. The mount is read-only. `NODE_EXTRA_CA_CERTS` is that path. Node adds those certificates to the public CAs it already trusts. It does not replace them. [`compose.yaml`](../compose.yaml) sets a read-only root filesystem. That does not block this mount.
 
-`docker run`. The image tag is the one from [Install](install.md#docker).
+`docker run`. The image tag is `:latest`, the same tag as [Install](install.md#docker).
 
 ```bash
 docker run -d \
@@ -112,12 +112,12 @@ docker run -d \
   -e NODE_EXTRA_CA_CERTS=/certs/corp-root.pem \
   -v nerdgram-data:/data \
   -v /path/to/corp-root.pem:/certs/corp-root.pem:ro \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.27
+  ghcr.io/networknerd1337/nerdgram1337:latest
 ```
 
 On Docker Desktop for Windows the host path is a Windows path, for example `-v C:\certs\corp-root.pem:/certs/corp-root.pem:ro`.
 
-Compose. Add the variable and the mount to the `nerdgram` service in [`compose.yaml`](../compose.yaml). Leave the image tag that file already pins.
+Compose. Add the variable and the mount to the `nerdgram` service in [`compose.yaml`](../compose.yaml). Leave the image tag that file already uses, which is `:latest`.
 
 ```yaml
 services:

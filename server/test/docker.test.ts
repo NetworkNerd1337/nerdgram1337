@@ -11,7 +11,7 @@ async function read(relative: string): Promise<string> {
 }
 
 describe("docker packaging", () => {
-  it("publishes loopback only and pins the image tag to the package version", async () => {
+  it("publishes loopback only and ships compose on the latest image", async () => {
     const version = JSON.parse(await read("package.json")).version as string;
     const dockerfile = await read("Dockerfile");
     const compose = await read("compose.yaml");
@@ -36,7 +36,8 @@ describe("docker packaging", () => {
     expect(dockerfile).toContain("org.opencontainers.image.revision");
     expect(dockerfile).not.toMatch(/apt-get install[^\n]*\bgit\b/);
 
-    expect(compose).toContain(`ghcr.io/networknerd1337/nerdgram1337:v${version}`);
+    expect(compose).toMatch(/^\s*image:\s*ghcr\.io\/networknerd1337\/nerdgram1337:latest\s*$/m);
+    expect(compose).not.toMatch(/^\s*image:\s*ghcr\.io\/networknerd1337\/nerdgram1337:v\d+\.\d+\.\d+\s*$/m);
     expect(compose).not.toMatch(/^\s*build\s*:/m);
     const buildCompose = await read("compose.build.yaml");
     expect(buildCompose).toContain("image: nerdgram1337:local");

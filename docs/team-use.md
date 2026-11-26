@@ -37,6 +37,8 @@ A lock file in `<data>/.meta/locks/` records `instanceId`, `instanceName`, and `
 
 The hash check is unchanged. A save that lost a race still reports that the file changed on disk.
 
+Docker installs that share this folder should run the same image tag. [Pin a version](upgrading.md#pin-a-version) shows `:vX.Y.Z`. `:latest` moves only after `docker pull` or `docker compose pull`.
+
 What this protects: a live "open on another instance" lock across installs that share the folder, and the existing save-conflict check.
 
 What this does not do: it does not merge two edits. The share has to report new and removed files promptly. Use a share that does not heavily cache file metadata. A stale cache can hide a lock that was just written, or keep showing a lock that was released. A folder that syncs after the fact is not this setup. See [Synced folders](#synced-folders).
@@ -95,6 +97,7 @@ sequenceDiagram
 
 ## See also
 
+- [Upgrading](upgrading.md#pin-a-version)
 - [Configuration](configuration.md)
 - [GitHub sync](github-sync.md)
 - [Troubleshooting](troubleshooting.md)

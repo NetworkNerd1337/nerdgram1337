@@ -41,8 +41,8 @@ Bug reports and feature requests use the forms in `.github/ISSUE_TEMPLATE/`. Bla
 | `npm start` | Production server. |
 | `npm test` | Server Vitest, then client Vitest. |
 | `npm run lint` | Oxlint in `client/`. |
-| `npm run version:check` | Versions, the `nerdgram1337` package name, Dockerfile, compose.yaml, the README, and the docs. |
-| `npm run version:sync` | Copy the root version into the client, server, cli, Dockerfile, compose.yaml, and compose.build.yaml. When Unreleased has notes and this version has no changelog section yet, move those notes into the new section and set Unreleased to `_No unreleased items._`. |
+| `npm run version:check` | Versions, the `nerdgram1337` package name, Dockerfile, and compose.build.yaml. `compose.yaml` must use `:latest`. Doc image tags are not checked. |
+| `npm run version:sync` | Copy the root version into the client, server, cli, Dockerfile, and compose.build.yaml. It leaves the `:latest` image line in `compose.yaml` alone. When Unreleased has notes and this version has no changelog section yet, move those notes into the new section and set Unreleased to `_No unreleased items._`. |
 | `npm run sync:reference` | Refresh the offline syntax mirror. |
 
 Server tests set `fileParallelism: false` in `server/vitest.config.ts` because they share `NERDGRAM_DATA_DIR`. `server/test/fixtures/data-v2.1` is a previous-minor data folder. The migration test copies it and checks that `schemaVersion` is added only after a backup. The Docker job runs `scripts/docker-data-health.sh`, including a newer `schemaVersion`, two containers on one volume, and `nerdgram doctor --repair` then `--restore`. Client tests set the same flag in `client/vite.config.ts`. Client lint is oxlint. `react/rules-of-hooks` is an error. The current tree also reports known warnings: `react(set-state-in-effect)` in the workspace, editor, settings, and reference pages, and `eslint(no-useless-escape)` in the Mermaid completion pattern. `react/only-export-components` is set to warn in `client/.oxlintrc.json`.

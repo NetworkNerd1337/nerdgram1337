@@ -10,29 +10,25 @@ Run NerdGram with Docker, or with Node.js on the machine. Docker is the install 
 
 The app is for you, on your personal machine. It is a single-user tool, not a client/server product. The API is a tool port: a conduit other programs can call on demand, not an always-on multi-user server. The [security model](security.md#security-model) is why every Docker command below publishes `127.0.0.1:8787:8787`, and why a Node install leaves `HOST` unset unless you want that tool port on the local network.
 
-The Docker `pull` and `run` commands in this file use `v2.1.27`. That is `v` plus the `version` in the root `package.json`, and it is the tag [`compose.yaml`](../compose.yaml) pins. GHCR keeps that tag and `:latest`. The previous release stays published for 30 days after it is deprecated, then its tag is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. Pull `:latest` or `v2.1.27`. [`npm run version:check`](releases.md#versioning-and-releases) fails if an image pin in the README or the docs, the Dockerfile, or `compose.yaml` disagrees with `package.json`. The names of planned releases are listed under [Versioning and releases](releases.md#versioning-and-releases).
+The Docker `pull` and `run` commands in this file use `:latest`, the same tag [`compose.yaml`](../compose.yaml) ships. A cached `:latest` stays put until you pull again. To stay on one release, see [Pin a version](upgrading.md#pin-a-version). The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. [`npm run version:check`](releases.md#versioning-and-releases) keeps the package versions, the Dockerfile build args, and `compose.build.yaml` in sync. It does not require a doc image pin to match `package.json`. The names of planned releases are listed under [Versioning and releases](releases.md#versioning-and-releases).
 
 ### Docker
 
 You do not need Node.js, and you do not need to clone this repository, to run the published image. The image is Node.js 22 on Debian bookworm-slim (`node:22.23.5-bookworm-slim`), pinned by digest in the `NODE_IMAGE` argument of the [Dockerfile](../Dockerfile). SVG and PNG use a headless browser. linux/amd64 uses Puppeteer's chrome-headless-shell, the same shell a Node install downloads. linux/arm64 uses Debian's `chromium` package. Chrome for Testing does not publish a linux-arm64 headless shell, and the shell Puppeteer would download on that architecture is an x86-64 binary that cannot start. The arm64 image sets `PUPPETEER_EXECUTABLE_PATH` to `/usr/lib/chromium/chromium`. The process inside the container listens on `0.0.0.0` so Docker can publish the port. The image sets `HOST=0.0.0.0`, which wins over the saved Host setting, so the Settings page shows that box as read-only. The log notes that `0.0.0.0` is not loopback. That note is expected. On the host, publish **`127.0.0.1:8787:8787`** to keep the tool port on this machine. Publish **`<lan-ip>:8787:8787`** when another machine on that network should call the API. Publishing `8787:8787` or `0.0.0.0:8787` opens every host interface. The browser `/api` routes have no token, so anyone who can open the published port can use them. The container does not see the host's LAN addresses. Set `NERDGRAM_ALLOWED_HOSTS` to the address callers use, or those requests are **403**. See [Security model](security.md#security-model).
 
-The image is `ghcr.io/networknerd1337/nerdgram1337`. GHCR keeps the latest release tag and `:latest`. The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. Git tags stay, and a git checkout can still use one. [`compose.yaml`](../compose.yaml) pins the tag that matches this tree. [`npm run version:check`](releases.md#versioning-and-releases) fails if an image pin in the README or the docs, the Dockerfile, or `compose.yaml` disagrees with `package.json`.
+The image is `ghcr.io/networknerd1337/nerdgram1337`. GHCR keeps each release tag and `:latest`. The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. Git tags stay, and a git checkout can still use one. [`compose.yaml`](../compose.yaml) uses `:latest`. [`npm run version:check`](releases.md#versioning-and-releases) keeps the package versions and the Dockerfile build args in sync. It does not require a doc image pin to match `package.json`.
 
 The package is public, so `docker pull` does not need a login. If a new package is still private, set **Public** once in the [package settings](https://github.com/users/NetworkNerd1337/packages/container/nerdgram1337/settings). The publish workflow warns when it cannot do that, and a successful image push still leaves the workflow green. See [Cutting a release](releases.md#cutting-a-release).
 
 **1. Install Docker.** Install Docker Engine and the Compose plugin from [Docker's documentation](https://docs.docker.com/get-docker/). `docker version` and `docker compose version` should both print a version.
 
-**2. Pull the image.** The command uses `v2.1.27`, the tag for this tree (the same pin as [`compose.yaml`](../compose.yaml)). `:latest` is that same release until the next one is published. The previous release's tag stays for 30 days after it is deprecated. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term.
-
-```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.27
-```
+**2. Pull the image.** The command uses `:latest`, the same tag as [`compose.yaml`](../compose.yaml). Pull again when you want a newer full release. A cached `:latest` does not move on its own. The previous release's tag stays for 30 days after it is deprecated. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term.
 
 ```bash
 docker pull ghcr.io/networknerd1337/nerdgram1337:latest
 ```
 
-**3. Start the container.** The named volume `nerdgram-data` is the whole workspace. One container per volume. Use the tag you pulled. If you pulled `:latest`, put that name on the last line instead.
+**3. Start the container.** The named volume `nerdgram-data` is the whole workspace. One container per volume.
 
 ```bash
 docker run -d \
@@ -42,7 +38,7 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.27
+  ghcr.io/networknerd1337/nerdgram1337:latest
 ```
 
 **About → Show upgrade steps** prints the run command with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. Updating an install you already have is [Update a Docker install](upgrading.md#update-a-docker-install).
@@ -63,14 +59,14 @@ If the directory is owned by root, the container stays up. The log says the data
 
 The published host port has to equal `PORT` inside the container (the image sets `8787`). The browser sends that port in the `Host` header. To use another port, set `PORT` in the container and publish `127.0.0.1:THAT:THAT`.
 
-**Docker Compose.** [`compose.yaml`](../compose.yaml) is the same install as the `docker run` above, plus a read-only root filesystem, a `tmpfs` on `/tmp`, and `no-new-privileges`. The sample below matches that file and is pinned to this tree's tag. Building from a checkout uses [`compose.build.yaml`](../compose.build.yaml) instead of changing this image line. That override is described under [Build from this repository instead](#docker).
+**Docker Compose.** [`compose.yaml`](../compose.yaml) is the same install as the `docker run` above, plus a read-only root filesystem, a `tmpfs` on `/tmp`, and `no-new-privileges`. The sample below matches that file and uses `:latest`. Building from a checkout uses [`compose.build.yaml`](../compose.build.yaml) instead of changing this image line. That override is described under [Build from this repository instead](#docker).
 
 ```yaml
 name: nerdgram1337
 
 services:
   nerdgram:
-    image: ghcr.io/networknerd1337/nerdgram1337:v2.1.27
+    image: ghcr.io/networknerd1337/nerdgram1337:latest
     container_name: nerdgram1337
     restart: unless-stopped
     read_only: true
@@ -98,7 +94,7 @@ volumes:
 | Key or variable | What it does |
 | --- | --- |
 | `name` | The Compose project name. It keeps this stack separate from other projects. |
-| `image` | The published image. `v2.1.27` is this tree's tag and does not move. `:latest` is the newest full release and changes when a release is published. |
+| `image` | The published image. This file uses `:latest`, which follows the newest full release after `docker compose pull`. A pinned `:vX.Y.Z` tag does not move. See [Pin a version](upgrading.md#pin-a-version). |
 | `container_name` | The container is always `nerdgram1337`, so `docker logs nerdgram1337` finds it. |
 | `restart` | `unless-stopped` starts the container again after a reboot, until you stop it yourself. |
 | `read_only` | The container's own filesystem cannot be written. Diagrams live on the volume, not in the image. |
