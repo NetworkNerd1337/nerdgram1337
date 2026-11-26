@@ -251,12 +251,12 @@ describe("update check API", () => {
     useEnv("NERDGRAM_COMMIT", "abc1234");
     const res = await request(app()).get("/api/version").set("Host", HOST);
     expect(res.status).toBe(200);
-    expect(res.body.version).toBe("2.1.26");
+    expect(res.body.version).toBe("2.1.27");
     expect(res.body.codename).toBe("Azimuth");
     expect(res.body.commit).toBe("abc1234");
     expect(res.body.installKind).toBe("zip");
     const health = await request(app()).get("/api/health").set("Host", HOST);
-    expect(health.body.version).toBe("2.1.26");
+    expect(health.body.version).toBe("2.1.27");
     expect(health.body.codename).toBe("Azimuth");
     expect(health.body.installKind).toBe("zip");
   });
@@ -280,7 +280,7 @@ describe("update check API", () => {
       try {
         const res = await request(app()).get("/api/updates").set("Host", HOST);
         expect(res.status).toBe(200);
-        expect(res.body.currentVersion).toBe("2.1.26");
+        expect(res.body.currentVersion).toBe("2.1.27");
         expect(res.body.codename).toBe("Azimuth");
       } finally {
         console.warn = warn;
@@ -311,13 +311,13 @@ describe("update check API", () => {
   it("caches GitHub, honors ETag 304, and stays quiet when offline", async () => {
     useEnv("NERDGRAM_GITHUB_TOKEN", "ghp_should_not_be_sent");
     let status = 200;
-    const calls = mockFetch(() => jsonResponse(status, releaseBody("v2.1.27", NOTES)));
+    const calls = mockFetch(() => jsonResponse(status, releaseBody("v2.1.28", NOTES)));
     let clock = Date.parse("2026-11-13T00:00:00Z");
     setUpdateClock(() => clock);
 
     const first = await manualCheck();
     expect(first.updateAvailable).toBe(true);
-    expect(first.latest?.version).toBe("2.1.27");
+    expect(first.latest?.version).toBe("2.1.28");
     expect(first.latest?.body).toContain("NOTES_PWN_");
     expect(first.latest?.htmlUrl.startsWith("https://github.com/NetworkNerd1337/NerdGram1337/releases/")).toBe(true);
     expect(calls).toHaveLength(1);
@@ -331,7 +331,7 @@ describe("update check API", () => {
     status = 304;
     clock += 25 * 60 * 60 * 1000;
     const again = await manualCheck();
-    expect(again.latest?.version).toBe("2.1.27");
+    expect(again.latest?.version).toBe("2.1.28");
     expect(again.error).toBeNull();
     expect(calls).toHaveLength(2);
     expect(calls.at(-1)?.etag).toBe('"rel"');
@@ -342,7 +342,7 @@ describe("update check API", () => {
     clock += 25 * 60 * 60 * 1000;
     const quiet = await runAutomaticCheck();
     expect(quiet.error).toBeNull();
-    expect(quiet.latest?.version).toBe("2.1.27");
+    expect(quiet.latest?.version).toBe("2.1.28");
     const manual = await manualCheck();
     expect(manual.error?.code).toBe("offline");
     expect(manual.error?.message).toMatch(/GitHub/);
@@ -369,7 +369,7 @@ describe("update check API", () => {
   });
 
   it("does not call GitHub when checks are disabled or automatic checks are off", async () => {
-    const calls = mockFetch(() => jsonResponse(200, releaseBody("v2.1.27")));
+    const calls = mockFetch(() => jsonResponse(200, releaseBody("v2.1.28")));
     useEnv("NERDGRAM_UPDATE_CHECK", "false");
     const disabled = await manualCheck();
     expect(disabled.enabled).toBe(false);
@@ -393,10 +393,10 @@ describe("update check API", () => {
     const skipped = await skipCurrentRelease();
     expect(skipped.skipped).toBe(true);
     expect(skipped.updateAvailable).toBe(false);
-    mockFetch(() => jsonResponse(200, releaseBody("v2.1.27")));
+    mockFetch(() => jsonResponse(200, releaseBody("v2.1.28")));
     const next = await manualCheck();
     expect(next.updateAvailable).toBe(true);
-    expect(next.latest?.version).toBe("2.1.27");
+    expect(next.latest?.version).toBe("2.1.28");
   });
 
   it("rate limits are silent on the automatic check", async () => {
@@ -464,7 +464,7 @@ describe("update check API", () => {
       if (url === LATEST) {
         return new Response(null, { status: 302, headers: { location: "https://evil.example/releases/latest" } });
       }
-      return jsonResponse(200, releaseBody("v2.1.27"));
+      return jsonResponse(200, releaseBody("v2.1.28"));
     });
     const refused = await manualCheck();
     expect(refused.error?.code).toBe("offline");
@@ -478,7 +478,7 @@ describe("update check API", () => {
           headers: { location: "http://api.github.com/repos/NetworkNerd1337/NerdGram1337/releases/latest" },
         });
       }
-      return jsonResponse(200, releaseBody("v2.1.27"));
+      return jsonResponse(200, releaseBody("v2.1.28"));
     });
     const httpOnly = await manualCheck();
     expect(httpOnly.error?.code).toBe("offline");
@@ -492,11 +492,11 @@ describe("update check API", () => {
           headers: { location: "https://api.github.com/repos/NetworkNerd1337/NerdGram1337/releases/latest?redirect=1" },
         });
       }
-      return jsonResponse(200, releaseBody("v2.1.27"));
+      return jsonResponse(200, releaseBody("v2.1.28"));
     });
     const allowed = await manualCheck();
     expect(allowed.error).toBeNull();
-    expect(allowed.latest?.version).toBe("2.1.27");
+    expect(allowed.latest?.version).toBe("2.1.28");
     expect(followed.map((call) => call.url)).toEqual([
       LATEST,
       "https://api.github.com/repos/NetworkNerd1337/NerdGram1337/releases/latest?redirect=1",
@@ -533,7 +533,7 @@ describe("update check API", () => {
 
   it("refuses a dirty tree, the wrong remote, and a non-fast-forward, and fast-forwards when clean", async () => {
     useEnv("NERDGRAM_INSTALL", "git");
-    mockFetch(() => jsonResponse(200, releaseBody("v2.1.27", NOTES)));
+    mockFetch(() => jsonResponse(200, releaseBody("v2.1.28", NOTES)));
     await manualCheck();
 
     const dirty = scripted((call) => happy(call, { status: " M README.md" }));
@@ -566,8 +566,8 @@ describe("update check API", () => {
     expect(job.result?.previousCommit).toBe("a".repeat(40));
     const rendered = calls.map((call) => `${call.command} ${call.args.join(" ")}`);
     expect(rendered[0]).toBe("git remote get-url origin");
-    expect(rendered).toContain("git fetch origin refs/tags/v2.1.27:refs/tags/v2.1.27");
-    expect(rendered).toContain("git merge --ff-only v2.1.27");
+    expect(rendered).toContain("git fetch origin refs/tags/v2.1.28:refs/tags/v2.1.28");
+    expect(rendered).toContain("git merge --ff-only v2.1.28");
     expect(rendered).toContain("npm ci");
     expect(rendered).toContain("npm ci --prefix client");
     expect(rendered).toContain("npm ci --prefix server");
@@ -578,7 +578,7 @@ describe("update check API", () => {
 
   it("rolls back with reset --keep when the build fails", async () => {
     useEnv("NERDGRAM_INSTALL", "git");
-    mockFetch(() => jsonResponse(200, releaseBody("v2.1.27")));
+    mockFetch(() => jsonResponse(200, releaseBody("v2.1.28")));
     await manualCheck();
     const calls = scripted((call) => happy(call, { failNpm: "run build" }));
     await request(app()).post("/api/updates/apply").set("Host", HOST).set("Content-Type", "application/json").send({});
@@ -589,13 +589,13 @@ describe("update check API", () => {
   });
 
   it("never runs git for a docker or zip install", async () => {
-    mockFetch(() => jsonResponse(200, releaseBody("v2.1.27", NOTES)));
+    mockFetch(() => jsonResponse(200, releaseBody("v2.1.28", NOTES)));
     useEnv("NERDGRAM_INSTALL", "docker");
     const dockerCalls = scripted((call) => happy(call));
     const status = await manualCheck();
     expect(status.installKind).toBe("docker");
     expect(status.canApply).toBe(false);
-    expect(status.docker?.steps[0]?.command).toContain("ghcr.io/networknerd1337/nerdgram1337:v2.1.27");
+    expect(status.docker?.steps[0]?.command).toContain("ghcr.io/networknerd1337/nerdgram1337:v2.1.28");
     expect(JSON.stringify(status.docker)).not.toContain("NOTES_PWN_");
     expect(status.matchesLatest).toBe(false);
     await request(app()).post("/api/updates/apply").set("Host", HOST).set("Content-Type", "application/json").send({});
@@ -613,23 +613,23 @@ describe("update check API", () => {
 
   it("confirms a matching version and reports one that still lags", async () => {
     useEnv("NERDGRAM_INSTALL", "docker");
-    mockFetch(() => jsonResponse(200, releaseBody("v2.1.26")));
+    mockFetch(() => jsonResponse(200, releaseBody("v2.1.27")));
     const same = await manualCheck();
     expect(same.matchesLatest).toBe(true);
     expect(same.updateAvailable).toBe(false);
     expect(same.canApply).toBe(false);
     expect(same.codename).toBe("Azimuth");
-    expect(same.docker?.tag).toBe("v2.1.26");
+    expect(same.docker?.tag).toBe("v2.1.27");
     expect(same.docker?.steps.map((step) => step.command).join("\n")).toContain("127.0.0.1:8787:8787");
     expect(same.docker?.persistNote).toContain(".nerdgram-git");
-    mockFetch(() => jsonResponse(200, releaseBody("v2.1.27", "Meridian notes", { name: 'v9.9.9 "Nope"' })));
+    mockFetch(() => jsonResponse(200, releaseBody("v2.1.28", "Meridian notes", { name: 'v9.9.9 "Nope"' })));
     const behind = await manualCheck();
     expect(behind.matchesLatest).toBe(false);
     expect(behind.updateAvailable).toBe(true);
-    expect(behind.currentVersion).toBe("2.1.26");
+    expect(behind.currentVersion).toBe("2.1.27");
     expect(behind.codename).toBe("Azimuth");
-    expect(behind.latest?.version).toBe("2.1.27");
-    expect(behind.latest?.tag).toBe("v2.1.27");
+    expect(behind.latest?.version).toBe("2.1.28");
+    expect(behind.latest?.tag).toBe("v2.1.28");
     expect(behind.latest?.codename).toBe("Azimuth");
   });
 
@@ -659,7 +659,7 @@ describe("update check API", () => {
 
   it("serializes apply", async () => {
     useEnv("NERDGRAM_INSTALL", "git");
-    mockFetch(() => jsonResponse(200, releaseBody("v2.1.27")));
+    mockFetch(() => jsonResponse(200, releaseBody("v2.1.28")));
     await manualCheck();
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
