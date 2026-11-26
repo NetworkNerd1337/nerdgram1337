@@ -173,7 +173,7 @@ a {
 .release-notice-title {
   font-size: 0.78rem;
   font-weight: 650;
-  color: var(--accent);
+  color: color-mix(in srgb, var(--accent) 60%, var(--ink));
 }
 
 .release-notice-version {

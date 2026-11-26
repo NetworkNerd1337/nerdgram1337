@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -31,7 +32,16 @@ export type LockRecord = {
   instanceId?: string;
   instanceName?: string;
   hostname?: string;
+  /** This process boot. A later boot of the same install does not keep the lock. */
+  bootId?: string;
 };
+
+/** One id per process. A container restart is a new boot, even when the instance id is kept. */
+const processBootId = randomUUID();
+
+export function currentBootId(): string {
+  return processBootId;
+}
 
 type LockFile = LockRecord & { stale: boolean };
 
@@ -73,6 +83,7 @@ function normalizeLock(record: LockRecord): LockRecord {
   const instanceId = optionalText(record.instanceId);
   const instanceName = optionalText(record.instanceName);
   const hostname = optionalText(record.hostname);
+  const bootId = optionalText(record.bootId);
   return {
     path: record.path,
     token: record.token,
@@ -83,22 +94,25 @@ function normalizeLock(record: LockRecord): LockRecord {
     ...(instanceId ? { instanceId } : {}),
     ...(instanceName ? { instanceName } : {}),
     ...(hostname ? { hostname } : {}),
+    ...(bootId ? { bootId } : {}),
   };
 }
 
 /**
  * A fresh heartbeat is held. A pid is a liveness signal only for this
- * install on this computer: another host's pid is not in this process table,
- * even when a shared instance file made the instance ids match. A legacy lock
- * with no instance id and no hostname is still this computer.
+ * install on this computer. A lock stamped with an earlier boot of this same
+ * install is stale immediately, which is a Docker restart that kept the
+ * instance id. Another install is still judged by heartbeat age alone.
  */
 export function lockIsStale(record: LockRecord, now = Date.now(), instanceId?: string): boolean {
   const heartbeat = Date.parse(record.heartbeatAt);
   if (!Number.isFinite(heartbeat) || now - heartbeat > LOCK_STALE_MS) return true;
+  const sameInstance = Boolean(instanceId) && record.instanceId === instanceId;
+  const boot = optionalText(record.bootId);
+  if (sameInstance && boot && boot !== currentBootId()) return true;
   const host = optionalText(record.hostname);
   if (host && host !== os.hostname()) return false;
   const legacy = !optionalText(record.instanceId);
-  const sameInstance = Boolean(instanceId) && record.instanceId === instanceId;
   if ((sameInstance || legacy) && record.pid !== process.pid && !isProcessAlive(record.pid)) return true;
   return false;
 }
@@ -218,6 +232,7 @@ function stampIdentity(record: LockRecord, identity: InstanceIdentity): LockReco
     instanceId: identity.instanceId,
     instanceName: identity.instanceName,
     hostname: identity.hostname,
+    bootId: currentBootId(),
   };
 }
 
@@ -464,6 +479,7 @@ export async function relocateLocks(
       ...(lock.instanceId ? { instanceId: lock.instanceId } : {}),
       ...(lock.instanceName ? { instanceName: lock.instanceName } : {}),
       ...(lock.hostname ? { hostname: lock.hostname } : {}),
+      ...(lock.bootId ? { bootId: lock.bootId } : {}),
     };
     await fs.rm(lockFile(lock.path), { force: true });
     if (!(await pathExists(lockFile(nextPath)))) {

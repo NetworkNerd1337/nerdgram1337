@@ -4,7 +4,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReleaseNotice, releaseNoticeVersion } from "../src/components/ReleaseNotice";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { ReleaseNotice, releaseNoticeVersion, updateToastVisible } from "../src/components/ReleaseNotice";
 import { UpdateContext, type UpdateContextValue } from "../src/components/updateContext";
 import type { UpdateStatus } from "../src/types";
 
@@ -49,6 +52,64 @@ describe("release notice version", () => {
     expect(releaseNoticeVersion(status({ error: { code: "offline", message: "Could not reach GitHub." } }))).toBeNull();
     expect(releaseNoticeVersion(status({ latest: null, phase: "unknown" }))).toBeNull();
     expect(releaseNoticeVersion(null)).toBeNull();
+  });
+});
+
+describe("release notice contrast", () => {
+  const css = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/index.css"), "utf8");
+
+  function hex(value: string): [number, number, number] {
+    return [1, 3, 5].map((start) => Number.parseInt(value.slice(start, start + 2), 16)) as [number, number, number];
+  }
+
+  function mix(left: string, right: string, weight: number): [number, number, number] {
+    const a = hex(left);
+    const b = hex(right);
+    return a.map((channel, index) => Math.round(channel * weight + b[index] * (1 - weight))) as [number, number, number];
+  }
+
+  function contrast(foreground: [number, number, number], background: [number, number, number]): number {
+    const lum = (rgb: [number, number, number]) => {
+      const channels = rgb.map((value) => {
+        const scaled = value / 255;
+        return scaled <= 0.04045 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const [hi, lo] = [lum(foreground), lum(background)].sort((a, b) => b - a);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  function tokens(selector: string): Record<string, string> {
+    const start = css.indexOf(selector);
+    const block = css.slice(start, css.indexOf("}", start));
+    return Object.fromEntries(
+      [...block.matchAll(/(--[a-z-]+):\s*(#[0-9a-fA-F]{6})/g)].map((match) => [match[1], match[2]]),
+    );
+  }
+
+  it("keeps the light title at 7:1 and the version line at 4.5:1, and does not weaken dark", () => {
+    const light = tokens(":root {");
+    const dark = tokens('html[data-theme="dark"]');
+    for (const theme of [light, dark]) {
+      const chip = mix(theme["--accent-soft"], theme["--bg-elevated"], 0.72);
+      const title = mix(theme["--accent"], theme["--ink"], 0.6);
+      const version = hex(theme["--ink-soft"]);
+      const titleContrast = contrast(title, chip);
+      const versionContrast = contrast(version, chip);
+      expect(titleContrast).toBeGreaterThanOrEqual(theme === light ? 7 : 7.1);
+      expect(versionContrast).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(css).toContain("color: color-mix(in srgb, var(--accent) 60%, var(--ink));");
+  });
+});
+
+describe("update toast", () => {
+  it("stays hidden while the side pane notice is showing", () => {
+    expect(updateToastVisible(status(), false)).toBe(false);
+    expect(updateToastVisible(status({ phase: "current", updateAvailable: false, matchesLatest: true }), false)).toBe(false);
+    expect(updateToastVisible(status({ phase: "current", updateAvailable: true }), false)).toBe(true);
+    expect(updateToastVisible(status({ phase: "current", updateAvailable: true }), true)).toBe(false);
   });
 });
 

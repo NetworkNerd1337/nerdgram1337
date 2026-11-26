@@ -7,7 +7,7 @@ import request from "supertest";
 import { createApp } from "../src/app.js";
 import { main } from "../src/cli.js";
 import { clearInstanceIdentityCache, getInstanceIdentity } from "../src/instanceConfig.js";
-import { acquireLock, lockIsStale, lockStorageKey, type LockRecord } from "../src/locks.js";
+import { acquireLock, currentBootId, lockIsStale, lockStorageKey, type LockRecord } from "../src/locks.js";
 import { encodeStorageKey } from "../src/storage.js";
 import { makeTempDataDir } from "./helpers.js";
 
@@ -45,6 +45,45 @@ describe("lock rules", () => {
     expect(
       lockIsStale(
         record({ instanceId: mine, hostname: "other-host", pid: 2_147_483_646, heartbeatAt: fresh }),
+        now,
+        mine,
+      ),
+    ).toBe(false);
+    expect(
+      lockIsStale(
+        record({
+          instanceId: mine,
+          hostname: "old-container",
+          bootId: "previous-boot",
+          pid: process.pid,
+          heartbeatAt: fresh,
+        }),
+        now,
+        mine,
+      ),
+    ).toBe(true);
+    expect(
+      lockIsStale(
+        record({
+          instanceId: mine,
+          hostname: os.hostname(),
+          bootId: currentBootId(),
+          pid: process.pid,
+          heartbeatAt: fresh,
+        }),
+        now,
+        mine,
+      ),
+    ).toBe(false);
+    expect(
+      lockIsStale(
+        record({
+          instanceId: OTHER_ID,
+          hostname: "laptop-a",
+          bootId: "other-boot",
+          pid: process.pid,
+          heartbeatAt: fresh,
+        }),
         now,
         mine,
       ),
@@ -105,6 +144,68 @@ describe("lock acquire across instances", () => {
     await fs.mkdir(path.dirname(lockPath), { recursive: true });
     return { dir: temp.dir, identity, lockPath };
   }
+
+  it("reopens a diagram after this install restarts, and still blocks a live tab or another instance", async () => {
+    const { identity, lockPath } = await setup();
+    const now = new Date().toISOString();
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify(
+        record({
+          instanceId: identity.instanceId,
+          instanceName: identity.instanceName,
+          hostname: "old-container",
+          bootId: "previous-boot",
+          pid: process.pid,
+          heartbeatAt: now,
+          token: "old-boot",
+          sessionId: "tab-before-restart",
+        }),
+      ),
+    );
+    const taken = await acquireLock("Network Core.mmd", "tab-after-restart");
+    expect(taken.token).not.toBe("old-boot");
+    const stored = JSON.parse(await fs.readFile(lockPath, "utf8")) as LockRecord;
+    expect(stored.bootId).toBe(currentBootId());
+
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify(
+        record({
+          instanceId: identity.instanceId,
+          hostname: os.hostname(),
+          bootId: currentBootId(),
+          pid: process.pid,
+          sessionId: "other-tab",
+          token: "live-tab",
+          heartbeatAt: new Date().toISOString(),
+        }),
+      ),
+    );
+    await expect(acquireLock("Network Core.mmd", "tab-two")).rejects.toMatchObject({
+      status: 423,
+      message: "This diagram is open in another window.",
+    });
+
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify(
+        record({
+          instanceId: OTHER_ID,
+          instanceName: "Engineer B",
+          hostname: "laptop-b",
+          bootId: "their-boot",
+          pid: 2_147_483_646,
+          token: "held",
+          heartbeatAt: new Date().toISOString(),
+        }),
+      ),
+    );
+    await expect(acquireLock("Network Core.mmd", "tab-three")).rejects.toMatchObject({
+      status: 423,
+      message: expect.stringMatching(/Engineer B/),
+    });
+  });
 
   it("lets this instance replace its own dead pid and blocks a fresh lock from someone else", async () => {
     const { identity, lockPath } = await setup();

@@ -360,7 +360,7 @@ Mirrored content is from the Mermaid documentation (MIT License). Each page keep
 
 ## New release notice
 
-When this install is behind the latest GitHub release, the side pane shows **New release available!** under the name, with the new version under that line. The chip uses the same accent as the rest of the theme, in light and dark. Click it, or press Enter or Space while it is focused, to open About. The check is the one About already runs. An equal or newer version shows nothing, including a pre-release that is ahead of the latest release. A failed or offline check shows nothing. It does not call GitHub on its own.
+When this install is behind the latest GitHub release, the side pane shows **New release available!** under the name, with the new version under that line. The chip uses the same accent as the rest of the theme, in light and dark. Click it, or press Enter or Space while it is focused, to open About. The check is the one About already runs. An equal or newer version shows nothing, including a pre-release that is ahead of the latest release. A failed or offline check shows nothing. It does not call GitHub on its own. While this notice is showing, the bottom update toast stays hidden so the two cues do not stack. About and **Check for updates** are unchanged.
 
 ## See also
 
