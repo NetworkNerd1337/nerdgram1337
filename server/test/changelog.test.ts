@@ -35,20 +35,19 @@ function notes(args: string[], changelog?: string): { code: number; stdout: stri
 }
 
 describe("changelog notes", () => {
-  it("prints the Azimuth title and the 2.1.26 section without the heading", () => {
-    const title = notes(["--title", "v2.1.26"]);
+  it("prints the Azimuth title and the 2.1.27 section without the heading", () => {
+    const title = notes(["--title", "v2.1.27"]);
     expect(title.code).toBe(0);
-    expect(title.stdout).toBe("v2.1.26 Azimuth\n");
-    const body = notes(["v2.1.26"]);
+    expect(title.stdout).toBe("v2.1.27 Azimuth\n");
+    const body = notes(["v2.1.27"]);
     expect(body.code).toBe(0);
     expect(body.stdout.startsWith("Patch on the Azimuth line.")).toBe(true);
-    expect(body.stdout).toContain("inside the window");
-    expect(body.stdout).toContain("Escape");
-    expect(body.stdout).toContain("/tmp/.nerdgram/instance.json");
-    expect(body.stdout).toContain("exFAT and FAT are not supported");
-    expect(body.stdout).toContain("delete that lock file");
-    expect(body.stdout).not.toContain("npm publishing resumed");
-    expect(body.stdout).not.toContain('## 2.1.26 "Azimuth"');
+    expect(body.stdout).toContain("New release available!");
+    expect(body.stdout).toContain("at least 7:1");
+    expect(body.stdout).toContain("bottom update toast");
+    expect(body.stdout).toContain("Docker restart of the same container");
+    expect(body.stdout).not.toContain("inside the window");
+    expect(body.stdout).not.toContain('## 2.1.27 "Azimuth"');
     expect(body.stdout).not.toContain("case-insensitive disk");
     expect(body.stdout).not.toMatch(/^_No unreleased items\._$/m);
   });

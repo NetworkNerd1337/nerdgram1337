@@ -6,6 +6,7 @@ Stop the app before you replace it.
 
 ## Contents
 
+- [Upgrading to 2.1.27](#upgrading-to-2127)
 - [Upgrading to 2.1.26](#upgrading-to-2126)
 - [Check the data folder](#check-the-data-folder)
 - [Update a Docker install](#update-a-docker-install)
@@ -20,6 +21,14 @@ Stop the app before you replace it.
 Paths in this document use two placeholders, always in code formatting so GitHub does not treat the angle brackets as HTML tags. `<data>` is the data directory: `NERDGRAM_DATA_DIR` when that variable is set, and `diagrams/` inside the project when it is not. `<repo>` is the project folder, the git clone or the extracted ZIP.
 
 Stop the app before you replace it. Diagrams stay where they are when you keep the same data directory or the same volume. Do not run `docker volume rm` on a volume you still want. There is no updater inside the container.
+
+## Upgrading to 2.1.27
+
+2.1.27 is a patch on Azimuth. Diagrams stay where they are.
+
+The side pane shows "New release available!" when this install is behind the latest GitHub release. The bottom update toast stays hidden while that notice is showing. About and Check for updates are unchanged.
+
+A Docker restart of the same container can edit an open diagram again immediately. Recreating the container on the same volume still waits until the heartbeat is 90 seconds old. A second live boot that shares the instance id still holds its lock until then.
 
 ## Upgrading to 2.1.26
 
@@ -53,16 +62,16 @@ Fix a blocker before you upgrade. `nerdgram doctor --repair` quarantines bad set
 
 `NERDGRAM_STRICT_INSTANCE=1` refuses to start when another live instance already holds `.meta/instance-lock.json`. Leave it unset unless you want that. Two processes with the same instance id are a warning. Another install on a shared folder is a note. In both cases background sync, the update checker, and diagram sightings pause.
 
-The 2.1 line is supported until the next minor or major release. Only the newest patch is published. That patch is 2.1.26. Security fixes land there. 2.1.26 is published to npm, Docker and GHCR, and the GitHub Release. 2.1.25 is the previous release. It was deprecated on 2026-11-24. Its npm version and GHCR tag stay through 2026-12-24. 2.1.22, 2.1.23, and 2.1.24 were Docker and GHCR only and were never published to npm. Pull `ghcr.io/networknerd1337/nerdgram1337:latest` for this release. When a milestone release is published, the previous release is deprecated immediately and loses support that same day. `npm deprecate` marks that npm release with an "upgrade to latest" message. Its npm version and GHCR version tag stay published for 30 days, so pinned installs and lockfiles keep working while people upgrade. After 30 days, that version is unpublished from npm where npm allows it, and its GHCR version tag is removed. Only the previous release gets that grace period. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. Git tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
+The 2.1 line is supported until the next minor or major release. Only the newest patch is published. That patch is 2.1.27. Security fixes land there. 2.1.27 is published to npm, Docker and GHCR, and the GitHub Release. 2.1.26 is the previous release. It was deprecated on 2026-11-26. Its npm version and GHCR tag stay through 2026-12-26. 2.1.22, 2.1.23, and 2.1.24 were Docker and GHCR only and were never published to npm. Pull `ghcr.io/networknerd1337/nerdgram1337:latest` for this release. When a milestone release is published, the previous release is deprecated immediately and loses support that same day. `npm deprecate` marks that npm release with an "upgrade to latest" message. Its npm version and GHCR version tag stay published for 30 days, so pinned installs and lockfiles keep working while people upgrade. After 30 days, that version is unpublished from npm where npm allows it, and its GHCR version tag is removed. Only the previous release gets that grace period. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. Git tags stay. The table is in the [security policy](../SECURITY.md#supported-versions).
 
 ## Update a Docker install
 
-The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.26`, the newest published patch and the tag for this tree. Pull `:latest` or `v2.1.26`. The previous release stays for 30 days after it is deprecated, then its tag is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. If your names differ, keep the names you already use.
+The in-app **Show upgrade steps** dialog uses these commands with the real tag, the container name `nerdgram1337`, the volume `nerdgram-data`, and `127.0.0.1:8787:8787`. The examples below use `v2.1.27`, the newest published patch and the tag for this tree. Pull `:latest` or `v2.1.27`. The previous release stays for 30 days after it is deprecated, then its tag is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. If your names differ, keep the names you already use.
 
 1. Pull the new image.
 
 ```bash
-docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.26
+docker pull ghcr.io/networknerd1337/nerdgram1337:v2.1.27
 ```
 
 2. Stop the old container. `docker stop` asks the process to finish the write it is in and any GitHub sync already running.
@@ -87,12 +96,12 @@ docker run -d \
   -e NERDGRAM_DATA_DIR=/data \
   -e NERDGRAM_INSTALL=docker \
   -v nerdgram-data:/data \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.26
+  ghcr.io/networknerd1337/nerdgram1337:v2.1.27
 ```
 
 5. Open [http://127.0.0.1:8787](http://127.0.0.1:8787) and choose **Check again** in About. The dialog says whether the running version matches that release.
 
-These `docker run` lines match the in-app steps. They do not set a read-only root or a `tmpfs` on `/tmp`. `compose.yaml` does. If you installed with Compose, set the image to `ghcr.io/networknerd1337/nerdgram1337:v2.1.26` or `:latest` when the file pins an older tag. The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. If the image line is already `:latest`, pull and up are enough. Then:
+These `docker run` lines match the in-app steps. They do not set a read-only root or a `tmpfs` on `/tmp`. `compose.yaml` does. If you installed with Compose, set the image to `ghcr.io/networknerd1337/nerdgram1337:v2.1.27` or `:latest` when the file pins an older tag. The previous release's tag stays for 30 days after it is deprecated, then it is removed. npm versions older than 2.1.21 are deprecated and are not supported. Their GHCR tags have been removed. Pinning an older version is not supported long term. If the image line is already `:latest`, pull and up are enough. Then:
 
 ```bash
 docker compose pull
@@ -133,7 +142,7 @@ There is no **Update now** for a ZIP. About shows the hand steps.
 
 ## In-app updates
 
-The running version is the **About** button in the top-right header, next to **Support**, and **About NerdGram1337** in the command palette. Both show the version and its code name, for example `v2.1.26 Azimuth`. The header button puts that string in its tooltip. The dialog also shows how this copy was installed, the Mermaid engine version when the build recorded one, the commit when one is known, and links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi directly. `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`. `GET /api/health` returns those fields plus `"ok": true` and `dataDir`. `installKind` is `git`, `docker`, `zip`, or `unknown`. `commit` is a SHA when the build or the git checkout has one, and null otherwise. Docker never shells out to git to discover a commit. Set `NERDGRAM_COMMIT` at image build time when you want one. When a newer release is available, the side pane shows **New release available!** with that version, and the banner and the release dialog show that release's code name. The side pane notice opens About. It stays hidden when this install matches or is ahead of the latest release, and when the check fails. The version still comes from the tag. The code name comes from the milestone key for that tag. 1.5.y is Compass. Later minors use the name in the `codenames` map.
+The running version is the **About** button in the top-right header, next to **Support**, and **About NerdGram1337** in the command palette. Both show the version and its code name, for example `v2.1.27 Azimuth`. The header button puts that string in its tooltip. The dialog also shows how this copy was installed, the Mermaid engine version when the build recorded one, the commit when one is known, and links to the author, the issues page, this README, the MIT license, and Ko-fi. The header **Support** button opens Ko-fi directly. `GET /api/version` returns `name`, `version`, `codename`, `commit`, and `installKind`. `GET /api/health` returns those fields plus `"ok": true` and `dataDir`. `installKind` is `git`, `docker`, `zip`, or `unknown`. `commit` is a SHA when the build or the git checkout has one, and null otherwise. Docker never shells out to git to discover a commit. Set `NERDGRAM_COMMIT` at image build time when you want one. When a newer release is available, the side pane shows **New release available!** with that version, and the banner and the release dialog show that release's code name. The side pane notice opens About. It stays hidden when this install matches or is ahead of the latest release, and when the check fails. The version still comes from the tag. The code name comes from the milestone key for that tag. 1.5.y is Compass. Later minors use the name in the `codenames` map.
 
 The server asks GitHub, with no token, whether `NetworkNerd1337/NerdGram1337` has a newer full release. That request uses the public Releases API for the latest stable release. It does not offer a prerelease. It does not use the GitHub sync token or `NERDGRAM_GITHUB_TOKEN`, and it does not send telemetry. The answer is cached for about 24 hours in `<data>/.meta/updates.json`. If GitHub is offline, rate-limits the check, or has not published a release yet, the automatic check stays quiet. **Check for updates** says which of those it was: GitHub could not be reached, GitHub rate-limited the check, or a proxy or TLS inspection on this network is likely intercepting HTTPS. The TLS message links to [Corporate TLS inspection](troubleshooting.md#corporate-tls-inspection). **Check for updates** has no keyboard shortcut. Every click shows that it is checking, then the result or the error, including when the error is the same as the last one. How a checkout of `main` differs from a checkout of a release tag is under [Pin a version or move to another](releases.md#pin-a-version-or-move-to-another).
 

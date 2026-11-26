@@ -112,7 +112,7 @@ docker run -d \
   -e NODE_EXTRA_CA_CERTS=/certs/corp-root.pem \
   -v nerdgram-data:/data \
   -v /path/to/corp-root.pem:/certs/corp-root.pem:ro \
-  ghcr.io/networknerd1337/nerdgram1337:v2.1.26
+  ghcr.io/networknerd1337/nerdgram1337:v2.1.27
 ```
 
 On Docker Desktop for Windows the host path is a Windows path, for example `-v C:\certs\corp-root.pem:/certs/corp-root.pem:ro`.

@@ -6,6 +6,12 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+_No unreleased items._
+
+## 2.1.27 "Azimuth" - 2026-11-26
+
+Patch on the Azimuth line. The code name stays Azimuth.
+
 - **Added:** The side pane shows "New release available!" when this install is behind the latest GitHub release. It uses the same update check as About. An equal or newer version, including a pre-release that is ahead of the latest release, shows nothing. A failed check shows nothing.
 - **Changed:** The light-theme "New release available!" title stays at least 7:1 on the chip. The version line stays at least 4.5:1. Dark stays at least that strong. The chip stays accent-tinted.
 - **Changed:** The bottom update toast stays hidden while the side pane is showing "New release available!". About and Check for updates are unchanged.
