@@ -189,13 +189,16 @@ function lockBody(identityId: string): InstanceLockFile {
 }
 
 /** One read of the instance heartbeat. Missing is null. A torn file is unreadable, not "no lock". */
-export function readInstanceBootSync(): { bootId?: string; heartbeatAt: string } | null | "unreadable" {
+export function readInstanceBootSync():
+  | { bootId?: string; instanceId?: string; heartbeatAt: string }
+  | null
+  | "unreadable" {
   try {
     const raw = readFileSync(lockPath(), "utf8");
     if (!raw.trim()) return "unreadable";
     const parsed = parseLock(JSON.parse(raw) as unknown);
     if (!parsed) return "unreadable";
-    return { bootId: parsed.bootId, heartbeatAt: parsed.heartbeatAt };
+    return { bootId: parsed.bootId, instanceId: parsed.instanceId, heartbeatAt: parsed.heartbeatAt };
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
     return "unreadable";

@@ -9,7 +9,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 - **Added:** The side pane shows "New release available!" when this install is behind the latest GitHub release. It uses the same update check as About. An equal or newer version, including a pre-release that is ahead of the latest release, shows nothing. A failed check shows nothing.
 - **Changed:** The light-theme "New release available!" title stays at least 7:1 on the chip. The version line stays at least 4.5:1. Dark stays at least that strong. The chip stays accent-tinted.
 - **Changed:** The bottom update toast stays hidden while the side pane is showing "New release available!". About and Check for updates are unchanged.
-- **Fixed:** A Docker restart of the same install can edit an open diagram again once the previous boot is proven dead. A second live boot that shares the instance id still holds its lock until the heartbeat is 90 seconds old.
+- **Fixed:** A Docker restart of the same container can edit an open diagram again immediately. Recreating the container on the same volume still waits until the heartbeat is 90 seconds old. A second live boot that shares the instance id still holds its lock until then.
 
 ## 2.1.26 "Azimuth" - 2026-11-24
 

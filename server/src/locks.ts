@@ -94,25 +94,51 @@ function normalizeLock(record: LockRecord): LockRecord {
   };
 }
 
-export type BootHeartbeat = { bootId?: string; heartbeatAt?: string } | null | "unreadable";
+export type BootHeartbeat =
+  | { bootId?: string; instanceId?: string; heartbeatAt?: string }
+  | null
+  | "unreadable";
+
+function instanceHeartbeatFresh(heartbeatAt: string | undefined, now: number): boolean {
+  const age = now - Date.parse(heartbeatAt ?? "");
+  return Number.isFinite(age) && age >= 0 && age < INSTANCE_LOCK_FRESH_MS;
+}
 
 /**
  * An earlier boot of this install is stale immediately only when that boot is
- * proven dead: this hostname and a dead pid, or the instance heartbeat has no
- * fresh beat for that boot. Anything else keeps the 90 second rule, so a
- * second live boot that shares the instance id cannot take the lock.
+ * proven dead. Proof is this hostname and a dead pid, no fresh instance
+ * heartbeat for that boot, or a fresh instance heartbeat that this process
+ * holds for this instance id. claimInstanceLock gives a second live boot its
+ * own id when it finds a fresh same-id lock it does not own, so a heartbeat
+ * we hold means no other live boot still has this id. Anything else, including
+ * an unreadable instance heartbeat, keeps the 90 second rule.
  */
-export function previousBootProvenDead(record: LockRecord, heartbeat: BootHeartbeat, now = Date.now()): boolean {
+export function previousBootProvenDead(
+  record: LockRecord,
+  heartbeat: BootHeartbeat,
+  now = Date.now(),
+  instanceId?: string,
+): boolean {
   const host = optionalText(record.hostname);
   if (host === os.hostname() && record.pid !== process.pid && !isProcessAlive(record.pid)) return true;
   if (heartbeat === "unreadable") return false;
   if (heartbeat == null) return true;
   const beatBoot = optionalText(heartbeat.bootId);
   const lockBoot = optionalText(record.bootId);
+  const ours = optionalText(instanceId);
+  if (
+    ours &&
+    lockBoot &&
+    lockBoot !== currentBootId() &&
+    beatBoot === currentBootId() &&
+    optionalText(heartbeat.instanceId) === ours &&
+    optionalText(record.instanceId) === ours &&
+    instanceHeartbeatFresh(heartbeat.heartbeatAt, now)
+  ) {
+    return true;
+  }
   if (!beatBoot || beatBoot !== lockBoot) return false;
-  const age = now - Date.parse(heartbeat.heartbeatAt ?? "");
-  const fresh = Number.isFinite(age) && age >= 0 && age < INSTANCE_LOCK_FRESH_MS;
-  return !fresh;
+  return !instanceHeartbeatFresh(heartbeat.heartbeatAt, now);
 }
 
 /**
@@ -133,7 +159,7 @@ export function lockIsStale(
   const boot = optionalText(record.bootId);
   if (sameInstance && boot && boot !== currentBootId()) {
     const beat = bootHeartbeat === undefined ? readInstanceBootSync() : bootHeartbeat;
-    if (previousBootProvenDead(record, beat, now)) return true;
+    if (previousBootProvenDead(record, beat, now, instanceId)) return true;
   }
   const host = optionalText(record.hostname);
   if (host && host !== os.hostname()) return false;

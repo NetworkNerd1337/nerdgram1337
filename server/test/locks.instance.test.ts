@@ -62,6 +62,42 @@ describe("lock rules", () => {
     ).toBe(true);
     expect(lockIsStale(previousBoot, now, mine, { bootId: "previous-boot", heartbeatAt: fresh })).toBe(false);
     expect(lockIsStale(previousBoot, now, mine, { bootId: currentBootId(), heartbeatAt: fresh })).toBe(false);
+    expect(
+      lockIsStale(previousBoot, now, mine, {
+        bootId: currentBootId(),
+        instanceId: OTHER_ID,
+        heartbeatAt: fresh,
+      }),
+    ).toBe(false);
+    const restarted = record({
+      instanceId: mine,
+      hostname: os.hostname(),
+      bootId: "previous-boot",
+      pid: process.pid,
+      heartbeatAt: fresh,
+    });
+    expect(
+      lockIsStale(restarted, now, mine, {
+        bootId: currentBootId(),
+        instanceId: mine,
+        heartbeatAt: fresh,
+      }),
+    ).toBe(true);
+    expect(
+      lockIsStale(restarted, now, mine, {
+        bootId: "other-live-boot",
+        instanceId: mine,
+        heartbeatAt: fresh,
+      }),
+    ).toBe(false);
+    expect(
+      lockIsStale(restarted, now, mine, {
+        bootId: currentBootId(),
+        instanceId: mine,
+        heartbeatAt: new Date(now - 120_000).toISOString(),
+      }),
+    ).toBe(false);
+    expect(lockIsStale(restarted, now, mine, "unreadable")).toBe(false);
     expect(lockIsStale(previousBoot, now, mine, "unreadable")).toBe(false);
     expect(
       lockIsStale(
@@ -194,6 +230,80 @@ describe("lock acquire across instances", () => {
       message: "This diagram is open in another window.",
     });
     expect(JSON.parse(await fs.readFile(lockPath, "utf8")).token).toBe("live-other-boot");
+  });
+
+  it("reopens a diagram immediately when this boot rewrote the instance lock", async () => {
+    const { dir, identity, lockPath } = await setup();
+    const now = new Date().toISOString();
+    await fs.writeFile(
+      path.join(dir, ".meta", "instance-lock.json"),
+      JSON.stringify({
+        instanceId: identity.instanceId,
+        hostname: os.hostname(),
+        pid: process.pid,
+        startedAt: now,
+        heartbeatAt: now,
+        port: null,
+        bootId: currentBootId(),
+      }),
+    );
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify(
+        record({
+          instanceId: identity.instanceId,
+          instanceName: identity.instanceName,
+          hostname: os.hostname(),
+          bootId: "previous-boot",
+          pid: process.pid,
+          heartbeatAt: now,
+          token: "old-boot",
+          sessionId: "tab-before-restart",
+        }),
+      ),
+    );
+    const taken = await acquireLock("Network Core.mmd", "tab-after-restart");
+    expect(taken.token).not.toBe("old-boot");
+    const stored = JSON.parse(await fs.readFile(lockPath, "utf8")) as LockRecord;
+    expect(stored.bootId).toBe(currentBootId());
+  });
+
+  it("keeps a fresh previous-boot lock held when the instance lock names another boot or cannot be read", async () => {
+    const { dir, identity, lockPath } = await setup();
+    const now = new Date().toISOString();
+    const diagram = record({
+      instanceId: identity.instanceId,
+      hostname: os.hostname(),
+      bootId: "previous-boot",
+      pid: process.pid,
+      heartbeatAt: now,
+      token: "still-held",
+      sessionId: "their-tab",
+    });
+    await fs.writeFile(
+      path.join(dir, ".meta", "instance-lock.json"),
+      JSON.stringify({
+        instanceId: identity.instanceId,
+        hostname: os.hostname(),
+        pid: process.pid,
+        startedAt: now,
+        heartbeatAt: now,
+        port: null,
+        bootId: "other-live-boot",
+      }),
+    );
+    await fs.writeFile(lockPath, JSON.stringify(diagram));
+    await expect(acquireLock("Network Core.mmd", "tab-here")).rejects.toMatchObject({
+      status: 423,
+      message: "This diagram is open in another window.",
+    });
+
+    await fs.writeFile(path.join(dir, ".meta", "instance-lock.json"), "{not-json");
+    await expect(acquireLock("Network Core.mmd", "tab-here")).rejects.toMatchObject({
+      status: 423,
+      message: "This diagram is open in another window.",
+    });
+    expect(JSON.parse(await fs.readFile(lockPath, "utf8")).token).toBe("still-held");
   });
 
   it("reopens a diagram after this install restarts, and still blocks a live tab or another instance", async () => {
