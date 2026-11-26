@@ -1,8 +1,9 @@
-import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { currentBootId } from "./bootId.js";
 import { recordDataIssue } from "./dataHealth.js";
+import { readInstanceBootSync, INSTANCE_LOCK_FRESH_MS } from "./instanceLock.js";
 import { getInstanceIdentity, type InstanceIdentity } from "./instanceConfig.js";
 import {
   LOCK_HEARTBEAT_MS,
@@ -36,12 +37,7 @@ export type LockRecord = {
   bootId?: string;
 };
 
-/** One id per process. A container restart is a new boot, even when the instance id is kept. */
-const processBootId = randomUUID();
-
-export function currentBootId(): string {
-  return processBootId;
-}
+export { currentBootId };
 
 type LockFile = LockRecord & { stale: boolean };
 
@@ -98,18 +94,47 @@ function normalizeLock(record: LockRecord): LockRecord {
   };
 }
 
+export type BootHeartbeat = { bootId?: string; heartbeatAt?: string } | null | "unreadable";
+
+/**
+ * An earlier boot of this install is stale immediately only when that boot is
+ * proven dead: this hostname and a dead pid, or the instance heartbeat has no
+ * fresh beat for that boot. Anything else keeps the 90 second rule, so a
+ * second live boot that shares the instance id cannot take the lock.
+ */
+export function previousBootProvenDead(record: LockRecord, heartbeat: BootHeartbeat, now = Date.now()): boolean {
+  const host = optionalText(record.hostname);
+  if (host === os.hostname() && record.pid !== process.pid && !isProcessAlive(record.pid)) return true;
+  if (heartbeat === "unreadable") return false;
+  if (heartbeat == null) return true;
+  const beatBoot = optionalText(heartbeat.bootId);
+  const lockBoot = optionalText(record.bootId);
+  if (!beatBoot || beatBoot !== lockBoot) return false;
+  const age = now - Date.parse(heartbeat.heartbeatAt ?? "");
+  const fresh = Number.isFinite(age) && age >= 0 && age < INSTANCE_LOCK_FRESH_MS;
+  return !fresh;
+}
+
 /**
  * A fresh heartbeat is held. A pid is a liveness signal only for this
- * install on this computer. A lock stamped with an earlier boot of this same
- * install is stale immediately, which is a Docker restart that kept the
- * instance id. Another install is still judged by heartbeat age alone.
+ * install on this computer. Another install is judged by heartbeat age alone,
+ * even when both sides briefly share an instance id and that other boot is
+ * still heartbeating.
  */
-export function lockIsStale(record: LockRecord, now = Date.now(), instanceId?: string): boolean {
+export function lockIsStale(
+  record: LockRecord,
+  now = Date.now(),
+  instanceId?: string,
+  bootHeartbeat?: BootHeartbeat,
+): boolean {
   const heartbeat = Date.parse(record.heartbeatAt);
   if (!Number.isFinite(heartbeat) || now - heartbeat > LOCK_STALE_MS) return true;
   const sameInstance = Boolean(instanceId) && record.instanceId === instanceId;
   const boot = optionalText(record.bootId);
-  if (sameInstance && boot && boot !== currentBootId()) return true;
+  if (sameInstance && boot && boot !== currentBootId()) {
+    const beat = bootHeartbeat === undefined ? readInstanceBootSync() : bootHeartbeat;
+    if (previousBootProvenDead(record, beat, now)) return true;
+  }
   const host = optionalText(record.hostname);
   if (host && host !== os.hostname()) return false;
   const legacy = !optionalText(record.instanceId);
