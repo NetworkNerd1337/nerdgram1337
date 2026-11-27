@@ -6,6 +6,7 @@ Release notes for GitHub Releases. The heading for a release is `## X.Y.Z "Code 
 
 ## Unreleased
 
+- **Added:** `AGENTS.md` at the repo root with commands, rules, and a definition of done for coding agents. Closes #350.
 - **Changed:** Copy-and-paste Docker examples, including `compose.yaml`, use `ghcr.io/networknerd1337/nerdgram1337:latest`. Pin `:vX.Y.Z` when every instance on a shared folder should run the same version, or when you want to choose when to upgrade. A cached `:latest` moves only after `docker pull` or `docker compose pull`.
 
 ## 2.1.27 "Azimuth" - 2026-11-26

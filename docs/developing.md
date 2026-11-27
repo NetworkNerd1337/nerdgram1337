@@ -4,6 +4,8 @@ The project folders, the npm scripts, and what CI runs.
 
 [Back to the documentation index](README.md)
 
+Coding agents read [AGENTS.md](../AGENTS.md) before they change anything.
+
 ```
 NerdGram1337/                  (or NerdGram1337-main/ from the ZIP)
 ├── package.json               install:all, dev, build, start, lint, test, version:check, version:sync
